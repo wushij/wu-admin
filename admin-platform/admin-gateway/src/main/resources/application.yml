@@ -1,0 +1,88 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: admin-gateway
+  
+  # Redis配置 (统一使用database 3)
+  data:
+    redis:
+      host: 127.0.0.1
+      port: 6379
+      database: 3
+      password:
+      lettuce:
+        pool:
+          max-active: 200
+          max-idle: 20
+          min-idle: 5
+          max-wait: 10000ms
+
+  # Gateway路由配置
+  cloud:
+    gateway:
+      # 全局跨域配置
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOriginPatterns: "*"
+            allowedMethods: "*"
+            allowedHeaders: "*"
+            allowCredentials: true
+            maxAge: 3600
+      
+      # 路由配置
+      routes:
+        # 认证服务路由 (RBAC后端)
+        - id: admin-auth
+          uri: http://rbac-server:8081
+          predicates:
+            - Path=/api/auth/**
+          filters:
+            - StripPrefix=1
+        
+        # 系统管理服务路由 (RBAC后端)
+        - id: admin-system
+          uri: http://rbac-server:8081
+          predicates:
+            - Path=/api/system/**
+          filters:
+            - StripPrefix=1
+        
+        # Dashboard统计路由 (RBAC后端)
+        - id: admin-dashboard
+          uri: http://rbac-server:8081
+          predicates:
+            - Path=/api/dashboard/**
+          filters:
+            - StripPrefix=1
+        
+        # RBAC管理端路由
+        - id: rbac-admin
+          uri: http://rbac-server:8081
+          predicates:
+            - Path=/rbac/**
+          filters:
+            - StripPrefix=1
+
+# Sa-Token配置
+sa-token:
+  token-name: Authorization
+  timeout: 86400
+  active-timeout: -1
+  is-concurrent: true
+  is-share: false
+  token-style: uuid
+  is-log: false
+  # Redis配置
+  redis:
+    host: 127.0.0.1
+    port: 6379
+    database: 3
+
+# 日志配置
+logging:
+  level:
+    com.admin.gateway: debug
+    org.springframework.cloud.gateway: debug
