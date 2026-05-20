@@ -1,5 +1,6 @@
 package cn.rbac.server.modules.system.controller.admin.dept;
 
+import cn.rbac.server.framework.log.annotation.Log;
 import cn.rbac.server.common.pojo.CommonResult;
 import cn.rbac.server.common.pojo.PageParam;
 import cn.rbac.server.common.pojo.PageResult;
@@ -64,6 +65,7 @@ public class DeptController {
         return CommonResult.success(deptMapper.selectById(id));
     }
     
+    @Log(title = "部门管理", businessType = Log.BusinessType.INSERT)
     @Operation(summary = "新增部门")
     @PostMapping("/create")
     @PreAuthorize("@ss.hasPermission('system:dept:create')")
@@ -80,6 +82,7 @@ public class DeptController {
         return CommonResult.success(dept.getId());
     }
     
+    @Log(title = "部门管理", businessType = Log.BusinessType.UPDATE)
     @Operation(summary = "修改部门")
     @PutMapping("/update")
     @PreAuthorize("@ss.hasPermission('system:dept:update')")
@@ -96,6 +99,7 @@ public class DeptController {
         return CommonResult.success(true);
     }
     
+    @Log(title = "部门管理", businessType = Log.BusinessType.DELETE)
     @Operation(summary = "删除部门")
     @DeleteMapping("/delete")
     @PreAuthorize("@ss.hasPermission('system:dept:delete')")

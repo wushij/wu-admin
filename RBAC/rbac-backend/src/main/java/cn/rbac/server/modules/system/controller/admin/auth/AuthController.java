@@ -3,8 +3,8 @@ package cn.rbac.server.modules.system.controller.admin.auth;
 import cn.hutool.captcha.CaptchaUtil;
 import cn.hutool.captcha.LineCaptcha;
 import cn.hutool.core.util.IdUtil;
-import cn.hutool.http.useragent.UserAgent;
-import cn.hutool.http.useragent.UserAgentUtil;
+import cn.rbac.server.framework.web.UserAgentUtils;
+import cn.rbac.server.framework.web.ClientIpUtils;
 import cn.rbac.server.common.pojo.CommonResult;
 import cn.rbac.server.framework.security.core.service.TokenService;
 import cn.rbac.server.modules.system.dal.dataobject.loginlog.LoginLogDO;
@@ -13,6 +13,7 @@ import cn.rbac.server.modules.system.dal.dataobject.user.UserDO;
 import cn.rbac.server.modules.system.dal.mysql.loginlog.LoginLogMapper;
 import cn.rbac.server.modules.system.dal.mysql.permission.RoleMapper;
 import cn.rbac.server.modules.system.dal.mysql.user.UserMapper;
+import cn.rbac.server.modules.system.service.monitor.OnlineUserService;
 import cn.rbac.server.modules.system.service.permission.PermissionService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import io.swagger.v3.oas.annotations.Operation;
@@ -22,6 +23,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.lionsoul.ip2region.xdb.Searcher;
 import org.redisson.api.RBucket;
 import org.redisson.api.RedissonClient;
+import org.redisson.api.RAtomicLong;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
@@ -35,8 +38,6 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 @Slf4j
 @Tag(name = "认证管理")
@@ -58,6 +59,23 @@ public class AuthController {
     private RoleMapper roleMapper;
     @Resource
     private LoginLogMapper loginLogMapper;
+    @Resource
+    private OnlineUserService onlineUserService;
+
+    @Value("${auth.security.captcha-enabled:true}")
+    private boolean captchaEnabled;
+
+    /** 单 IP 每分钟最多拉取验证码次数，防刷图 */
+    @Value("${auth.security.captcha-per-ip-minute:40}")
+    private int captchaPerIpMinute;
+
+    /** 单 IP 每分钟最多登录请求次数 */
+    @Value("${auth.security.login-per-ip-minute:30}")
+    private int loginPerIpMinute;
+
+    /** 单 IP 每分钟最多注册次数 */
+    @Value("${auth.security.register-per-ip-minute:10}")
+    private int registerPerIpMinute;
     
     private static final String CAPTCHA_KEY = "captcha:";
     private static final String ONLINE_USER_KEY = "dashboard:online:user:";
@@ -70,7 +88,13 @@ public class AuthController {
     
     @Operation(summary = "获取验证码")
     @GetMapping("/captcha")
-    public CommonResult<Map<String, Object>> captcha() {
+    public CommonResult<Map<String, Object>> captcha(HttpServletRequest request) {
+        String clientIp = getClientIp(request);
+        String rlMsg = rateLimitByIp(clientIp, "captcha", captchaPerIpMinute);
+        if (rlMsg != null) {
+            return CommonResult.error(429, rlMsg);
+        }
+
         String uuid = IdUtil.simpleUUID();
         LineCaptcha lineCaptcha = CaptchaUtil.createLineCaptcha(130, 48, 4, 50);
         String code = lineCaptcha.getCode();
@@ -93,7 +117,7 @@ public class AuthController {
         
         // 登录配置
         Map<String, Object> loginConfig = new HashMap<>();
-        loginConfig.put("captchaEnabled", true);
+        loginConfig.put("captchaEnabled", captchaEnabled);
         loginConfig.put("rememberMe", true);
         result.put("login", loginConfig);
         
@@ -113,22 +137,33 @@ public class AuthController {
         String username = reqVO.getUsername() == null ? "" : reqVO.getUsername().trim();
         String clientIp = getClientIp(request);
 
+        String rlMsg = rateLimitByIp(clientIp, "login", loginPerIpMinute);
+        if (rlMsg != null) {
+            recordLoginLog(username, 1, rlMsg, request);
+            return CommonResult.error(429, rlMsg);
+        }
+
         String lockMessage = checkLoginLock(username, clientIp);
         if (lockMessage != null) {
             recordLoginLog(username, 1, lockMessage, request);
             return CommonResult.error(429, lockMessage);
         }
 
-        // 校验验证码
-        if (reqVO.getUuid() != null && reqVO.getCode() != null) {
-            RBucket<String> bucket = redissonClient.getBucket(CAPTCHA_KEY + reqVO.getUuid());
+        String captchaUuid = reqVO.getUuid() == null ? "" : reqVO.getUuid().trim();
+        String captchaInput = reqVO.getCode() == null ? "" : reqVO.getCode().trim();
+        if (captchaEnabled) {
+            if (captchaUuid.isEmpty() || captchaInput.isEmpty()) {
+                handleLoginFailure(username, clientIp);
+                recordLoginLog(username, 1, "未提供验证码", request);
+                return CommonResult.error(400, "请先完成图形验证码");
+            }
+            RBucket<String> bucket = redissonClient.getBucket(CAPTCHA_KEY + captchaUuid);
             String captchaCode = bucket.get();
-            if (captchaCode == null || !captchaCode.equals(reqVO.getCode().toLowerCase())) {
+            if (captchaCode == null || !captchaCode.equals(captchaInput.toLowerCase())) {
                 handleLoginFailure(username, clientIp);
                 recordLoginLog(username, 1, "验证码错误", request);
                 return CommonResult.error(400, "验证码错误或已过期");
             }
-            // 验证成功后删除验证码
             bucket.delete();
         }
         
@@ -154,10 +189,8 @@ public class AuthController {
         // 生成token并存储到Redis
         String token = tokenService.createToken(user.getId(), user.getUsername());
         
-        // 记录用户在线状态
-        RBucket<Long> onlineBucket = redissonClient.getBucket(ONLINE_USER_KEY + user.getId());
-        onlineBucket.set(System.currentTimeMillis(), 10, TimeUnit.MINUTES);
-        
+        onlineUserService.recordLoginSession(user.getId(), user.getUsername(), user.getNickname(), request);
+
         // 记录登录成功日志
         recordLoginLog(username, 0, "登录成功", request);
         
@@ -186,31 +219,37 @@ public class AuthController {
         // 解析IP地址获取地理位置（简单实现）
         log.setLoginLocation(getLocationByIP(ip));
         
-        // 获取浏览器和操作系统信息
         String userAgentStr = request.getHeader("User-Agent");
-        if (userAgentStr != null && !userAgentStr.isEmpty()) {
-            log.setBrowser(parseBrowser(userAgentStr));
-            log.setOs(parseOs(userAgentStr));
-        } else {
-            log.setBrowser("Unknown");
-            log.setOs("Unknown");
-        }
+        log.setBrowser(UserAgentUtils.parseBrowser(userAgentStr));
+        log.setOs(UserAgentUtils.parseOs(request));
         
         loginLogMapper.insert(log);
     }
 
+    /**
+     * 按 IP 固定窗口（每分钟）限流，用于反爬、防刷接口。
+     *
+     * @return 超限时的提示文案；null 表示放行
+     */
+    private String rateLimitByIp(String clientIp, String action, int maxPerMinute) {
+        if (maxPerMinute <= 0) {
+            return null;
+        }
+        long minute = System.currentTimeMillis() / 60_000L;
+        String redisKey = "auth:rl:" + action + ":" + clientIp + ":" + minute;
+        RAtomicLong counter = redissonClient.getAtomicLong(redisKey);
+        long n = counter.incrementAndGet();
+        if (n == 1) {
+            counter.expire(90, TimeUnit.SECONDS);
+        }
+        if (n > maxPerMinute) {
+            return "请求过于频繁，请稍后再试";
+        }
+        return null;
+    }
+
     private String getClientIp(HttpServletRequest request) {
-        String ip = request.getHeader("X-Forwarded-For");
-        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
-            ip = request.getHeader("X-Real-IP");
-        }
-        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
-            ip = request.getRemoteAddr();
-        }
-        if (ip != null && ip.contains(",")) {
-            ip = ip.split(",")[0].trim();
-        }
-        return ip == null ? "unknown" : ip;
+        return ClientIpUtils.resolve(request);
     }
 
     private String checkLoginLock(String username, String ip) {
@@ -258,68 +297,6 @@ public class AuthController {
         redissonClient.getBucket(LOGIN_LOCK_IP_KEY + ip).delete();
     }
 
-    private String parseBrowser(String userAgentStr) {
-        Matcher edgeMatcher = Pattern.compile("Edg/([\\d.]+)").matcher(userAgentStr);
-        if (edgeMatcher.find()) {
-            return "MSEdge " + majorVersion(edgeMatcher.group(1));
-        }
-        Matcher chromeMatcher = Pattern.compile("Chrome/([\\d.]+)").matcher(userAgentStr);
-        if (chromeMatcher.find() && !userAgentStr.contains("Edg/")) {
-            return "Chrome " + majorVersion(chromeMatcher.group(1));
-        }
-        Matcher firefoxMatcher = Pattern.compile("Firefox/([\\d.]+)").matcher(userAgentStr);
-        if (firefoxMatcher.find()) {
-            return "Firefox " + majorVersion(firefoxMatcher.group(1));
-        }
-        Matcher safariMatcher = Pattern.compile("Version/([\\d.]+).*Safari").matcher(userAgentStr);
-        if (safariMatcher.find() && !userAgentStr.contains("Chrome/") && !userAgentStr.contains("Edg/")) {
-            return "Safari " + majorVersion(safariMatcher.group(1));
-        }
-        UserAgent userAgent = UserAgentUtil.parse(userAgentStr);
-        String fallbackName = userAgent.getBrowser().getName();
-        return (fallbackName == null || fallbackName.isEmpty()) ? "Unknown" : fallbackName;
-    }
-
-    private String parseOs(String userAgentStr) {
-        if (userAgentStr.contains("Windows NT 10.0")) {
-            if (userAgentStr.contains("Windows 11") || userAgentStr.contains("Win11")) {
-                return "Windows 11";
-            }
-            return "Windows 10";
-        }
-        if (userAgentStr.contains("Windows NT 6.3")) return "Windows 8.1";
-        if (userAgentStr.contains("Windows NT 6.2")) return "Windows 8";
-        if (userAgentStr.contains("Windows NT 6.1")) return "Windows 7";
-        if (userAgentStr.contains("Windows NT 6.0")) return "Windows Vista";
-        if (userAgentStr.contains("Windows NT 5.1")) return "Windows XP";
-
-        Matcher androidMatcher = Pattern.compile("Android ([\\d.]+)").matcher(userAgentStr);
-        if (androidMatcher.find()) return "Android " + androidMatcher.group(1);
-
-        Matcher iosMatcher = Pattern.compile("(?:iPhone|CPU (?:iPhone )?OS) ([\\d_]+)").matcher(userAgentStr);
-        if (iosMatcher.find()) return "iOS " + iosMatcher.group(1).replace("_", ".");
-
-        Matcher macMatcher = Pattern.compile("Mac OS X ([\\d_]+)").matcher(userAgentStr);
-        if (macMatcher.find()) return "macOS " + macMatcher.group(1).replace("_", ".");
-
-        if (userAgentStr.contains("Ubuntu")) return "Ubuntu";
-        if (userAgentStr.contains("CentOS")) return "CentOS";
-        if (userAgentStr.contains("Fedora")) return "Fedora";
-        if (userAgentStr.contains("Debian")) return "Debian";
-        if (userAgentStr.contains("Linux")) return "Linux";
-
-        UserAgent userAgent = UserAgentUtil.parse(userAgentStr);
-        String fallbackOs = userAgent.getOs().getName();
-        return (fallbackOs == null || fallbackOs.isEmpty()) ? "Unknown" : fallbackOs;
-    }
-
-    private String majorVersion(String version) {
-        if (version == null || version.isEmpty()) {
-            return "";
-        }
-        String[] parts = version.split("\\.");
-        return parts.length > 0 ? parts[0] : version;
-    }
     
     /**
      * 根据IP地址获取地理位置
@@ -396,9 +373,7 @@ public class AuthController {
         Long userId = tokenService.getUserId(token);
         UserDO user = userMapper.selectById(userId);
         
-        // 更新用户活跃状态
-        RBucket<Long> onlineBucket = redissonClient.getBucket(ONLINE_USER_KEY + userId);
-        onlineBucket.set(System.currentTimeMillis(), 10, TimeUnit.MINUTES);
+        onlineUserService.touchLastAccess(userId);
         
         Map<String, Object> result = new HashMap<>();
         result.put("userId", user.getId());
@@ -413,29 +388,39 @@ public class AuthController {
     
     @Operation(summary = "登出")
     @PostMapping("/logout")
-    public CommonResult<Boolean> logout(@RequestHeader("Authorization") String authHeader) {
-        String token = authHeader.replace("Bearer ", "");
+    public CommonResult<Boolean> logout(@RequestHeader(value = "Authorization", required = false) String authHeader) {
+        if (authHeader == null || authHeader.isBlank()) {
+            return CommonResult.success(true);
+        }
+        String token = authHeader.replace("Bearer ", "").trim();
         Long userId = tokenService.getUserId(token);
-        tokenService.removeToken(userId);
-        
-        // 清除用户在线状态
-        RBucket<Long> onlineBucket = redissonClient.getBucket(ONLINE_USER_KEY + userId);
-        onlineBucket.delete();
-        
+        if (userId != null) {
+            tokenService.removeToken(userId);
+            onlineUserService.forceLogout(userId);
+        }
         return CommonResult.success(true);
     }
     
     @Operation(summary = "注册")
     @PostMapping("/register")
-    public CommonResult<Boolean> register(@RequestBody RegisterReqVO reqVO) {
-        // 校验验证码（如果提供了）
-        if (reqVO.getUuid() != null && reqVO.getCode() != null) {
-            RBucket<String> bucket = redissonClient.getBucket(CAPTCHA_KEY + reqVO.getUuid());
+    public CommonResult<Boolean> register(@RequestBody RegisterReqVO reqVO, HttpServletRequest request) {
+        String clientIp = getClientIp(request);
+        String rlMsg = rateLimitByIp(clientIp, "register", registerPerIpMinute);
+        if (rlMsg != null) {
+            return CommonResult.error(429, rlMsg);
+        }
+
+        String regCaptchaUuid = reqVO.getUuid() == null ? "" : reqVO.getUuid().trim();
+        String regCaptchaCode = reqVO.getCode() == null ? "" : reqVO.getCode().trim();
+        if (captchaEnabled) {
+            if (regCaptchaUuid.isEmpty() || regCaptchaCode.isEmpty()) {
+                return CommonResult.error(400, "请先完成图形验证码");
+            }
+            RBucket<String> bucket = redissonClient.getBucket(CAPTCHA_KEY + regCaptchaUuid);
             String captchaCode = bucket.get();
-            if (captchaCode == null || !captchaCode.equals(reqVO.getCode().toLowerCase())) {
+            if (captchaCode == null || !captchaCode.equals(regCaptchaCode.toLowerCase())) {
                 return CommonResult.error(400, "验证码错误或已过期");
             }
-            // 验证成功后删除验证码
             bucket.delete();
         }
         

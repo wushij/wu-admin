@@ -1,5 +1,6 @@
 package cn.rbac.server.modules.system.controller.admin.user;
 
+import cn.rbac.server.framework.log.annotation.Log;
 import cn.rbac.server.common.pojo.CommonResult;
 import cn.rbac.server.common.pojo.PageParam;
 import cn.rbac.server.common.pojo.PageResult;
@@ -97,6 +98,7 @@ public class UserController {
         return CommonResult.success(userMapper.selectById(id));
     }
     
+    @Log(title = "用户管理", businessType = Log.BusinessType.INSERT, isSaveRequestData = false)
     @Operation(summary = "新增用户")
     @PostMapping("/create")
     @PreAuthorize("@ss.hasPermission('system:user:create')")
@@ -117,6 +119,7 @@ public class UserController {
         return CommonResult.success(user.getId());
     }
     
+    @Log(title = "用户管理", businessType = Log.BusinessType.UPDATE)
     @Operation(summary = "修改用户")
     @PutMapping("/update")
     @PreAuthorize("@ss.hasPermission('system:user:update')")
@@ -135,6 +138,7 @@ public class UserController {
         return CommonResult.success(true);
     }
     
+    @Log(title = "用户管理", businessType = Log.BusinessType.DELETE)
     @Operation(summary = "删除用户")
     @DeleteMapping("/delete")
     @PreAuthorize("@ss.hasPermission('system:user:delete')")
@@ -216,6 +220,7 @@ public class UserController {
     }
     
     @Operation(summary = "重置用户密码")
+    @Log(title = "用户管理", businessType = Log.BusinessType.UPDATE, isSaveRequestData = false, isSaveResponseData = false)
     @PutMapping("/reset-password")
     @PreAuthorize("@ss.hasPermission('system:user:update')")
     public CommonResult<Boolean> resetPassword(@RequestParam Long id, @RequestParam String password) {

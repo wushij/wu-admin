@@ -42,8 +42,13 @@ public class RbacJwtRelayFilter implements GlobalFilter, Ordered {
         // StripPrefix 之后路径会从 /api/system/* 变成 /system/*，这里两种都兼容
         return path.startsWith("/api/system/")
                 || path.startsWith("/api/dashboard/")
+                || path.startsWith("/api/monitor/")
+                || path.startsWith("/api/files/")
                 || path.startsWith("/system/")
                 || path.startsWith("/dashboard/")
+                || path.startsWith("/monitor/")
+                || path.startsWith("/files/")
+                || path.startsWith("/api/monitor/")
                 || path.startsWith("/rbac/");
     }
 

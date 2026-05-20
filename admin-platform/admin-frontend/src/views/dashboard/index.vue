@@ -88,7 +88,7 @@
               <el-icon :size="24"><Menu /></el-icon>
             </div>
             <div class="stat-trend-badge" :class="trends.menu >= 0 ? 'up' : 'down'">
-              <el-icon><Top v-if="trends.menu >= 0" /><Bottom v-else /><Right v-if="trends.menu === 0" /></el-icon>
+              <el-icon><Top v-if="trends.menu >= 0" /><Bottom v-else /></el-icon>
               <span>{{ Math.abs(trends.menu) }}%</span>
             </div>
           </div>
@@ -223,10 +223,32 @@
               </div>
               <el-icon class="quick-arrow"><ArrowRight /></el-icon>
             </div>
+
+            <div v-permission="'system:dict:list'" class="quick-item" @click="$router.push('/system/dict')">
+              <div class="quick-icon-wrapper menu">
+                <el-icon :size="26"><Collection /></el-icon>
+              </div>
+              <div class="quick-info">
+                <div class="quick-name">字典管理</div>
+                <div class="quick-desc">类型与数据维护</div>
+              </div>
+              <el-icon class="quick-arrow"><ArrowRight /></el-icon>
+            </div>
             
+            <div v-permission="'system:operLog:list'" class="quick-item" @click="$router.push('/system/oper-log')">
+              <div class="quick-icon-wrapper log">
+                <el-icon :size="26"><EditPen /></el-icon>
+              </div>
+              <div class="quick-info">
+                <div class="quick-name">操作日志</div>
+                <div class="quick-desc">查看操作记录</div>
+              </div>
+              <el-icon class="quick-arrow"><ArrowRight /></el-icon>
+            </div>
+
             <div class="quick-item" @click="$router.push('/system/login-log')">
               <div class="quick-icon-wrapper log">
-                <el-icon :size="26"><Document /></el-icon>
+                <el-icon :size="26"><Promotion /></el-icon>
               </div>
               <div class="quick-info">
                 <div class="quick-name">登录日志</div>
@@ -234,14 +256,25 @@
               </div>
               <el-icon class="quick-arrow"><ArrowRight /></el-icon>
             </div>
-            
-            <div class="quick-item" @click="$router.push('/dashboard')">
-              <div class="quick-icon-wrapper analytics">
-                <el-icon :size="26"><DataAnalysis /></el-icon>
+
+            <div v-permission="'system:ticket:list'" class="quick-item" @click="$router.push('/system/ticket')">
+              <div class="quick-icon-wrapper ticket">
+                <el-icon :size="26"><Tickets /></el-icon>
               </div>
               <div class="quick-info">
-                <div class="quick-name">数据分析</div>
-                <div class="quick-desc">系统数据统计</div>
+                <div class="quick-name">工单管理</div>
+                <div class="quick-desc">处理与跟踪工单</div>
+              </div>
+              <el-icon class="quick-arrow"><ArrowRight /></el-icon>
+            </div>
+
+            <div v-permission="'system:approval:list'" class="quick-item" @click="$router.push('/system/approval')">
+              <div class="quick-icon-wrapper approval">
+                <el-icon :size="26"><Checked /></el-icon>
+              </div>
+              <div class="quick-info">
+                <div class="quick-name">审批单中心</div>
+                <div class="quick-desc">提交与审批流程单</div>
               </div>
               <el-icon class="quick-arrow"><ArrowRight /></el-icon>
             </div>
@@ -306,13 +339,14 @@ import { getDashboardStats, recordVisit as apiRecordVisit } from '@/api/dashboar
 import { 
   User, 
   UserFilled, 
-  Menu, 
+  Menu,
+  Collection,
   OfficeBuilding, 
-  Document, 
-  DataAnalysis,
+  Document,
+  EditPen,
+  Promotion,
   Grid,
   Top,
-  Right,
   Bottom,
   Avatar,
   View,
@@ -321,7 +355,8 @@ import {
   CircleCheck,
   Tickets,
   Warning,
-  Timer
+  Timer,
+  Checked
 } from '@element-plus/icons-vue'
 
 const userStore = useUserStore()
@@ -774,8 +809,12 @@ onUnmounted(() => {
   background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
 }
 
-.quick-icon-wrapper.analytics {
-  background: linear-gradient(135deg, #30cfd0 0%, #330867 100%);
+.quick-icon-wrapper.ticket {
+  background: linear-gradient(135deg, #f7971e 0%, #ffd200 100%);
+}
+
+.quick-icon-wrapper.approval {
+  background: linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%);
 }
 
 .quick-info {

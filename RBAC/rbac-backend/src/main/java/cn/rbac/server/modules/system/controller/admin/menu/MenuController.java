@@ -1,5 +1,6 @@
 package cn.rbac.server.modules.system.controller.admin.menu;
 
+import cn.rbac.server.framework.log.annotation.Log;
 import cn.rbac.server.common.pojo.CommonResult;
 import cn.rbac.server.common.pojo.PageParam;
 import cn.rbac.server.common.pojo.PageResult;
@@ -46,6 +47,7 @@ public class MenuController {
         return CommonResult.success(menuMapper.selectById(id));
     }
     
+    @Log(title = "菜单管理", businessType = Log.BusinessType.INSERT)
     @Operation(summary = "新增菜单")
     @PostMapping("/create")
     @PreAuthorize("@ss.hasPermission('system:menu:create')")
@@ -64,6 +66,7 @@ public class MenuController {
         return CommonResult.success(menu.getId());
     }
     
+    @Log(title = "菜单管理", businessType = Log.BusinessType.UPDATE)
     @Operation(summary = "修改菜单")
     @PutMapping("/update")
     @PreAuthorize("@ss.hasPermission('system:menu:update')")
@@ -82,6 +85,7 @@ public class MenuController {
         return CommonResult.success(true);
     }
     
+    @Log(title = "菜单管理", businessType = Log.BusinessType.DELETE)
     @Operation(summary = "删除菜单")
     @DeleteMapping("/delete")
     @PreAuthorize("@ss.hasPermission('system:menu:delete')")

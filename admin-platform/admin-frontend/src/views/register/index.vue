@@ -33,17 +33,208 @@
       <div class="gradient-overlay"></div>
     </div>
 
-    <div class="register-container">
-      <!-- 注册表单区域 -->
-      <div class="register-form-wrapper">
-        <div class="register-form">
-          <!-- Logo -->
-          <div class="banner-logo">
-            <div class="logo-icon">A</div>
-            <span class="logo-text">Admin Platform</span>
+    <div class="register-container register-split">
+      <!-- 左侧：品牌与全息科技地球 -->
+      <aside class="register-brand">
+        <div class="register-brand__inner">
+          <div class="register-brand__visual">
+            <div class="register-brand__glow" aria-hidden="true" />
+            <div class="register-brand__logo-wrap">
+              <div class="register-brand__earth" role="img" aria-label="全息地球 · Admin Platform">
+                <div class="register-brand__earth-scan" aria-hidden="true" />
+                <svg
+                  class="register-brand__earth-svg"
+                  viewBox="0 0 200 200"
+                  xmlns="http://www.w3.org/2000/svg"
+                  aria-hidden="true"
+                >
+                  <defs>
+                    <linearGradient id="regEarthTechWire" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stop-color="#22d3ee" />
+                      <stop offset="45%" stop-color="#38bdf8" />
+                      <stop offset="100%" stop-color="#818cf8" />
+                    </linearGradient>
+                    <radialGradient id="regEarthTechCore" cx="34%" cy="26%" r="68%">
+                      <stop offset="0%" stop-color="rgba(56, 189, 248, 0.12)" />
+                      <stop offset="45%" stop-color="rgba(15, 23, 42, 0.55)" />
+                      <stop offset="100%" stop-color="rgba(2, 8, 20, 0.92)" />
+                    </radialGradient>
+                    <radialGradient id="regEarthTechHalo" cx="50%" cy="50%" r="50%">
+                      <stop offset="72%" stop-color="rgba(34, 211, 238, 0)" />
+                      <stop offset="100%" stop-color="rgba(34, 211, 238, 0.5)" />
+                    </radialGradient>
+                    <clipPath id="regEarthSphereClip">
+                      <circle cx="100" cy="100" r="78" />
+                    </clipPath>
+                    <pattern id="regEarthTechDots" width="12" height="12" patternUnits="userSpaceOnUse">
+                      <circle cx="1.5" cy="1.5" r="0.55" fill="rgba(34, 211, 238, 0.14)" />
+                      <circle cx="7" cy="7" r="0.45" fill="rgba(129, 140, 248, 0.12)" />
+                    </pattern>
+                  </defs>
+
+                  <circle cx="100" cy="100" r="84" fill="none" stroke="rgba(34, 211, 238, 0.12)" stroke-width="1" />
+                  <circle cx="100" cy="100" r="79" fill="url(#regEarthTechCore)" />
+                  <circle cx="100" cy="100" r="79" fill="url(#regEarthTechHalo)" />
+
+                  <g clip-path="url(#regEarthSphereClip)">
+                    <rect x="22" y="22" width="156" height="156" fill="url(#regEarthTechDots)" opacity="0.85" />
+                    <circle cx="100" cy="100" r="78" fill="rgba(3, 12, 28, 0.45)" />
+
+                    <g class="register-brand__earth-rotate">
+                      <ellipse
+                        cx="100"
+                        cy="100"
+                        rx="76"
+                        ry="6"
+                        fill="none"
+                        stroke="url(#regEarthTechWire)"
+                        stroke-width="1.15"
+                        stroke-dasharray="6 10"
+                        stroke-linecap="round"
+                        opacity="0.65"
+                      />
+                      <ellipse
+                        cx="100"
+                        cy="100"
+                        rx="68"
+                        ry="26"
+                        fill="none"
+                        stroke="url(#regEarthTechWire)"
+                        stroke-width="0.85"
+                        stroke-dasharray="2 5"
+                        opacity="0.4"
+                      />
+                      <ellipse
+                        cx="100"
+                        cy="100"
+                        rx="48"
+                        ry="54"
+                        fill="none"
+                        stroke="url(#regEarthTechWire)"
+                        stroke-width="0.75"
+                        opacity="0.28"
+                      />
+                      <ellipse
+                        cx="100"
+                        cy="100"
+                        rx="14"
+                        ry="78"
+                        fill="none"
+                        stroke="url(#regEarthTechWire)"
+                        stroke-width="0.95"
+                        opacity="0.42"
+                        transform="rotate(0 100 100)"
+                      />
+                      <ellipse
+                        cx="100"
+                        cy="100"
+                        rx="32"
+                        ry="78"
+                        fill="none"
+                        stroke="url(#regEarthTechWire)"
+                        stroke-width="0.85"
+                        opacity="0.36"
+                        transform="rotate(24 100 100)"
+                      />
+                      <ellipse
+                        cx="100"
+                        cy="100"
+                        rx="50"
+                        ry="78"
+                        fill="none"
+                        stroke="url(#regEarthTechWire)"
+                        stroke-width="0.8"
+                        opacity="0.32"
+                        transform="rotate(48 100 100)"
+                      />
+                      <ellipse
+                        cx="100"
+                        cy="100"
+                        rx="66"
+                        ry="78"
+                        fill="none"
+                        stroke="url(#regEarthTechWire)"
+                        stroke-width="0.75"
+                        opacity="0.26"
+                        transform="rotate(72 100 100)"
+                      />
+                      <ellipse
+                        cx="100"
+                        cy="100"
+                        rx="32"
+                        ry="78"
+                        fill="none"
+                        stroke="url(#regEarthTechWire)"
+                        stroke-width="0.82"
+                        opacity="0.34"
+                        transform="rotate(-30 100 100)"
+                      />
+                      <ellipse
+                        cx="100"
+                        cy="100"
+                        rx="54"
+                        ry="78"
+                        fill="none"
+                        stroke="url(#regEarthTechWire)"
+                        stroke-width="0.78"
+                        opacity="0.3"
+                        transform="rotate(-54 100 100)"
+                      />
+                      <path
+                        fill="none"
+                        stroke="rgba(34, 211, 238, 0.22)"
+                        stroke-width="0.75"
+                        d="M44 96 L88 70 L132 96 L118 124 L72 118 Z"
+                      />
+                      <path
+                        fill="none"
+                        stroke="rgba(129, 140, 248, 0.2)"
+                        stroke-width="0.7"
+                        d="M108 58 L148 78 L138 108 L96 98 Z"
+                      />
+                      <circle cx="56" cy="92" r="2" fill="#22d3ee" opacity="0.85" />
+                      <circle cx="92" cy="74" r="1.5" fill="#a5b4fc" opacity="0.9" />
+                      <circle cx="134" cy="88" r="1.6" fill="#22d3ee" opacity="0.75" />
+                      <circle cx="118" cy="118" r="1.4" fill="#38bdf8" opacity="0.8" />
+                      <circle cx="72" cy="122" r="1.3" fill="#818cf8" opacity="0.75" />
+                      <circle cx="142" cy="64" r="1.2" fill="#22d3ee" opacity="0.65" />
+                    </g>
+                  </g>
+
+                  <circle
+                    cx="100"
+                    cy="100"
+                    r="78"
+                    fill="none"
+                    stroke="rgba(186, 230, 253, 0.4)"
+                    stroke-width="1.2"
+                  />
+                  <ellipse
+                    cx="70"
+                    cy="60"
+                    rx="20"
+                    ry="12"
+                    fill="rgba(255, 255, 255, 0.14)"
+                    transform="rotate(-28 70 60)"
+                  />
+                </svg>
+              </div>
+            </div>
           </div>
-          
-          <el-form ref="formRef" :model="formData" :rules="rules" size="large" class="form-container">
+          <h1 class="register-brand__title">Admin Platform</h1>
+          <p class="register-brand__tagline">统一运维 · 高效管控</p>
+        </div>
+      </aside>
+
+      <!-- 右侧：注册表单 -->
+      <div class="register-form-pane">
+        <div class="register-form-wrapper">
+          <div class="register-form">
+            <header class="register-form__head">
+              <h2 class="register-form__title">Sign Up</h2>
+            </header>
+
+            <el-form ref="formRef" :model="formData" :rules="rules" size="large" class="form-container">
             <el-form-item prop="username" class="form-item">
               <el-input
                 v-model="formData.username"
@@ -124,7 +315,10 @@
               </div>
             </el-form-item>
 
-            <el-form-item class="form-item">
+            <el-form-item
+              class="form-item register-agree-row"
+              :class="{ 'register-agree-row--alert': agreeRowAlert }"
+            >
               <el-checkbox v-model="agreeTerms" class="agree-checkbox">
                 我已阅读并同意
                 <el-link type="primary" class="terms-link">《用户协议》</el-link>
@@ -137,7 +331,6 @@
               <el-button
                 type="primary"
                 :loading="loading"
-                :disabled="!agreeTerms"
                 @click="handleRegister"
                 class="register-button"
                 loading-text="注册中..."
@@ -151,6 +344,7 @@
             <span>已有账号？</span>
             <el-link type="primary" @click="goLogin" class="login-link">立即登录</el-link>
           </div>
+          </div>
         </div>
       </div>
     </div>
@@ -158,7 +352,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { User, Lock, Key, UserFilled } from '@element-plus/icons-vue'
@@ -267,6 +461,8 @@ const options3 = {
 // 配置
 const captchaEnabled = ref(true)
 const agreeTerms = ref(false)
+/** 未勾选协议时：协议行抖动提示（无 Toast） */
+const agreeRowAlert = ref(false)
 
 // 验证码
 const captchaImg = ref('')
@@ -347,10 +543,20 @@ const rules = {
   ]
 }
 
+function bumpAgreeRow() {
+  agreeRowAlert.value = false
+  nextTick(() => {
+    agreeRowAlert.value = true
+    window.setTimeout(() => {
+      agreeRowAlert.value = false
+    }, 540)
+  })
+}
+
 // 注册处理
 async function handleRegister() {
   if (!agreeTerms.value) {
-    ElMessage.warning('请先同意用户协议和隐私政策')
+    bumpAgreeRow()
     return
   }
 
@@ -423,92 +629,276 @@ function goLogin() {
   inset: 0;
   background: radial-gradient(
     ellipse at center,
-    transparent 20%,
-    rgba(0, 0, 0, 0.4) 70%,
-    rgba(0, 0, 0, 0.8) 100%
+    transparent 42%,
+    rgba(0, 0, 0, 0.22) 72%,
+    rgba(0, 0, 0, 0.55) 100%
   );
   pointer-events: none;
 }
 
-/* 注册容器 */
-.register-container {
+/* 左右分栏 */
+.register-container.register-split {
   position: relative;
   z-index: 1;
+  width: 100%;
+  max-width: 1120px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  justify-content: center;
+  gap: 0;
+  min-height: 100vh;
+  padding: clamp(16px, 4vw, 40px);
+  box-sizing: border-box;
+}
+
+.register-brand {
+  position: relative;
+  flex: 1 1 46%;
+  min-width: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 100vh;
+  padding: clamp(24px, 4vw, 56px) clamp(20px, 3vw, 48px);
+  animation: registerBrandIn 0.85s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.register-brand__visual {
+  position: relative;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 212px;
+  margin-bottom: clamp(8px, 1.8vw, 14px);
+}
+
+.register-brand__glow {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: min(272px, 80vw);
+  height: min(272px, 80vw);
+  transform: translate(-50%, -50%);
+  background: radial-gradient(
+    circle,
+    rgba(34, 211, 238, 0.16) 0%,
+    rgba(99, 102, 241, 0.08) 38%,
+    transparent 68%
+  );
+  pointer-events: none;
+  z-index: 0;
+  animation: registerBrandGlow 5s ease-in-out infinite;
+}
+
+.register-brand__inner {
+  position: relative;
+  z-index: 1;
+  text-align: center;
+  max-width: 380px;
+  transform: translateY(-38px);
+}
+
+.register-brand__logo-wrap {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 0;
+  animation: registerLogoFloat 6s ease-in-out infinite;
+}
+
+/* 左侧：全息科技地球（数据网格 + 扫描线 + 自转） */
+.register-brand__earth {
+  position: relative;
+  z-index: 2;
+  width: 172px;
+  height: 172px;
+  border-radius: 50%;
+  overflow: hidden;
+  filter:
+    drop-shadow(0 0 18px rgba(34, 211, 238, 0.45))
+    drop-shadow(0 10px 28px rgba(0, 0, 0, 0.55));
+}
+
+.register-brand__earth-scan {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 2;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 4px,
+    rgba(34, 211, 238, 0.045) 4px,
+    rgba(34, 211, 238, 0.045) 5px
+  );
+  mix-blend-mode: screen;
+  animation: regEarthHudScan 3.5s linear infinite;
+}
+
+.register-brand__earth-svg {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.register-brand__earth-rotate {
+  transform-origin: 100px 100px;
+  transform-box: fill-box;
+  animation: registerEarthSpin 38s linear infinite;
+}
+
+@keyframes regEarthHudScan {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes registerEarthSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.register-brand__title {
+  margin: 0 0 5px;
+  font-size: clamp(1.75rem, 3.8vw, 2.5rem);
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  line-height: 1.2;
+  color: #fff;
+  text-shadow:
+    0 0 28px rgba(255, 255, 255, 0.2),
+    0 4px 20px rgba(0, 0, 0, 0.45);
+}
+
+.register-brand__tagline {
+  margin: 0;
+  font-size: clamp(15px, 1.6vw, 17px);
+  color: rgba(230, 228, 250, 0.92);
+  letter-spacing: 0.12em;
+  font-weight: 500;
+}
+
+.register-form-pane {
+  flex: 1 1 54%;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(16px, 3vw, 32px);
+  border-left: 1px solid rgba(255, 255, 255, 0.12);
   background: transparent;
-  padding: 20px;
+  animation: registerFormPaneIn 0.85s cubic-bezier(0.22, 1, 0.36, 1) 0.08s both;
 }
 
 /* 表单容器 */
 .register-form-wrapper {
   width: 100%;
-  max-width: 450px;
+  max-width: 420px;
   display: flex;
   align-items: center;
   justify-content: center;
+  background: transparent;
+}
+
+.register-form__head {
+  margin-bottom: 24px;
+  text-align: center;
+}
+
+.register-form__title {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.35);
+}
+
+@keyframes registerBrandIn {
+  from {
+    opacity: 0;
+    transform: translateX(-28px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes registerFormPaneIn {
+  from {
+    opacity: 0;
+    transform: translateX(28px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes registerBrandGlow {
+  0%,
+  100% {
+    opacity: 0.85;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.06);
+  }
+}
+
+@keyframes registerLogoFloat {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
 }
 
 .register-form {
   width: 100%;
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(20px);
+  /* 与登录页一致：高透玻璃，透出星空 */
+  background: linear-gradient(
+    160deg,
+    rgba(255, 255, 255, 0.055) 0%,
+    rgba(255, 255, 255, 0.02) 45%,
+    rgba(255, 255, 255, 0.035) 100%
+  );
+  backdrop-filter: blur(10px) saturate(135%);
+  -webkit-backdrop-filter: blur(10px) saturate(135%);
   border-radius: 20px;
   padding: 40px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-  transition: box-shadow 0.3s ease;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  box-shadow:
+    0 4px 24px rgba(0, 0, 0, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  transition: box-shadow 0.3s ease, border-color 0.3s ease;
 }
 
 .register-form:hover {
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
-}
-
-/* Logo 样式 */
-.banner-logo {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 40px;
-  animation: fadeInDown 0.6s ease;
-}
-
-.logo-icon {
-  width: 64px;
-  height: 64px;
-  background: linear-gradient(135deg, rgba(64, 158, 255, 0.9), rgba(102, 126, 234, 0.9));
-  border-radius: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 32px;
-  font-weight: bold;
-  margin-right: 16px;
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  box-shadow: 0 4px 20px rgba(64, 158, 255, 0.4);
-  color: white;
-  transition: all 0.3s ease;
-}
-
-.logo-icon:hover {
-  transform: scale(1.05);
-  box-shadow: 0 6px 24px rgba(64, 158, 255, 0.6);
-}
-
-.logo-text {
-  font-size: 28px;
-  font-weight: 700;
-  color: #fff;
-  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
-  letter-spacing: 1px;
+  border-color: rgba(255, 255, 255, 0.34);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14);
 }
 
 /* 表单容器 */
 .form-container {
   width: 100%;
+  background: transparent !important;
 }
 
 /* 表单项目 */
@@ -614,6 +1004,34 @@ function goLogin() {
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
   font-size: 12px !important;
   margin-top: 4px !important;
+}
+
+/* 未勾选协议：整行抖动提示（无文字 Toast） */
+.register-agree-row--alert :deep(.el-form-item__content) {
+  animation: registerAgreeNudge 0.52s cubic-bezier(0.33, 1, 0.68, 1);
+  transform-origin: 50% 100%;
+}
+
+@keyframes registerAgreeNudge {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  18% {
+    transform: translate3d(-5px, -3px, 0) rotate(-0.55deg);
+  }
+  36% {
+    transform: translate3d(5px, 2px, 0) rotate(0.55deg);
+  }
+  54% {
+    transform: translate3d(-3px, -2px, 0) rotate(-0.35deg);
+  }
+  72% {
+    transform: translate3d(2px, 1px, 0) rotate(0.2deg);
+  }
+  88% {
+    transform: translate3d(-1px, -1px, 0);
+  }
 }
 
 /* 同意协议复选框 */
@@ -761,36 +1179,75 @@ function goLogin() {
   }
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .register-brand,
+  .register-form-pane,
+  .register-brand__glow,
+  .register-brand__logo-wrap,
+  .register-brand__earth-rotate,
+  .register-brand__earth-scan,
+  .register-agree-row--alert :deep(.el-form-item__content) {
+    animation: none !important;
+  }
+}
+
 /* 响应式设计 */
+@media (max-width: 960px) {
+  .register-container.register-split {
+    flex-direction: column;
+    max-width: 460px;
+    align-items: stretch;
+  }
+
+  .register-brand {
+    flex: none;
+    width: 100%;
+    padding: 28px 20px 22px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .register-form-pane {
+    flex: none;
+    width: 100%;
+    border-left: none;
+    padding-top: 4px;
+  }
+
+  .register-brand__visual {
+    min-height: 196px;
+    margin-bottom: clamp(6px, 2vw, 12px);
+  }
+}
+
 @media (max-width: 768px) {
   .register-form-wrapper {
     max-width: 100%;
   }
-  
+
   .register-form {
-    padding: 30px;
+    padding: 28px 20px;
   }
 }
 
 @media (max-width: 480px) {
-  .logo-icon {
-    width: 48px;
-    height: 48px;
-    font-size: 24px;
+  .register-brand__earth {
+    width: 136px;
+    height: 136px;
   }
-  
-  .logo-text {
-    font-size: 20px;
+
+  .register-brand__visual {
+    min-height: 172px;
+    margin-bottom: 10px;
   }
-  
-  .banner-logo {
-    margin-bottom: 30px;
-  }
-  
+
   .register-form {
-    padding: 24px;
+    padding: 22px 16px;
   }
-  
+
+  .register-form__head {
+    margin-bottom: 22px;
+  }
+
   .form-item {
     margin-bottom: 20px;
   }

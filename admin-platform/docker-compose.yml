@@ -71,6 +71,7 @@ services:
       dockerfile: Dockerfile
     container_name: admin-gateway
     environment:
+      APP_RBAC_BASE_URL: http://rbac-server:8081
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: 6379
       SPRING_DATA_REDIS_DATABASE: 3

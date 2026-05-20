@@ -35,17 +35,208 @@
 
 
 
-    <div class="login-container">
-      <!-- 登录表单区域 -->
-      <div class="login-form-wrapper">
-        <div class="login-form">
-          <!-- Logo -->
-          <div class="banner-logo">
-            <div class="logo-icon">A</div>
-            <span class="logo-text">Admin Platform</span>
+    <div class="login-container login-split">
+      <!-- 左侧：品牌与全息科技地球 -->
+      <aside class="login-brand">
+        <div class="login-brand__inner">
+          <div class="login-brand__visual">
+            <div class="login-brand__glow" aria-hidden="true" />
+            <div class="login-brand__logo-wrap">
+              <div class="login-brand__earth" role="img" aria-label="全息地球 · Admin Platform">
+                <div class="login-brand__earth-scan" aria-hidden="true" />
+                <svg
+                  class="login-brand__earth-svg"
+                  viewBox="0 0 200 200"
+                  xmlns="http://www.w3.org/2000/svg"
+                  aria-hidden="true"
+                >
+                  <defs>
+                    <linearGradient id="earthTechWire" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stop-color="#22d3ee" />
+                      <stop offset="45%" stop-color="#38bdf8" />
+                      <stop offset="100%" stop-color="#818cf8" />
+                    </linearGradient>
+                    <radialGradient id="earthTechCore" cx="34%" cy="26%" r="68%">
+                      <stop offset="0%" stop-color="rgba(56, 189, 248, 0.12)" />
+                      <stop offset="45%" stop-color="rgba(15, 23, 42, 0.55)" />
+                      <stop offset="100%" stop-color="rgba(2, 8, 20, 0.92)" />
+                    </radialGradient>
+                    <radialGradient id="earthTechHalo" cx="50%" cy="50%" r="50%">
+                      <stop offset="72%" stop-color="rgba(34, 211, 238, 0)" />
+                      <stop offset="100%" stop-color="rgba(34, 211, 238, 0.5)" />
+                    </radialGradient>
+                    <clipPath id="earthSphereClip">
+                      <circle cx="100" cy="100" r="78" />
+                    </clipPath>
+                    <pattern id="earthTechDots" width="12" height="12" patternUnits="userSpaceOnUse">
+                      <circle cx="1.5" cy="1.5" r="0.55" fill="rgba(34, 211, 238, 0.14)" />
+                      <circle cx="7" cy="7" r="0.45" fill="rgba(129, 140, 248, 0.12)" />
+                    </pattern>
+                  </defs>
+
+                  <circle cx="100" cy="100" r="84" fill="none" stroke="rgba(34, 211, 238, 0.12)" stroke-width="1" />
+                  <circle cx="100" cy="100" r="79" fill="url(#earthTechCore)" />
+                  <circle cx="100" cy="100" r="79" fill="url(#earthTechHalo)" />
+
+                  <g clip-path="url(#earthSphereClip)">
+                    <rect x="22" y="22" width="156" height="156" fill="url(#earthTechDots)" opacity="0.85" />
+                    <circle cx="100" cy="100" r="78" fill="rgba(3, 12, 28, 0.45)" />
+
+                    <g class="login-brand__earth-rotate">
+                      <ellipse
+                        cx="100"
+                        cy="100"
+                        rx="76"
+                        ry="6"
+                        fill="none"
+                        stroke="url(#earthTechWire)"
+                        stroke-width="1.15"
+                        stroke-dasharray="6 10"
+                        stroke-linecap="round"
+                        opacity="0.65"
+                      />
+                      <ellipse
+                        cx="100"
+                        cy="100"
+                        rx="68"
+                        ry="26"
+                        fill="none"
+                        stroke="url(#earthTechWire)"
+                        stroke-width="0.85"
+                        stroke-dasharray="2 5"
+                        opacity="0.4"
+                      />
+                      <ellipse
+                        cx="100"
+                        cy="100"
+                        rx="48"
+                        ry="54"
+                        fill="none"
+                        stroke="url(#earthTechWire)"
+                        stroke-width="0.75"
+                        opacity="0.28"
+                      />
+                      <ellipse
+                        cx="100"
+                        cy="100"
+                        rx="14"
+                        ry="78"
+                        fill="none"
+                        stroke="url(#earthTechWire)"
+                        stroke-width="0.95"
+                        opacity="0.42"
+                        transform="rotate(0 100 100)"
+                      />
+                      <ellipse
+                        cx="100"
+                        cy="100"
+                        rx="32"
+                        ry="78"
+                        fill="none"
+                        stroke="url(#earthTechWire)"
+                        stroke-width="0.85"
+                        opacity="0.36"
+                        transform="rotate(24 100 100)"
+                      />
+                      <ellipse
+                        cx="100"
+                        cy="100"
+                        rx="50"
+                        ry="78"
+                        fill="none"
+                        stroke="url(#earthTechWire)"
+                        stroke-width="0.8"
+                        opacity="0.32"
+                        transform="rotate(48 100 100)"
+                      />
+                      <ellipse
+                        cx="100"
+                        cy="100"
+                        rx="66"
+                        ry="78"
+                        fill="none"
+                        stroke="url(#earthTechWire)"
+                        stroke-width="0.75"
+                        opacity="0.26"
+                        transform="rotate(72 100 100)"
+                      />
+                      <ellipse
+                        cx="100"
+                        cy="100"
+                        rx="32"
+                        ry="78"
+                        fill="none"
+                        stroke="url(#earthTechWire)"
+                        stroke-width="0.82"
+                        opacity="0.34"
+                        transform="rotate(-30 100 100)"
+                      />
+                      <ellipse
+                        cx="100"
+                        cy="100"
+                        rx="54"
+                        ry="78"
+                        fill="none"
+                        stroke="url(#earthTechWire)"
+                        stroke-width="0.78"
+                        opacity="0.3"
+                        transform="rotate(-54 100 100)"
+                      />
+                      <path
+                        fill="none"
+                        stroke="rgba(34, 211, 238, 0.22)"
+                        stroke-width="0.75"
+                        d="M44 96 L88 70 L132 96 L118 124 L72 118 Z"
+                      />
+                      <path
+                        fill="none"
+                        stroke="rgba(129, 140, 248, 0.2)"
+                        stroke-width="0.7"
+                        d="M108 58 L148 78 L138 108 L96 98 Z"
+                      />
+                      <circle cx="56" cy="92" r="2" fill="#22d3ee" opacity="0.85" />
+                      <circle cx="92" cy="74" r="1.5" fill="#a5b4fc" opacity="0.9" />
+                      <circle cx="134" cy="88" r="1.6" fill="#22d3ee" opacity="0.75" />
+                      <circle cx="118" cy="118" r="1.4" fill="#38bdf8" opacity="0.8" />
+                      <circle cx="72" cy="122" r="1.3" fill="#818cf8" opacity="0.75" />
+                      <circle cx="142" cy="64" r="1.2" fill="#22d3ee" opacity="0.65" />
+                    </g>
+                  </g>
+
+                  <circle
+                    cx="100"
+                    cy="100"
+                    r="78"
+                    fill="none"
+                    stroke="rgba(186, 230, 253, 0.4)"
+                    stroke-width="1.2"
+                  />
+                  <ellipse
+                    cx="70"
+                    cy="60"
+                    rx="20"
+                    ry="12"
+                    fill="rgba(255, 255, 255, 0.14)"
+                    transform="rotate(-28 70 60)"
+                  />
+                </svg>
+              </div>
+            </div>
           </div>
-          
-          <el-form ref="formRef" :model="formData" :rules="rules" size="large" class="form-container">
+          <h1 class="login-brand__title">Admin Platform</h1>
+          <p class="login-brand__tagline">统一运维 · 高效管控</p>
+        </div>
+      </aside>
+
+      <!-- 右侧：登录表单 -->
+      <div class="login-form-pane">
+        <div class="login-form-wrapper">
+          <div class="login-form">
+            <header class="login-form__head">
+              <h2 class="login-form__title">Welcome</h2>
+            </header>
+
+            <el-form ref="formRef" :model="formData" :rules="rules" size="large" class="form-container">
             <el-form-item prop="username" class="form-item">
               <el-input
                 v-model="formData.username"
@@ -121,7 +312,8 @@
                 登 录
               </el-button>
             </el-form-item>
-          </el-form>
+            </el-form>
+          </div>
         </div>
       </div>
     </div>
@@ -391,94 +583,289 @@ function goRegister() {
   inset: 0;
   background: radial-gradient(
     ellipse at center,
-    transparent 20%,
-    rgba(0, 0, 0, 0.4) 70%,
-    rgba(0, 0, 0, 0.8) 100%
+    transparent 42%,
+    rgba(0, 0, 0, 0.22) 72%,
+    rgba(0, 0, 0, 0.55) 100%
   );
   pointer-events: none;
 }
 
 
 
-/* 登录容器 */
-.login-container {
+/* 左右分栏 */
+.login-container.login-split {
   position: relative;
   z-index: 1;
+  width: 100%;
+  max-width: 1120px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  justify-content: center;
+  gap: 0;
+  min-height: 100vh;
+  padding: clamp(16px, 4vw, 40px);
+  box-sizing: border-box;
+}
+
+.login-brand {
+  position: relative;
+  flex: 1 1 46%;
+  min-width: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 100vh;
+  padding: clamp(24px, 4vw, 56px) clamp(20px, 3vw, 48px);
+  animation: loginBrandIn 0.85s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.login-brand__visual {
+  position: relative;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 212px;
+  margin-bottom: clamp(8px, 1.8vw, 14px);
+}
+
+.login-brand__glow {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: min(272px, 80vw);
+  height: min(272px, 80vw);
+  transform: translate(-50%, -50%);
+  background: radial-gradient(
+    circle,
+    rgba(34, 211, 238, 0.16) 0%,
+    rgba(99, 102, 241, 0.08) 38%,
+    transparent 68%
+  );
+  pointer-events: none;
+  z-index: 0;
+  animation: loginBrandGlow 5s ease-in-out infinite;
+}
+
+.login-brand__inner {
+  position: relative;
+  z-index: 1;
+  text-align: center;
+  max-width: 380px;
+  transform: translateY(-38px);
+}
+
+.login-brand__logo-wrap {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 0;
+  animation: loginLogoFloat 6s ease-in-out infinite;
+}
+
+/* 左侧：全息科技地球（数据网格 + 扫描线 + 自转） */
+.login-brand__earth {
+  position: relative;
+  z-index: 2;
+  width: 172px;
+  height: 172px;
+  border-radius: 50%;
+  overflow: hidden;
+  filter:
+    drop-shadow(0 0 18px rgba(34, 211, 238, 0.45))
+    drop-shadow(0 10px 28px rgba(0, 0, 0, 0.55));
+}
+
+.login-brand__earth-scan {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 2;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 4px,
+    rgba(34, 211, 238, 0.045) 4px,
+    rgba(34, 211, 238, 0.045) 5px
+  );
+  mix-blend-mode: screen;
+  animation: earthHudScan 3.5s linear infinite;
+}
+
+.login-brand__earth-svg {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.login-brand__earth-rotate {
+  transform-origin: 100px 100px;
+  transform-box: fill-box;
+  animation: loginEarthSpin 38s linear infinite;
+}
+
+@keyframes earthHudScan {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes loginEarthSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.login-brand__title {
+  margin: 0 0 5px;
+  font-size: clamp(1.75rem, 3.8vw, 2.5rem);
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  line-height: 1.2;
+  color: #fff;
+  text-shadow:
+    0 0 28px rgba(255, 255, 255, 0.2),
+    0 4px 20px rgba(0, 0, 0, 0.45);
+}
+
+.login-brand__tagline {
+  margin: 0;
+  font-size: clamp(15px, 1.6vw, 17px);
+  color: rgba(230, 228, 250, 0.92);
+  letter-spacing: 0.12em;
+  font-weight: 500;
+}
+
+.login-form-pane {
+  flex: 1 1 54%;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(16px, 3vw, 32px);
+  border-left: 1px solid rgba(255, 255, 255, 0.12);
   background: transparent;
-  padding: 20px;
+  animation: loginFormPaneIn 0.85s cubic-bezier(0.22, 1, 0.36, 1) 0.08s both;
 }
 
 /* 表单容器 */
 .login-form-wrapper {
   width: 100%;
-  max-width: 450px;
+  max-width: 420px;
   display: flex;
   align-items: center;
   justify-content: center;
+  background: transparent;
+}
+
+.login-form__head {
+  margin-bottom: 24px;
+  text-align: center;
+}
+
+.login-form__title {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.35);
+}
+
+@keyframes loginBrandIn {
+  from {
+    opacity: 0;
+    transform: translateX(-28px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes loginFormPaneIn {
+  from {
+    opacity: 0;
+    transform: translateX(28px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes loginBrandGlow {
+  0%,
+  100% {
+    opacity: 0.85;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.06);
+  }
+}
+
+@keyframes loginLogoFloat {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
 }
 
 .login-form {
   width: 100%;
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(20px);
+  /* 与左侧一致：尽量透，仅靠毛玻璃与细边框勾勒卡片 */
+  background: linear-gradient(
+    160deg,
+    rgba(255, 255, 255, 0.055) 0%,
+    rgba(255, 255, 255, 0.02) 45%,
+    rgba(255, 255, 255, 0.035) 100%
+  );
+  backdrop-filter: blur(10px) saturate(135%);
+  -webkit-backdrop-filter: blur(10px) saturate(135%);
   border-radius: 20px;
   padding: 40px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-  transition: box-shadow 0.3s ease;
+  border: 1px solid rgba(255, 255, 255, 0.26);
+  box-shadow:
+    0 4px 28px rgba(0, 0, 0, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  transition: box-shadow 0.3s ease, border-color 0.3s ease;
 }
 
 .login-form:hover {
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+  border-color: rgba(255, 255, 255, 0.34);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14);
 }
 
-/* Logo 样式 */
-.banner-logo {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 40px;
-  animation: fadeInDown 0.6s ease;
+@media (prefers-reduced-motion: reduce) {
+  .login-brand,
+  .login-form-pane,
+  .login-brand__glow,
+  .login-brand__logo-wrap,
+  .login-brand__earth-rotate,
+  .login-brand__earth-scan {
+    animation: none !important;
+  }
 }
 
-.logo-icon {
-  width: 64px;
-  height: 64px;
-  background: linear-gradient(135deg, rgba(64, 158, 255, 0.9), rgba(102, 126, 234, 0.9));
-  border-radius: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 32px;
-  font-weight: bold;
-  margin-right: 16px;
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  box-shadow: 0 4px 20px rgba(64, 158, 255, 0.4);
-  color: white;
-  transition: all 0.3s ease;
-}
-
-.logo-icon:hover {
-  transform: scale(1.05);
-  box-shadow: 0 6px 24px rgba(64, 158, 255, 0.6);
-}
-
-.logo-text {
-  font-size: 28px;
-  font-weight: 700;
-  color: #fff;
-  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
-  letter-spacing: 1px;
-}
-
-/* 表单容器 */
+/* 表单容器：避免 Element 默认底色盖住玻璃 */
 .form-container {
   width: 100%;
+  background: transparent !important;
 }
 
 /* 表单项目 */
@@ -699,29 +1086,60 @@ function goRegister() {
 }
 
 /* 响应式设计 */
+@media (max-width: 960px) {
+  .login-container.login-split {
+    flex-direction: column;
+    max-width: 460px;
+    align-items: stretch;
+  }
+
+  .login-brand {
+    flex: none;
+    width: 100%;
+    padding: 28px 20px 22px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .login-form-pane {
+    flex: none;
+    width: 100%;
+    border-left: none;
+    padding-top: 4px;
+  }
+
+  .login-brand__visual {
+    min-height: 196px;
+    margin-bottom: clamp(6px, 2vw, 12px);
+  }
+}
+
 @media (max-width: 768px) {
   .login-form-wrapper {
     max-width: 100%;
   }
-  
+
   .login-form {
-    padding: 0 10px;
+    padding: 28px 20px;
   }
 }
 
 @media (max-width: 480px) {
-  .logo-icon {
-    width: 48px;
-    height: 48px;
-    font-size: 24px;
+  .login-brand__earth {
+    width: 136px;
+    height: 136px;
   }
-  
-  .logo-text {
-    font-size: 20px;
+
+  .login-brand__visual {
+    min-height: 172px;
+    margin-bottom: 10px;
   }
-  
-  .banner-logo {
-    margin-bottom: 30px;
+
+  .login-form {
+    padding: 22px 16px;
+  }
+
+  .login-form__head {
+    margin-bottom: 22px;
   }
 }
 </style>

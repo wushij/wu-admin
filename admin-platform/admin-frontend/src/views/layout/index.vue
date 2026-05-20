@@ -163,14 +163,11 @@ import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/store/user'
 import * as ElementPlusIconsVue from '@element-plus/icons-vue'
 import { themePresets, applyTheme, saveTheme, getCurrentTheme, adjustColor } from '@/utils/theme'
+import { resolveMenuIcon } from '@/utils/menu-icon'
 import { ElMessage } from 'element-plus'
 import { getMyNoticeList, getUnreadNoticeCount, readAllNotice, readNotice } from '@/api/system/notice'
 
-// 图标转换函数：将数据库中的图标名称转换为 Element Plus 图标组件
-const getIconComponent = (iconName) => {
-  if (!iconName) return ElementPlusIconsVue['Menu']
-  return ElementPlusIconsVue[iconName] || ElementPlusIconsVue['Menu']
-}
+const getIconComponent = (iconName) => resolveMenuIcon(iconName)
 
 const route = useRoute()
 const router = useRouter()
@@ -272,9 +269,9 @@ const toggleCollapse = () => {
   isCollapse.value = !isCollapse.value
 }
 
-const handleCommand = (command) => {
+const handleCommand = async (command) => {
   if (command === 'logout') {
-    userStore.logout()
+    await userStore.logoutAction()
     router.push('/login')
   }
 }
@@ -590,7 +587,7 @@ onMounted(async () => {
 .main-content {
   flex: 1;
   padding: 20px;
-  background: #f0f2f5;
+  background: var(--theme-bg, #f0f2f5);
   overflow: auto;
 }
 
