@@ -33,5 +33,8 @@ Desktop.ini
 .env.*
 !.env.example
 
-# Optional: Docker / local data (uncomment if needed)
-# *.xdb
+# Local uploads & runtime data
+RBAC/rbac-backend/data/
+
+# IDE / editor
+.cursor/
