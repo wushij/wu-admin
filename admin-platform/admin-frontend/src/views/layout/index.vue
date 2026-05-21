@@ -18,7 +18,7 @@
           class="sidebar-menu"
           :collapse="isCollapse"
           :collapse-transition="true"
-          router
+          @select="handleMenuSelect"
         >
           <el-menu-item index="/dashboard" class="menu-item-dashboard">
             <el-icon><component :is="ElementPlusIconsVue.HomeFilled" /></el-icon>
@@ -37,7 +37,7 @@
               <el-menu-item 
                 v-for="child in menu.children" 
                 :key="child.id" 
-                :index="child.path"
+                :index="resolveMenuIndex(child)"
                 class="menu-item"
               >
                 <el-icon><component :is="getIconComponent(child.icon)" /></el-icon>
@@ -46,7 +46,7 @@
                 </template>
               </el-menu-item>
             </el-sub-menu>
-            <el-menu-item v-else :index="menu.path" class="menu-item">
+            <el-menu-item v-else :index="resolveMenuIndex(menu)" class="menu-item">
               <el-icon><component :is="getIconComponent(menu.icon)" /></el-icon>
               <template #title>
                 <span>{{ menu.name }}</span>
@@ -264,6 +264,26 @@ const userMenus = computed(() => {
   
   return rootMenus
 })
+
+/** 外链菜单（component 为 http(s)）新窗口打开；其余走路由 */
+function resolveMenuIndex(menu) {
+  const comp = menu?.component?.trim()
+  if (comp && /^https?:\/\//i.test(comp)) {
+    return `external:${comp}`
+  }
+  return menu.path || String(menu.id)
+}
+
+function handleMenuSelect(index) {
+  const key = String(index)
+  if (key.startsWith('external:')) {
+    window.open(key.slice('external:'.length), '_blank')
+    return
+  }
+  if (key.startsWith('/')) {
+    router.push(key)
+  }
+}
 
 const toggleCollapse = () => {
   isCollapse.value = !isCollapse.value

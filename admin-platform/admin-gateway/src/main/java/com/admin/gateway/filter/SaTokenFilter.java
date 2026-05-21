@@ -33,7 +33,11 @@ public class SaTokenFilter {
                                     "/api/auth/login",
                                     "/api/auth/register",
                                     "/api/auth/captcha",
-                                    "/api/auth/config"
+                                    "/api/auth/config",
+                                    "/api/doc.html",
+                                    "/api/swagger-ui/**",
+                                    "/api/v3/api-docs/**",
+                                    "/api/webjars/**"
                             )
                             // 其余接口统一要求登录
                             .check(r -> StpUtil.checkLogin());

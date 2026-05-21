@@ -1,11 +1,19 @@
 import request from '@/utils/request'
 
-// 获取菜单列表
+// 获取菜单树（管理页，支持 name/status/type 筛选）
 export function getMenuList(params) {
   return request({
     url: '/system/menu/list',
     method: 'get',
     params
+  })
+}
+
+// 全量扁平列表（角色分配菜单等）
+export function getMenuSimpleList() {
+  return request({
+    url: '/system/menu/simple-list',
+    method: 'get'
   })
 }
 

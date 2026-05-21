@@ -52,6 +52,10 @@ const LEGACY_ICON_MAP: Record<string, string> = {
   server: 'Monitor',
   redis: 'Coin',
   build: 'Tools',
+  hammer: 'Tools',
+  Hammer: 'Tools',
+  HammerOutline: 'Tools',
+  DocumentOutline: 'Document',
   code: 'Document',
   swagger2: 'Connection'
 }

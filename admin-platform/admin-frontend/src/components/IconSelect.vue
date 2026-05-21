@@ -1,37 +1,65 @@
 <template>
-  <el-select
-    v-model="selectedIcon"
-    placeholder="请选择图标"
-    clearable
-    filterable
-    @change="handleIconChange"
-    class="icon-select"
+  <el-popover
+    v-model:visible="popoverVisible"
+    placement="top-start"
+    :fallback-placements="['bottom-start', 'top-end']"
+    :width="400"
+    trigger="click"
+    :show-arrow="true"
+    popper-class="icon-select-popper"
   >
-    <template #prefix>
-      <el-icon v-if="selectedIcon">
-        <component :is="selectedIcon" />
-      </el-icon>
+    <template #reference>
+      <el-input
+        :model-value="displayValue"
+        placeholder="请选择图标"
+        readonly
+        clearable
+        class="icon-select-trigger"
+        @clear="handleClear"
+      >
+        <template #prefix>
+          <el-icon v-if="modelValue" class="trigger-icon">
+            <component :is="currentIconComponent" />
+          </el-icon>
+        </template>
+      </el-input>
     </template>
-    
-    <el-option
-      v-for="icon in iconList"
-      :key="icon.name"
-      :label="icon.name"
-      :value="icon.name"
-    >
-      <div class="icon-option">
-        <el-icon :size="18">
-          <component :is="icon.component" />
-        </el-icon>
-        <span class="icon-name">{{ icon.name }}</span>
+
+    <div class="icon-picker-panel">
+      <el-input
+        v-model="searchText"
+        placeholder="搜索图标"
+        clearable
+        :prefix-icon="Search"
+        class="icon-search"
+      />
+      <div class="icon-grid-scroll">
+        <div v-if="filteredIcons.length" class="icon-grid">
+          <div
+            v-for="item in filteredIcons"
+            :key="item.name"
+            class="icon-grid-item"
+            :class="{ active: modelValue === item.name }"
+            :title="item.name"
+            @click="handleSelect(item.name)"
+          >
+            <el-icon :size="22">
+              <component :is="item.component" />
+            </el-icon>
+            <span class="icon-label">{{ item.label }}</span>
+          </div>
+        </div>
+        <el-empty v-else description="未找到匹配图标" :image-size="56" />
       </div>
-    </el-option>
-  </el-select>
+    </div>
+  </el-popover>
 </template>
 
 <script setup>
 import { ref, computed, watch } from 'vue'
 import * as ElementPlusIconsVue from '@element-plus/icons-vue'
+import { Search } from '@element-plus/icons-vue'
+import { getIconLabel } from '@/utils/icon-labels'
 
 const props = defineProps({
   modelValue: {
@@ -42,108 +70,253 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue', 'change'])
 
-const selectedIcon = ref(props.modelValue)
+const popoverVisible = ref(false)
+const searchText = ref('')
 
-// 菜单常用图标（置顶，便于在「菜单管理」里快速选到）
-const MENU_COMMON_ICONS = [
-  'Folder', 'FolderOpened', 'Document', 'DocumentCopy', 'Files', 'List', 'Menu',
-  'Setting', 'User', 'Key', 'UserFilled', 'Monitor', 'OfficeBuilding', 'Tickets',
-  'HomeFilled', 'Management', 'Grid', 'Collection', 'Tools', 'Lock', 'Bell'
+/** 默认优先展示（置顶），其余图标跟在后面 */
+const PRIORITY_ICON_NAMES = [
+  'HomeFilled', 'Setting', 'User', 'UserFilled', 'Key', 'Lock',
+  'Document', 'DocumentCopy', 'Files', 'Folder', 'FolderOpened', 'Grid',
+  'ElementPlus', 'List', 'Menu', 'Search', 'Plus', 'Edit', 'Delete',
+  'Upload', 'Download', 'Picture', 'Camera', 'VideoCamera', 'Headset',
+  'Reading', 'Notebook', 'Collection', 'CollectionTag', 'Calendar', 'Clock',
+  'AlarmClock', 'Monitor', 'OfficeBuilding', 'Management', 'Tickets',
+  'Bell', 'Message', 'Tools', 'Operation', 'Phone', 'Printer', 'Link',
+  'View', 'Refresh', 'Star', 'Warning', 'InfoFilled', 'Checked',
+  'DataAnalysis', 'DataBoard', 'TrendCharts', 'PieChart', 'Histogram',
+  'Suitcase', 'Promotion', 'Share', 'Connection', 'MapLocation', 'Wallet',
+  'ShoppingCart', 'Shop', 'Service', 'Help', 'Guide', 'Compass', 'Flag',
+  'ChatDotRound', 'Comment', 'Notification', 'Mute', 'Microphone',
+  'VideoPlay', 'PictureFilled', 'FolderAdd', 'DocumentAdd', 'CopyDocument',
+  'Filter', 'Sort', 'Expand', 'Fold', 'FullScreen', 'Hide', 'Location',
+  'Cellphone', 'CreditCard', 'Goods', 'Platform', 'Memo', 'Timer',
+  'Moon', 'Sunny', 'Cloudy', 'Brush', 'Medal', 'Trophy', 'Rank',
+  'Open', 'TurnOff', 'Switch', 'More', 'Pointer', 'Present', 'PriceTag',
+  'Postcard', 'Paperclip', 'Crop', 'Coordinate', 'MagicStick', 'Lightning',
+  'Loading', 'CircleCheck', 'CircleClose', 'SuccessFilled', 'Failed',
+  'RefreshRight', 'RefreshLeft', 'SortUp', 'SortDown', 'ZoomIn', 'ZoomOut',
+  'Minus', 'Remove', 'EditPen', 'UploadFilled', 'Unlock',
+  'Avatar', 'Male', 'Female', 'School', 'Van', 'Ship', 'Bicycle',
+  'Coffee', 'Food', 'KnifeFork', 'Box', 'Handbag', 'Discount', 'Sell',
+  'Finished', 'Select', 'Aim', 'Back', 'Right', 'Top', 'Bottom'
 ]
 
-// Element Plus 所有图标（200+）
-const allIcons = [
-  // 基础图标
-  'AddLocation', 'Aim', 'AlarmClock', 'Apple', 'ArrowDown', 'ArrowDownBold', 
-  'ArrowLeft', 'ArrowLeftBold', 'ArrowRight', 'ArrowRightBold', 'ArrowUp', 
-  'ArrowUpBold', 'Avatar', 'Back', 'Baseball', 'Basketball', 'Bell', 
-  'BellFilled', 'Bicycle', 'Bottom', 'BottomLeft', 'BottomRight', 'Bowl', 
-  'Box', 'Briefcase', 'Brush', 'BrushFilled', 'Burger', 'Calendar', 
-  'Camera', 'CameraFilled', 'CaretBottom', 'CaretLeft', 'CaretRight', 
-  'CaretTop', 'Cellphone', 'ChatDotRound', 'ChatDotSquare', 'ChatLineRound', 
-  'ChatLineSquare', 'ChatRound', 'ChatSquare', 'Check', 'Checked', 'Cherry', 
-  'Chicken', 'ChromeFilled', 'CircleCheck', 'CircleCheckFilled', 'CircleClose', 
-  'CircleCloseFilled', 'CirclePlus', 'CirclePlusFilled', 'Clock', 'Close', 
-  'CloseBold', 'Cloudy', 'Coffee', 'CoffeeCup', 'Coin', 'ColdDrink', 
-  'Collection', 'CollectionTag', 'Comment', 'Compass', 'Connection', 
-  'Coordinate', 'CopyDocument', 'CreditCard', 'Crop', 'DArrowLeft', 
-  'DArrowRight', 'DArrowUp', 'DArrowDown', 'DataAnalysis', 'DataBoard', 
-  'DataLine', 'Delete', 'DeleteFilled', 'DeleteLocation', 'Dessert', 
-  'Discount', 'Dish', 'DishDot', 'Document', 'DocumentAdd', 'DocumentChecked', 
-  'DocumentCopy', 'DocumentDelete', 'DocumentRemove', 'Download', 'Drizzling', 
-  'Edit', 'EditPen', 'Eleme', 'ElemeFilled', 'ElementPlus', 'Expand', 
-  'Failed', 'Female', 'Files', 'Film', 'Filter', 'Finished', 'FirstAidKit', 
-  'Flag', 'Fold', 'Folder', 'FolderAdd', 'FolderChecked', 'FolderDelete', 
-  'FolderOpened', 'FolderRemove', 'Food', 'Football', 'ForkSpoon', 'Fries', 
-  'FullScreen', 'Goblet', 'GobletFull', 'GobletSquare', 'GobletSquareFull', 
-  'GoldMedal', 'Goods', 'GoodsFilled', 'Grape', 'Grid', 'Guide', 
-  'Handbag', 'Headset', 'Help', 'HelpFilled', 'Hide', 'Histogram', 
-  'HomeFilled', 'HotWater', 'House', 'IceCream', 'IceCreamRound', 
-  'IceCreamSquare', 'IceDrink', 'IceTea', 'InfoFilled', 'Iphone', 'Key', 
-  'KnifeFork', 'Lightning', 'Link', 'List', 'Loading', 'Location', 
-  'LocationFilled', 'LocationInformation', 'Lock', 'Lollipop', 'MagicStick', 
-  'Magnet', 'Male', 'Management', 'MapLocation', 'Medal', 'Memo', 
-  'Menu', 'Message', 'MessageBox', 'Mic', 'Microphone', 'Minus', 
-  'Money', 'Monitor', 'Moon', 'MoonNight', 'More', 'MoreFilled', 
-  'MostlyCloudy', 'MostlySunny', 'Mug', 'Mute', 'MuteNotification', 
-  'NoSmoking', 'Notebook', 'Notification', 'Odometer', 'OfficeBuilding', 
-  'Open', 'Operation', 'Opportunity', 'Orange', 'Paperclip', 'PartlyCloudy', 
-  'Pear', 'Phone', 'PhoneFilled', 'Picture', 'PictureFilled', 'PictureRounded', 
-  'PieChart', 'Place', 'Platform', 'Plus', 'Pointer', 'Position', 
-  'Postcard', 'Pouring', 'Present', 'PriceTag', 'Printer', 'Promotion', 
-  'QuartzWatch', 'QuestionFilled', 'Rank', 'Reading', 'ReadingLamp', 
-  'Refresh', 'RefreshLeft', 'RefreshRight', 'Refrigerator', 'Remove', 
-  'RemoveFilled', 'Right', 'ScaleToOriginal', 'School', 'Scissor', 'Search', 
-  'Select', 'Sell', 'SemiSelect', 'Service', 'SetUp', 'Setting', 
-  'SetUp', 'SetUpFilled', 'Share', 'Ship', 'Shop', 'ShoppingBag', 
-  'ShoppingCart', 'ShoppingCartFull', 'ShoppingTrolley', 'Smoking', 
-  'Soccer', 'SoldOut', 'Sort', 'SortDown', 'SortUp', 'Stamp', 
-  'Star', 'StarFilled', 'Stopwatch', 'SuccessFilled', 'Sunny', 
-  'Sunrise', 'Sunset', 'Switch', 'SwitchButton', 'SwitchFilled', 
-  'TakeawayBox', 'Ticket', 'Tickets', 'Timer', 'ToiletPaper', 
-  'Tools', 'Top', 'TopLeft', 'TopRight', 'TrendCharts', 'Trophy', 
-  'TrophyBase', 'TurnOff', 'Umbrella', 'Unlock', 'Upload', 'UploadFilled', 
-  'User', 'UserFilled', 'Van', 'VideoCamera', 'VideoCameraFilled', 
-  'VideoPause', 'VideoPlay', 'View', 'Wallet', 'WalletFilled', 'Warning', 
+const ALL_ICON_NAMES = [
+  'AddLocation', 'Aim', 'AlarmClock', 'Apple', 'ArrowDown', 'ArrowDownBold',
+  'ArrowLeft', 'ArrowLeftBold', 'ArrowRight', 'ArrowRightBold', 'ArrowUp',
+  'ArrowUpBold', 'Avatar', 'Back', 'Baseball', 'Basketball', 'Bell',
+  'BellFilled', 'Bicycle', 'Bottom', 'BottomLeft', 'BottomRight', 'Bowl',
+  'Box', 'Briefcase', 'Brush', 'BrushFilled', 'Burger', 'Calendar',
+  'Camera', 'CameraFilled', 'CaretBottom', 'CaretLeft', 'CaretRight',
+  'CaretTop', 'Cellphone', 'ChatDotRound', 'ChatDotSquare', 'ChatLineRound',
+  'ChatLineSquare', 'ChatRound', 'ChatSquare', 'Check', 'Checked', 'Cherry',
+  'Chicken', 'ChromeFilled', 'CircleCheck', 'CircleCheckFilled', 'CircleClose',
+  'CircleCloseFilled', 'CirclePlus', 'CirclePlusFilled', 'Clock', 'Close',
+  'CloseBold', 'Cloudy', 'Coffee', 'CoffeeCup', 'Coin', 'ColdDrink',
+  'Collection', 'CollectionTag', 'Comment', 'Compass', 'Connection',
+  'Coordinate', 'CopyDocument', 'CreditCard', 'Crop', 'DArrowLeft',
+  'DArrowRight', 'DArrowUp', 'DArrowDown', 'DataAnalysis', 'DataBoard',
+  'DataLine', 'Delete', 'DeleteFilled', 'DeleteLocation', 'Dessert',
+  'Discount', 'Dish', 'DishDot', 'Document', 'DocumentAdd', 'DocumentChecked',
+  'DocumentCopy', 'DocumentDelete', 'DocumentRemove', 'Download', 'Drizzling',
+  'Edit', 'EditPen', 'Eleme', 'ElemeFilled', 'ElementPlus', 'Expand',
+  'Failed', 'Female', 'Files', 'Film', 'Filter', 'Finished', 'FirstAidKit',
+  'Flag', 'Fold', 'Folder', 'FolderAdd', 'FolderChecked', 'FolderDelete',
+  'FolderOpened', 'FolderRemove', 'Food', 'Football', 'ForkSpoon', 'Fries',
+  'FullScreen', 'Goblet', 'GobletFull', 'GobletSquare', 'GobletSquareFull',
+  'GoldMedal', 'Goods', 'GoodsFilled', 'Grape', 'Grid', 'Guide',
+  'Handbag', 'Headset', 'Help', 'HelpFilled', 'Hide', 'Histogram',
+  'HomeFilled', 'HotWater', 'House', 'IceCream', 'IceCreamRound',
+  'IceCreamSquare', 'IceDrink', 'IceTea', 'InfoFilled', 'Iphone', 'Key',
+  'KnifeFork', 'Lightning', 'Link', 'List', 'Loading', 'Location',
+  'LocationFilled', 'LocationInformation', 'Lock', 'Lollipop', 'MagicStick',
+  'Magnet', 'Male', 'Management', 'MapLocation', 'Medal', 'Memo',
+  'Menu', 'Message', 'MessageBox', 'Mic', 'Microphone', 'Minus',
+  'Money', 'Monitor', 'Moon', 'MoonNight', 'More', 'MoreFilled',
+  'MostlyCloudy', 'MostlySunny', 'Mug', 'Mute', 'MuteNotification',
+  'NoSmoking', 'Notebook', 'Notification', 'Odometer', 'OfficeBuilding',
+  'Open', 'Operation', 'Opportunity', 'Orange', 'Paperclip', 'PartlyCloudy',
+  'Pear', 'Phone', 'PhoneFilled', 'Picture', 'PictureFilled', 'PictureRounded',
+  'PieChart', 'Place', 'Platform', 'Plus', 'Pointer', 'Position',
+  'Postcard', 'Pouring', 'Present', 'PriceTag', 'Printer', 'Promotion',
+  'QuartzWatch', 'QuestionFilled', 'Rank', 'Reading', 'ReadingLamp',
+  'Refresh', 'RefreshLeft', 'RefreshRight', 'Refrigerator', 'Remove',
+  'RemoveFilled', 'Right', 'ScaleToOriginal', 'School', 'Scissor', 'Search',
+  'Select', 'Sell', 'SemiSelect', 'Service', 'SetUp', 'Setting',
+  'Share', 'Ship', 'Shop', 'ShoppingBag',
+  'ShoppingCart', 'ShoppingCartFull', 'ShoppingTrolley', 'Smoking',
+  'Soccer', 'SoldOut', 'Sort', 'SortDown', 'SortUp', 'Stamp',
+  'Star', 'StarFilled', 'Stopwatch', 'SuccessFilled', 'Sunny',
+  'Sunrise', 'Sunset', 'Switch', 'SwitchButton', 'SwitchFilled',
+  'TakeawayBox', 'Ticket', 'Tickets', 'Timer', 'ToiletPaper',
+  'Tools', 'Top', 'TopLeft', 'TopRight', 'TrendCharts', 'Trophy',
+  'TrophyBase', 'TurnOff', 'Umbrella', 'Unlock', 'Upload', 'UploadFilled',
+  'User', 'UserFilled', 'Van', 'VideoCamera', 'VideoCameraFilled',
+  'VideoPause', 'VideoPlay', 'View', 'Wallet', 'WalletFilled', 'Warning',
   'WarningFilled', 'Watch', 'Watermelon', 'WindPower', 'ZoomIn', 'ZoomOut'
 ]
 
-// 图标列表：常用置顶 + 其余按字母
-const iconList = computed(() => {
-  const valid = allIcons.filter((name) => ElementPlusIconsVue[name])
-  const commonSet = new Set(MENU_COMMON_ICONS)
-  const common = MENU_COMMON_ICONS.filter((name) => valid.includes(name))
-  const rest = valid.filter((name) => !commonSet.has(name)).sort()
-  return [...common, ...rest].map((name) => ({
-    name,
-    component: ElementPlusIconsVue[name]
-  }))
+function toIconItems(names) {
+  return names
+    .filter((name) => ElementPlusIconsVue[name])
+    .map((name) => ({
+      name,
+      label: getIconLabel(name),
+      component: ElementPlusIconsVue[name]
+    }))
+}
+
+const fullIconCatalog = computed(() => {
+  const valid = ALL_ICON_NAMES.filter((name) => ElementPlusIconsVue[name])
+  const prioritySet = new Set(PRIORITY_ICON_NAMES)
+  const priority = PRIORITY_ICON_NAMES.filter((name) => valid.includes(name))
+  const rest = valid.filter((name) => !prioritySet.has(name)).sort()
+  return toIconItems([...priority, ...rest])
 })
 
-// 监听外部变化
-watch(() => props.modelValue, (newVal) => {
-  selectedIcon.value = newVal
+const filteredIcons = computed(() => {
+  const q = searchText.value.trim().toLowerCase()
+  if (!q) {
+    return fullIconCatalog.value
+  }
+  return fullIconCatalog.value.filter(
+    (item) =>
+      item.name.toLowerCase().includes(q) ||
+      item.label.toLowerCase().includes(q)
+  )
 })
 
-// 图标选择变化
-const handleIconChange = (value) => {
-  emit('update:modelValue', value)
-  emit('change', value)
+const currentIconComponent = computed(() => {
+  if (!props.modelValue) return null
+  return ElementPlusIconsVue[props.modelValue] || null
+})
+
+const displayValue = computed(() => {
+  if (!props.modelValue) return ''
+  return getIconLabel(props.modelValue)
+})
+
+watch(popoverVisible, (visible) => {
+  if (!visible) {
+    searchText.value = ''
+  }
+})
+
+const handleSelect = (name) => {
+  emit('update:modelValue', name)
+  emit('change', name)
+  popoverVisible.value = false
+  searchText.value = ''
+}
+
+const handleClear = () => {
+  emit('update:modelValue', '')
+  emit('change', '')
 }
 </script>
 
 <style scoped>
-.icon-select {
+.icon-select-trigger {
+  width: 100%;
+  cursor: pointer;
+}
+
+.icon-select-trigger :deep(.el-input__inner) {
+  cursor: pointer;
+}
+
+.trigger-icon {
+  font-size: 18px;
+}
+
+.icon-picker-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  max-width: 376px;
+  overflow: hidden;
+}
+
+.icon-search {
+  width: 100%;
+  flex-shrink: 0;
+}
+
+.icon-grid-scroll {
+  max-height: 360px;
+  overflow-y: auto;
+  overflow-x: hidden;
   width: 100%;
 }
 
-.icon-option {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.icon-grid-scroll::-webkit-scrollbar {
+  width: 6px;
 }
 
-.icon-name {
-  font-size: 13px;
+.icon-grid-scroll::-webkit-scrollbar-thumb {
+  background: var(--el-border-color);
+  border-radius: 3px;
+}
+
+.icon-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 4px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 2px 0 6px;
+}
+
+.icon-grid-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 4px;
+  min-width: 0;
+  padding: 8px 2px 6px;
+  border-radius: 6px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: background 0.15s;
+}
+
+.icon-grid-item:hover {
+  background: var(--el-fill-color-light);
+}
+
+.icon-grid-item.active {
+  background: var(--el-fill-color);
+  color: var(--el-text-color-primary);
+}
+
+.icon-label {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+  line-height: 1.2;
+  text-align: center;
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 0 2px;
+  box-sizing: border-box;
+}
+
+.icon-grid-item.active .icon-label {
+  color: var(--el-text-color-primary);
+}
+</style>
+
+<style>
+.icon-select-popper {
+  padding: 12px !important;
+  overflow: hidden !important;
+}
+
+.icon-select-popper .el-popover__title {
+  margin: 0;
 }
 </style>

@@ -1,82 +1,50 @@
-import request from '@/utils/request'
+import request, { get, post, put, del } from '@/utils/request'
 
-// 获取部门列表
-export function getDeptList(params) {
-  return request({
-    url: '/system/dept/list',
-    method: 'get',
-    params
-  })
+export function getDeptTree(params) {
+  return get('/system/dept/tree', params)
 }
 
-// 获取部门详情
+export function getDeptList() {
+  return get('/system/dept/list')
+}
+
 export function getDept(id) {
-  return request({
-    url: '/system/dept/get',
-    method: 'get',
-    params: { id }
-  })
+  return get('/system/dept/get', { id })
 }
 
-// 新增部门
 export function createDept(data) {
-  return request({
-    url: '/system/dept/create',
-    method: 'post',
-    data
-  })
+  return post('/system/dept/create', data)
 }
 
-// 修改部门
 export function updateDept(data) {
-  return request({
-    url: '/system/dept/update',
-    method: 'put',
-    data
-  })
+  return put('/system/dept/update', data)
 }
 
-// 删除部门
 export function deleteDept(id) {
-  return request({
-    url: '/system/dept/delete',
-    method: 'delete',
-    params: { id }
-  })
+  return request.delete('/system/dept/delete', { params: { id } })
 }
 
-// 更新部门状态
+export function moveDept(id, parentId, sort) {
+  return request.put('/system/dept/move', null, { params: { id, parentId, sort } })
+}
+
 export function updateDeptStatus(id, status) {
-  return request({
-    url: '/system/dept/update-status',
-    method: 'put',
-    params: { id, status }
-  })
+  return put('/system/dept/update-status', { id, status })
 }
 
-// 部门回收站分页
 export function getRecycleDeptPage(params) {
-  return request({
-    url: '/system/dept/recycle/page',
-    method: 'get',
-    params
-  })
+  return get('/system/dept/recycle/page', params)
 }
 
-// 恢复部门
 export function restoreDept(id) {
-  return request({
-    url: '/system/dept/restore',
-    method: 'put',
-    params: { id }
-  })
+  return put('/system/dept/restore', { id })
 }
 
-// 彻底删除部门
 export function deleteDeptPermanent(id) {
-  return request({
-    url: '/system/dept/delete-permanent',
-    method: 'delete',
-    params: { id }
-  })
+  return del('/system/dept/delete-permanent', { id })
+}
+
+/** @deprecated 使用 getDeptTree */
+export function getDeptListAsTree(params) {
+  return getDeptTree(params)
 }

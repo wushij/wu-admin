@@ -86,6 +86,7 @@ CREATE TABLE sys_dept (
     id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '部门ID',
     name VARCHAR(50) NOT NULL COMMENT '部门名称',
     parent_id BIGINT DEFAULT 0 COMMENT '父部门ID',
+    ancestors VARCHAR(500) DEFAULT '' COMMENT '祖级列表，如 0,1,5',
     sort INT DEFAULT 0 COMMENT '排序',
     status TINYINT DEFAULT 1 COMMENT '状态 0:禁用 1:启用',
     leader_name VARCHAR(50) DEFAULT NULL COMMENT '负责人',
@@ -98,6 +99,36 @@ CREATE TABLE sys_dept (
     deleted TINYINT DEFAULT 0 COMMENT '是否删除',
     INDEX idx_parent_id (parent_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='部门表';
+
+-- =============================================
+-- 4.1 岗位表
+-- =============================================
+DROP TABLE IF EXISTS sys_user_post;
+DROP TABLE IF EXISTS sys_post;
+CREATE TABLE sys_post (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '岗位ID',
+    parent_id BIGINT DEFAULT 0 COMMENT '父岗位ID',
+    post_code VARCHAR(50) NOT NULL COMMENT '岗位编码',
+    post_name VARCHAR(50) NOT NULL COMMENT '岗位名称',
+    sort INT DEFAULT 0 COMMENT '排序',
+    status TINYINT DEFAULT 1 COMMENT '状态 0:禁用 1:启用',
+    remark VARCHAR(500) DEFAULT NULL COMMENT '备注',
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    creator VARCHAR(64) DEFAULT '' COMMENT '创建者',
+    updater VARCHAR(64) DEFAULT '' COMMENT '更新者',
+    deleted TINYINT DEFAULT 0 COMMENT '是否删除',
+    UNIQUE KEY uk_post_code (post_code),
+    INDEX idx_parent_id (parent_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='岗位表';
+
+CREATE TABLE sys_user_post (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT NOT NULL COMMENT '用户ID',
+    post_id BIGINT NOT NULL COMMENT '岗位ID',
+    INDEX idx_user_id (user_id),
+    INDEX idx_post_id (post_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户岗位关联表';
 
 -- =============================================
 -- 5. 用户角色关联表
@@ -401,11 +432,16 @@ CREATE TABLE sys_file_group (
 -- =============================================
 
 -- 初始化部门
-INSERT INTO sys_dept (id, name, parent_id, sort, status, leader_name) VALUES
-(1, '总公司', 0, 0, 1, '管理员'),
-(2, '研发部', 1, 1, 1, '张三'),
-(3, '市场部', 1, 2, 1, '李四'),
-(4, '财务部', 1, 3, 1, '王五');
+INSERT INTO sys_dept (id, name, parent_id, ancestors, sort, status, leader_name) VALUES
+(1, '总公司', 0, '0', 0, 1, '管理员'),
+(2, '研发部', 1, '0,1', 1, 1, '张三'),
+(3, '市场部', 1, '0,1', 2, 1, '李四'),
+(4, '财务部', 1, '0,1', 3, 1, '王五');
+
+INSERT INTO sys_post (id, parent_id, post_code, post_name, sort, status, remark) VALUES
+(1, 0, 'ceo', '总经理', 0, 1, '顶级岗位'),
+(2, 0, 'dev', '研发工程师', 1, 1, ''),
+(3, 2, 'dev_lead', '研发组长', 0, 1, '隶属研发工程师');
 
 -- 初始化用户 (密码为 admin123，BCrypt加密)
 INSERT INTO sys_user (id, username, password, nickname, mobile, email, status, dept_id) VALUES
@@ -442,8 +478,8 @@ INSERT INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, c
 (3, '角色管理', 'system:role:list', 2, 2, 1, '/system/role', 'Key', 'system/role/index', 1),
 -- 菜单管理
 (4, '菜单管理', 'system:menu:list', 2, 3, 1, '/system/menu', 'Menu', 'system/menu/index', 1),
--- 部门管理
-(5, '部门管理', 'system:dept:list', 2, 4, 1, '/system/dept', 'OfficeBuilding', 'system/dept/index', 1),
+-- 组织管理（部门 + 岗位）
+(5, '组织管理', 'system:dept:list', 2, 4, 1, '/system/org', 'OfficeBuilding', 'system/org/index', 1),
 -- 字典管理
 (130, '字典管理', 'system:dict:list', 2, 5, 1, '/system/dict', 'Collection', 'system/dict/index', 1),
 -- 业务中心目录
@@ -472,6 +508,11 @@ INSERT INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, c
 (41, '部门新增', 'system:dept:create', 3, 2, 5, '', '', '', 1),
 (42, '部门修改', 'system:dept:update', 3, 3, 5, '', '', '', 1),
 (43, '部门删除', 'system:dept:delete', 3, 4, 5, '', '', '', 1),
+-- 岗位管理按钮（组织管理页内）
+(44, '岗位查询', 'system:post:query', 3, 5, 5, '', '', '', 1),
+(45, '岗位新增', 'system:post:create', 3, 6, 5, '', '', '', 1),
+(46, '岗位修改', 'system:post:update', 3, 7, 5, '', '', '', 1),
+(47, '岗位删除', 'system:post:delete', 3, 8, 5, '', '', '', 1),
 -- 字典管理按钮
 (131, '字典查询', 'system:dict:query', 3, 1, 130, '', '', '', 1),
 (132, '字典新增', 'system:dict:create', 3, 2, 130, '', '', '', 1),
@@ -515,7 +556,10 @@ INSERT INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, c
 (127, '操作日志删除', 'system:operLog:delete', 3, 2, 121, '', '', '', 1),
 (128, '操作日志清空', 'system:operLog:clear', 3, 3, 121, '', '', '', 1),
 -- 登录日志（隶属系统日志）
-(6, '登录日志', 'system:loginLog:list', 2, 2, 120, '/system/login-log', 'Promotion', 'system/login-log/index', 1);
+(6, '登录日志', 'system:loginLog:list', 2, 2, 120, '/system/login-log', 'Promotion', 'system/login-log/index', 1),
+-- 开发工具
+(150, '开发工具', '', 1, 6, 0, '/tool', 'Tools', '', 1),
+(151, '接口文档', 'tool:apiDoc:view', 2, 1, 150, '/tool/api-doc', 'Document', '/doc.html', 1);
 
 -- 初始化用户角色关联
 INSERT INTO sys_user_role (user_id, role_id) VALUES
@@ -529,13 +573,14 @@ INSERT INTO sys_role_menu (role_id, menu_id) VALUES
 (1, 10), (1, 11), (1, 12), (1, 13),
 (1, 20), (1, 21), (1, 22), (1, 23),
 (1, 30), (1, 31), (1, 32), (1, 33),
-(1, 40), (1, 41), (1, 42), (1, 43),
+(1, 40), (1, 41), (1, 42), (1, 43), (1, 44), (1, 45), (1, 46), (1, 47),
 (1, 131), (1, 132), (1, 133), (1, 134), (1, 135),
 (1, 50), (1, 51), (1, 52),
 (1, 60), (1, 61), (1, 62), (1, 63), (1, 64), (1, 65),
 (1, 70), (1, 71), (1, 72), (1, 73), (1, 74),
 (1, 100), (1, 101), (1, 102), (1, 103), (1, 104),
-(1, 105), (1, 110), (1, 111), (1, 112), (1, 113);
+(1, 105), (1, 110), (1, 111), (1, 112), (1, 113),
+(1, 150), (1, 151);
 
 -- 普通用户只有查询权限
 INSERT INTO sys_role_menu (role_id, menu_id) VALUES

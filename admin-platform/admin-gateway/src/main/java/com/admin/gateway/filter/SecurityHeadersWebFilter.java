@@ -17,9 +17,23 @@ public class SecurityHeadersWebFilter implements WebFilter {
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
+        String path = exchange.getRequest().getURI().getPath();
         exchange.getResponse().getHeaders().set("X-Content-Type-Options", "nosniff");
-        exchange.getResponse().getHeaders().set("X-Frame-Options", "DENY");
         exchange.getResponse().getHeaders().set("Referrer-Policy", "strict-origin-when-cross-origin");
+        // Knife4j 需内嵌 iframe：勿与 RBAC 的 SAMEORIGIN 叠成 DENY+SAMEORIGIN
+        if (!isKnife4jResource(path)) {
+            exchange.getResponse().getHeaders().set("X-Frame-Options", "DENY");
+        }
         return chain.filter(exchange);
+    }
+
+    private static boolean isKnife4jResource(String path) {
+        if (path == null) {
+            return false;
+        }
+        return "/api/doc.html".equals(path)
+                || path.startsWith("/api/swagger-ui")
+                || path.startsWith("/api/v3/api-docs")
+                || path.startsWith("/api/webjars");
     }
 }

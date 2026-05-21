@@ -7,8 +7,12 @@ import cn.rbac.server.common.pojo.PageResult;
 import cn.rbac.server.framework.security.core.service.TokenService;
 import cn.rbac.server.modules.system.dal.dataobject.dept.DeptDO;
 import cn.rbac.server.modules.system.dal.dataobject.user.UserDO;
+import cn.rbac.server.modules.system.dal.dataobject.post.PostDO;
+import cn.rbac.server.modules.system.dal.dataobject.user.UserPostDO;
 import cn.rbac.server.modules.system.dal.mysql.dept.DeptMapper;
+import cn.rbac.server.modules.system.dal.mysql.post.PostMapper;
 import cn.rbac.server.modules.system.dal.mysql.user.UserMapper;
+import cn.rbac.server.modules.system.dal.mysql.user.UserPostMapper;
 import cn.rbac.server.modules.system.service.permission.PermissionService;
 import cn.hutool.crypto.digest.BCrypt;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
@@ -19,6 +23,7 @@ import lombok.Data;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import javax.annotation.Resource;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -37,6 +42,10 @@ public class UserController {
     private PermissionService permissionService;
     @Resource
     private TokenService tokenService;
+    @Resource
+    private UserPostMapper userPostMapper;
+    @Resource
+    private PostMapper postMapper;
     
     @Operation(summary = "获取用户列表")
     @GetMapping("/list")
@@ -52,7 +61,8 @@ public class UserController {
             @RequestParam(required = false) String username,
             @RequestParam(required = false) String mobile,
             @RequestParam(required = false) Integer status,
-            @RequestParam(required = false) Long deptId) {
+            @RequestParam(required = false) Long deptId,
+            @RequestParam(required = false) Long postId) {
         LambdaQueryWrapper<UserDO> wrapper = new LambdaQueryWrapper<>();
         if (username != null && !username.isEmpty()) {
             wrapper.like(UserDO::getUsername, username);
@@ -66,36 +76,64 @@ public class UserController {
         if (deptId != null) {
             wrapper.eq(UserDO::getDeptId, deptId);
         }
+        if (postId != null) {
+            List<Long> userIds = userPostMapper.selectUserIdsByPostId(postId);
+            if (userIds.isEmpty()) {
+                wrapper.eq(UserDO::getId, -1L);
+            } else {
+                wrapper.in(UserDO::getId, userIds);
+            }
+        }
         Page<UserDO> page = userMapper.selectPage(new Page<>(pageParam.getPageNo(), pageParam.getPageSize()), wrapper);
         List<UserDO> users = page.getRecords();
-        // 填充部门名称和角色ID
-        if (!users.isEmpty()) {
-            Set<Long> userIds = users.stream().map(UserDO::getId).collect(Collectors.toSet());
-            // 填充部门名称
-            Set<Long> deptIds = users.stream().map(UserDO::getDeptId).filter(id -> id != null).collect(Collectors.toSet());
-            if (!deptIds.isEmpty()) {
-                List<DeptDO> depts = deptMapper.selectBatchIds(deptIds);
-                Map<Long, String> deptNameMap = depts.stream().collect(Collectors.toMap(DeptDO::getId, DeptDO::getName));
-                users.forEach(user -> {
-                    if (user.getDeptId() != null) {
-                        user.setDeptName(deptNameMap.get(user.getDeptId()));
-                    }
-                });
-            }
-            // 填充角色ID列表
+        fillUserDisplayFields(users);
+        return CommonResult.success(PageResult.of(page.getRecords(), page.getTotal()));
+    }
+
+    private void fillUserDisplayFields(List<UserDO> users) {
+        if (users == null || users.isEmpty()) {
+            return;
+        }
+        Set<Long> deptIds = users.stream().map(UserDO::getDeptId).filter(id -> id != null).collect(Collectors.toSet());
+        if (!deptIds.isEmpty()) {
+            List<DeptDO> depts = deptMapper.selectBatchIds(deptIds);
+            Map<Long, String> deptNameMap = depts.stream().collect(Collectors.toMap(DeptDO::getId, DeptDO::getName));
             users.forEach(user -> {
-                Set<Long> roleIds = permissionService.getUserRoleIdListByUserId(user.getId());
-                user.setRoleIds(roleIds);
+                if (user.getDeptId() != null) {
+                    user.setDeptName(deptNameMap.get(user.getDeptId()));
+                }
             });
         }
-        return CommonResult.success(PageResult.of(page.getRecords(), page.getTotal()));
+        List<UserPostDO> allLinks = userPostMapper.selectList(null);
+        Map<Long, List<Long>> userPostMap = allLinks.stream()
+                .collect(Collectors.groupingBy(UserPostDO::getUserId,
+                        Collectors.mapping(UserPostDO::getPostId, Collectors.toList())));
+        Set<Long> postIds = allLinks.stream().map(UserPostDO::getPostId).collect(Collectors.toSet());
+        Map<Long, String> postNameMap = postIds.isEmpty() ? Collections.emptyMap()
+                : postMapper.selectBatchIds(postIds).stream()
+                .collect(Collectors.toMap(PostDO::getId, PostDO::getPostName));
+        users.forEach(user -> {
+            user.setRoleIds(permissionService.getUserRoleIdListByUserId(user.getId()));
+            List<Long> pids = userPostMap.getOrDefault(user.getId(), Collections.emptyList());
+            user.setPostIds(pids);
+            if (!pids.isEmpty()) {
+                user.setPostNames(pids.stream()
+                        .map(postNameMap::get)
+                        .filter(name -> name != null)
+                        .collect(Collectors.joining("、")));
+            }
+        });
     }
     
     @Operation(summary = "获取用户详情")
     @GetMapping("/get")
     @PreAuthorize("@ss.hasPermission('system:user:query')")
     public CommonResult<UserDO> get(@RequestParam Long id) {
-        return CommonResult.success(userMapper.selectById(id));
+        UserDO user = userMapper.selectById(id);
+        if (user != null) {
+            fillUserDisplayFields(Collections.singletonList(user));
+        }
+        return CommonResult.success(user);
     }
     
     @Log(title = "用户管理", businessType = Log.BusinessType.INSERT, isSaveRequestData = false)
@@ -116,6 +154,7 @@ public class UserController {
         if (reqVO.getRoleId() != null) {
             permissionService.assignUserRole(user.getId(), java.util.Collections.singleton(reqVO.getRoleId()));
         }
+        saveUserPosts(user.getId(), reqVO.getPostIds());
         return CommonResult.success(user.getId());
     }
     
@@ -135,7 +174,24 @@ public class UserController {
         if (reqVO.getRoleId() != null) {
             permissionService.assignUserRole(user.getId(), java.util.Collections.singleton(reqVO.getRoleId()));
         }
+        saveUserPosts(user.getId(), reqVO.getPostIds());
         return CommonResult.success(true);
+    }
+
+    private void saveUserPosts(Long userId, List<Long> postIds) {
+        userPostMapper.deleteByUserId(userId);
+        if (postIds == null || postIds.isEmpty()) {
+            return;
+        }
+        for (Long postId : postIds) {
+            if (postId == null) {
+                continue;
+            }
+            UserPostDO link = new UserPostDO();
+            link.setUserId(userId);
+            link.setPostId(postId);
+            userPostMapper.insert(link);
+        }
     }
     
     @Log(title = "用户管理", businessType = Log.BusinessType.DELETE)
@@ -143,6 +199,7 @@ public class UserController {
     @DeleteMapping("/delete")
     @PreAuthorize("@ss.hasPermission('system:user:delete')")
     public CommonResult<Boolean> delete(@RequestParam Long id) {
+        userPostMapper.deleteByUserId(id);
         userMapper.deleteById(id);
         return CommonResult.success(true);
     }
@@ -246,6 +303,7 @@ public class UserController {
         private String email;
         private Long deptId;
         private Long roleId;
+        private List<Long> postIds;
     }
     
     @Data
@@ -257,6 +315,7 @@ public class UserController {
         private Integer status;
         private Long deptId;
         private Long roleId;
+        private List<Long> postIds;
     }
     
     @Data

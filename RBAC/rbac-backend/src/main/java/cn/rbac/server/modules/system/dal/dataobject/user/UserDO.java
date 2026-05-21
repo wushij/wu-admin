@@ -31,4 +31,10 @@ public class UserDO extends BaseEntity {
      */
     @TableField(exist = false)
     private Set<Long> roleIds;
+
+    @TableField(exist = false)
+    private String postNames;
+
+    @TableField(exist = false)
+    private java.util.List<Long> postIds;
 }

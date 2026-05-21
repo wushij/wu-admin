@@ -66,7 +66,8 @@
             <el-table-column prop="username" label="用户名" width="120" />
             <el-table-column prop="nickname" label="昵称" width="120" />
             <el-table-column prop="mobile" label="手机号" width="130" />
-            <el-table-column prop="deptName" label="部门" width="150" />
+            <el-table-column prop="deptName" label="部门" width="120" show-overflow-tooltip />
+            <el-table-column prop="postNames" label="岗位" min-width="140" show-overflow-tooltip />
             <el-table-column prop="status" label="状态" width="100">
               <template #default="{ row }">
                 <el-switch
@@ -171,7 +172,27 @@
             placeholder="请选择部门"
             check-strictly
             clearable
+            style="width: 100%"
           />
+        </el-form-item>
+        <el-form-item label="岗位" prop="postIds">
+          <el-select
+            v-model="form.postIds"
+            multiple
+            filterable
+            clearable
+            collapse-tags
+            collapse-tags-tooltip
+            placeholder="请选择岗位（可多选）"
+            style="width: 100%"
+          >
+            <el-option
+              v-for="item in postOptions"
+              :key="item.id"
+              :label="`${item.postName}（${item.postCode}）`"
+              :value="item.id"
+            />
+          </el-select>
         </el-form-item>
         <el-form-item label="状态" prop="status">
           <el-radio-group v-model="form.status">
@@ -279,7 +300,8 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getUserPage, createUser, updateUser, deleteUser, assignUserRole, updateUserStatus, resetUserPassword, getUserRoleIds, getRecycleUserPage, restoreUser, deleteUserPermanent } from '@/api/system/user'
 import { getRoleList } from '@/api/system/role'
-import { getDeptList } from '@/api/system/dept'
+import { getDeptTree } from '@/api/system/dept'
+import { getPostList } from '@/api/system/post'
 
 const loading = ref(false)
 const total = ref(0)
@@ -295,6 +317,7 @@ const selectedRole = ref(null)
 const roleOptions = ref([])
 const deptOptions = ref([])
 const deptSelectOptions = ref([])
+const postOptions = ref([])
 const recycleVisible = ref(false)
 const recycleLoading = ref(false)
 const recycleList = ref([])
@@ -319,6 +342,7 @@ const form = reactive({
   deptId: null,
   status: 1,
   roleId: null,
+  postIds: [],
   remark: ''
 })
 
@@ -452,8 +476,9 @@ const handleEdit = async (row) => {
   }
   // 设置用户当前角色（取第一个角色ID）
   if (row.roleIds && row.roleIds.length > 0) {
-    form.roleId = row.roleIds[0]
+    form.roleId = [...row.roleIds][0]
   }
+  form.postIds = row.postIds ? [...row.postIds] : []
   dialogVisible.value = true
 }
 
@@ -529,6 +554,7 @@ const resetForm = () => {
   form.deptId = null
   form.status = 1
   form.roleId = null
+  form.postIds = []
   form.remark = ''
 }
 
@@ -549,16 +575,21 @@ const submitForm = async () => {
   })
 }
 
-const getDeptTree = async () => {
-  const res = await getDeptList()
+const loadDeptTree = async () => {
+  const res = await getDeptTree()
   deptOptions.value = res.data || []
-  // 部门选择器：显示所有部门
   deptSelectOptions.value = res.data || []
+}
+
+const loadPostOptions = async () => {
+  const res = await getPostList()
+  postOptions.value = res.data || []
 }
 
 onMounted(() => {
   getList()
-  getDeptTree()
+  loadDeptTree()
+  loadPostOptions()
 })
 </script>
 

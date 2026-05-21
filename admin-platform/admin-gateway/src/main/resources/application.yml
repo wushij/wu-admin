@@ -83,6 +83,32 @@ spring:
             - Path=/api/monitor/online/**
           filters:
             - StripPrefix=1
+
+        # Knife4j / OpenAPI 文档（供管理端 iframe 内嵌 /api/doc.html）
+        - id: admin-knife4j-doc
+          uri: ${app.rbac.base-url}
+          predicates:
+            - Path=/api/doc.html
+          filters:
+            - StripPrefix=1
+        - id: admin-knife4j-swagger-ui
+          uri: ${app.rbac.base-url}
+          predicates:
+            - Path=/api/swagger-ui/**
+          filters:
+            - StripPrefix=1
+        - id: admin-knife4j-api-docs
+          uri: ${app.rbac.base-url}
+          predicates:
+            - Path=/api/v3/api-docs/**
+          filters:
+            - StripPrefix=1
+        - id: admin-knife4j-webjars
+          uri: ${app.rbac.base-url}
+          predicates:
+            - Path=/api/webjars/**
+          filters:
+            - StripPrefix=1
         
         # RBAC管理端路由
         - id: rbac-admin

@@ -1,4 +1,4 @@
-package cn.rbac.server.modules.system.dal.dataobject.permission;
+package cn.rbac.server.modules.system.dal.dataobject.post;
 
 import cn.rbac.server.common.mybatis.BaseEntity;
 import com.baomidou.mybatisplus.annotation.TableField;
@@ -10,18 +10,18 @@ import java.util.List;
 
 @Data
 @EqualsAndHashCode(callSuper = true)
-@TableName("sys_menu")
-public class MenuDO extends BaseEntity {
-    private String name;
-    private String permission;
-    private Integer type;
-    private Integer sort;
+@TableName("sys_post")
+public class PostDO extends BaseEntity {
     private Long parentId;
-    private String path;
-    private String icon;
+    private String postCode;
+    private String postName;
+    private Integer sort;
     private Integer status;
-    private String component;
+    private String remark;
 
     @TableField(exist = false)
-    private List<MenuDO> children;
+    private List<PostDO> children;
+
+    @TableField(exist = false)
+    private Long userCount;
 }

@@ -44,10 +44,14 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '菜单管理', icon: 'tree-table', permission: 'system:menu:list' }
       },
       {
+        path: 'system/org',
+        name: 'SystemOrg',
+        component: () => import('@/views/system/org/index.vue'),
+        meta: { title: '组织管理', icon: 'OfficeBuilding', permission: 'system:dept:list' }
+      },
+      {
         path: 'system/dept',
-        name: 'SystemDept',
-        component: () => import('@/views/system/dept/index.vue'),
-        meta: { title: '部门管理', icon: 'tree', permission: 'system:dept:list' }
+        redirect: '/system/org'
       },
       {
         path: 'system/dict',
@@ -96,6 +100,12 @@ const routes: RouteRecordRaw[] = [
         name: 'MonitorOnline',
         component: () => import('@/views/monitor/online/index.vue'),
         meta: { title: '在线用户', icon: 'User', permission: 'monitor:online:list' }
+      },
+      {
+        path: 'tool/api-doc',
+        name: 'ToolApiDoc',
+        component: () => import('@/views/tool/api-doc/index.vue'),
+        meta: { title: '接口文档', icon: 'Document', permission: 'tool:apiDoc:view' }
       }
     ]
   }

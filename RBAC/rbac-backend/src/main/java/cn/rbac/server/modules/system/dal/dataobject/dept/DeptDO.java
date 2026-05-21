@@ -13,6 +13,8 @@ import java.util.List;
 public class DeptDO extends BaseEntity {
     private String name;
     private Long parentId;
+    /** 祖级列表，如 0,1,5 */
+    private String ancestors;
     private Integer sort;
     private Integer status;
     private String leaderName;
@@ -24,4 +26,7 @@ public class DeptDO extends BaseEntity {
      */
     @TableField(exist = false)
     private List<DeptDO> children;
+
+    @TableField(exist = false)
+    private Long userCount;
 }

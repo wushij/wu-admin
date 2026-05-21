@@ -61,6 +61,9 @@ public class SecurityConfig {
                 // 其他请求需要认证
                 .anyRequest().authenticated()
             .and()
+            // 允许管理端同源 iframe 嵌入 Knife4j 文档页
+            .headers().frameOptions().sameOrigin()
+            .and()
             // 添加 JWT 过滤器
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 

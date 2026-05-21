@@ -213,13 +213,13 @@
               <el-icon class="quick-arrow"><ArrowRight /></el-icon>
             </div>
             
-            <div class="quick-item" @click="$router.push('/system/dept')">
+            <div class="quick-item" @click="$router.push('/system/org')">
               <div class="quick-icon-wrapper dept">
                 <el-icon :size="26"><OfficeBuilding /></el-icon>
               </div>
               <div class="quick-info">
-                <div class="quick-name">部门管理</div>
-                <div class="quick-desc">组织架构管理</div>
+                <div class="quick-name">组织管理</div>
+                <div class="quick-desc">部门与岗位体系</div>
               </div>
               <el-icon class="quick-arrow"><ArrowRight /></el-icon>
             </div>

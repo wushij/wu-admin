@@ -1,6 +1,6 @@
 # Admin Platform
 
-基于 **Vue 3 + Spring Cloud Gateway + Spring Boot RBAC** 的企业级后台管理系统，提供用户权限、业务工单、系统监控、日志审计、文件与字典等能力，支持 Docker 一键部署与本地开发调试。
+基于 **Vue 3 + Spring Cloud Gateway + Spring Boot RBAC** 的企业级后台管理系统，提供用户权限、组织岗位、业务工单、系统监控、日志审计、文件与字典等能力，支持 Docker 一键部署与本地开发调试。
 
 ---
 
@@ -8,14 +8,46 @@
 
 | 模块 | 说明 |
 |------|------|
-| **系统管理** | 用户、角色、菜单、部门、字典管理 |
+| **系统管理** | 用户、角色、菜单、**组织管理**、字典管理 |
+| **组织管理** | 部门体系 + 岗位体系；左树右表、拖拽调整部门、岗位成员、部门回收站 |
+| **用户管理** | 支持部门、**岗位多选**、角色单选、回收站 |
+| **菜单管理** | 树形表格；目录/菜单/按钮联动表单；**图标网格选择器**；外链（`https://`）新窗口打开 |
+| **开发工具** | **接口文档**：Layout 内嵌 Knife4j（`doc.html`），支持刷新 / 新窗口打开 |
 | **系统日志** | 操作日志（AOP 自动记录）、登录日志 |
 | **系统监控** | API 访问统计、在线用户与强退 |
 | **文件管理** | 分组、上传、预览、列表/平铺视图 |
 | **业务中心** | 工单管理、审批单中心 |
 | **认证安全** | 图形验证码、登录/注册限流、JWT + 网关 Sa-Token 会话 |
 
-菜单与权限由数据库 `sys_menu` 动态加载，超级管理员默认拥有全部功能。
+菜单与权限由数据库 `sys_menu` 动态加载，超级管理员默认拥有全部功能。修改菜单或角色后需**重新登录**侧栏才会更新。
+
+---
+
+## 近期能力说明
+
+### 组织管理（`/system/org`）
+
+- 原「部门管理」升级为 **组织管理**，Tab 切换：**部门体系 | 岗位体系**
+- 部门：树形结构、`ancestors` 祖级路径、拖拽移动、子部门/成员查看、回收站
+- 岗位：岗位树、用户关联（`sys_user_post`）、组织内成员列表
+- 增量脚本：`sql/add1.sql`（仅组织相关表结构与菜单）
+
+### 菜单管理（`/system/menu`）
+
+- 树表展示：类型、图标、路由、组件/外链、排序、状态开关
+- 表单按类型显隐：目录 / 菜单 / 按钮；支持外链地址（`component` 存完整 URL）
+- 图标选择：Popover 网格 + 中文标签 + 搜索（`components/IconSelect.vue`）
+- 按钮行不显示「新增」；支持全部展开/折叠
+
+### 接口文档（`/tool/api-doc`）
+
+- 侧栏：**开发工具 → 接口文档**
+- 内嵌本项目 **Knife4j**（RBAC `doc.html`），非独立业务 CRUD
+- 开发环境：Vite 代理 `/doc.html`、`/webjars`、`/swagger-ui`、`/v3/api-docs` → RBAC `8081`
+- 生产环境：Nginx 转发上述路径至网关 → RBAC
+- 菜单 `component` 填 `/doc.html`；若改为 `https://...` 外链，侧栏点击将在**新窗口**打开（Apifox 等）
+- Knife4j 分组下拉 **default**：表示当前仅一个 OpenAPI 分组（全部接口），属正常现象
+- 增量脚本：`sql/add2.sql`
 
 ---
 
@@ -23,9 +55,9 @@
 
 | 层级 | 技术 |
 |------|------|
-| 前端 | Vue 3、TypeScript、Vite、Element Plus、Pinia、Axios、ECharts |
+| 前端 | Vue 3、Vite、Element Plus、Pinia、Axios、ECharts |
 | 网关 | Spring Cloud Gateway、Sa-Token、Redis |
-| 后端 | Spring Boot 2.7、Spring Security、MyBatis-Plus、Druid、Knife4j |
+| 后端 | Spring Boot 2.7、Spring Security、MyBatis-Plus、Druid、Knife4j（SpringDoc） |
 | 数据 | MySQL 8、Redis 7 |
 | 部署 | Docker Compose、Nginx |
 
@@ -44,14 +76,15 @@
    ▼
 ┌─────────────────┐     /api/*      ┌──────────────────┐
 │  admin-frontend │ ──────────────► │  admin-gateway   │
-│  Vite / Nginx   │                 │  :8080           │
-│  :3000          │                 │  Sa-Token + 路由 │
+│  Vite / Nginx   │   /doc.html*  │  :8080           │
+│  :3000          │ ──────────────► │  Sa-Token + 路由 │
 └─────────────────┘                 └────────┬─────────┘
                                            │ 转发
                                            ▼
                                   ┌──────────────────┐
                                   │  rbac-server     │
                                   │  :8081           │
+                                  │  Knife4j         │
                                   └────────┬─────────┘
                                            │
                            ┌───────────────┴───────────────┐
@@ -60,12 +93,14 @@
                     │   MySQL     │                │   Redis     │
                     │   RBAC1     │                │  database 3 │
                     └─────────────┘                └─────────────┘
+
+* 接口文档静态资源同源代理，见 vite.config.ts / nginx.conf
 ```
 
 **请求路径约定**
 
-- 前端统一请求前缀：`/api`
-- 网关去掉 `/api` 后转发至 RBAC，例如：`/api/system/user/list` → RBAC `/system/user/list`
+- 前端业务 API 统一前缀：`/api`（网关去掉 `/api` 后转发 RBAC）
+- 示例：`/api/system/user/page` → RBAC `/system/user/page`
 
 ---
 
@@ -73,18 +108,20 @@
 
 ```
 admin/
-├── RBAC/                          # RBAC 后端工程
-│   ├── rbac-backend/              # 业务 API、权限、文件、监控等
+├── RBAC/
+│   ├── rbac-backend/              # 业务 API、权限、组织/岗位、文件、监控等
 │   └── Dockerfile
 ├── admin-platform/
 │   ├── admin-frontend/            # Vue3 管理端
 │   ├── admin-gateway/             # Spring Cloud 网关
 │   ├── sql/
-│   │   └── admin_platform.sql     # 全量建库脚本（表结构 + 初始数据）
+│   │   ├── admin_platform.sql     # 全量建库（新环境）
+│   │   ├── add1.sql               # 增量：组织管理（部门+岗位）
+│   │   └── add2.sql               # 增量：开发工具·接口文档菜单
 │   ├── docker-compose.yml
-│   ├── DOCKER_DEPLOY.md           # Docker 部署详细说明
-│   └── MICROSERVICE_GUIDE.md      # 微服务拆分说明
-├── 整合代码/                       # 各功能参考实现与提示词（可选阅读）
+│   ├── DOCKER_DEPLOY.md
+│   └── MICROSERVICE_GUIDE.md
+├── 整合代码/                       # 各功能参考实现与 AI 提示词
 └── README.md
 ```
 
@@ -99,7 +136,7 @@ admin/
 | JDK | 8（RBAC）+ 17（网关） |
 | MySQL | 8.0 |
 | Redis | 7.x |
-| Docker Desktop | 可选，用于容器部署 |
+| Docker Desktop | 可选 |
 
 ---
 
@@ -112,17 +149,17 @@ cd admin-platform
 docker compose up -d --build
 ```
 
-首次启动会自动执行 `sql/admin_platform.sql` 初始化数据库。
+首次启动会执行 `sql/admin_platform.sql` 初始化数据库（含组织管理、开发工具菜单）。
 
 | 服务 | 地址 |
 |------|------|
 | 前端 | http://localhost:3000 |
 | 网关 | http://localhost:8080 |
 | RBAC（容器映射） | http://localhost:8082 |
-| MySQL | `127.0.0.1:3307`，库名 `RBAC1`，用户/密码 `root`/`root` |
+| MySQL | `127.0.0.1:3307`，库 `RBAC1`，`root`/`root` |
 | Redis | `127.0.0.1:6379`，database `3` |
 
-更多代理、排错与重建说明见 [admin-platform/DOCKER_DEPLOY.md](./admin-platform/DOCKER_DEPLOY.md)。
+详见 [admin-platform/DOCKER_DEPLOY.md](./admin-platform/DOCKER_DEPLOY.md)。
 
 ---
 
@@ -130,26 +167,34 @@ docker compose up -d --build
 
 #### 1. 初始化数据库
 
+**新库（推荐）**
+
 ```bash
 mysql -u root -p < admin-platform/sql/admin_platform.sql
 ```
 
-或在客户端中执行该脚本。脚本会创建库 `RBAC1`、全部表结构、菜单权限及演示数据。
+**已有旧库、按需升级**
 
-> **注意**：脚本内含 `DROP TABLE`，仅适用于新库或开发环境，勿对已有生产数据直接整文件执行。
+```bash
+# 仅补组织管理（部门 ancestors、岗位、菜单）
+mysql -u root -p RBAC1 < admin-platform/sql/add1.sql
+
+# 仅补开发工具 · 接口文档菜单
+mysql -u root -p RBAC1 < admin-platform/sql/add2.sql
+```
+
+> `admin_platform.sql` 内含 `DROP TABLE`，仅用于新库或开发环境。
 
 #### 2. 启动 Redis
 
-确保本机 `127.0.0.1:6379` 可用，RBAC 与网关均使用 **database 3**。
+本机 `127.0.0.1:6379`，RBAC 与网关使用 **database 3**。
 
-#### 3. 启动 RBAC 后端（8081）
+#### 3. 启动 RBAC（8081）
 
 ```powershell
 cd RBAC/rbac-backend
 mvn spring-boot:run -DskipTests
 ```
-
-按需修改 `src/main/resources/application.yml` 中的数据库账号密码。
 
 #### 4. 启动网关（8080）
 
@@ -166,9 +211,9 @@ npm install
 npm run dev
 ```
 
-浏览器访问：**http://localhost:3000**
+访问：**http://localhost:3000**
 
-Vite 已将 `/api` 代理到 `http://localhost:8080`（见 `vite.config.ts`）。
+Vite 代理：`/api` → 网关 `8080`；Knife4j 相关路径 → RBAC `8081`（见 `vite.config.ts`）。
 
 ---
 
@@ -179,114 +224,138 @@ Vite 已将 `/api` 代理到 `http://localhost:8080`（见 `vite.config.ts`）�
 | `admin` | `admin123` | 超级管理员 |
 | `zhangsan` | `admin123` | 普通用户 |
 
-登录后菜单来自服务端权限树，修改菜单/角色后需**重新登录**生效。
-
 ---
 
 ## 配置说明
 
-### RBAC `application.yml` 要点
+### RBAC `application.yml`
 
 | 配置项 | 说明 | 默认 |
 |--------|------|------|
 | `server.port` | 服务端口 | `8081` |
-| `spring.datasource.*` | MySQL 连接 | `RBAC1` @ `127.0.0.1:3306` |
-| `spring.redis.database` | Redis 库索引 | `3` |
-| `jwt.secret` / `jwt.expiration` | JWT 密钥与过期时间 | 24h |
-| `file.storage.local-path` | 本地上传目录 | `./data/uploads` |
-| `auth.security.captcha-enabled` | 登录图形验证码 | `true` |
+| `spring.datasource.*` | MySQL | `RBAC1` @ `3306` |
+| `spring.redis.database` | Redis 库 | `3` |
+| `jwt.secret` / `jwt.expiration` | JWT | 24h |
+| `file.storage.local-path` | 上传目录 | `./data/uploads` |
+| `knife4j.enable` | 接口文档 | `true` |
 
-### 网关 `application.yml` 要点
+### 网关 `application.yml`
 
 | 配置项 | 说明 |
 |--------|------|
-| `app.rbac.base-url` | RBAC 地址；Docker 中为 `http://rbac-server:8081` |
-| `spring.cloud.gateway.routes` | `/api/auth/**`、`/api/system/**`、`/api/files/**` 等路由 |
+| `app.rbac.base-url` | RBAC 地址；Docker 为 `http://rbac-server:8081` |
+| `spring.cloud.gateway.routes` | `/api/auth/**`、`/api/system/**`、`/api/files/**`、`/api/doc.html` 等 |
+
+网关 Sa-Token 已放行 Knife4j 路径（`/api/doc.html`、`/api/swagger-ui/**` 等），供管理端 iframe 加载文档。
 
 ### 前端
 
-- 开发代理：`admin-frontend/vite.config.ts` → `/api` → `8080`
-- 生产构建：`npm run build`，由 Nginx 反向代理网关（见 `nginx.conf`）
+- 开发：`vite.config.ts`（`/api` + Knife4j 同源代理）
+- 生产：`npm run build`，`nginx.conf` 反向代理网关与 `doc.html`
 
 ---
 
-## 主要 API 前缀（经网关）
+## 接口文档访问方式
+
+| 场景 | 地址 |
+|------|------|
+| 管理端内嵌 | 登录后 **开发工具 → 接口文档** |
+| RBAC 直连（开发） | http://localhost:8081/doc.html |
+| 经网关 | http://localhost:8080/api/doc.html |
+
+---
+
+## 主要 API 前缀（经网关 `/api`）
 
 | 前缀 | 说明 |
 |------|------|
-| `/api/auth/**` | 登录、注册、验证码、登出 |
-| `/api/system/**` | 用户、角色、菜单、部门、字典、日志、工单、审批等 |
-| `/api/files/**` | 文件访问与上传 |
-
-RBAC 直连 Swagger（开发）：http://localhost:8081/swagger-ui/index.html
+| `/api/auth/**` | 登录、注册、验证码、用户信息 |
+| `/api/system/**` | 用户、角色、菜单、部门、**岗位**、字典、日志、工单、审批等 |
+| `/api/files/**` | 文件上传与访问 |
+| `/api/monitor/**` | API 访问统计、在线用户 |
+| `/api/dashboard/**` | 仪表盘统计 |
 
 ---
 
-## 数据库
+## 数据库脚本
 
-- **唯一全量脚本**：`admin-platform/sql/admin_platform.sql`
-- 包含：核心业务表、字典、操作日志、API 访问统计、文件表、菜单与 `sys_role_menu` 初始数据
-- 工单已挂在 **业务中心** 目录下；登录日志、操作日志挂在 **系统日志** 目录下
+| 脚本 | 用途 |
+|------|------|
+| `admin_platform.sql` | **全新安装**：建库、全表、菜单权限、演示数据（含组织管理、开发工具） |
+| `add1.sql` | **增量**：组织管理（`ancestors`、`sys_post`、`sys_user_post`、菜单 id=5 升级） |
+| `add2.sql` | **增量**：开发工具目录 + 接口文档菜单（id=150/151） |
 
-本地开发 MySQL 端口一般为 `3306`；Docker 映射为 `3307`。
+执行增量脚本后请**重新登录**。
 
 ---
 
 ## 功能开发提示
 
-### 字典下拉（前端）
+### 字典下拉
 
 ```javascript
 import { useDict } from '@/composables/useDict'
-
-const { options, load, labelOf } = useDict('sys_user_sex')
+const { options, load } = useDict('sys_user_sex')
 onMounted(() => load())
 ```
 
-### 操作日志（后端）
+### 操作日志
 
-在 Controller 方法上添加 `@Log` 注解即可由 `LogAspect` 异步写入 `sys_oper_log`。
+Controller 方法添加 `@Log`，由 `LogAspect` 写入 `sys_oper_log`。
 
-### 按钮权限（前端）
+### 按钮权限
 
 ```html
 <el-button v-permission="'system:user:create'">新增</el-button>
 ```
 
-权限标识需与 `sys_menu.permission` 字段一致。
+标识需与 `sys_menu.permission` 一致，例如 `system:post:create`、`tool:apiDoc:view`。
+
+### 菜单外链
+
+- `component` 以 `http://` 或 `https://` 开头 → 侧栏**新窗口**打开
+- 填 `/doc.html` 或视图路径 → 走路由或 iframe 内嵌
+
+### 整合代码参考
+
+`整合代码/` 目录含各模块关键代码与提示词，例如：
+
+- `组织管理-关键代码与提示词`
+- `菜单管理-关键代码与提示词`
+- `开发工具-接口文档-关键代码与提示词`
 
 ---
 
 ## 构建与打包
 
 ```powershell
-# 前端
-cd admin-platform/admin-frontend
-npm run build
-
-# RBAC
-cd RBAC/rbac-backend
-mvn clean package -DskipTests
-
-# 网关
-cd admin-platform/admin-gateway
-mvn clean package -DskipTests
+cd admin-platform/admin-frontend && npm run build
+cd RBAC/rbac-backend && mvn clean package -DskipTests
+cd admin-platform/admin-gateway && mvn clean package -DskipTests
 ```
+
+改 Java 或前端运行代码后，Docker 环境需重建：`docker compose up -d --build`。
 
 ---
 
 ## 常见问题
 
 **Q：登录后菜单为空或 403？**  
-A：检查是否执行了 `admin_platform.sql`，并为角色分配菜单；然后重新登录。
+A：确认已执行 `admin_platform.sql` 或对应增量脚本，角色已分配菜单，然后重新登录。
 
-**Q：上传图片无法预览？**  
-A：文件 URL 需经网关鉴权；确认已登录且网关 JWT 中继配置包含 `/api/files/**`。
+**Q：看不到「组织管理」或「接口文档」？**  
+A：执行 `add1.sql` / `add2.sql`，或为角色勾选菜单 5、150、151，再重新登录。
 
-**Q：改 Java 代码后 Docker 未生效？**  
-A：需要重新构建镜像：`docker compose up -d --build`，参见 `admin-platform/DOCKER_DEPLOY.md`。
+**Q：接口文档 iframe 空白或 500？**  
+A：确认 RBAC、网关已启动；网关已放行 `/api/doc.html`；前端 dev 需重启以加载 Vite 代理；库中菜单 151 的 `component` 建议为 `/doc.html`。
 
-**Q：Git 仓库地址？**  
+**Q：Knife4j 下拉只有 default？**  
+A：表示当前只有一个 OpenAPI 分组（全部接口），正常。可按模块配置 `GroupedOpenApi` 拆分并自定义中文名。
+
+**Q：上传无法预览？**  
+A：需登录且请求走网关 `/api/files/**`。
+
+**Q：Git 仓库？**  
 A：https://github.com/wushij/admin.git
 
 ---
@@ -295,10 +364,10 @@ A：https://github.com/wushij/admin.git
 
 - [Docker 部署指南](./admin-platform/DOCKER_DEPLOY.md)
 - [微服务说明](./admin-platform/MICROSERVICE_GUIDE.md)
-- [整合代码 / 功能参考](./整合代码/)（各模块关键代码与 AI 提示词）
+- [整合代码 / 功能参考](./整合代码/)
 
 ---
 
 ## 许可证
 
-本项目仅供学习与内部使用，部署到生产环境前请修改默认密码、JWT 密钥等敏感配置。
+本项目仅供学习与内部使用。生产部署前请修改默认密码、JWT 密钥等敏感配置。

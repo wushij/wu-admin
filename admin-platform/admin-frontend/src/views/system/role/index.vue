@@ -199,6 +199,7 @@ import { ref, reactive, onMounted, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getRoleList, createRole, updateRole, deleteRole, assignRoleMenu, updateRoleStatus, getRoleMenuIds, getRecycleRolePage, restoreRole, deleteRolePermanent } from '@/api/system/role'
 import { getMenuList } from '@/api/system/menu'
+import { buildMenuTree } from '@/utils/menu-tree'
 
 const loading = ref(false)
 const roleList = ref([])
@@ -342,7 +343,10 @@ const handleAssignMenu = async (row) => {
   // 先加载菜单列表
   if (menuOptions.value.length === 0) {
     const menuRes = await getMenuList()
-    menuOptions.value = menuRes.data || []
+    const data = menuRes.data || []
+    menuOptions.value = data[0]?.children !== undefined || data.length === 0
+      ? data
+      : buildMenuTree(data)
   }
   // 获取角色已有菜单
   const res = await getRoleMenuIds(row.id)

@@ -6,7 +6,7 @@ import cn.rbac.server.common.pojo.PageParam;
 import cn.rbac.server.common.pojo.PageResult;
 import cn.rbac.server.modules.system.dal.dataobject.permission.MenuDO;
 import cn.rbac.server.modules.system.dal.mysql.permission.MenuMapper;
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import cn.rbac.server.modules.system.service.menu.MenuService;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -23,21 +23,26 @@ public class MenuController {
     
     @Resource
     private MenuMapper menuMapper;
+    @Resource
+    private MenuService menuService;
     
-    @Operation(summary = "获取菜单列表")
+    @Operation(summary = "获取菜单树（管理页）")
     @GetMapping("/list")
     @PreAuthorize("@ss.hasPermission('system:menu:list')")
     public CommonResult<List<MenuDO>> list(
             @RequestParam(required = false) String name,
-            @RequestParam(required = false) Integer status) {
-        LambdaQueryWrapper<MenuDO> wrapper = new LambdaQueryWrapper<>();
-        if (name != null && !name.isEmpty()) {
-            wrapper.like(MenuDO::getName, name);
-        }
-        if (status != null) {
-            wrapper.eq(MenuDO::getStatus, status);
-        }
-        return CommonResult.success(menuMapper.selectList(wrapper));
+            @RequestParam(required = false) Integer status,
+            @RequestParam(required = false) Integer type) {
+        return CommonResult.success(menuService.listTree(name, status, type));
+    }
+
+    @Operation(summary = "获取菜单全量列表（角色分配等，扁平）")
+    @GetMapping("/simple-list")
+    public CommonResult<List<MenuDO>> simpleList() {
+        return CommonResult.success(menuMapper.selectList(
+                new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<MenuDO>()
+                        .orderByAsc(MenuDO::getSort)
+                        .orderByAsc(MenuDO::getId)));
     }
     
     @Operation(summary = "获取菜单详情")
@@ -56,12 +61,12 @@ public class MenuController {
         menu.setName(reqVO.getName());
         menu.setPermission(reqVO.getPermission());
         menu.setType(reqVO.getType());
-        menu.setSort(reqVO.getSort());
-        menu.setParentId(reqVO.getParentId());
+        menu.setSort(reqVO.getSort() != null ? reqVO.getSort() : 0);
+        menu.setParentId(reqVO.getParentId() != null ? reqVO.getParentId() : 0L);
         menu.setPath(reqVO.getPath());
         menu.setIcon(reqVO.getIcon());
         menu.setComponent(reqVO.getComponent());
-        menu.setStatus(1);
+        menu.setStatus(reqVO.getStatus() != null ? reqVO.getStatus() : 1);
         menuMapper.insert(menu);
         return CommonResult.success(menu.getId());
     }
@@ -90,8 +95,12 @@ public class MenuController {
     @DeleteMapping("/delete")
     @PreAuthorize("@ss.hasPermission('system:menu:delete')")
     public CommonResult<Boolean> delete(@RequestParam Long id) {
-        menuMapper.deleteById(id);
-        return CommonResult.success(true);
+        try {
+            menuService.deleteMenu(id);
+            return CommonResult.success(true);
+        } catch (IllegalArgumentException e) {
+            return CommonResult.error(400, e.getMessage());
+        }
     }
 
     @Operation(summary = "菜单回收站分页")
@@ -147,6 +156,7 @@ public class MenuController {
         private String path;
         private String icon;
         private String component;
+        private Integer status;
     }
     
     @Data
