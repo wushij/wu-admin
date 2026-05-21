@@ -100,7 +100,8 @@ spring:
         - id: admin-knife4j-api-docs
           uri: ${app.backend.base-url}
           predicates:
-            - Path=/api/v3/api-docs/**
+            # 精确 /api/v3/api-docs 与 /** 子路径均需匹配（Knife4j 主文档 JSON 在根路径）
+            - Path=/api/v3/api-docs,/api/v3/api-docs/**
           filters:
             - StripPrefix=1
         - id: admin-knife4j-webjars

@@ -1,5 +1,5 @@
 # admin-backend 镜像（需先执行: cd admin-backend && mvn clean package -DskipTests）
-FROM eclipse-temurin:8-jre
+FROM eclipse-temurin:17-jre
 
 WORKDIR /app
 

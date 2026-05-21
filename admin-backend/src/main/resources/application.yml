@@ -47,7 +47,8 @@ springdoc:
     path: /swagger-ui
 
 knife4j:
-  enable: true
+  # 4.5.0 增强 Customizer 与 springdoc 2.8+ API 不兼容；关闭增强后 doc.html 仍可用
+  enable: false
   setting:
     language: zh_cn
 

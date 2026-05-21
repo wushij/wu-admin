@@ -3,7 +3,7 @@ package cn.rbac.server.framework.security.core.service;
 import cn.rbac.server.modules.system.service.permission.PermissionService;
 import org.springframework.stereotype.Service;
 
-import javax.annotation.Resource;
+import jakarta.annotation.Resource;
 
 /**
  * 自定义权限校验服务（用于 @PreAuthorize 注解）

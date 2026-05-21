@@ -8,7 +8,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
-import javax.annotation.Resource;
+import jakarta.annotation.Resource;
 
 /**
  * 将业务校验异常转为 400 + 明确提示，避免前端只看到 500

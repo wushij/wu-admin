@@ -58,6 +58,18 @@ admin/                          # 管理系统总根目录
 
 > **当前只有 1 个后端服务**，后续按下方步骤添加新服务。
 
+## 后端技术版本（Spring Boot 3.5 升级后）
+
+| 项目 | 版本 | 说明 |
+|------|------|------|
+| JDK | 17 | RBAC、网关统一 |
+| Spring Boot | 3.5.13 | `admin-backend`、`admin-gateway` 父 POM |
+| Spring Cloud | 2025.0.0 | 仅网关 |
+| Springdoc OpenAPI | 2.8.9 | 须 ≥ 2.8.9（兼容 Spring Framework 6.2） |
+| Knife4j | 4.5.0 | UI 使用 `doc.html`；`knife4j.enable: false` 关闭与 springdoc 2.8 不兼容的增强 Customizer |
+
+接口文档、依赖对齐细节见根目录 [README.md](./README.md#技术栈)。
+
 ## 启动顺序
 
 ```bash

@@ -1,11 +1,15 @@
 package cn.rbac.server.framework.security.config;
 
 import cn.rbac.server.framework.security.core.filter.JwtAuthenticationFilter;
+import jakarta.annotation.Resource;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.security.config.annotation.method.configuration.EnableGlobalMethodSecurity;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configuration.WebSecurityCustomizer;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -15,15 +19,16 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
-import javax.annotation.Resource;
 import java.util.Arrays;
+
+import static org.springframework.security.web.util.matcher.AntPathRequestMatcher.antMatcher;
 
 /**
  * Spring Security 配置
  */
 @Configuration
 @EnableWebSecurity
-@EnableGlobalMethodSecurity(prePostEnabled = true)
+@EnableMethodSecurity(prePostEnabled = true)
 public class SecurityConfig {
 
     @Resource
@@ -35,36 +40,41 @@ public class SecurityConfig {
     }
 
     @Bean
+    public WebSecurityCustomizer knife4jWebSecurityCustomizer() {
+        return web -> web.ignoring().requestMatchers(
+                "/doc.html",
+                "/webjars/**",
+                "/v3/api-docs",
+                "/v3/api-docs/**",
+                "/swagger-ui/**",
+                "/swagger-ui.html"
+        );
+    }
+
+    @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-            // 禁用 CSRF
-            .csrf().disable()
-            // 启用 CORS
-            .cors().and()
-            // 禁用 Session
-            .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-            .and()
-            // 配置请求授权
-            .authorizeRequests()
-                // 允许匿名访问的接口
-                .antMatchers(
-                    "/auth/login",
-                    "/auth/captcha",
-                    "/auth/register",
-                    "/auth/config",
-                    "/v3/api-docs/**",
-                    "/swagger-ui/**",
-                    "/swagger-ui.html",
-                    "/doc.html",
-                    "/webjars/**"
+            .csrf(AbstractHttpConfigurer::disable)
+            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .authorizeHttpRequests(auth -> auth
+                .requestMatchers(
+                    antMatcher("/auth/login"),
+                    antMatcher("/auth/captcha"),
+                    antMatcher("/auth/register"),
+                    antMatcher("/auth/config")
                 ).permitAll()
-                // 其他请求需要认证
+                .requestMatchers(
+                    antMatcher("/doc.html"),
+                    antMatcher("/webjars/**"),
+                    antMatcher("/v3/api-docs"),
+                    antMatcher("/v3/api-docs/**"),
+                    antMatcher("/swagger-ui/**"),
+                    antMatcher("/swagger-ui.html")
+                ).permitAll()
                 .anyRequest().authenticated()
-            .and()
-            // 允许管理端同源 iframe 嵌入 Knife4j 文档页
-            .headers().frameOptions().sameOrigin()
-            .and()
-            // 添加 JWT 过滤器
+            )
+            .headers(headers -> headers.frameOptions(HeadersConfigurer.FrameOptionsConfig::disable))
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

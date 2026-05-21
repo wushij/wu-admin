@@ -2,7 +2,7 @@ package cn.rbac.server.modules.system.service.monitor;
 
 import cn.rbac.server.modules.system.controller.admin.monitor.vo.OnlineUserVO;
 
-import javax.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
 
 public interface OnlineUserService {

@@ -1,6 +1,20 @@
-import { defineConfig } from 'vite'
+import { defineConfig, type ProxyOptions } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import { resolve } from 'path'
+
+/** 开发环境代理 Knife4j 时移除 X-Frame-Options，避免 iframe 内嵌被 DENY 拦截 */
+function knife4jProxy(target: string, rewrite?: ProxyOptions['rewrite']): ProxyOptions {
+  return {
+    target,
+    changeOrigin: true,
+    rewrite,
+    configure: (proxy) => {
+      proxy.on('proxyRes', (proxyRes) => {
+        delete proxyRes.headers['x-frame-options']
+      })
+    },
+  }
+}
 
 export default defineConfig({
   plugins: [vue()],
@@ -18,22 +32,10 @@ export default defineConfig({
         changeOrigin: true,
       },
       // Knife4j 静态资源（HTML 内引用 /webjars、/swagger-ui 等同源路径，不能只用 /api/doc.html）
-      '/doc.html': {
-        target: 'http://127.0.0.1:8081',
-        changeOrigin: true,
-      },
-      '/webjars': {
-        target: 'http://127.0.0.1:8081',
-        changeOrigin: true,
-      },
-      '/swagger-ui': {
-        target: 'http://127.0.0.1:8081',
-        changeOrigin: true,
-      },
-      '/v3/api-docs': {
-        target: 'http://127.0.0.1:8081',
-        changeOrigin: true,
-      },
+      '/doc.html': knife4jProxy('http://127.0.0.1:8081'),
+      '/webjars': knife4jProxy('http://127.0.0.1:8081'),
+      '/swagger-ui': knife4jProxy('http://127.0.0.1:8081'),
+      '/v3/api-docs': knife4jProxy('http://127.0.0.1:8081'),
     }
   },
   build: {

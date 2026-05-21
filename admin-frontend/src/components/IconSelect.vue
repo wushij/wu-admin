@@ -1,8 +1,8 @@
 <template>
   <el-popover
     v-model:visible="popoverVisible"
-    placement="top-start"
-    :fallback-placements="['bottom-start', 'top-end']"
+    placement="bottom"
+    :fallback-placements="['top', 'bottom-start', 'top-start']"
     :width="400"
     trigger="click"
     :show-arrow="true"
@@ -232,7 +232,7 @@ const handleClear = () => {
 .icon-picker-panel {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
   width: 100%;
   max-width: 376px;
   overflow: hidden;
@@ -244,7 +244,7 @@ const handleClear = () => {
 }
 
 .icon-grid-scroll {
-  max-height: 360px;
+  max-height: 300px;
   overflow-y: auto;
   overflow-x: hidden;
   width: 100%;
@@ -312,7 +312,7 @@ const handleClear = () => {
 
 <style>
 .icon-select-popper {
-  padding: 12px !important;
+  padding: 8px !important;
   overflow: hidden !important;
 }
 

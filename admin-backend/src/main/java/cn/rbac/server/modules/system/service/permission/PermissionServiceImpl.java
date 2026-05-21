@@ -5,7 +5,7 @@ import cn.rbac.server.modules.system.dal.mysql.permission.*;
 import cn.hutool.core.collection.CollUtil;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import javax.annotation.Resource;
+import jakarta.annotation.Resource;
 import java.util.*;
 import java.util.stream.Collectors;
 

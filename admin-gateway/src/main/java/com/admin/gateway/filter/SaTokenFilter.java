@@ -35,7 +35,9 @@ public class SaTokenFilter {
                                     "/api/auth/captcha",
                                     "/api/auth/config",
                                     "/api/doc.html",
+                                    "/api/swagger-ui",
                                     "/api/swagger-ui/**",
+                                    "/api/v3/api-docs",
                                     "/api/v3/api-docs/**",
                                     "/api/webjars/**"
                             )

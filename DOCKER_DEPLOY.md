@@ -33,8 +33,9 @@
 
 3. **Maven** (Java打包)
    - 版本: 3.6+
-   - JDK 8 (admin-backend后端)
-   - JDK 17 (网关)
+   - **JDK 17**（admin-backend + 网关）
+   - **Spring Boot 3.5.13**（镜像内运行版本，与本地 `pom.xml` 一致）
+   - 接口文档依赖：**springdoc 2.8.9** + Knife4j 4.5（`knife4j.enable: false`），详见 [README.md](./README.md#接口文档toolapi-doc)
 
 ---
 
@@ -190,7 +191,7 @@ services:
       timeout: 5s
       retries: 5
 
-  # admin-backend后端服务 (Java 8)
+  # admin-backend后端服务 (Java 17)
   admin-backend:
     build:
       context: .                             # 根目录 Dockerfile 构建后端
@@ -547,7 +548,7 @@ command: >
 
 - 2026-04-13: 初始版本,完整的Docker部署方案
   - 前端Docker化 (Nginx)
-  - 后端Docker化 (Java 8 + Java 17)
+  - 后端Docker化 (Java 17)
   - MySQL + Redis容器化
   - 完整的代理配置说明
 

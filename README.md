@@ -87,9 +87,10 @@
 
 ### 接口文档（`/tool/api-doc`）
 
-- **开发工具 → 接口文档**，内嵌 Knife4j
-- 开发：Vite 代理 `/doc.html`、`/webjars`、`/swagger-ui`、`/v3/api-docs` → RBAC `8081`
-- 生产：Nginx → 网关 → RBAC
+- **开发工具 → 接口文档**，内嵌 Knife4j（基于 **Springdoc OpenAPI 3**）
+- 开发：Vite 代理 `/doc.html`、`/webjars`、`/swagger-ui`、`/v3/api-docs` → RBAC `8081`（不经网关）
+- 生产：Nginx → 网关 `/api/doc.html`、`/api/v3/api-docs` 等 → RBAC
+- Spring Boot **3.5** 需 **springdoc ≥ 2.8.9**；`knife4j.enable` 建议为 `false`（4.5.0 增强模块与 springdoc 2.8 API 不兼容，关闭后 `doc.html` 仍正常）
 
 ---
 
@@ -98,12 +99,20 @@
 | 层级 | 技术 |
 |------|------|
 | 前端 | Vue 3、Vite、Element Plus、Pinia、Axios、ECharts |
-| 网关 | Spring Cloud Gateway、Sa-Token、Redis |
-| 后端 | Spring Boot 2.7、Spring Security、MyBatis-Plus、Druid、Knife4j |
+| 网关 | Spring Boot 3.5、Spring Cloud Gateway 2025.0、Sa-Token、Redis |
+| 后端 | Spring Boot 3.5、Spring Security 6、MyBatis-Plus 3.5、Druid、Knife4j 4.5、Springdoc 2.8 |
 | 数据 | MySQL 8、Redis 7 |
 | 部署 | Docker Compose、Nginx |
 
-**JDK**：RBAC **JDK 8**；网关 **JDK 17**。
+**JDK 17**（RBAC + 网关）。核心版本见下表：
+
+| 组件 | 版本 |
+|------|------|
+| Spring Boot | 3.5.13（`admin-backend`、`admin-gateway`） |
+| Spring Cloud | 2025.0.0（网关） |
+| Springdoc OpenAPI | 2.8.9（须 ≥ 2.8.9，兼容 Spring 6.2） |
+| Knife4j | 4.5.0（`knife4j.enable: false` 关闭增强以避免与 springdoc 冲突） |
+| MyBatis-Plus | 3.5.9 |
 
 ---
 
@@ -164,7 +173,10 @@ admin/
 |------|----------|
 | Node.js | 18+ |
 | Maven | 3.6+ |
-| JDK | 8（RBAC）+ 17（网关） |
+| JDK | 17（RBAC + 网关） |
+| Spring Boot | **3.5.13**（RBAC + 网关，自 2.7 升级） |
+| Spring Cloud | 2025.0.0（网关） |
+| Springdoc / Knife4j | 2.8.9 / 4.5.0（见上文接口文档说明） |
 | MySQL | 8.0 |
 | Redis | 7.x |
 | Docker Desktop | 可选 |
@@ -262,7 +274,8 @@ npm run dev
 | `jwt.secret` / `jwt.expiration` | JWT 缺省（可被 `session` 分组覆盖） |
 | `file.storage.*` | 上传目录与缺省限制 |
 | `auth.security.*` | 验证码与限流缺省 |
-| `knife4j.enable` | 接口文档 |
+| `knife4j.enable` | 接口文档增强开关；**3.5 + springdoc 2.8 建议 `false`**（见 `application.yml` 注释） |
+| `springdoc.api-docs.path` | OpenAPI JSON 路径，默认 `/v3/api-docs` |
 
 运行时优先读取 `sys_config_group`（见 `SystemConfigHelper`）。
 
@@ -357,8 +370,8 @@ A：对已有库执行 `admin_platform.sql` 文末「附录：已有库升级」
 **Q：注册后无法登录？**  
 A：若开启「注册需审核」，需管理员在审批单中心通过；登录提示「账号待审核」属正常。
 
-**Q：接口文档 iframe 空白？**  
-A：确认 RBAC、网关已启动；开发环境重启 Vite 以加载代理。
+**Q：接口文档 iframe 空白或 `/v3/api-docs` 403？**  
+A：① 确认 RBAC（8081）已启动，浏览器访问 `http://127.0.0.1:8081/v3/api-docs` 应返回 JSON；② 开发环境重启 Vite 以加载 Knife4j 代理；③ 生产环境确认网关已放行 `/api/v3/api-docs`；④ 勿将 springdoc 降为 2.6（与 Spring Boot 3.5 不兼容）；⑤ `knife4j.enable` 保持 `false` 直至升级兼容的 Knife4j 版本。
 
 **Q：上传失败提示大小或类型？**  
 A：在 **系统配置 → 文件存储** 调整；单文件上限不得超过 500MB。

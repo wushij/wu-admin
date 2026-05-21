@@ -4,7 +4,7 @@ import cn.rbac.server.modules.system.service.config.SystemConfigHelper;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
-import javax.annotation.Resource;
+import jakarta.annotation.Resource;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;

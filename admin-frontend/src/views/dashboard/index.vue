@@ -484,7 +484,7 @@ const systemMetaList = computed(() => [
   { label: '系统名称', value: platformName.value },
   { label: '系统版本', value: SYSTEM_VERSION },
   { label: '前端框架', value: 'Vue 3.4 + Element Plus' },
-  { label: '后端框架', value: 'Spring Boot 2.7 + Gateway' },
+  { label: '后端框架', value: 'Spring Boot 3.5 + Gateway' },
   { label: '数据库', value: 'MySQL 8.0' },
   { label: '缓存', value: 'Redis 7' }
 ])
