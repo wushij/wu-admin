@@ -30,7 +30,6 @@
 - 原「部门管理」升级为 **组织管理**，Tab 切换：**部门体系 | 岗位体系**
 - 部门：树形结构、`ancestors` 祖级路径、拖拽移动、子部门/成员查看、回收站
 - 岗位：岗位树、用户关联（`sys_user_post`）、组织内成员列表
-- 增量脚本：`sql/add1.sql`（仅组织相关表结构与菜单）
 
 ### 菜单管理（`/system/menu`）
 
@@ -47,7 +46,6 @@
 - 生产环境：Nginx 转发上述路径至网关 → RBAC
 - 菜单 `component` 填 `/doc.html`；若改为 `https://...` 外链，侧栏点击将在**新窗口**打开（Apifox 等）
 - Knife4j 分组下拉 **default**：表示当前仅一个 OpenAPI 分组（全部接口），属正常现象
-- 增量脚本：`sql/add2.sql`
 
 ---
 
@@ -82,7 +80,7 @@
                                            │ 转发
                                            ▼
                                   ┌──────────────────┐
-                                  │  rbac-server     │
+                                  │  admin-backend   │
                                   │  :8081           │
                                   │  Knife4j         │
                                   └────────┬─────────┘
@@ -107,22 +105,19 @@
 ## 目录结构
 
 ```
-admin/
-├── RBAC/
-│   ├── rbac-backend/              # 业务 API、权限、组织/岗位、文件、监控等
-│   └── Dockerfile
-├── admin-platform/
-│   ├── admin-frontend/            # Vue3 管理端
-│   ├── admin-gateway/             # Spring Cloud 网关
-│   ├── sql/
-│   │   ├── admin_platform.sql     # 全量建库（新环境）
-│   │   ├── add1.sql               # 增量：组织管理（部门+岗位）
-│   │   └── add2.sql               # 增量：开发工具·接口文档菜单
-│   ├── docker-compose.yml
-│   ├── DOCKER_DEPLOY.md
-│   └── MICROSERVICE_GUIDE.md
-├── 整合代码/                       # 各功能参考实现与 AI 提示词
-└── README.md
+admin/                          # 管理系统总根目录
+├── admin-gateway/              # 微服务网关 (Spring Cloud Gateway)
+├── admin-backend/              # RBAC 后端
+├── admin-frontend/             # Vue3 后台管理前端
+├── sql/
+│   └── admin_platform.sql      # 数据库初始化脚本（全量）
+├── scripts/
+│   └── docker-rebuild.ps1      # Docker 重建脚本
+├── Dockerfile                  # 后端镜像构建
+├── docker-compose.yml          # 容器一键部署
+├── DOCKER_DEPLOY.md            # Docker 部署教程
+├── MICROSERVICE_GUIDE.md       # 微服务使用文档
+└── README.md                   # 项目说明
 ```
 
 ---
@@ -145,7 +140,7 @@ admin/
 ### 方式一：Docker Compose（推荐）
 
 ```powershell
-cd admin-platform
+cd admin
 docker compose up -d --build
 ```
 
@@ -155,11 +150,11 @@ docker compose up -d --build
 |------|------|
 | 前端 | http://localhost:3000 |
 | 网关 | http://localhost:8080 |
-| RBAC（容器映射） | http://localhost:8082 |
+| admin-backend（容器映射） | http://localhost:8082 |
 | MySQL | `127.0.0.1:3307`，库 `RBAC1`，`root`/`root` |
 | Redis | `127.0.0.1:6379`，database `3` |
 
-详见 [admin-platform/DOCKER_DEPLOY.md](./admin-platform/DOCKER_DEPLOY.md)。
+详见 [DOCKER_DEPLOY.md](./DOCKER_DEPLOY.md)。
 
 ---
 
@@ -167,23 +162,11 @@ docker compose up -d --build
 
 #### 1. 初始化数据库
 
-**新库（推荐）**
-
 ```bash
-mysql -u root -p < admin-platform/sql/admin_platform.sql
+mysql -u root -p < sql/admin_platform.sql
 ```
 
-**已有旧库、按需升级**
-
-```bash
-# 仅补组织管理（部门 ancestors、岗位、菜单）
-mysql -u root -p RBAC1 < admin-platform/sql/add1.sql
-
-# 仅补开发工具 · 接口文档菜单
-mysql -u root -p RBAC1 < admin-platform/sql/add2.sql
-```
-
-> `admin_platform.sql` 内含 `DROP TABLE`，仅用于新库或开发环境。
+> `admin_platform.sql` 为全量脚本（含组织管理、开发工具菜单等），内含 `DROP TABLE`，仅用于新库或开发环境。
 
 #### 2. 启动 Redis
 
@@ -192,21 +175,21 @@ mysql -u root -p RBAC1 < admin-platform/sql/add2.sql
 #### 3. 启动 RBAC（8081）
 
 ```powershell
-cd RBAC/rbac-backend
+cd admin-backend
 mvn spring-boot:run -DskipTests
 ```
 
 #### 4. 启动网关（8080）
 
 ```powershell
-cd admin-platform/admin-gateway
+cd admin-gateway
 mvn spring-boot:run -DskipTests
 ```
 
 #### 5. 启动前端（3000）
 
 ```powershell
-cd admin-platform/admin-frontend
+cd admin-frontend
 npm install
 npm run dev
 ```
@@ -243,7 +226,7 @@ Vite 代理：`/api` → 网关 `8080`；Knife4j 相关路径 → RBAC `8081`（
 
 | 配置项 | 说明 |
 |--------|------|
-| `app.rbac.base-url` | RBAC 地址；Docker 为 `http://rbac-server:8081` |
+| `app.backend.base-url` | 后端地址；Docker 为 `http://admin-backend:8081` |
 | `spring.cloud.gateway.routes` | `/api/auth/**`、`/api/system/**`、`/api/files/**`、`/api/doc.html` 等 |
 
 网关 Sa-Token 已放行 Knife4j 路径（`/api/doc.html`、`/api/swagger-ui/**` 等），供管理端 iframe 加载文档。
@@ -281,11 +264,9 @@ Vite 代理：`/api` → 网关 `8080`；Knife4j 相关路径 → RBAC `8081`（
 
 | 脚本 | 用途 |
 |------|------|
-| `admin_platform.sql` | **全新安装**：建库、全表、菜单权限、演示数据（含组织管理、开发工具） |
-| `add1.sql` | **增量**：组织管理（`ancestors`、`sys_post`、`sys_user_post`、菜单 id=5 升级） |
-| `add2.sql` | **增量**：开发工具目录 + 接口文档菜单（id=150/151） |
+| `sql/admin_platform.sql` | 建库、全表、菜单权限、演示数据（含组织管理、开发工具菜单） |
 
-执行增量脚本后请**重新登录**。
+导入后请**重新登录**。
 
 ---
 
@@ -316,35 +297,25 @@ Controller 方法添加 `@Log`，由 `LogAspect` 写入 `sys_oper_log`。
 - `component` 以 `http://` 或 `https://` 开头 → 侧栏**新窗口**打开
 - 填 `/doc.html` 或视图路径 → 走路由或 iframe 内嵌
 
-### 整合代码参考
-
-`整合代码/` 目录含各模块关键代码与提示词，例如：
-
-- `组织管理-关键代码与提示词`
-- `菜单管理-关键代码与提示词`
-- `开发工具-接口文档-关键代码与提示词`
-
----
-
 ## 构建与打包
 
 ```powershell
-cd admin-platform/admin-frontend && npm run build
-cd RBAC/rbac-backend && mvn clean package -DskipTests
-cd admin-platform/admin-gateway && mvn clean package -DskipTests
+cd admin-frontend && npm run build
+cd admin-backend && mvn clean package -DskipTests
+cd admin-gateway && mvn clean package -DskipTests
 ```
 
-改 Java 或前端运行代码后，Docker 环境需重建：`docker compose up -d --build`。
+改 Java 或前端运行代码后，Docker 环境可执行：`powershell -File scripts/docker-rebuild.ps1`（或 `docker compose up -d --build`）。
 
 ---
 
 ## 常见问题
 
 **Q：登录后菜单为空或 403？**  
-A：确认已执行 `admin_platform.sql` 或对应增量脚本，角色已分配菜单，然后重新登录。
+A：确认已执行 `sql/admin_platform.sql`，角色已分配菜单，然后重新登录。
 
 **Q：看不到「组织管理」或「接口文档」？**  
-A：执行 `add1.sql` / `add2.sql`，或为角色勾选菜单 5、150、151，再重新登录。
+A：确认全量脚本已导入，或为角色勾选对应菜单（如 5、150、151），再重新登录。
 
 **Q：接口文档 iframe 空白或 500？**  
 A：确认 RBAC、网关已启动；网关已放行 `/api/doc.html`；前端 dev 需重启以加载 Vite 代理；库中菜单 151 的 `component` 建议为 `/doc.html`。
@@ -362,9 +333,8 @@ A：https://github.com/wushij/admin.git
 
 ## 相关文档
 
-- [Docker 部署指南](./admin-platform/DOCKER_DEPLOY.md)
-- [微服务说明](./admin-platform/MICROSERVICE_GUIDE.md)
-- [整合代码 / 功能参考](./整合代码/)
+- [Docker 部署指南](./DOCKER_DEPLOY.md)
+- [微服务说明](./MICROSERVICE_GUIDE.md)
 
 ---
 

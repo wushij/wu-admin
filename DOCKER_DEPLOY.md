@@ -3,7 +3,7 @@
 ## 📋 项目架构
 
 ```
-前端 (Nginx) → 网关 (Gateway) → 后端 (RBAC) → MySQL + Redis
+前端 (Nginx) → 网关 (Gateway) → 后端 (admin-backend) → MySQL + Redis
    :3000          :8080           :8081        :3307   :6379
 ```
 
@@ -13,7 +13,7 @@
 |------|----------|----------|------|
 | 前端 (Nginx) | 80 | 3000 | http://localhost:3000 |
 | 网关 (Gateway) | 8080 | 8080 | http://localhost:8080 |
-| RBAC后端 | 8081 | 8081 | http://localhost:8081 |
+| admin-backend后端 | 8081 | 8081 | http://localhost:8081 |
 | MySQL | 3306 | 3307 | 127.0.0.1:3307 |
 | Redis | 6379 | 6379 | 127.0.0.1:6379 |
 
@@ -33,7 +33,7 @@
 
 3. **Maven** (Java打包)
    - 版本: 3.6+
-   - JDK 8 (RBAC后端)
+   - JDK 8 (admin-backend后端)
    - JDK 17 (网关)
 
 ---
@@ -56,19 +56,19 @@ Containers proxy: Same as host proxy
 
 ### 2. 打包Java项目
 
-#### 打包RBAC后端
+#### 打包admin-backend后端
 
 ```bash
-cd E:\admin\RBAC
+cd E:\admin\admin-backend
 mvn clean package -DskipTests
 ```
 
-生成文件: `rbac-backend/target/rbac-server.jar`
+生成文件: `admin-backend/target/admin-backend.jar`
 
 #### 打包网关
 
 ```bash
-cd E:\admin\admin-platform\admin-gateway
+cd E:\admin\admin-gateway
 mvn clean package -DskipTests
 ```
 
@@ -78,7 +78,7 @@ mvn clean package -DskipTests
 
 ```bash
 # 启动MySQL容器
-cd E:\admin\admin-platform
+cd E:\admin
 docker-compose up -d mysql
 
 # 等待MySQL启动完成 (约10秒)
@@ -87,7 +87,7 @@ docker-compose ps
 # 导入SQL数据
 docker exec admin-mysql mysql -uroot -proot -e "DROP DATABASE IF EXISTS RBAC1; CREATE DATABASE RBAC1 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 
-docker cp "E:\admin\admin-platform\sql\admin_platform.sql" admin-mysql:/tmp/init.sql
+docker cp "E:\admin\sql\admin_platform.sql" admin-mysql:/tmp/init.sql
 
 docker exec admin-mysql mysql -uroot -proot --default-character-set=utf8mb4 -e "SET NAMES utf8mb4; SOURCE /tmp/init.sql;" RBAC1
 ```
@@ -95,7 +95,7 @@ docker exec admin-mysql mysql -uroot -proot --default-character-set=utf8mb4 -e "
 ### 4. 构建并启动所有服务
 
 ```bash
-cd E:\admin\admin-platform
+cd E:\admin
 docker-compose up -d --build
 ```
 
@@ -120,7 +120,7 @@ curl http://localhost:8080/api/auth/config
 ## 📁 项目结构
 
 ```
-admin-platform/
+admin/
 ├── docker-compose.yml          # Docker编排配置
 ├── sql/                        # 数据库初始化脚本
 │   └── admin_platform.sql
@@ -137,13 +137,13 @@ admin-platform/
 │   ├── package.json
 │   ├── vite.config.ts
 │   └── src/
-└── ../RBAC/                    # RBAC后端 (上级目录)
-    ├── Dockerfile
-    ├── pom.xml
-    ├── src/
-    └── rbac-backend/
-        └── target/
-            └── rbac-server.jar
+├── admin-backend/              # 后端服务
+│   ├── pom.xml
+│   ├── src/
+│   └── target/
+│       └── admin-backend.jar
+├── Dockerfile                  # 后端镜像（根目录）
+└── admin-gateway/Dockerfile    # 网关镜像
 ```
 
 ---
@@ -190,12 +190,12 @@ services:
       timeout: 5s
       retries: 5
 
-  # RBAC后端服务 (Java 8)
-  rbac-server:
+  # admin-backend后端服务 (Java 8)
+  admin-backend:
     build:
-      context: ../RBAC              # 构建上下文
+      context: .                             # 根目录 Dockerfile 构建后端
       dockerfile: Dockerfile
-    container_name: rbac-server
+    container_name: admin-backend
     environment:
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/RBAC1?...
       SPRING_DATASOURCE_USERNAME: root
@@ -214,7 +214,7 @@ services:
   # 网关服务 (Java 17)
   admin-gateway:
     build:
-      context: .
+      context: ./admin-gateway
       dockerfile: Dockerfile
     container_name: admin-gateway
     environment:
@@ -224,7 +224,7 @@ services:
     ports:
       - "8080:8080"
     depends_on:
-      - rbac-server
+      - admin-backend
 
   # 前端服务 (Nginx)
   admin-frontend:
@@ -333,7 +333,7 @@ docker-compose down -v
 docker-compose logs -f
 
 # 查看指定服务日志
-docker-compose logs -f rbac-server
+docker-compose logs -f admin-backend
 
 # 查看最近100行日志
 docker-compose logs --tail=100 admin-gateway
@@ -346,7 +346,7 @@ docker-compose logs --tail=100 admin-gateway
 docker-compose restart
 
 # 重启指定服务
-docker-compose restart rbac-server admin-gateway
+docker-compose restart admin-backend admin-gateway
 ```
 
 ### 进入容器
@@ -431,7 +431,7 @@ docker exec admin-mysql mysql -uroot -proot --default-character-set=utf8mb4 RBAC
 uri: http://localhost:8081
 
 # 正确
-uri: http://rbac-server:8081
+uri: http://admin-backend:8081
 ```
 
 ### 5. 前端构建失败

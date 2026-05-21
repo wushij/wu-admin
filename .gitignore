@@ -34,7 +34,7 @@ Desktop.ini
 !.env.example
 
 # Local uploads & runtime data
-RBAC/rbac-backend/data/
+admin-backend/data/
 
 # IDE / editor
 .cursor/

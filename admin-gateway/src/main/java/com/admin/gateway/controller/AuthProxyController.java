@@ -33,12 +33,12 @@ public class AuthProxyController {
             new ParameterizedTypeReference<>() {};
 
     /** 如 http://127.0.0.1:8081/auth */
-    private final String rbacAuthBase;
+    private final String backendAuthBase;
     private final WebClient webClient = WebClient.builder().build();
 
-    public AuthProxyController(@Value("${app.rbac.base-url:http://127.0.0.1:8081}") String rbacBaseUrl) {
-        String b = rbacBaseUrl.endsWith("/") ? rbacBaseUrl.substring(0, rbacBaseUrl.length() - 1) : rbacBaseUrl;
-        this.rbacAuthBase = b + "/auth";
+    public AuthProxyController(@Value("${app.backend.base-url:http://127.0.0.1:8081}") String backendBaseUrl) {
+        String b = backendBaseUrl.endsWith("/") ? backendBaseUrl.substring(0, backendBaseUrl.length() - 1) : backendBaseUrl;
+        this.backendAuthBase = b + "/auth";
     }
 
     @PostMapping("/login")
@@ -48,7 +48,7 @@ public class AuthProxyController {
         final String clientUa = userAgent;
 
         return webClient.post()
-                .uri(rbacAuthBase + "/login")
+                .uri(backendAuthBase + "/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .headers(headers -> {
                     if (StringUtils.hasText(clientUa)) {
@@ -85,7 +85,7 @@ public class AuthProxyController {
             }
 
             return webClient.get()
-                    .uri(rbacAuthBase + "/info")
+                    .uri(backendAuthBase + "/info")
                     .header("Authorization", "Bearer " + rbacJwt)
                     .exchangeToMono(response ->
                             response.bodyToMono(MAP_TYPE).defaultIfEmpty(error(response.statusCode().value(), "获取用户信息失败"))
@@ -136,7 +136,7 @@ public class AuthProxyController {
                 logoutMono = Mono.just(success(true, "退出成功"));
             } else {
                 logoutMono = webClient.post()
-                        .uri(rbacAuthBase + "/logout")
+                        .uri(backendAuthBase + "/logout")
                         .header("Authorization", "Bearer " + rbacJwt)
                         .exchangeToMono(response ->
                                 response.bodyToMono(MAP_TYPE).defaultIfEmpty(success(true, "退出成功"))
