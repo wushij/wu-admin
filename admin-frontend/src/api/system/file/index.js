@@ -1,12 +1,39 @@
 import request, { get, del, put } from '@/utils/request'
 
-/** 与后端 file.storage.allowed-extensions 保持一致 */
-export const ALLOWED_FILE_EXTENSIONS = [
-  'jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg', 'pdf', 'doc', 'docx', 'xls', 'xlsx',
-  'ppt', 'pptx', 'txt', 'md', 'json', 'xml', 'zip', 'rar', 'mp4', 'mp3', 'wav', 'avi', 'mov'
-]
-
 const BLOCKED_EXTENSIONS = ['exe', 'bat', 'cmd', 'sh', 'ps1', 'msi', 'dll', 'com', 'scr']
+
+/** 由接口 /system/file/upload-policy 加载，保存系统配置后立即更新 */
+export const uploadPolicy = {
+  maxSizeMb: 50,
+  allowedExtensions: [],
+  platformMaxMb: 500
+}
+
+export function getFileUploadPolicy() {
+  return get('/system/file/upload-policy')
+}
+
+export function setUploadPolicyFromApi(data) {
+  if (!data) return
+  if (data.maxSizeMb != null) uploadPolicy.maxSizeMb = Number(data.maxSizeMb) || 50
+  if (data.platformMaxMb != null) uploadPolicy.platformMaxMb = Number(data.platformMaxMb) || 500
+  if (data.allowedExtensions) {
+    uploadPolicy.allowedExtensions = String(data.allowedExtensions)
+      .split(',')
+      .map((s) => s.trim().toLowerCase())
+      .filter(Boolean)
+  }
+}
+
+function getAllowedExtensions() {
+  if (uploadPolicy.allowedExtensions?.length) {
+    return uploadPolicy.allowedExtensions
+  }
+  return [
+    'jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg', 'pdf', 'doc', 'docx', 'xls', 'xlsx',
+    'ppt', 'pptx', 'txt', 'md', 'json', 'xml', 'zip', 'rar', 'mp4', 'mp3', 'wav', 'avi', 'mov'
+  ]
+}
 
 export function getFileExtension(fileName) {
   if (!fileName || !fileName.includes('.')) return ''
@@ -22,8 +49,12 @@ export function validateFileBeforeUpload(file) {
   if (BLOCKED_EXTENSIONS.includes(ext)) {
     return `不允许上传可执行文件：.${ext}`
   }
-  if (!ALLOWED_FILE_EXTENSIONS.includes(ext)) {
-    return `不允许上传该类型文件：.${ext}（支持图片、文档、压缩包、音视频等）`
+  if (!getAllowedExtensions().includes(ext)) {
+    return `不允许上传该类型文件：.${ext}`
+  }
+  const maxBytes = uploadPolicy.maxSizeMb * 1024 * 1024
+  if (file?.size > maxBytes) {
+    return `文件不能超过 ${uploadPolicy.maxSizeMb}MB（系统配置-文件存储可调）`
   }
   return null
 }

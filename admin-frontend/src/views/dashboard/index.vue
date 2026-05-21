@@ -9,6 +9,7 @@
           </div>
           <div class="welcome-text">
             <h1>欢迎回来，{{ userStore.userInfo.nickname || '管理员' }}</h1>
+            <p class="welcome-platform">{{ platformName }} · {{ platformSubtitle }}</p>
             <p class="welcome-time">{{ currentTime }}</p>
             <p class="welcome-greeting">{{ greetingMessage }}</p>
           </div>
@@ -31,6 +32,16 @@
             <div class="stat-info">
               <div class="stat-value">{{ stats.todayVisits }}</div>
               <div class="stat-label">今日访问</div>
+            </div>
+          </div>
+          <div class="welcome-stat-divider"></div>
+          <div class="welcome-stat-item">
+            <div class="stat-icon-wrapper login-ok">
+              <el-icon :size="20"><CircleCheck /></el-icon>
+            </div>
+            <div class="stat-info">
+              <div class="stat-value">{{ stats.todayLoginSuccess }}</div>
+              <div class="stat-label">今日登录成功</div>
             </div>
           </div>
         </div>
@@ -124,43 +135,105 @@
       </el-col>
     </el-row>
 
-    <el-row :gutter="24" class="stats-row ticket-stats-row">
-      <el-col :xs="24" :sm="8">
-        <div class="stat-card ticket">
+    <el-row :gutter="24" class="stats-row ops-stats-row">
+      <el-col :xs="24" :sm="12" :lg="6">
+        <div class="stat-card ops clickable" @click="$router.push('/system/user')">
           <div class="stat-card-header">
-            <div class="stat-icon-box ticket-total">
-              <el-icon :size="24"><Tickets /></el-icon>
+            <div class="stat-icon-box pending-user">
+              <el-icon :size="24"><User /></el-icon>
             </div>
           </div>
           <div class="stat-card-body">
-            <div class="stat-number">{{ stats.ticketTotal }}</div>
-            <div class="stat-title">工单总数</div>
+            <div class="stat-number">{{ stats.userPendingCount }}</div>
+            <div class="stat-title">待审核用户</div>
+          </div>
+          <div class="stat-card-footer"><span>状态为待审核的账号</span></div>
+        </div>
+      </el-col>
+      <el-col :xs="24" :sm="12" :lg="6">
+        <div class="stat-card ops clickable" @click="$router.push('/system/login-log')">
+          <div class="stat-card-header">
+            <div class="stat-icon-box login-success">
+              <el-icon :size="24"><CircleCheck /></el-icon>
+            </div>
+          </div>
+          <div class="stat-card-body">
+            <div class="stat-number">{{ stats.todayLoginSuccess }}</div>
+            <div class="stat-title">今日登录成功</div>
+          </div>
+          <div class="stat-card-footer">
+            <span>失败 {{ stats.todayLoginFail }} 次</span>
           </div>
         </div>
       </el-col>
-      <el-col :xs="24" :sm="8">
-        <div class="stat-card ticket">
+      <el-col :xs="24" :sm="12" :lg="6">
+        <div class="stat-card ops clickable" @click="$router.push('/system/file')">
           <div class="stat-card-header">
-            <div class="stat-icon-box ticket-open">
-              <el-icon :size="24"><Warning /></el-icon>
+            <div class="stat-icon-box file-store">
+              <el-icon :size="24"><FolderOpened /></el-icon>
             </div>
           </div>
           <div class="stat-card-body">
-            <div class="stat-number">{{ stats.ticketOpenCount }}</div>
-            <div class="stat-title">待处理工单</div>
+            <div class="stat-number">{{ stats.fileCount }}</div>
+            <div class="stat-title">文件存储</div>
+          </div>
+          <div class="stat-card-footer"><span>单文件上限 {{ stats.fileMaxSizeMb }}MB</span></div>
+        </div>
+      </el-col>
+      <el-col :xs="24" :sm="12" :lg="6">
+        <div class="stat-card ops clickable" @click="$router.push('/system/org')">
+          <div class="stat-card-header">
+            <div class="stat-icon-box post">
+              <el-icon :size="24"><Briefcase /></el-icon>
+            </div>
+          </div>
+          <div class="stat-card-body">
+            <div class="stat-number">{{ stats.postCount }}</div>
+            <div class="stat-title">岗位数</div>
+          </div>
+          <div class="stat-card-footer"><span>组织管理 · 部门 {{ stats.deptCount }}</span></div>
+        </div>
+      </el-col>
+    </el-row>
+
+    <el-row
+      v-if="stats.ticketOpenCount > 0 || stats.approvalPendingCount > 0"
+      :gutter="24"
+      class="stats-row biz-stats-row"
+    >
+      <el-col v-if="stats.ticketOpenCount > 0 || stats.ticketOverdueCount > 0" :xs="24" :sm="12" :lg="6">
+        <div
+          v-permission="'system:ticket:list'"
+          class="stat-card biz clickable"
+          @click="$router.push('/system/ticket')"
+        >
+          <div class="stat-card-body inline-biz">
+            <span class="biz-label">待处理工单</span>
+            <span class="biz-value warn">{{ stats.ticketOpenCount }}</span>
           </div>
         </div>
       </el-col>
-      <el-col :xs="24" :sm="8">
-        <div class="stat-card ticket">
-          <div class="stat-card-header">
-            <div class="stat-icon-box ticket-overdue">
-              <el-icon :size="24"><Timer /></el-icon>
-            </div>
+      <el-col v-if="stats.ticketOverdueCount > 0" :xs="24" :sm="12" :lg="6">
+        <div
+          v-permission="'system:ticket:list'"
+          class="stat-card biz clickable"
+          @click="$router.push('/system/ticket')"
+        >
+          <div class="stat-card-body inline-biz">
+            <span class="biz-label">超时工单</span>
+            <span class="biz-value danger">{{ stats.ticketOverdueCount }}</span>
           </div>
-          <div class="stat-card-body">
-            <div class="stat-number">{{ stats.ticketOverdueCount }}</div>
-            <div class="stat-title">超时工单</div>
+        </div>
+      </el-col>
+      <el-col v-if="stats.approvalPendingCount > 0" :xs="24" :sm="12" :lg="6">
+        <div
+          v-permission="'system:approval:list'"
+          class="stat-card biz clickable"
+          @click="$router.push('/system/approval')"
+        >
+          <div class="stat-card-body inline-biz">
+            <span class="biz-label">待审批</span>
+            <span class="biz-value">{{ stats.approvalPendingCount }}</span>
           </div>
         </div>
       </el-col>
@@ -257,6 +330,28 @@
               <el-icon class="quick-arrow"><ArrowRight /></el-icon>
             </div>
 
+            <div v-permission="'system:config:list'" class="quick-item" @click="$router.push('/system/config')">
+              <div class="quick-icon-wrapper config">
+                <el-icon :size="26"><Tools /></el-icon>
+              </div>
+              <div class="quick-info">
+                <div class="quick-name">系统配置</div>
+                <div class="quick-desc">登录、文件、限流等</div>
+              </div>
+              <el-icon class="quick-arrow"><ArrowRight /></el-icon>
+            </div>
+
+            <div v-permission="'sys:file:list'" class="quick-item" @click="$router.push('/system/file')">
+              <div class="quick-icon-wrapper file">
+                <el-icon :size="26"><FolderOpened /></el-icon>
+              </div>
+              <div class="quick-info">
+                <div class="quick-name">文件管理</div>
+                <div class="quick-desc">上传与分组存储</div>
+              </div>
+              <el-icon class="quick-arrow"><ArrowRight /></el-icon>
+            </div>
+
             <div v-permission="'system:ticket:list'" class="quick-item" @click="$router.push('/system/ticket')">
               <div class="quick-icon-wrapper ticket">
                 <el-icon :size="26"><Tickets /></el-icon>
@@ -296,36 +391,46 @@
               运行正常
             </el-tag>
           </div>
-          <div class="system-info">
-            <div class="info-row">
-              <span class="info-label">系统名称</span>
-              <span class="info-value">RBAC管理系统</span>
+          <ul class="sys-meta-list">
+            <li v-for="item in systemMetaList" :key="item.label" class="sys-meta-item">
+              <span class="sys-meta-label">{{ item.label }}</span>
+              <span class="sys-meta-value">{{ item.value }}</span>
+            </li>
+          </ul>
+        </div>
+      </el-col>
+    </el-row>
+
+    <el-row :gutter="24" class="content-row">
+      <el-col :span="24">
+        <div class="section-card">
+          <div class="section-header">
+            <div class="section-title-wrapper">
+              <div class="section-icon">
+                <el-icon :size="18"><Promotion /></el-icon>
+              </div>
+              <span class="section-title">最近登录</span>
             </div>
-            <div class="info-row">
-              <span class="info-label">系统版本</span>
-              <span class="info-value">v1.0.0</span>
-            </div>
-            <div class="info-row">
-              <span class="info-label">技术架构</span>
-              <span class="info-value">Vue3 + Spring Boot</span>
-            </div>
-            <div class="info-row">
-              <span class="info-label">运行环境</span>
-              <span class="info-value">Production</span>
-            </div>
-            <div class="info-row">
-              <span class="info-label">数据库</span>
-              <span class="info-value">MySQL 8.0</span>
-            </div>
-            <div class="info-row">
-              <span class="info-label">缓存服务</span>
-              <span class="info-value">Redis 7.0</span>
-            </div>
-            <div class="info-row">
-              <span class="info-label">当前用户</span>
-              <span class="info-value">{{ userStore.userInfo.nickname || '管理员' }}</span>
-            </div>
+            <el-button link type="primary" @click="$router.push('/system/login-log')">查看全部</el-button>
           </div>
+          <el-table :data="recentLogins" size="small" stripe empty-text="暂无登录记录">
+            <el-table-column prop="username" label="用户" width="120" />
+            <el-table-column prop="ipaddr" label="IP" width="140" />
+            <el-table-column prop="loginLocation" label="地点" min-width="120" show-overflow-tooltip />
+            <el-table-column prop="browser" label="浏览器" width="100" show-overflow-tooltip />
+            <el-table-column label="结果" width="88">
+              <template #default="{ row }">
+                <el-tag :type="row.status === 0 ? 'success' : 'danger'" size="small">
+                  {{ row.status === 0 ? '成功' : '失败' }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column label="时间" width="170">
+              <template #default="{ row }">
+                {{ formatLoginTime(row.loginTime) }}
+              </template>
+            </el-table-column>
+          </el-table>
         </div>
       </el-col>
     </el-row>
@@ -335,14 +440,13 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useUserStore } from '@/store/user'
-import { getDashboardStats, recordVisit as apiRecordVisit } from '@/api/dashboard'
-import { 
-  User, 
-  UserFilled, 
+import { getDashboardStats, getRecentLogins, recordVisit as apiRecordVisit } from '@/api/dashboard'
+import {
+  User,
+  UserFilled,
   Menu,
   Collection,
-  OfficeBuilding, 
-  Document,
+  OfficeBuilding,
   EditPen,
   Promotion,
   Grid,
@@ -354,9 +458,10 @@ import {
   InfoFilled,
   CircleCheck,
   Tickets,
-  Warning,
-  Timer,
-  Checked
+  Checked,
+  FolderOpened,
+  Tools,
+  Briefcase
 } from '@element-plus/icons-vue'
 
 const userStore = useUserStore()
@@ -373,20 +478,50 @@ const greetingMessage = computed(() => {
   return '夜深了，早点休息'
 })
 
-// 统计数据
+const SYSTEM_VERSION = 'v1.0.0'
+
+const systemMetaList = computed(() => [
+  { label: '系统名称', value: platformName.value },
+  { label: '系统版本', value: SYSTEM_VERSION },
+  { label: '前端框架', value: 'Vue 3.4 + Element Plus' },
+  { label: '后端框架', value: 'Spring Boot 2.7 + Gateway' },
+  { label: '数据库', value: 'MySQL 8.0' },
+  { label: '缓存', value: 'Redis 7' }
+])
+
+const platformName = ref('Admin Platform')
+const platformSubtitle = ref('')
+
 const stats = ref({
   userCount: 0,
   roleCount: 0,
   menuCount: 0,
   deptCount: 0,
+  postCount: 0,
   onlineCount: 0,
   todayVisits: 0,
   yesterdayVisits: 0,
-  ticketTotal: 0,
+  userPendingCount: 0,
+  userDisabledCount: 0,
+  todayLoginSuccess: 0,
+  todayLoginFail: 0,
+  fileCount: 0,
+  fileMaxSizeMb: 50,
+  fileAllowedExtensions: '',
+  tokenExpireHours: 24,
+  loginCaptchaEnabled: true,
+  loginCaptchaType: 'image',
+  loginRememberMe: true,
+  loginMaxRetryCount: 5,
+  loginLockTimeMinutes: 10,
+  registerEnabled: true,
+  registerNeedAudit: false,
   ticketOpenCount: 0,
-  ticketResolvedCount: 0,
-  ticketOverdueCount: 0
+  ticketOverdueCount: 0,
+  approvalPendingCount: 0
 })
+
+const recentLogins = ref([])
 
 // 增长趋势
 const trends = ref({
@@ -415,16 +550,31 @@ const updateTime = () => {
 }
 
 // 获取统计数据
+function formatLoginTime(t) {
+  if (!t) return '-'
+  return String(t).replace('T', ' ').slice(0, 19)
+}
+
+const loadRecentLogins = async () => {
+  try {
+    const res = await getRecentLogins()
+    recentLogins.value = res.data || []
+  } catch (e) {
+    console.error(e)
+  }
+}
+
 const getStats = async () => {
   try {
     const res = await getDashboardStats()
-    stats.value = res.data || {}
-    
-    // 计算增长趋势
-    if (stats.value.yesterdayVisits > 0) {
-      const visitGrowth = ((stats.value.todayVisits - stats.value.yesterdayVisits) / stats.value.yesterdayVisits * 100).toFixed(1)
-      trends.value.visit = parseFloat(visitGrowth)
-    }
+    const data = res.data || {}
+    stats.value = { ...stats.value, ...data }
+    if (data.platformName) platformName.value = data.platformName
+    if (data.platformSubtitle) platformSubtitle.value = data.platformSubtitle
+    trends.value.user = data.userTrend ?? 0
+    trends.value.role = data.roleTrend ?? 0
+    trends.value.dept = data.deptTrend ?? 0
+    trends.value.menu = data.menuTrend ?? 0
   } catch (error) {
     console.error('获取统计数据失败', error)
   }
@@ -441,7 +591,8 @@ const recordVisit = async () => {
 
 onMounted(() => {
   getStats()
-  recordVisit() // 记录本次访问
+  loadRecentLogins()
+  recordVisit()
   updateTime()
   timeTimer = setInterval(updateTime, 1000)
 })
@@ -522,11 +673,21 @@ onUnmounted(() => {
   font-weight: 400;
 }
 
+.welcome-platform {
+  margin: 4px 0 0;
+  font-size: 14px;
+  opacity: 0.9;
+}
+
 .welcome-greeting {
   margin: 0;
   font-size: 13px;
   opacity: 0.75;
   font-weight: 400;
+}
+
+.stat-icon-wrapper.login-ok {
+  background: rgba(34, 197, 94, 0.35);
 }
 
 .welcome-right {
@@ -583,8 +744,64 @@ onUnmounted(() => {
   margin-bottom: 32px;
 }
 
-.ticket-stats-row {
-  margin-top: -10px;
+.ops-stats-row {
+  margin-top: -16px;
+}
+
+.biz-stats-row {
+  margin-top: -16px;
+}
+
+.stat-card.ops {
+  min-height: 160px;
+}
+
+.stat-card.biz {
+  min-height: auto;
+  padding: 16px 20px;
+  cursor: pointer;
+}
+
+.stat-card.biz .inline-biz {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0;
+}
+
+.biz-label {
+  font-size: 14px;
+  color: #6b7280;
+}
+
+.biz-value {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--theme-primary, #111827);
+}
+
+.biz-value.warn {
+  color: #d97706;
+}
+
+.biz-value.danger {
+  color: #dc2626;
+}
+
+.stat-icon-box.pending-user {
+  background: linear-gradient(135deg, #f59e0b 0%, #f97316 100%);
+}
+
+.stat-icon-box.login-success {
+  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+}
+
+.stat-icon-box.file-store {
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+}
+
+.stat-icon-box.post {
+  background: linear-gradient(135deg, #0ea5e9 0%, #06b6d4 100%);
 }
 
 .stat-card {
@@ -817,6 +1034,14 @@ onUnmounted(() => {
   background: linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%);
 }
 
+.quick-icon-wrapper.config {
+  background: linear-gradient(135deg, #64748b 0%, #475569 100%);
+}
+
+.quick-icon-wrapper.file {
+  background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
+}
+
 .quick-info {
   flex: 1;
   min-width: 0;
@@ -846,32 +1071,41 @@ onUnmounted(() => {
 }
 
 /* 系统信息 */
-.system-info {
+.sys-meta-list {
+  list-style: none;
+  margin: 0;
   padding: 8px 24px 24px;
 }
 
-.info-row {
+.sys-meta-item {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 14px 0;
-  border-bottom: 1px solid #f5f5f5;
+  align-items: baseline;
+  gap: 8px;
+  padding: 11px 0;
+  font-size: 14px;
+  line-height: 1.5;
+  border-bottom: 1px solid #f3f4f6;
 }
 
-.info-row:last-child {
+.sys-meta-item:last-child {
   border-bottom: none;
 }
 
-.info-label {
-  font-size: 14px;
-  color: var(--theme-text-secondary, #6B7280);
-  font-weight: 400;
+.sys-meta-label {
+  flex-shrink: 0;
+  color: var(--theme-text-secondary, #6b7280);
 }
 
-.info-value {
-  font-size: 14px;
+.sys-meta-label::after {
+  content: '：';
+}
+
+.sys-meta-value {
+  flex: 1;
+  min-width: 0;
   font-weight: 600;
-  color: var(--theme-text-base, #1F2937);
+  color: var(--theme-text-base, #1f2937);
+  word-break: break-word;
 }
 
 /* 响应式设计 */

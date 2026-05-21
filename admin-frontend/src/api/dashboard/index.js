@@ -15,3 +15,11 @@ export function recordVisit() {
     method: 'get'
   })
 }
+
+// 最近登录记录
+export function getRecentLogins() {
+  return request({
+    url: '/dashboard/recent-logins',
+    method: 'get'
+  })
+}

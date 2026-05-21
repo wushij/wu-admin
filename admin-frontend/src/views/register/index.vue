@@ -221,8 +221,8 @@
               </div>
             </div>
           </div>
-          <h1 class="register-brand__title">Admin Platform</h1>
-          <p class="register-brand__tagline">统一运维 · 高效管控</p>
+          <h1 class="register-brand__title">{{ sitePlatformName }}</h1>
+          <p class="register-brand__tagline">{{ sitePlatformSubtitle }}</p>
         </div>
       </aside>
 
@@ -231,7 +231,7 @@
         <div class="register-form-wrapper">
           <div class="register-form">
             <header class="register-form__head">
-              <h2 class="register-form__title">Sign Up</h2>
+              <h2 class="register-form__title">{{ siteRegisterTitle }}</h2>
             </header>
 
             <el-form ref="formRef" :model="formData" :rules="rules" size="large" class="form-container">
@@ -352,7 +352,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, nextTick } from 'vue'
+import { ref, reactive, computed, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { User, Lock, Key, UserFilled } from '@element-plus/icons-vue'
@@ -460,6 +460,10 @@ const options3 = {
 
 // 配置
 const captchaEnabled = ref(true)
+const minPasswordLength = ref(6)
+const sitePlatformName = ref('Admin Platform')
+const sitePlatformSubtitle = ref('统一运维 · 高效管控')
+const siteRegisterTitle = ref('Sign Up')
 const agreeTerms = ref(false)
 /** 未勾选协议时：协议行抖动提示（无 Toast） */
 const agreeRowAlert = ref(false)
@@ -474,12 +478,22 @@ async function loadConfig() {
     const res = await getConfig()
     if (res.data) {
       const config = res.data
-      if (config.login) {
-        captchaEnabled.value = config.login.captchaEnabled !== false
+      if (config.register) {
+        if (config.register.captchaEnabled !== undefined) {
+          captchaEnabled.value = config.register.captchaEnabled !== false
+        }
+        if (config.register.minPasswordLength) {
+          minPasswordLength.value = Number(config.register.minPasswordLength) || 6
+        }
+        if (!config.register.enabled) {
+          ElMessage.warning('系统暂未开放注册')
+          router.push('/login')
+        }
       }
-      if (config.register && !config.register.enabled) {
-        ElMessage.warning('系统暂未开放注册')
-        router.push('/login')
+      if (config.site) {
+        if (config.site.platformName) sitePlatformName.value = config.site.platformName
+        if (config.site.platformSubtitle) sitePlatformSubtitle.value = config.site.platformSubtitle
+        if (config.site.registerTitle) siteRegisterTitle.value = config.site.registerTitle
       }
     }
   } catch (error) {
@@ -525,23 +539,31 @@ const validateConfirmPassword = (rule, value, callback) => {
   }
 }
 
-const rules = {
-  username: [
-    { required: true, message: '请输入用户名', trigger: 'blur' },
-    { pattern: /^[a-zA-Z0-9_]{4,20}$/, message: '用户名只能包含字母、数字、下划线，长度4-20位', trigger: 'blur' }
-  ],
-  password: [
-    { required: true, message: '请输入密码', trigger: 'blur' },
-    { min: 6, max: 20, message: '密码长度为6-20位', trigger: 'blur' }
-  ],
-  confirmPassword: [
-    { required: true, message: '请确认密码', trigger: 'blur' },
-    { validator: validateConfirmPassword, trigger: 'blur' }
-  ],
-  code: [
-    { required: true, message: '请输入验证码', trigger: 'blur' }
-  ]
-}
+const rules = computed(() => {
+  const base = {
+    username: [
+      { required: true, message: '请输入用户名', trigger: 'blur' },
+      { pattern: /^[a-zA-Z0-9_]{4,20}$/, message: '用户名只能包含字母、数字、下划线，长度4-20位', trigger: 'blur' }
+    ],
+    password: [
+      { required: true, message: '请输入密码', trigger: 'blur' },
+      {
+        min: minPasswordLength.value,
+        max: 32,
+        message: `密码长度至少 ${minPasswordLength.value} 位`,
+        trigger: 'blur'
+      }
+    ],
+    confirmPassword: [
+      { required: true, message: '请确认密码', trigger: 'blur' },
+      { validator: validateConfirmPassword, trigger: 'blur' }
+    ]
+  }
+  if (captchaEnabled.value) {
+    base.code = [{ required: true, message: '请输入验证码', trigger: 'blur' }]
+  }
+  return base
+})
 
 function bumpAgreeRow() {
   agreeRowAlert.value = false
@@ -579,7 +601,7 @@ async function handleRegister() {
       }
 
       const res = await register(registerData)
-      ElMessage.success('注册成功，请登录')
+      ElMessage.success(res.message || res.msg || '注册成功，请登录')
       router.push('/login')
     } catch (error) {
       console.error('注册失败', error)

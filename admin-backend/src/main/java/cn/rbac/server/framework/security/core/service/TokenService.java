@@ -1,6 +1,7 @@
 package cn.rbac.server.framework.security.core.service;
 
 import cn.hutool.json.JSONUtil;
+import cn.rbac.server.modules.system.service.config.SystemConfigHelper;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
@@ -12,6 +13,7 @@ import org.redisson.api.RedissonClient;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import javax.annotation.Resource;
 import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.util.Date;
@@ -27,13 +29,17 @@ public class TokenService {
     @Value("${jwt.secret:rbac-secret-key-2026-rbac-secret-key-2026}")
     private String secret;
 
-    @Value("${jwt.expiration:86400000}")
-    private Long expiration;
+    @Resource
+    private SystemConfigHelper systemConfigHelper;
 
     private final RedissonClient redissonClient;
 
     public TokenService(RedissonClient redissonClient) {
         this.redissonClient = redissonClient;
+    }
+
+    private long expirationMs() {
+        return systemConfigHelper.getTokenExpirationMs();
     }
 
     private static final String TOKEN_PREFIX = "rbac:token:";
@@ -60,7 +66,8 @@ public class TokenService {
      */
     public String createToken(Long userId, String username) {
         Date now = new Date();
-        Date expiryDate = new Date(now.getTime() + expiration);
+        long expireMs = expirationMs();
+        Date expiryDate = new Date(now.getTime() + expireMs);
 
         String token = Jwts.builder()
                 .setSubject(String.valueOf(userId))
@@ -81,7 +88,7 @@ public class TokenService {
 
             String key = TOKEN_PREFIX + userId;
             RBucket<String> bucket = redissonClient.getBucket(key);
-            bucket.set(JSONUtil.toJsonStr(loginInfo), expiration, TimeUnit.MILLISECONDS);
+            bucket.set(JSONUtil.toJsonStr(loginInfo), expireMs, TimeUnit.MILLISECONDS);
             log.info("Token created for user: {}", username);
         } catch (Exception e) {
             log.error("Failed to store token in Redis for user: {}", username, e);

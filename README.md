@@ -1,6 +1,6 @@
 # Admin Platform
 
-基于 **Vue 3 + Spring Cloud Gateway + Spring Boot RBAC** 的企业级后台管理系统，提供用户权限、组织岗位、业务工单、系统监控、日志审计、文件与字典等能力，支持 Docker 一键部署与本地开发调试。
+基于 **Vue 3 + Spring Cloud Gateway + Spring Boot RBAC** 的企业级后台管理系统，提供用户权限、组织岗位、业务工单、系统监控、日志审计、文件与字典、**分组系统配置**、**注册审核**等能力，支持 Docker 一键部署与本地开发调试。
 
 ---
 
@@ -8,44 +8,88 @@
 
 | 模块 | 说明 |
 |------|------|
-| **系统管理** | 用户、角色、菜单、**组织管理**、字典管理 |
+| **系统管理** | 用户、角色、菜单、组织管理、字典管理、**系统配置** |
 | **组织管理** | 部门体系 + 岗位体系；左树右表、拖拽调整部门、岗位成员、部门回收站 |
-| **用户管理** | 支持部门、**岗位多选**、角色单选、回收站 |
-| **菜单管理** | 树形表格；目录/菜单/按钮联动表单；**图标网格选择器**；外链（`https://`）新窗口打开 |
-| **开发工具** | **接口文档**：Layout 内嵌 Knife4j（`doc.html`），支持刷新 / 新窗口打开 |
-| **系统日志** | 操作日志（AOP 自动记录）、登录日志 |
+| **用户管理** | 部门、岗位多选、角色单选、回收站；支持**待审核 / 已驳回**状态 |
+| **菜单管理** | 树形表格；目录/菜单/按钮联动；图标网格选择器；外链新窗口打开 |
+| **系统配置** | 六分组 Tab：基础信息、会话令牌、文件存储、接口限流、登录认证、注册认证 |
+| **开发工具** | 内嵌 Knife4j 接口文档（`doc.html`） |
+| **系统日志** | 操作日志（AOP）、登录日志 |
 | **系统监控** | API 访问统计、在线用户与强退 |
-| **文件管理** | 分组、上传、预览、列表/平铺视图 |
-| **业务中心** | 工单管理、审批单中心 |
-| **认证安全** | 图形验证码、登录/注册限流、JWT + 网关 Sa-Token 会话 |
+| **文件管理** | 分组、上传、预览；大小与扩展名受**系统配置**约束 |
+| **业务中心** | 工单管理、审批单中心（含**注册审核单** `REGISTER`） |
+| **认证安全** | 图片/滑块验证码、登录/注册限流、JWT + 网关 Sa-Token |
 
-菜单与权限由数据库 `sys_menu` 动态加载，超级管理员默认拥有全部功能。修改菜单或角色后需**重新登录**侧栏才会更新。
+菜单与权限由数据库 `sys_menu` 动态加载；超级管理员默认拥有全部功能。修改菜单或角色后需**重新登录**侧栏才会更新。
 
 ---
 
-## 近期能力说明
+## 系统配置（`/system/config`）
+
+配置存储在表 `sys_config_group`，按 `group_code` 分组，值为 JSON。管理端 **系统管理 → 系统配置** 可编辑；部分项保存后**立即生效**（无需重启）。
+
+| 分组编码 | 名称 | 主要字段 | 生效范围 |
+|----------|------|----------|----------|
+| `site` | 基础信息 | 平台名称、副标题、登录/注册页标题、版权 | 登录页、注册页、工作台展示 |
+| `session` | 会话配置 | `tokenExpireHours`（1～720） | JWT 与 Redis 会话 TTL |
+| `file` | 文件配置 | `maxSizeMb`、`allowedExtensions` | 上传校验（上限不超过平台 500MB） |
+| `rateLimit` | 接口限流 | 验证码/登录/注册 每分钟每 IP 次数（0=不限） | 认证接口防刷 |
+| `login` | 登录认证 | 验证码开关、类型（`image`/`slider`）、记住我、重试锁定 | 登录流程 |
+| `register` | 注册认证 | 开放注册、验证码、默认角色、**需审核**、密码最小长度 | 注册流程 |
+
+**公开接口**（无需登录）：`GET /api/auth/config`，返回 `site`、`login`、`register` 等前端登录/注册页所需配置。
+
+**管理接口**（需权限 `system:config:list` / `system:config:update`）：
+
+- `GET /api/system/config-group/list`
+- `GET /api/system/config-group/{groupCode}`
+- `PUT /api/system/config-group/{groupCode}`，body：`{ "configValue": "{...json...}" }`
+
+`application.yml` 中 `jwt.expiration`、`auth.security.*`、`file.storage.*` 为**缺省兜底**；库中有对应分组时以库为准。
+
+---
+
+## 注册审核
+
+在 **系统配置 → 注册认证** 开启「注册需审核」后：
+
+1. 用户注册成功，账号 `status = 2`（待审核），分配配置中的默认角色；
+2. 自动创建类型为 `REGISTER` 的审批单，并通知超级管理员（站内通知）；
+3. 管理员在 **业务中心 → 审批单中心** 通过或驳回；
+4. 通过 → `status = 1` 可登录；驳回 → `status = 3`；
+5. 申请人收到审核结果通知。
+
+用户状态约定：
+
+| status | 含义 |
+|--------|------|
+| `0` | 停用 |
+| `1` | 正常 |
+| `2` | 待审核 |
+| `3` | 审核驳回 |
+
+工作台统计含「待审核用户」数量（`userPendingCount`）。
+
+---
+
+## 组织管理 / 菜单 / 接口文档
 
 ### 组织管理（`/system/org`）
 
-- 原「部门管理」升级为 **组织管理**，Tab 切换：**部门体系 | 岗位体系**
-- 部门：树形结构、`ancestors` 祖级路径、拖拽移动、子部门/成员查看、回收站
-- 岗位：岗位树、用户关联（`sys_user_post`）、组织内成员列表
+- Tab：**部门体系 | 岗位体系**
+- 部门：树形、`ancestors`、拖拽、回收站
+- 岗位：`sys_user_post` 关联、组织内成员
 
 ### 菜单管理（`/system/menu`）
 
-- 树表展示：类型、图标、路由、组件/外链、排序、状态开关
-- 表单按类型显隐：目录 / 菜单 / 按钮；支持外链地址（`component` 存完整 URL）
-- 图标选择：Popover 网格 + 中文标签 + 搜索（`components/IconSelect.vue`）
-- 按钮行不显示「新增」；支持全部展开/折叠
+- 类型目录/菜单/按钮联动表单；`IconSelect` 图标选择
+- `component` 以 `http(s)://` 开头 → 侧栏新窗口；`/doc.html` → iframe 内嵌
 
 ### 接口文档（`/tool/api-doc`）
 
-- 侧栏：**开发工具 → 接口文档**
-- 内嵌本项目 **Knife4j**（RBAC `doc.html`），非独立业务 CRUD
-- 开发环境：Vite 代理 `/doc.html`、`/webjars`、`/swagger-ui`、`/v3/api-docs` → RBAC `8081`
-- 生产环境：Nginx 转发上述路径至网关 → RBAC
-- 菜单 `component` 填 `/doc.html`；若改为 `https://...` 外链，侧栏点击将在**新窗口**打开（Apifox 等）
-- Knife4j 分组下拉 **default**：表示当前仅一个 OpenAPI 分组（全部接口），属正常现象
+- **开发工具 → 接口文档**，内嵌 Knife4j
+- 开发：Vite 代理 `/doc.html`、`/webjars`、`/swagger-ui`、`/v3/api-docs` → RBAC `8081`
+- 生产：Nginx → 网关 → RBAC
 
 ---
 
@@ -55,14 +99,11 @@
 |------|------|
 | 前端 | Vue 3、Vite、Element Plus、Pinia、Axios、ECharts |
 | 网关 | Spring Cloud Gateway、Sa-Token、Redis |
-| 后端 | Spring Boot 2.7、Spring Security、MyBatis-Plus、Druid、Knife4j（SpringDoc） |
+| 后端 | Spring Boot 2.7、Spring Security、MyBatis-Plus、Druid、Knife4j |
 | 数据 | MySQL 8、Redis 7 |
 | 部署 | Docker Compose、Nginx |
 
-**JDK 要求**
-
-- RBAC 后端：**JDK 8**
-- 网关：**JDK 17**
+**JDK**：RBAC **JDK 8**；网关 **JDK 17**。
 
 ---
 
@@ -77,12 +118,11 @@
 │  Vite / Nginx   │   /doc.html*  │  :8080           │
 │  :3000          │ ──────────────► │  Sa-Token + 路由 │
 └─────────────────┘                 └────────┬─────────┘
-                                           │ 转发
+                                           │
                                            ▼
                                   ┌──────────────────┐
                                   │  admin-backend   │
                                   │  :8081           │
-                                  │  Knife4j         │
                                   └────────┬─────────┘
                                            │
                            ┌───────────────┴───────────────┐
@@ -91,33 +131,29 @@
                     │   MySQL     │                │   Redis     │
                     │   RBAC1     │                │  database 3 │
                     └─────────────┘                └─────────────┘
-
-* 接口文档静态资源同源代理，见 vite.config.ts / nginx.conf
 ```
 
-**请求路径约定**
-
-- 前端业务 API 统一前缀：`/api`（网关去掉 `/api` 后转发 RBAC）
-- 示例：`/api/system/user/page` → RBAC `/system/user/page`
+- 业务 API 前缀：`/api`（网关去掉 `/api` 转发 RBAC）
+- 示例：`/api/system/config-group/list` → `/system/config-group/list`
 
 ---
 
 ## 目录结构
 
 ```
-admin/                          # 管理系统总根目录
-├── admin-gateway/              # 微服务网关 (Spring Cloud Gateway)
+admin/
+├── admin-gateway/              # 微服务网关
 ├── admin-backend/              # RBAC 后端
-├── admin-frontend/             # Vue3 后台管理前端
+├── admin-frontend/             # Vue3 前端
 ├── sql/
-│   └── admin_platform.sql      # 数据库初始化脚本（全量）
+│   └── admin_platform.sql      # 唯一数据库脚本（全量 + 文末可重复升级段）
 ├── scripts/
-│   └── docker-rebuild.ps1      # Docker 重建脚本
-├── Dockerfile                  # 后端镜像构建
-├── docker-compose.yml          # 容器一键部署
-├── DOCKER_DEPLOY.md            # Docker 部署教程
-├── MICROSERVICE_GUIDE.md       # 微服务使用文档
-└── README.md                   # 项目说明
+│   └── docker-rebuild.ps1
+├── Dockerfile
+├── docker-compose.yml
+├── DOCKER_DEPLOY.md
+├── MICROSERVICE_GUIDE.md
+└── README.md
 ```
 
 ---
@@ -144,17 +180,23 @@ cd admin
 docker compose up -d --build
 ```
 
-首次启动会执行 `sql/admin_platform.sql` 初始化数据库（含组织管理、开发工具菜单）。
+首次启动会执行 `sql/admin_platform.sql`（`docker-entrypoint-initdb.d` 仅对**空数据卷**生效）。
 
 | 服务 | 地址 |
 |------|------|
 | 前端 | http://localhost:3000 |
 | 网关 | http://localhost:8080 |
-| admin-backend（容器映射） | http://localhost:8082 |
+| admin-backend（宿主机映射） | http://localhost:8082 |
 | MySQL | `127.0.0.1:3307`，库 `RBAC1`，`root`/`root` |
 | Redis | `127.0.0.1:6379`，database `3` |
 
 详见 [DOCKER_DEPLOY.md](./DOCKER_DEPLOY.md)。
+
+改 Java/前端代码后重建：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/docker-rebuild.ps1
+```
 
 ---
 
@@ -166,11 +208,11 @@ docker compose up -d --build
 mysql -u root -p < sql/admin_platform.sql
 ```
 
-> `admin_platform.sql` 为全量脚本（含组织管理、开发工具菜单等），内含 `DROP TABLE`，仅用于新库或开发环境。
+> 全量脚本含 `DROP TABLE`，仅用于新库。已有旧库按下方「数据库脚本」顺序执行增量。
 
 #### 2. 启动 Redis
 
-本机 `127.0.0.1:6379`，RBAC 与网关使用 **database 3**。
+`127.0.0.1:6379`，database **3**。
 
 #### 3. 启动 RBAC（8081）
 
@@ -196,8 +238,6 @@ npm run dev
 
 访问：**http://localhost:3000**
 
-Vite 代理：`/api` → 网关 `8080`；Knife4j 相关路径 → RBAC `8081`（见 `vite.config.ts`）。
-
 ---
 
 ## 默认账号
@@ -213,38 +253,28 @@ Vite 代理：`/api` → 网关 `8080`；Knife4j 相关路径 → RBAC `8081`（
 
 ### RBAC `application.yml`
 
-| 配置项 | 说明 | 默认 |
-|--------|------|------|
-| `server.port` | 服务端口 | `8081` |
-| `spring.datasource.*` | MySQL | `RBAC1` @ `3306` |
-| `spring.redis.database` | Redis 库 | `3` |
-| `jwt.secret` / `jwt.expiration` | JWT | 24h |
-| `file.storage.local-path` | 上传目录 | `./data/uploads` |
-| `knife4j.enable` | 接口文档 | `true` |
-
-### 网关 `application.yml`
-
 | 配置项 | 说明 |
 |--------|------|
-| `app.backend.base-url` | 后端地址；Docker 为 `http://admin-backend:8081` |
-| `spring.cloud.gateway.routes` | `/api/auth/**`、`/api/system/**`、`/api/files/**`、`/api/doc.html` 等 |
+| `server.port` | `8081` |
+| `spring.datasource.*` | MySQL `RBAC1` |
+| `spring.redis.database` | `3` |
+| `spring.servlet.multipart.max-file-size` | 平台物理上限 **500MB** |
+| `jwt.secret` / `jwt.expiration` | JWT 缺省（可被 `session` 分组覆盖） |
+| `file.storage.*` | 上传目录与缺省限制 |
+| `auth.security.*` | 验证码与限流缺省 |
+| `knife4j.enable` | 接口文档 |
 
-网关 Sa-Token 已放行 Knife4j 路径（`/api/doc.html`、`/api/swagger-ui/**` 等），供管理端 iframe 加载文档。
+运行时优先读取 `sys_config_group`（见 `SystemConfigHelper`）。
+
+### 网关
+
+- `app.backend.base-url`：Docker 为 `http://admin-backend:8081`
+- 已放行：`/api/auth/login`、`/api/auth/register`、`/api/auth/captcha`、`/api/auth/config`、Knife4j 静态路径等
 
 ### 前端
 
-- 开发：`vite.config.ts`（`/api` + Knife4j 同源代理）
-- 生产：`npm run build`，`nginx.conf` 反向代理网关与 `doc.html`
-
----
-
-## 接口文档访问方式
-
-| 场景 | 地址 |
-|------|------|
-| 管理端内嵌 | 登录后 **开发工具 → 接口文档** |
-| RBAC 直连（开发） | http://localhost:8081/doc.html |
-| 经网关 | http://localhost:8080/api/doc.html |
+- 开发：`vite.config.ts`
+- 生产：`npm run build` + `nginx.conf`
 
 ---
 
@@ -252,25 +282,28 @@ Vite 代理：`/api` → 网关 `8080`；Knife4j 相关路径 → RBAC `8081`（
 
 | 前缀 | 说明 |
 |------|------|
-| `/api/auth/**` | 登录、注册、验证码、用户信息 |
-| `/api/system/**` | 用户、角色、菜单、部门、**岗位**、字典、日志、工单、审批等 |
+| `/api/auth/**` | 登录、注册、验证码、`config`（公开配置） |
+| `/api/system/**` | 用户、角色、菜单、组织、字典、**config-group**、审批、工单等 |
 | `/api/files/**` | 文件上传与访问 |
-| `/api/monitor/**` | API 访问统计、在线用户 |
-| `/api/dashboard/**` | 仪表盘统计 |
+| `/api/monitor/**` | API 访问、在线用户 |
+| `/api/dashboard/**` | 工作台统计（含配置摘要、待审核用户数） |
 
 ---
 
 ## 数据库脚本
 
-| 脚本 | 用途 |
-|------|------|
-| `sql/admin_platform.sql` | 建库、全表、菜单权限、演示数据（含组织管理、开发工具菜单） |
+仅维护 **`sql/admin_platform.sql`**（原 add3～add6 已合并）。
 
-导入后请**重新登录**。
+| 场景 | 做法 |
+|------|------|
+| **全新安装** | 执行全文：`mysql -u root -p < sql/admin_platform.sql` |
+| **已有库升级** | 只执行文末 **「附录：已有库升级」** 段（可重复执行，含配置分组、菜单 160～162、待审核用户补审批单） |
+
+执行涉及菜单的升级后请**重新登录**。
 
 ---
 
-## 功能开发提示
+## 开发提示
 
 ### 字典下拉
 
@@ -287,15 +320,21 @@ Controller 方法添加 `@Log`，由 `LogAspect` 写入 `sys_oper_log`。
 ### 按钮权限
 
 ```html
-<el-button v-permission="'system:user:create'">新增</el-button>
+<el-button v-permission="'system:config:update'">保存</el-button>
 ```
 
-标识需与 `sys_menu.permission` 一致，例如 `system:post:create`、`tool:apiDoc:view`。
+标识与 `sys_menu.permission` 一致，如 `system:approval:approve`。
 
-### 菜单外链
+### 登录页读取配置
 
-- `component` 以 `http://` 或 `https://` 开头 → 侧栏**新窗口**打开
-- 填 `/doc.html` 或视图路径 → 走路由或 iframe 内嵌
+```javascript
+// admin-frontend/src/api/system/auth/index.js
+GET /auth/config  // 经网关 /api/auth/config
+```
+
+滑块验证码实现可参考目录 `滑块验证码-关键代码与提示词/`。
+
+---
 
 ## 构建与打包
 
@@ -305,26 +344,24 @@ cd admin-backend && mvn clean package -DskipTests
 cd admin-gateway && mvn clean package -DskipTests
 ```
 
-改 Java 或前端运行代码后，Docker 环境可执行：`powershell -File scripts/docker-rebuild.ps1`（或 `docker compose up -d --build`）。
-
 ---
 
 ## 常见问题
 
 **Q：登录后菜单为空或 403？**  
-A：确认已执行 `sql/admin_platform.sql`，角色已分配菜单，然后重新登录。
+A：确认已导入 `admin_platform.sql` 或为角色分配菜单，然后重新登录。
 
-**Q：看不到「组织管理」或「接口文档」？**  
-A：确认全量脚本已导入，或为角色勾选对应菜单（如 5、150、151），再重新登录。
+**Q：系统配置页报错或只有 login/register？**  
+A：对已有库执行 `admin_platform.sql` 文末「附录：已有库升级」段，补全 site/session/file/rateLimit 等分组。
 
-**Q：接口文档 iframe 空白或 500？**  
-A：确认 RBAC、网关已启动；网关已放行 `/api/doc.html`；前端 dev 需重启以加载 Vite 代理；库中菜单 151 的 `component` 建议为 `/doc.html`。
+**Q：注册后无法登录？**  
+A：若开启「注册需审核」，需管理员在审批单中心通过；登录提示「账号待审核」属正常。
 
-**Q：Knife4j 下拉只有 default？**  
-A：表示当前只有一个 OpenAPI 分组（全部接口），正常。可按模块配置 `GroupedOpenApi` 拆分并自定义中文名。
+**Q：接口文档 iframe 空白？**  
+A：确认 RBAC、网关已启动；开发环境重启 Vite 以加载代理。
 
-**Q：上传无法预览？**  
-A：需登录且请求走网关 `/api/files/**`。
+**Q：上传失败提示大小或类型？**  
+A：在 **系统配置 → 文件存储** 调整；单文件上限不得超过 500MB。
 
 **Q：Git 仓库？**  
 A：https://github.com/wushij/admin.git
@@ -335,6 +372,7 @@ A：https://github.com/wushij/admin.git
 
 - [Docker 部署指南](./DOCKER_DEPLOY.md)
 - [微服务说明](./MICROSERVICE_GUIDE.md)
+- [滑块验证码参考](./滑块验证码-关键代码与提示词/README.md)
 
 ---
 

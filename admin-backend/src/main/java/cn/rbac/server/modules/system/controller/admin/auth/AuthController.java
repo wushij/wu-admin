@@ -13,6 +13,8 @@ import cn.rbac.server.modules.system.dal.dataobject.user.UserDO;
 import cn.rbac.server.modules.system.dal.mysql.loginlog.LoginLogMapper;
 import cn.rbac.server.modules.system.dal.mysql.permission.RoleMapper;
 import cn.rbac.server.modules.system.dal.mysql.user.UserMapper;
+import cn.rbac.server.modules.system.service.approval.RegisterApprovalService;
+import cn.rbac.server.modules.system.service.config.SystemConfigHelper;
 import cn.rbac.server.modules.system.service.monitor.OnlineUserService;
 import cn.rbac.server.modules.system.service.permission.PermissionService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
@@ -61,21 +63,11 @@ public class AuthController {
     private LoginLogMapper loginLogMapper;
     @Resource
     private OnlineUserService onlineUserService;
+    @Resource
+    private SystemConfigHelper systemConfigHelper;
+    @Resource
+    private RegisterApprovalService registerApprovalService;
 
-    @Value("${auth.security.captcha-enabled:true}")
-    private boolean captchaEnabled;
-
-    /** 单 IP 每分钟最多拉取验证码次数，防刷图 */
-    @Value("${auth.security.captcha-per-ip-minute:40}")
-    private int captchaPerIpMinute;
-
-    /** 单 IP 每分钟最多登录请求次数 */
-    @Value("${auth.security.login-per-ip-minute:30}")
-    private int loginPerIpMinute;
-
-    /** 单 IP 每分钟最多注册次数 */
-    @Value("${auth.security.register-per-ip-minute:10}")
-    private int registerPerIpMinute;
     
     private static final String CAPTCHA_KEY = "captcha:";
     private static final String ONLINE_USER_KEY = "dashboard:online:user:";
@@ -83,14 +75,19 @@ public class AuthController {
     private static final String LOGIN_FAIL_IP_KEY = "auth:login:fail:ip:";
     private static final String LOGIN_LOCK_USER_KEY = "auth:login:lock:user:";
     private static final String LOGIN_LOCK_IP_KEY = "auth:login:lock:ip:";
-    private static final int LOGIN_MAX_FAIL_COUNT = 5;
-    private static final long LOGIN_LOCK_MINUTES = 10;
     
     @Operation(summary = "获取验证码")
     @GetMapping("/captcha")
     public CommonResult<Map<String, Object>> captcha(HttpServletRequest request) {
+        if (!systemConfigHelper.isCaptchaEnabled()) {
+            return CommonResult.error(400, "当前未启用验证码");
+        }
+        if (SystemConfigHelper.CAPTCHA_TYPE_SLIDER.equals(systemConfigHelper.getCaptchaType())) {
+            return CommonResult.error(400, "当前为滑块验证码，无需拉取图片验证码");
+        }
+
         String clientIp = getClientIp(request);
-        String rlMsg = rateLimitByIp(clientIp, "captcha", captchaPerIpMinute);
+        String rlMsg = rateLimitByIp(clientIp, "captcha", systemConfigHelper.getCaptchaPerIpMinute());
         if (rlMsg != null) {
             return CommonResult.error(429, rlMsg);
         }
@@ -113,22 +110,7 @@ public class AuthController {
     @Operation(summary = "获取登录配置")
     @GetMapping("/config")
     public CommonResult<Map<String, Object>> config() {
-        Map<String, Object> result = new HashMap<>();
-        
-        // 登录配置
-        Map<String, Object> loginConfig = new HashMap<>();
-        loginConfig.put("captchaEnabled", captchaEnabled);
-        loginConfig.put("rememberMe", true);
-        result.put("login", loginConfig);
-        
-        // 注册配置
-        Map<String, Object> registerConfig = new HashMap<>();
-        registerConfig.put("enabled", true);
-        registerConfig.put("verifyEmail", false);
-        registerConfig.put("verifyPhone", false);
-        result.put("register", registerConfig);
-        
-        return CommonResult.success(result);
+        return CommonResult.success(systemConfigHelper.buildPublicConfig());
     }
     
     @Operation(summary = "登录")
@@ -137,7 +119,7 @@ public class AuthController {
         String username = reqVO.getUsername() == null ? "" : reqVO.getUsername().trim();
         String clientIp = getClientIp(request);
 
-        String rlMsg = rateLimitByIp(clientIp, "login", loginPerIpMinute);
+        String rlMsg = rateLimitByIp(clientIp, "login", systemConfigHelper.getLoginPerIpMinute());
         if (rlMsg != null) {
             recordLoginLog(username, 1, rlMsg, request);
             return CommonResult.error(429, rlMsg);
@@ -149,22 +131,11 @@ public class AuthController {
             return CommonResult.error(429, lockMessage);
         }
 
-        String captchaUuid = reqVO.getUuid() == null ? "" : reqVO.getUuid().trim();
-        String captchaInput = reqVO.getCode() == null ? "" : reqVO.getCode().trim();
-        if (captchaEnabled) {
-            if (captchaUuid.isEmpty() || captchaInput.isEmpty()) {
-                handleLoginFailure(username, clientIp);
-                recordLoginLog(username, 1, "未提供验证码", request);
-                return CommonResult.error(400, "请先完成图形验证码");
-            }
-            RBucket<String> bucket = redissonClient.getBucket(CAPTCHA_KEY + captchaUuid);
-            String captchaCode = bucket.get();
-            if (captchaCode == null || !captchaCode.equals(captchaInput.toLowerCase())) {
-                handleLoginFailure(username, clientIp);
-                recordLoginLog(username, 1, "验证码错误", request);
-                return CommonResult.error(400, "验证码错误或已过期");
-            }
-            bucket.delete();
+        String captchaErr = validateLoginCaptcha(reqVO.getUuid(), reqVO.getCode());
+        if (captchaErr != null) {
+            handleLoginFailure(username, clientIp);
+            recordLoginLog(username, 1, captchaErr, request);
+            return CommonResult.error(400, captchaErr);
         }
         
         // 查询用户
@@ -182,6 +153,12 @@ public class AuthController {
             handleLoginFailure(username, clientIp);
             recordLoginLog(username, 1, "密码错误", request);
             return CommonResult.error(401, "密码错误");
+        }
+
+        String statusErr = checkUserLoginStatus(user);
+        if (statusErr != null) {
+            recordLoginLog(username, 1, statusErr, request);
+            return CommonResult.error(403, statusErr);
         }
 
         clearLoginFailure(username, clientIp);
@@ -231,6 +208,58 @@ public class AuthController {
      *
      * @return 超限时的提示文案；null 表示放行
      */
+    private String validateLoginCaptcha(String uuid, String code) {
+        if (!systemConfigHelper.isCaptchaEnabled()) {
+            return null;
+        }
+        String captchaType = systemConfigHelper.getCaptchaType();
+        String captchaInput = code == null ? "" : code.trim();
+        if (SystemConfigHelper.CAPTCHA_TYPE_SLIDER.equals(captchaType)) {
+            if (!SystemConfigHelper.SLIDER_VERIFIED_CODE.equals(captchaInput)) {
+                return "请完成滑块验证";
+            }
+            return null;
+        }
+        return validateImageCaptcha(uuid, captchaInput);
+    }
+
+    private String validateRegisterCaptcha(String uuid, String code) {
+        if (!systemConfigHelper.isRegisterCaptchaEnabled()) {
+            return null;
+        }
+        return validateImageCaptcha(uuid, code == null ? "" : code.trim());
+    }
+
+    private String checkUserLoginStatus(UserDO user) {
+        if (user.getStatus() == null || user.getStatus() == 1) {
+            return null;
+        }
+        if (user.getStatus() == 0) {
+            return "账号已停用，请联系管理员";
+        }
+        if (user.getStatus() == 2) {
+            return "账号待审核，请等待管理员审核通过";
+        }
+        if (user.getStatus() == 3) {
+            return "账号审核未通过，请联系管理员";
+        }
+        return "账号状态异常，无法登录";
+    }
+
+    private String validateImageCaptcha(String uuid, String captchaInput) {
+        String captchaUuid = uuid == null ? "" : uuid.trim();
+        if (captchaUuid.isEmpty() || captchaInput.isEmpty()) {
+            return "请先完成图形验证码";
+        }
+        RBucket<String> bucket = redissonClient.getBucket(CAPTCHA_KEY + captchaUuid);
+        String captchaCode = bucket.get();
+        if (captchaCode == null || !captchaCode.equals(captchaInput.toLowerCase())) {
+            return "验证码错误或已过期";
+        }
+        bucket.delete();
+        return null;
+    }
+
     private String rateLimitByIp(String clientIp, String action, int maxPerMinute) {
         if (maxPerMinute <= 0) {
             return null;
@@ -280,12 +309,14 @@ public class AuthController {
     }
 
     private void increaseFailAndLock(String failKey, String lockKey) {
+        int maxRetry = systemConfigHelper.getMaxRetryCount();
+        long lockMinutes = systemConfigHelper.getLockTimeMinutes();
         RBucket<Integer> failBucket = redissonClient.getBucket(failKey);
         Integer failCount = failBucket.get();
         int nextCount = (failCount == null ? 0 : failCount) + 1;
-        failBucket.set(nextCount, LOGIN_LOCK_MINUTES, TimeUnit.MINUTES);
-        if (nextCount >= LOGIN_MAX_FAIL_COUNT) {
-            redissonClient.getBucket(lockKey).set(System.currentTimeMillis(), LOGIN_LOCK_MINUTES, TimeUnit.MINUTES);
+        failBucket.set(nextCount, lockMinutes, TimeUnit.MINUTES);
+        if (nextCount >= maxRetry) {
+            redissonClient.getBucket(lockKey).set(System.currentTimeMillis(), lockMinutes, TimeUnit.MINUTES);
             failBucket.delete();
         }
     }
@@ -404,24 +435,25 @@ public class AuthController {
     @Operation(summary = "注册")
     @PostMapping("/register")
     public CommonResult<Boolean> register(@RequestBody RegisterReqVO reqVO, HttpServletRequest request) {
+        if (!systemConfigHelper.isRegisterEnabled()) {
+            return CommonResult.error(403, "系统暂未开放注册");
+        }
+
         String clientIp = getClientIp(request);
-        String rlMsg = rateLimitByIp(clientIp, "register", registerPerIpMinute);
+        String rlMsg = rateLimitByIp(clientIp, "register", systemConfigHelper.getRegisterPerIpMinute());
         if (rlMsg != null) {
             return CommonResult.error(429, rlMsg);
         }
 
-        String regCaptchaUuid = reqVO.getUuid() == null ? "" : reqVO.getUuid().trim();
-        String regCaptchaCode = reqVO.getCode() == null ? "" : reqVO.getCode().trim();
-        if (captchaEnabled) {
-            if (regCaptchaUuid.isEmpty() || regCaptchaCode.isEmpty()) {
-                return CommonResult.error(400, "请先完成图形验证码");
-            }
-            RBucket<String> bucket = redissonClient.getBucket(CAPTCHA_KEY + regCaptchaUuid);
-            String captchaCode = bucket.get();
-            if (captchaCode == null || !captchaCode.equals(regCaptchaCode.toLowerCase())) {
-                return CommonResult.error(400, "验证码错误或已过期");
-            }
-            bucket.delete();
+        int minPwdLen = systemConfigHelper.getRegisterMinPasswordLength();
+        String password = reqVO.getPassword() == null ? "" : reqVO.getPassword();
+        if (password.length() < minPwdLen) {
+            return CommonResult.error(400, "密码长度不能少于 " + minPwdLen + " 位");
+        }
+
+        String regCaptchaErr = validateRegisterCaptcha(reqVO.getUuid(), reqVO.getCode());
+        if (regCaptchaErr != null) {
+            return CommonResult.error(400, regCaptchaErr);
         }
         
         // 检查用户名是否已存在
@@ -438,21 +470,29 @@ public class AuthController {
         user.setUsername(reqVO.getUsername());
         user.setPassword(passwordEncoder.encode(reqVO.getPassword()));
         user.setNickname(reqVO.getNickname() != null ? reqVO.getNickname() : reqVO.getUsername());
-        user.setStatus(1); // 默认启用
+        user.setStatus(systemConfigHelper.isRegisterNeedAudit() ? 2 : 1);
         userMapper.insert(user);
-        
-        // 分配默认普通用户角色
+
+        String roleCode = systemConfigHelper.getRegisterDefaultRoleCode();
         RoleDO defaultRole = roleMapper.selectOne(
             new LambdaQueryWrapper<RoleDO>()
-                .eq(RoleDO::getCode, "user")
+                .eq(RoleDO::getCode, roleCode)
         );
         if (defaultRole != null) {
             Set<Long> roleIds = new HashSet<>();
             roleIds.add(defaultRole.getId());
             permissionService.assignUserRole(user.getId(), roleIds);
         }
-        
-        return CommonResult.success(true);
+
+        if (systemConfigHelper.isRegisterNeedAudit()) {
+            registerApprovalService.createOnRegister(user);
+        }
+
+        CommonResult<Boolean> result = CommonResult.success(true);
+        result.setMessage(systemConfigHelper.isRegisterNeedAudit()
+                ? "注册成功，请等待管理员审核"
+                : "注册成功");
+        return result;
     }
     
     @Data

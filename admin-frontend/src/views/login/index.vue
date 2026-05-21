@@ -223,8 +223,8 @@
               </div>
             </div>
           </div>
-          <h1 class="login-brand__title">Admin Platform</h1>
-          <p class="login-brand__tagline">统一运维 · 高效管控</p>
+          <h1 class="login-brand__title">{{ sitePlatformName }}</h1>
+          <p class="login-brand__tagline">{{ sitePlatformSubtitle }}</p>
         </div>
       </aside>
 
@@ -233,13 +233,22 @@
         <div class="login-form-wrapper">
           <div class="login-form">
             <header class="login-form__head">
-              <h2 class="login-form__title">Welcome</h2>
+              <h2 class="login-form__title">{{ siteLoginWelcome }}</h2>
             </header>
 
-            <el-form ref="formRef" :model="formData" :rules="rules" size="large" class="form-container">
+            <el-form
+              ref="formRef"
+              :model="formData"
+              :rules="formRules"
+              :validate-on-rule-change="false"
+              :class="['form-container', { 'form-container--submitted': submitAttempted }]"
+              size="large"
+            >
             <el-form-item prop="username" class="form-item">
               <el-input
                 v-model="formData.username"
+                name="username"
+                autocomplete="username"
                 placeholder="请输入用户名"
                 maxlength="50"
                 @keyup.enter="handleLogin"
@@ -254,7 +263,9 @@
             <el-form-item prop="password" class="form-item">
               <el-input
                 v-model="formData.password"
+                name="password"
                 type="password"
+                autocomplete="current-password"
                 placeholder="请输入密码"
                 show-password
                 maxlength="50"
@@ -267,8 +278,8 @@
               </el-input>
             </el-form-item>
             
-            <!-- 图片验证码 -->
-            <el-form-item v-if="captchaEnabled" prop="code" class="form-item">
+            <!-- 图片验证码（滑块模式不显示表单项） -->
+            <el-form-item v-if="captchaEnabled && captchaType === 'image'" prop="code" class="form-item">
               <div class="captcha-row">
                 <el-input
                   v-model="formData.code"
@@ -317,16 +328,19 @@
         </div>
       </div>
     </div>
+
+    <SliderCaptcha v-model:show="showSliderModal" @success="doLogin" />
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { User, Lock, Key, Loading } from '@element-plus/icons-vue'
 import { useUserStore } from '@/store/user'
 import { getCaptcha, getConfig } from '@/api/system/auth'
+import SliderCaptcha from '@/components/SliderCaptcha.vue'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -432,9 +446,14 @@ const options3 = {
 
 
 // 登录配置
-const captchaEnabled = ref(true)  // 开启验证码
-const rememberMeEnabled = ref(true)  // 是否显示记住我选项
-const registerEnabled = ref(true)  // 开启注册
+const captchaEnabled = ref(true)
+const captchaType = ref('image') // image | slider
+const rememberMeEnabled = ref(true)
+const registerEnabled = ref(true)
+const showSliderModal = ref(false)
+const sitePlatformName = ref('Admin Platform')
+const sitePlatformSubtitle = ref('统一运维 · 高效管控')
+const siteLoginWelcome = ref('Welcome')
 
 // 验证码
 const captchaImg = ref('')
@@ -448,11 +467,18 @@ async function loadConfig() {
       const config = res.data
       if (config.login) {
         captchaEnabled.value = config.login.captchaEnabled !== false
+        captchaType.value = config.login.captchaType || 'image'
         rememberMeEnabled.value = config.login.rememberMe !== false
       }
       if (config.register) {
         registerEnabled.value = config.register.enabled !== false
       }
+      if (config.site) {
+        if (config.site.platformName) sitePlatformName.value = config.site.platformName
+        if (config.site.platformSubtitle) sitePlatformSubtitle.value = config.site.platformSubtitle
+        if (config.site.loginWelcome) siteLoginWelcome.value = config.site.loginWelcome
+      }
+      rebuildFormRules()
     }
   } catch (error) {
     console.error('加载配置失败', error)
@@ -471,16 +497,18 @@ async function loadCaptcha() {
 }
 
 onMounted(async () => {
-  // 加载配置
   await loadConfig()
-  // 加载验证码
-  if (captchaEnabled.value) {
+  if (captchaEnabled.value && captchaType.value === 'image') {
     loadCaptcha()
   }
+  await nextTick()
+  syncAutofillFromDom()
+  formRef.value?.clearValidate()
 })
 
 const formRef = ref(null)
 const loading = ref(false)
+const submitAttempted = ref(false)
 
 const formData = reactive({
   username: '',
@@ -489,61 +517,91 @@ const formData = reactive({
   rememberMe: false
 })
 
-const rules = {
+const formRules = ref({
   username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
-  password: [{ required: true, message: '请输入密码', trigger: 'blur' }],
-  code: [{ required: true, message: '请输入验证码', trigger: 'blur' }]
+  password: [{ required: true, message: '请输入密码', trigger: 'blur' }]
+})
+
+function rebuildFormRules() {
+  const next = {
+    username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
+    password: [{ required: true, message: '请输入密码', trigger: 'blur' }]
+  }
+  if (captchaEnabled.value && captchaType.value === 'image') {
+    next.code = [{ required: true, message: '请输入验证码', trigger: 'blur' }]
+  }
+  formRules.value = next
 }
 
-// 登录处理
+/** 浏览器自动填充有时不会更新 v-model，提交前从 DOM 同步一次 */
+function syncAutofillFromDom() {
+  const root = formRef.value?.$el
+  if (!root) return
+  const inputs = root.querySelectorAll('input.el-input__inner')
+  if (inputs[0]?.value) formData.username = inputs[0].value.trim()
+  if (inputs[1]?.value) formData.password = inputs[1].value
+  if (inputs[2]?.value && captchaEnabled.value && captchaType.value === 'image') {
+    formData.code = inputs[2].value.trim()
+  }
+}
+
 async function handleLogin() {
   if (!formRef.value) return
-  
+  submitAttempted.value = true
+  syncAutofillFromDom()
+  formData.username = (formData.username || '').trim()
   await formRef.value.validate(async (valid) => {
     if (!valid) return
-    
-    loading.value = true
-    try {
-      const loginData = {
-        username: formData.username,
-        password: formData.password
-      }
-      
-      // 只有开启验证码时才发送验证码相关字段
-      if (captchaEnabled.value) {
+    if (captchaEnabled.value && captchaType.value === 'slider') {
+      showSliderModal.value = true
+      return
+    }
+    await doLogin()
+  })
+}
+
+async function doLogin(sliderVerified = false) {
+  loading.value = true
+  try {
+    const loginData = {
+      username: formData.username,
+      password: formData.password
+    }
+    if (captchaEnabled.value) {
+      if (captchaType.value === 'slider') {
+        loginData.code = 'slider_verified'
+      } else {
         loginData.uuid = captchaUuid.value
         loginData.code = formData.code
       }
-      
-      // 统一走 store/action，避免 fetch 与 axios 混用导致行为不一致
-      const result = await userStore.loginAction(loginData)
-      if (result.code === 200) {
-        ElMessage.success('登录成功')
-        
-        // 跳转到首页
-        setTimeout(() => {
-          router.push('/')
-        }, 500)
-      } else {
-        ElMessage.error(result.msg || result.message || '登录失败')
-        // 刷新验证码
-        if (captchaEnabled.value) {
-          loadCaptcha()
-          formData.code = ''
-        }
-      }
-    } catch (error) {
-      console.error('登录失败', error)
-      const errorMessage = error?.response?.data?.msg || error?.response?.data?.message || error?.message
-      if (errorMessage && !String(errorMessage).includes('status code')) {
-        ElMessage.error(String(errorMessage))
-      } else {
-        ElMessage.error('登录失败，请检查网络连接')
-      }
-    } finally {
-      loading.value = false
     }
-  })
+    const result = await userStore.loginAction(loginData)
+    if (result.code === 200) {
+      ElMessage.success('登录成功')
+      setTimeout(() => router.push('/'), 500)
+    } else {
+      ElMessage.error(result.msg || result.message || '登录失败')
+      refreshCaptchaAfterFail()
+    }
+  } catch (error) {
+    console.error('登录失败', error)
+    const errorMessage = error?.response?.data?.msg || error?.response?.data?.message || error?.message
+    if (errorMessage && !String(errorMessage).includes('status code')) {
+      ElMessage.error(String(errorMessage))
+    } else {
+      ElMessage.error('登录失败，请检查网络连接')
+    }
+    refreshCaptchaAfterFail()
+  } finally {
+    loading.value = false
+  }
+}
+
+function refreshCaptchaAfterFail() {
+  if (captchaEnabled.value && captchaType.value === 'image') {
+    loadCaptcha()
+    formData.code = ''
+  }
 }
 
 // 跳转到注册页面
@@ -955,6 +1013,15 @@ function goRegister() {
   opacity: 0.9;
   transform: scale(1.02);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* 进入页面前不展示校验红字，避免规则加载 / 自动填充时闪一下 */
+.form-container:not(.form-container--submitted) :deep(.el-form-item__error) {
+  display: none !important;
+}
+
+.form-container:not(.form-container--submitted) :deep(.el-form-item.is-error .el-input__wrapper) {
+  box-shadow: 0 0 0 1px var(--el-input-border-color, var(--el-border-color)) inset !important;
 }
 
 /* 验证码错误提示 */

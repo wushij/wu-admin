@@ -10,7 +10,7 @@ admin/                          # 管理系统总根目录
 ├── admin-backend/              # RBAC 后端
 ├── admin-frontend/             # Vue3 后台管理前端
 ├── sql/
-│   └── admin_platform.sql      # 全量建库脚本
+│   └── admin_platform.sql      # 唯一库脚本（全量 + 文末可重复升级段）
 ├── Dockerfile                  # 后端镜像构建
 ├── docker-compose.yml          # 容器一键部署
 ├── DOCKER_DEPLOY.md            # Docker 部署教程
@@ -54,7 +54,7 @@ admin/                          # 管理系统总根目录
 |------|------|------|------|
 | admin-frontend | 3000 | 统一前端入口 | ✅ |
 | admin-gateway | 8080 | API 网关、路由、认证 | ✅ |
-| admin-backend | 8081 | 用户、角色、菜单、部门等 | ✅ |
+| admin-backend | 8081 | 用户、角色、菜单、组织、系统配置、审批/工单等 | ✅ |
 
 > **当前只有 1 个后端服务**，后续按下方步骤添加新服务。
 
@@ -118,6 +118,8 @@ spring:
 登录 → admin-backend 校验 → JWT → Redis + 网关 Sa-Token
 请求 → 前端带 Token → 网关校验 → 转发 admin-backend
 ```
+
+登录前可调用 `GET /api/auth/config`（网关已放行）读取 `sys_config_group` 中的公开项（站点文案、验证码类型、注册开关等）。会话时长、限流、上传限制等由 `SystemConfigHelper` 从库读取，详见根目录 [README.md](./README.md#系统配置systemconfig)。
 
 ## 端口分配
 

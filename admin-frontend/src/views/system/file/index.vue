@@ -145,7 +145,7 @@
                     <el-icon><Upload /></el-icon>
                     支持拖拽上传；{{ uploadTypeHint }}
                   </p>
-                  <p class="upload-hint sub">不支持 exe、bat 等可执行文件，单文件最大 50MB</p>
+                  <p class="upload-hint sub">不支持 exe、bat 等可执行文件，单文件最大 {{ uploadMaxSizeMb }}MB</p>
                 </template>
               </el-empty>
             </div>
@@ -342,7 +342,10 @@ import {
   fetchFileBlob,
   fileDisplayUrl,
   getDownloadApiUrl,
-  validateFileBeforeUpload
+  validateFileBeforeUpload,
+  getFileUploadPolicy,
+  setUploadPolicyFromApi,
+  uploadPolicy
 } from '@/api/system/file'
 
 const typeTabs = [
@@ -384,6 +387,8 @@ const previewText = ref('')
 
 const isDragging = ref(false)
 let dragCounter = 0
+
+const uploadMaxSizeMb = computed(() => uploadPolicy.maxSizeMb)
 
 const uploadAccept = computed(() => {
   if (activeType.value === 'image') return 'image/*'
@@ -440,6 +445,15 @@ function getUploadGroupId() {
     return activeGroupId.value
   }
   return null
+}
+
+async function loadUploadPolicy() {
+  try {
+    const res = await getFileUploadPolicy()
+    setUploadPolicyFromApi(res.data)
+  } catch {
+    /* 使用默认 50MB */
+  }
 }
 
 async function loadGroups() {
@@ -732,6 +746,7 @@ function getFileIconColor(file) {
 }
 
 onMounted(() => {
+  loadUploadPolicy()
   loadGroups()
   loadFiles()
 })

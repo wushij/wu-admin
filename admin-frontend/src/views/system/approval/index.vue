@@ -13,6 +13,7 @@
             <el-option label="报销" value="REIMBURSE" />
             <el-option label="用印" value="SEAL" />
             <el-option label="合同" value="CONTRACT" />
+            <el-option label="注册审核" value="REGISTER" />
           </el-select>
         </el-form-item>
         <el-form-item label="状态">
@@ -81,6 +82,7 @@
                 </template>
               </el-dropdown>
               <el-button
+                v-if="canDeleteRow(row)"
                 size="small"
                 type="danger"
                 v-permission="'system:approval:delete'"
@@ -183,7 +185,16 @@
         <el-descriptions-item label="申请人">{{ current.applicantName || '-' }}</el-descriptions-item>
         <el-descriptions-item label="审批人">{{ current.approverName || '-' }}</el-descriptions-item>
         <el-descriptions-item label="审批结果">{{ current.resultRemark || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="内容">{{ current.content || '-' }}</el-descriptions-item>
+        <el-descriptions-item v-if="current.formType === 'REGISTER'" label="注册账号">
+          {{ registerDetail.username || '-' }}
+        </el-descriptions-item>
+        <el-descriptions-item v-if="current.formType === 'REGISTER'" label="昵称">
+          {{ registerDetail.nickname || '-' }}
+        </el-descriptions-item>
+        <el-descriptions-item v-if="current.formType === 'REGISTER'" label="手机号">
+          {{ registerDetail.mobile || '-' }}
+        </el-descriptions-item>
+        <el-descriptions-item v-else label="内容">{{ current.content || '-' }}</el-descriptions-item>
       </el-descriptions>
       <div class="record-title">审批记录</div>
       <el-timeline>
@@ -263,6 +274,25 @@ const rules = {
   content: [{ required: true, message: '请输入审批内容', trigger: 'blur' }]
 }
 
+const registerDetail = ref({})
+
+const parseRegisterContent = (content) => {
+  if (!content) return {}
+  try {
+    const obj = typeof content === 'string' ? JSON.parse(content) : content
+    return {
+      userId: obj.userId,
+      username: obj.username,
+      nickname: obj.nickname,
+      mobile: obj.mobile
+    }
+  } catch {
+    return {}
+  }
+}
+
+const hasPerm = (perm) => (userStore.userInfo?.permissions || []).includes(perm)
+
 const formatType = (type) => {
   const map = {
     GENERAL: '通用',
@@ -270,7 +300,8 @@ const formatType = (type) => {
     PURCHASE: '采购',
     REIMBURSE: '报销',
     SEAL: '用印',
-    CONTRACT: '合同'
+    CONTRACT: '合同',
+    REGISTER: '注册审核'
   }
   return map[type] || type || '-'
 }
@@ -301,6 +332,8 @@ const actionText = (action) => {
   }
   return map[action] || action
 }
+
+const canDeleteRow = (row) => row.formType !== 'REGISTER'
 
 const getList = async () => {
   loading.value = true
@@ -367,11 +400,19 @@ const submitForm = async () => {
 }
 
 const canApproveRow = (row) => {
-  return row.status === 'SUBMITTED' && row.approverUserId === userStore.userInfo?.userId
+  if (row.status !== 'SUBMITTED') return false
+  if (row.formType === 'REGISTER') {
+    return hasPerm('system:approval:approve')
+  }
+  return row.approverUserId === userStore.userInfo?.userId
 }
 
 const canArchiveRow = (row) => {
-  return (row.status === 'APPROVED' || row.status === 'REJECTED') && row.applicantUserId === userStore.userInfo?.userId
+  if (row.status !== 'APPROVED' && row.status !== 'REJECTED') return false
+  if (row.formType === 'REGISTER') {
+    return hasPerm('system:approval:archive')
+  }
+  return row.applicantUserId === userStore.userInfo?.userId
 }
 
 const openApproveDialog = (row, action) => {
@@ -430,6 +471,9 @@ const handlePermanentDelete = async (row) => {
 const openDetail = async (id) => {
   const [detailRes, recordRes] = await Promise.all([getApproval(id), getApprovalRecords(id)])
   current.value = detailRes.data || {}
+  registerDetail.value = current.value.formType === 'REGISTER'
+    ? parseRegisterContent(current.value.content)
+    : {}
   records.value = recordRes.data || []
   detailVisible.value = true
 }

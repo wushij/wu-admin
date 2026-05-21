@@ -4,6 +4,7 @@ import cn.rbac.server.framework.log.annotation.Log;
 import cn.rbac.server.common.pojo.CommonResult;
 import cn.rbac.server.common.pojo.PageResult;
 import cn.rbac.server.modules.system.dal.dataobject.file.SysFileDO;
+import cn.rbac.server.modules.system.service.config.SystemConfigHelper;
 import cn.rbac.server.modules.system.service.file.SysFileService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -17,6 +18,8 @@ import org.springframework.web.multipart.MultipartFile;
 import javax.annotation.Resource;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.Map;
 
 @Tag(name = "文件管理")
 @RestController
@@ -25,6 +28,20 @@ public class SysFileController {
 
     @Resource
     private SysFileService fileService;
+
+    @Resource
+    private SystemConfigHelper systemConfigHelper;
+
+    @GetMapping("/upload-policy")
+    @Operation(summary = "上传策略（读取系统配置，保存后立即生效）")
+    @PreAuthorize("@ss.hasPermission('sys:file:list')")
+    public CommonResult<Map<String, Object>> uploadPolicy() {
+        Map<String, Object> policy = new HashMap<>();
+        policy.put("maxSizeMb", systemConfigHelper.getFileMaxSizeMb());
+        policy.put("allowedExtensions", systemConfigHelper.getFileAllowedExtensions());
+        policy.put("platformMaxMb", SystemConfigHelper.PLATFORM_MAX_FILE_MB);
+        return CommonResult.success(policy);
+    }
 
     @GetMapping("/page-by-group")
     @PreAuthorize("@ss.hasPermission('sys:file:list')")

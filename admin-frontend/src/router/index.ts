@@ -60,6 +60,12 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '字典管理', icon: 'Collection', permission: 'system:dict:list' }
       },
       {
+        path: 'system/config',
+        name: 'SystemConfig',
+        component: () => import('@/views/system/config/index.vue'),
+        meta: { title: '系统配置', icon: 'Tools', permission: 'system:config:list' }
+      },
+      {
         path: 'system/oper-log',
         name: 'SystemOperLog',
         component: () => import('@/views/system/oper-log/index.vue'),

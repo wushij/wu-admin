@@ -11,6 +11,7 @@ import cn.rbac.server.modules.system.dal.mysql.approval.ApprovalFormMapper;
 import cn.rbac.server.modules.system.dal.mysql.approval.ApprovalRecordMapper;
 import cn.rbac.server.modules.system.dal.mysql.notice.NoticeMapper;
 import cn.rbac.server.modules.system.dal.mysql.user.UserMapper;
+import cn.rbac.server.modules.system.service.approval.RegisterApprovalService;
 import cn.rbac.server.modules.system.service.permission.PermissionService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -53,6 +54,8 @@ public class ApprovalFormController {
     private NoticeMapper noticeMapper;
     @Resource
     private PermissionService permissionService;
+    @Resource
+    private RegisterApprovalService registerApprovalService;
 
     @Operation(summary = "审批单分页")
     @GetMapping("/page")
@@ -140,7 +143,11 @@ public class ApprovalFormController {
         }
         Long userId = currentUserId();
         boolean canApproveAny = permissionService.hasRole(userId, "super_admin");
-        if (!canApproveAny && (form.getApproverUserId() == null || !form.getApproverUserId().equals(userId))) {
+        boolean isRegisterForm = RegisterApprovalService.FORM_TYPE_REGISTER.equals(form.getFormType());
+        boolean canApproveRegister = isRegisterForm
+                && permissionService.hasPermission(userId, "system:approval:approve");
+        if (!canApproveAny && !canApproveRegister
+                && (form.getApproverUserId() == null || !form.getApproverUserId().equals(userId))) {
             return CommonResult.error(403, "仅审批人可操作");
         }
         if (!"SUBMITTED".equals(form.getStatus())) {
@@ -154,10 +161,18 @@ public class ApprovalFormController {
         form.setStatus("APPROVE".equals(action) ? "APPROVED" : "REJECTED");
         form.setResultRemark(reqVO.getRemark());
         approvalFormMapper.updateById(form);
+        registerApprovalService.applyApprovalResult(form, action);
         createRecord(form.getId(), action, reqVO.getRemark());
-        createNotice(form.getApplicantUserId(), "审批结果通知",
-                "你的审批单已" + ("APPROVE".equals(action) ? "通过" : "驳回") + "：" + form.getFormNo() + " - " + form.getTitle(),
-                "APPROVAL", form.getId());
+        if (isRegisterForm) {
+            createNotice(form.getApplicantUserId(), "注册审核结果",
+                    "你的注册申请已" + ("APPROVE".equals(action) ? "通过，现在可以登录" : "被驳回，请联系管理员")
+                            + "（" + form.getFormNo() + "）",
+                    "APPROVAL", form.getId());
+        } else {
+            createNotice(form.getApplicantUserId(), "审批结果通知",
+                    "你的审批单已" + ("APPROVE".equals(action) ? "通过" : "驳回") + "：" + form.getFormNo() + " - " + form.getTitle(),
+                    "APPROVAL", form.getId());
+        }
         return CommonResult.success(true);
     }
 
@@ -174,7 +189,10 @@ public class ApprovalFormController {
         }
         Long userId = currentUserId();
         boolean canArchiveAny = permissionService.hasRole(userId, "super_admin");
-        if (!canArchiveAny && !userId.equals(form.getApplicantUserId())) {
+        boolean isRegisterForm = RegisterApprovalService.FORM_TYPE_REGISTER.equals(form.getFormType());
+        boolean canArchiveRegister = isRegisterForm
+                && permissionService.hasPermission(userId, "system:approval:archive");
+        if (!canArchiveAny && !canArchiveRegister && !userId.equals(form.getApplicantUserId())) {
             return CommonResult.error(403, "仅申请人可归档");
         }
         form.setStatus("ARCHIVED");

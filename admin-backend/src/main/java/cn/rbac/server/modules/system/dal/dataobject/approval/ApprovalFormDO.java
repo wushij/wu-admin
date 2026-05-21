@@ -14,7 +14,7 @@ public class ApprovalFormDO extends BaseEntity {
     private String formNo;
 
     /**
-     * LEAVE/PURCHASE/REIMBURSE/SEAL/CONTRACT/GENERAL
+     * LEAVE/PURCHASE/REIMBURSE/SEAL/CONTRACT/GENERAL/REGISTER（用户注册审核）
      */
     private String formType;
 

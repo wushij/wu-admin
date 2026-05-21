@@ -7,8 +7,8 @@
           <el-icon :size="28"><component :is="ElementPlusIconsVue.Management" /></el-icon>
         </div>
         <div class="logo-text" v-show="!isCollapse">
-          <span class="logo-title">管理系统</span>
-          <span class="logo-subtitle">Management System</span>
+          <span class="logo-title">{{ sitePlatformName }}</span>
+          <span class="logo-subtitle">{{ sitePlatformSubtitle }}</span>
         </div>
       </div>
       
@@ -166,6 +166,7 @@ import { themePresets, applyTheme, saveTheme, getCurrentTheme, adjustColor } fro
 import { resolveMenuIcon } from '@/utils/menu-icon'
 import { ElMessage } from 'element-plus'
 import { getMyNoticeList, getUnreadNoticeCount, readAllNotice, readNotice } from '@/api/system/notice'
+import { getConfig } from '@/api/system/auth'
 
 const getIconComponent = (iconName) => resolveMenuIcon(iconName)
 
@@ -193,6 +194,20 @@ const presetColors = [
 const currentColor = ref(getCurrentTheme().primaryColor)
 const unreadCount = ref(0)
 const noticeList = ref([])
+const sitePlatformName = ref('Admin Platform')
+const sitePlatformSubtitle = ref('Management System')
+
+async function loadSiteConfig() {
+  try {
+    const res = await getConfig()
+    if (res.data?.site) {
+      if (res.data.site.platformName) sitePlatformName.value = res.data.site.platformName
+      if (res.data.site.platformSubtitle) sitePlatformSubtitle.value = res.data.site.platformSubtitle
+    }
+  } catch {
+    /* 使用默认值 */
+  }
+}
 
 // 主题色切换
 function handleColorChange(color) {
@@ -341,6 +356,7 @@ onMounted(async () => {
     }
   }
   loadNotices()
+  loadSiteConfig()
 })
 </script>
 

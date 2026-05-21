@@ -1,7 +1,11 @@
 -- =============================================
--- Admin Platform 统一数据库初始化脚本
+-- Admin Platform 统一数据库脚本（唯一入口）
 -- 数据库名: RBAC1
--- 包含: 用户、角色、菜单、部门、登录日志
+--
+-- 【全新安装】执行本文件全文即可（建库、建表、初始数据）。
+-- 【已有库升级】若表已存在，可只执行文末「附录：已有库升级」段（可重复执行）。
+--
+-- 历史增量 add3/add4/add5/add6 已合并进本文，勿再单独执行旧脚本。
 -- =============================================
 
 -- 创建数据库
@@ -428,6 +432,24 @@ CREATE TABLE sys_file_group (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='文件分组表';
 
 -- =============================================
+-- 系统配置分组表
+-- =============================================
+DROP TABLE IF EXISTS sys_config_group;
+CREATE TABLE sys_config_group (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键',
+    group_code VARCHAR(50) NOT NULL COMMENT '分组编码 login/register',
+    group_name VARCHAR(100) NOT NULL COMMENT '分组名称',
+    config_value TEXT NOT NULL COMMENT 'JSON 配置',
+    remark VARCHAR(255) DEFAULT NULL COMMENT '备注',
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    creator VARCHAR(64) DEFAULT '',
+    updater VARCHAR(64) DEFAULT '',
+    deleted TINYINT DEFAULT 0,
+    UNIQUE KEY uk_group_code (group_code)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='系统配置分组';
+
+-- =============================================
 -- 初始化数据
 -- =============================================
 
@@ -468,6 +490,14 @@ INSERT INTO sys_dict_data (dict_type, sort, dict_label, dict_value, list_class, 
 ('sys_yes_no', 1, '是', 'Y', 'success', 1, 1),
 ('sys_yes_no', 2, '否', 'N', 'info', 0, 1);
 
+INSERT INTO sys_config_group (group_code, group_name, config_value, remark) VALUES
+('site', '基础信息', '{"platformName":"Admin Platform","platformSubtitle":"统一运维 · 高效管控","loginWelcome":"Welcome","registerTitle":"Sign Up","copyright":""}', '平台展示名称与登录页文案'),
+('session', '会话配置', '{"tokenExpireHours":24}', 'JWT 与 Redis 会话有效期（小时）'),
+('file', '文件配置', '{"maxSizeMb":50,"allowedExtensions":"jpg,jpeg,png,gif,webp,bmp,svg,pdf,doc,docx,xls,xlsx,ppt,pptx,txt,md,json,xml,zip,rar,mp4,mp3,wav,avi,mov"}', '文件管理上传限制'),
+('rateLimit', '接口限流', '{"captchaPerIpMinute":40,"loginPerIpMinute":30,"registerPerIpMinute":10}', '认证接口按 IP 限流'),
+('login', '登录配置', '{"captchaEnabled":true,"captchaType":"image","rememberMe":true,"maxRetryCount":5,"lockTime":10}', '验证码类型 image=图片 slider=滑块'),
+('register', '注册配置', '{"enabled":true,"captchaEnabled":true,"defaultRoleCode":"user","needAudit":false,"minPasswordLength":6}', '开放注册、默认角色、是否审核');
+
 -- 初始化菜单
 INSERT INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, component, status) VALUES
 -- 系统管理目录
@@ -482,6 +512,7 @@ INSERT INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, c
 (5, '组织管理', 'system:dept:list', 2, 4, 1, '/system/org', 'OfficeBuilding', 'system/org/index', 1),
 -- 字典管理
 (130, '字典管理', 'system:dict:list', 2, 5, 1, '/system/dict', 'Collection', 'system/dict/index', 1),
+(160, '系统配置', 'system:config:list', 2, 6, 1, '/system/config', 'Tools', 'system/config/index', 1),
 -- 业务中心目录
 (8, '业务中心', '', 1, 2, 0, '/business', 'Suitcase', '', 1),
 -- 审批单中心
@@ -519,6 +550,8 @@ INSERT INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, c
 (133, '字典修改', 'system:dict:update', 3, 3, 130, '', '', '', 1),
 (134, '字典删除', 'system:dict:delete', 3, 4, 130, '', '', '', 1),
 (135, '字典复制', 'system:dict:copy', 3, 5, 130, '', '', '', 1),
+(161, '配置查询', 'system:config:query', 3, 1, 160, '', '', '', 1),
+(162, '配置修改', 'system:config:update', 3, 2, 160, '', '', '', 1),
 -- 登录日志按钮
 (50, '日志查询', 'system:loginLog:query', 3, 1, 6, '', '', '', 1),
 (51, '日志删除', 'system:loginLog:delete', 3, 2, 6, '', '', '', 1),
@@ -568,13 +601,13 @@ INSERT INTO sys_user_role (user_id, role_id) VALUES
 
 -- 初始化角色菜单关联 (超级管理员拥有所有菜单权限)
 INSERT INTO sys_role_menu (role_id, menu_id) VALUES
-(1, 1), (1, 2), (1, 3), (1, 4), (1, 5), (1, 130), (1, 7), (1, 8), (1, 9),
+(1, 1), (1, 2), (1, 3), (1, 4), (1, 5), (1, 130), (1, 160), (1, 7), (1, 8), (1, 9),
 (1, 6), (1, 120), (1, 121), (1, 127), (1, 128),
 (1, 10), (1, 11), (1, 12), (1, 13),
 (1, 20), (1, 21), (1, 22), (1, 23),
 (1, 30), (1, 31), (1, 32), (1, 33),
 (1, 40), (1, 41), (1, 42), (1, 43), (1, 44), (1, 45), (1, 46), (1, 47),
-(1, 131), (1, 132), (1, 133), (1, 134), (1, 135),
+(1, 131), (1, 132), (1, 133), (1, 134), (1, 135), (1, 161), (1, 162),
 (1, 50), (1, 51), (1, 52),
 (1, 60), (1, 61), (1, 62), (1, 63), (1, 64), (1, 65),
 (1, 70), (1, 71), (1, 72), (1, 73), (1, 74),
@@ -587,3 +620,77 @@ INSERT INTO sys_role_menu (role_id, menu_id) VALUES
 (2, 1), (2, 2), (2, 3), (2, 4), (2, 5), (2, 7), (2, 8), (2, 9),
 (2, 6), (2, 120), (2, 121),
 (2, 10), (2, 20), (2, 30), (2, 40), (2, 50), (2, 60), (2, 70), (2, 71), (2, 72), (2, 73);
+
+-- =============================================
+-- 附录：已有库升级（可重复执行，全新安装执行亦无害）
+-- 合并原 add3 / add4 / add5 / add6
+-- =============================================
+
+CREATE TABLE IF NOT EXISTS sys_config_group (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键',
+    group_code VARCHAR(50) NOT NULL COMMENT '分组编码',
+    group_name VARCHAR(100) NOT NULL COMMENT '分组名称',
+    config_value TEXT NOT NULL COMMENT 'JSON 配置',
+    remark VARCHAR(255) DEFAULT NULL COMMENT '备注',
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    creator VARCHAR(64) DEFAULT '',
+    updater VARCHAR(64) DEFAULT '',
+    deleted TINYINT DEFAULT 0,
+    UNIQUE KEY uk_group_code (group_code)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='系统配置分组';
+
+INSERT INTO sys_config_group (group_code, group_name, config_value, remark) VALUES
+('site', '基础信息', '{"platformName":"Admin Platform","platformSubtitle":"统一运维 · 高效管控","loginWelcome":"Welcome","registerTitle":"Sign Up","copyright":""}', '平台展示名称与登录页文案'),
+('session', '会话配置', '{"tokenExpireHours":24}', 'JWT 与 Redis 会话有效期（小时）'),
+('file', '文件配置', '{"maxSizeMb":50,"allowedExtensions":"jpg,jpeg,png,gif,webp,bmp,svg,pdf,doc,docx,xls,xlsx,ppt,pptx,txt,md,json,xml,zip,rar,mp4,mp3,wav,avi,mov"}', '文件管理上传限制'),
+('rateLimit', '接口限流', '{"captchaPerIpMinute":40,"loginPerIpMinute":30,"registerPerIpMinute":10}', '认证接口按 IP 限流'),
+('login', '登录配置', '{"captchaEnabled":true,"captchaType":"image","rememberMe":true,"maxRetryCount":5,"lockTime":10}', '验证码类型 image=图片 slider=滑块'),
+('register', '注册配置', '{"enabled":true,"captchaEnabled":true,"defaultRoleCode":"user","needAudit":false,"minPasswordLength":6}', '开放注册、默认角色、是否审核')
+ON DUPLICATE KEY UPDATE
+    group_name = VALUES(group_name),
+    config_value = VALUES(config_value),
+    remark = VALUES(remark);
+
+INSERT INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, component, status) VALUES
+(160, '系统配置', 'system:config:list', 2, 6, 1, '/system/config', 'Tools', 'system/config/index', 1),
+(161, '配置查询', 'system:config:query', 3, 1, 160, '', '', '', 1),
+(162, '配置修改', 'system:config:update', 3, 2, 160, '', '', '', 1)
+ON DUPLICATE KEY UPDATE
+    name = VALUES(name),
+    permission = VALUES(permission),
+    type = VALUES(type),
+    sort = VALUES(sort),
+    parent_id = VALUES(parent_id),
+    path = VALUES(path),
+    icon = VALUES(icon),
+    component = VALUES(component),
+    status = VALUES(status);
+
+INSERT IGNORE INTO sys_role_menu (role_id, menu_id) VALUES
+(1, 160), (1, 161), (1, 162);
+
+-- 可选：为历史「待审核」用户补建注册审批单（无则跳过）
+INSERT INTO sys_approval_form (form_no, form_type, title, content, status, applicant_user_id, approver_user_id, creator, updater)
+SELECT
+    CONCAT('RG', UNIX_TIMESTAMP(), LPAD(u.id, 4, '0')),
+    'REGISTER',
+    CONCAT('用户注册审核 - ', u.username),
+    CONCAT('{"bizType":"USER_REGISTER","userId":', u.id, ',"username":"', u.username, '","nickname":"', IFNULL(u.nickname, ''), '","mobile":"', IFNULL(u.mobile, ''), '"}'),
+    'SUBMITTED',
+    u.id,
+    (SELECT ur.user_id FROM sys_user_role ur
+     INNER JOIN sys_role r ON r.id = ur.role_id AND r.code = 'super_admin' AND r.deleted = 0
+     ORDER BY ur.user_id LIMIT 1),
+    'system',
+    'system'
+FROM sys_user u
+WHERE u.deleted = 0
+  AND u.status = 2
+  AND NOT EXISTS (
+    SELECT 1 FROM sys_approval_form f
+    WHERE f.deleted = 0
+      AND f.form_type = 'REGISTER'
+      AND f.applicant_user_id = u.id
+      AND f.status = 'SUBMITTED'
+  );
