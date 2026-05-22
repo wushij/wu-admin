@@ -11,6 +11,8 @@ import App from './App.vue'
 import router from './router'
 import { setupPermissionDirectives } from './directives/permission'
 import { getCurrentTheme, applyTheme } from './utils/theme'
+import DictSelect from './components/DictSelect.vue'
+import DictTag from './components/DictTag.vue'
 
 const app = createApp(App)
 
@@ -37,6 +39,10 @@ for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
 
 // 注册权限控制指令
 setupPermissionDirectives(app)
+
+// 字典组件（业务表单与列表统一使用）
+app.component('DictSelect', DictSelect)
+app.component('DictTag', DictTag)
 
 // 初始化主题
 const currentTheme = getCurrentTheme()

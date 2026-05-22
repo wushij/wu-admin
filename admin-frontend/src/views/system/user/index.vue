@@ -31,10 +31,13 @@
               <el-input v-model="queryParams.mobile" placeholder="请输入手机号" clearable />
             </el-form-item>
             <el-form-item label="状态">
-              <el-select v-model="queryParams.status" placeholder="请选择状态" clearable style="width: 150px">
-                <el-option label="启用" :value="1" />
-                <el-option label="禁用" :value="0" />
-              </el-select>
+              <DictSelect
+                v-model="queryParams.status"
+                dict-type="sys_normal_disable"
+                value-type="number"
+                placeholder="请选择状态"
+                width="150px"
+              />
             </el-form-item>
             <el-form-item>
               <el-button type="primary" @click="handleQuery">搜索</el-button>
@@ -195,10 +198,13 @@
           </el-select>
         </el-form-item>
         <el-form-item label="状态" prop="status">
-          <el-radio-group v-model="form.status">
-            <el-radio :label="1">启用</el-radio>
-            <el-radio :label="0">禁用</el-radio>
-          </el-radio-group>
+          <DictSelect
+            v-model="form.status"
+            dict-type="sys_normal_disable"
+            value-type="number"
+            :clearable="false"
+            width="160px"
+          />
         </el-form-item>
         <el-form-item label="角色" prop="roleId">
           <el-radio-group v-model="form.roleId">
@@ -269,7 +275,7 @@
         <el-table-column prop="deptName" label="部门" width="150" />
         <el-table-column prop="status" label="状态" width="100">
           <template #default="{ row }">
-            <el-tag :type="row.status === 1 ? 'success' : 'info'">{{ row.status === 1 ? '启用' : '禁用' }}</el-tag>
+            <DictTag :value="row.status" dict-type="sys_normal_disable" />
           </template>
         </el-table-column>
         <el-table-column prop="updateTime" label="删除时间" width="180" />

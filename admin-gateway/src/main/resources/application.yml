@@ -110,6 +110,20 @@ spring:
             - Path=/api/webjars/**
           filters:
             - StripPrefix=1
+
+        # Knife4j 页面在 /api/doc.html 下仍会以站点根路径请求 /v3/api-docs、/webjars（无 /api 前缀）
+        - id: admin-knife4j-api-docs-root
+          uri: ${app.backend.base-url}
+          predicates:
+            - Path=/v3/api-docs,/v3/api-docs/**
+        - id: admin-knife4j-webjars-root
+          uri: ${app.backend.base-url}
+          predicates:
+            - Path=/webjars/**
+        - id: admin-knife4j-swagger-ui-root
+          uri: ${app.backend.base-url}
+          predicates:
+            - Path=/swagger-ui,/swagger-ui/**
         
         # RBAC管理端路由
         - id: rbac-admin

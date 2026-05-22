@@ -482,8 +482,8 @@ INSERT INTO sys_dict_type (id, dict_name, dict_type, status, remark) VALUES
 (3, '是否', 'sys_yes_no', 1, '是或否');
 
 INSERT INTO sys_dict_data (dict_type, sort, dict_label, dict_value, list_class, is_default, status) VALUES
-('sys_normal_disable', 1, '正常', '1', 'success', 1, 1),
-('sys_normal_disable', 2, '停用', '0', 'danger', 0, 1),
+('sys_normal_disable', 1, '启用', '1', 'success', 1, 1),
+('sys_normal_disable', 2, '禁用', '0', 'danger', 0, 1),
 ('sys_user_sex', 1, '男', '1', 'primary', 0, 1),
 ('sys_user_sex', 2, '女', '2', 'danger', 0, 1),
 ('sys_user_sex', 3, '未知', '0', 'info', 1, 1),
@@ -738,3 +738,7 @@ WHERE u.deleted = 0
       AND f.applicant_user_id = u.id
       AND f.status = 'SUBMITTED'
   );
+
+-- 通用状态字典文案与业务页一致（启用/禁用）
+UPDATE sys_dict_data SET dict_label = '启用' WHERE dict_type = 'sys_normal_disable' AND dict_value = '1';
+UPDATE sys_dict_data SET dict_label = '禁用' WHERE dict_type = 'sys_normal_disable' AND dict_value = '0';

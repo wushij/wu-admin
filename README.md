@@ -183,7 +183,7 @@ cn.rbac.server/
 │   │   └── core/                     # TokenService、SecurityUtils
 │   ├── web/
 │   │   ├── core/                     # GlobalExceptionHandler
-│   │   └── filter/                   # JwtAuthenticationFilter
+│   │   └── filter/                   # SaTokenAuthenticationFilter（Sa-Token → Spring Security 桥接）
 │   ├── log/annotation/               # @Log
 │   ├── mybatis/、redis/、storage/
 └── modules/
@@ -356,13 +356,21 @@ npm run dev
 
 ## 开发提示
 
-### 字典下拉
+### 字典（业务闭环）
 
-```javascript
-import { useDict } from '@/composables/useDict'
-const { options, load } = useDict('sys_user_sex')
-onMounted(() => load())
+登录后布局会自动预加载 `sys_normal_disable`、`sys_user_sex`、`sys_yes_no`。业务页优先用全局组件：
+
+```html
+<!-- 筛选/表单下拉 -->
+<DictSelect v-model="form.status" dict-type="sys_normal_disable" value-type="number" />
+
+<!-- 列表标签回显 -->
+<DictTag :value="row.status" dict-type="sys_normal_disable" />
 ```
+
+常量见 `admin-frontend/src/constants/dict.js`。字典管理页修改数据后点「刷新缓存」，或调用 `clearDictCache('sys_normal_disable')`。
+
+脚本方式：`useDict('sys_user_sex')` + `onMounted(() => load())`（见 `composables/useDict.js`）。
 
 ### 操作日志
 

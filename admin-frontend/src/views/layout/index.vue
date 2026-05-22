@@ -174,6 +174,8 @@ import { resolveMenuIcon } from '@/utils/menu-icon'
 import { ElMessage } from 'element-plus'
 import { getMyNoticeList, getUnreadNoticeCount, readAllNotice, readNotice } from '@/api/system/notice'
 import { getConfig } from '@/api/system/auth'
+import { preloadDicts } from '@/composables/useDict'
+import { COMMON_DICT_TYPES } from '@/constants/dict'
 
 const getIconComponent = (iconName) => resolveMenuIcon(iconName)
 
@@ -403,6 +405,7 @@ onMounted(async () => {
   }
   loadNotices()
   loadSiteConfig()
+  preloadDicts(COMMON_DICT_TYPES).catch(() => {})
 })
 </script>
 

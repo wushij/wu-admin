@@ -7,10 +7,13 @@
           <el-input v-model="queryParams.name" placeholder="请输入部门名称" clearable />
         </el-form-item>
         <el-form-item label="状态">
-          <el-select v-model="queryParams.status" placeholder="请选择状态" clearable style="width: 150px">
-            <el-option label="启用" :value="1" />
-            <el-option label="禁用" :value="0" />
-          </el-select>
+          <DictSelect
+            v-model="queryParams.status"
+            dict-type="sys_normal_disable"
+            value-type="number"
+            placeholder="请选择状态"
+            width="150px"
+          />
         </el-form-item>
         <el-form-item>
           <el-button type="primary" @click="handleQuery">搜索</el-button>

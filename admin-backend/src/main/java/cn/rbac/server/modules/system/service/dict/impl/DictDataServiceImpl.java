@@ -2,7 +2,9 @@ package cn.rbac.server.modules.system.service.dict.impl;
 
 import cn.rbac.server.common.pojo.PageResult;
 import cn.rbac.server.modules.system.dal.dataobject.dict.DictDataDO;
+import cn.rbac.server.modules.system.dal.dataobject.dict.DictTypeDO;
 import cn.rbac.server.modules.system.dal.mysql.dict.DictDataMapper;
+import cn.rbac.server.modules.system.dal.mysql.dict.DictTypeMapper;
 import cn.rbac.server.modules.system.service.dict.DictDataService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
@@ -22,6 +24,9 @@ import java.util.stream.Collectors;
 @Service
 public class DictDataServiceImpl extends ServiceImpl<DictDataMapper, DictDataDO> implements DictDataService {
 
+    @jakarta.annotation.Resource
+    private DictTypeMapper dictTypeMapper;
+
     @Override
     public PageResult<DictDataDO> page(Integer pageNo, Integer pageSize, String dictType, String dictLabel, Integer status) {
         Page<DictDataDO> pageParam = new Page<>(pageNo, pageSize);
@@ -37,7 +42,19 @@ public class DictDataServiceImpl extends ServiceImpl<DictDataMapper, DictDataDO>
 
     @Override
     public List<DictDataDO> listByDictType(String dictType) {
+        if (!isDictTypeEnabled(dictType)) {
+            return Collections.emptyList();
+        }
         return baseMapper.selectEnabledByDictType(dictType);
+    }
+
+    private boolean isDictTypeEnabled(String dictType) {
+        if (!StringUtils.hasText(dictType)) {
+            return false;
+        }
+        DictTypeDO type = dictTypeMapper.selectOne(new LambdaQueryWrapper<DictTypeDO>()
+                .eq(DictTypeDO::getDictType, dictType.trim()));
+        return type != null && type.getStatus() != null && type.getStatus() == 1;
     }
 
     @Override
@@ -96,7 +113,8 @@ public class DictDataServiceImpl extends ServiceImpl<DictDataMapper, DictDataDO>
         Map<String, List<DictDataDO>> result = new LinkedHashMap<>();
         for (String type : dictTypes) {
             if (StringUtils.hasText(type)) {
-                result.put(type.trim(), listByDictType(type.trim()));
+                String key = type.trim();
+                result.put(key, listByDictType(key));
             }
         }
         return result;

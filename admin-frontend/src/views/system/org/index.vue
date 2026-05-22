@@ -134,9 +134,7 @@
           <el-table-column prop="mobile" label="手机号" width="120" />
           <el-table-column label="状态" width="80">
             <template #default="{ row }">
-              <el-tag :type="row.status === 1 ? 'success' : 'danger'" size="small">
-                {{ row.status === 1 ? '启用' : '禁用' }}
-              </el-tag>
+              <DictTag :value="row.status" dict-type="sys_normal_disable" />
             </template>
           </el-table-column>
           <el-table-column prop="createTime" label="创建时间" width="170" />

@@ -38,6 +38,11 @@ public class SecurityHeadersWebFilter implements WebFilter {
                 || path.startsWith("/api/swagger-ui/")
                 || "/api/v3/api-docs".equals(path)
                 || path.startsWith("/api/v3/api-docs/")
-                || path.startsWith("/api/webjars/");
+                || path.startsWith("/api/webjars/")
+                || "/v3/api-docs".equals(path)
+                || path.startsWith("/v3/api-docs/")
+                || path.startsWith("/webjars/")
+                || "/swagger-ui".equals(path)
+                || path.startsWith("/swagger-ui/");
     }
 }
