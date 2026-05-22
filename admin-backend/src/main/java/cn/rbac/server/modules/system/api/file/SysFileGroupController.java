@@ -21,7 +21,7 @@ public class SysFileGroupController {
     private SysFileGroupService fileGroupService;
 
     @GetMapping("/list")
-    @PreAuthorize("@ss.hasPermission('sys:file:list')")
+    @PreAuthorize("@ss.hasRead('sys:file:list')")
     public CommonResult<Map<String, Object>> list() {
         return CommonResult.success(fileGroupService.listWithUngroupedCount());
     }

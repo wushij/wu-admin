@@ -5,7 +5,7 @@
 -- 【全新安装】执行本文件全文即可（建库、建表、初始数据）。
 -- 【已有库升级】若表已存在，可只执行文末「附录：已有库升级」段（可重复执行）。
 --
--- 历史增量 add3/add4/add5/add6 已合并进本文，勿再单独执行旧脚本。
+-- 仅维护本文件；历史 add*.sql 已删除，升级内容见文末「附录」。
 -- =============================================
 
 -- 创建数据库
@@ -473,7 +473,7 @@ INSERT INTO sys_user (id, username, password, nickname, mobile, email, status, d
 -- 初始化角色
 INSERT INTO sys_role (id, name, code, sort, status, remark) VALUES
 (1, '超级管理员', 'super_admin', 1, 1, '超级管理员，拥有所有权限'),
-(2, '普通用户', 'user', 2, 1, '普通用户角色');
+(2, '普通用户', 'user', 2, 1, '仅部分功能');
 
 -- 初始化字典
 INSERT INTO sys_dict_type (id, dict_name, dict_type, status, remark) VALUES
@@ -586,6 +586,7 @@ INSERT INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, c
 -- 系统日志目录
 (120, '系统日志', '', 1, 5, 0, '/log', 'Notebook', '', 1),
 (121, '操作日志', 'system:operLog:list', 2, 1, 120, '/system/oper-log', 'EditPen', 'system/oper-log/index', 1),
+(126, '操作日志查询', 'system:operLog:query', 3, 1, 121, '', '', '', 1),
 (127, '操作日志删除', 'system:operLog:delete', 3, 2, 121, '', '', '', 1),
 (128, '操作日志清空', 'system:operLog:clear', 3, 3, 121, '', '', '', 1),
 -- 登录日志（隶属系统日志）
@@ -602,7 +603,7 @@ INSERT INTO sys_user_role (user_id, role_id) VALUES
 -- 初始化角色菜单关联 (超级管理员拥有所有菜单权限)
 INSERT INTO sys_role_menu (role_id, menu_id) VALUES
 (1, 1), (1, 2), (1, 3), (1, 4), (1, 5), (1, 130), (1, 160), (1, 7), (1, 8), (1, 9),
-(1, 6), (1, 120), (1, 121), (1, 127), (1, 128),
+(1, 6), (1, 120), (1, 121), (1, 126), (1, 127), (1, 128),
 (1, 10), (1, 11), (1, 12), (1, 13),
 (1, 20), (1, 21), (1, 22), (1, 23),
 (1, 30), (1, 31), (1, 32), (1, 33),
@@ -615,16 +616,20 @@ INSERT INTO sys_role_menu (role_id, menu_id) VALUES
 (1, 105), (1, 110), (1, 111), (1, 112), (1, 113),
 (1, 150), (1, 151);
 
--- 普通用户只有查询权限
+-- 普通用户默认权限（页面+查询按钮；侧栏父级由 getUserMenuList 自动补齐）
 INSERT INTO sys_role_menu (role_id, menu_id) VALUES
-(2, 1), (2, 2), (2, 3), (2, 4), (2, 5), (2, 7), (2, 8), (2, 9),
-(2, 6), (2, 120), (2, 121),
-(2, 10), (2, 20), (2, 30), (2, 40), (2, 50), (2, 60), (2, 70), (2, 71), (2, 72), (2, 73);
+(2, 2), (2, 10), (2, 3), (2, 20), (2, 4), (2, 30), (2, 5), (2, 40),
+(2, 130), (2, 131), (2, 160), (2, 161),
+(2, 8), (2, 7), (2, 60), (2, 61), (2, 62), (2, 63), (2, 64),
+(2, 9), (2, 70), (2, 71), (2, 73),
+(2, 101), (2, 102),
+(2, 105), (2, 110), (2, 111), (2, 112),
+(2, 121), (2, 126), (2, 6), (2, 50),
+(2, 151);
 
 -- =============================================
 -- 附录：已有库升级（可重复执行，全新安装执行亦无害）
--- 合并原 add3 / add4 / add5 / add6 / add1
--- 已有库若仅执行增量，可只跑 sql/add1.sql（与本段 add1 内容一致）
+-- 仅执行本段即可，无需其它 sql 文件
 -- =============================================
 
 CREATE TABLE IF NOT EXISTS sys_config_group (
@@ -671,8 +676,43 @@ ON DUPLICATE KEY UPDATE
 INSERT IGNORE INTO sys_role_menu (role_id, menu_id) VALUES
 (1, 160), (1, 161), (1, 162);
 
--- add1：菜单图标（角色管理）
+-- 菜单图标
 UPDATE sys_menu SET icon = 'UserFilled' WHERE id = 3 AND icon IN ('Key', 'key');
+UPDATE sys_menu SET icon = 'Document' WHERE id = 151 AND icon IS NOT NULL AND icon <> 'Document';
+
+-- 操作日志「查询」按钮（旧库可能缺失）
+INSERT INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, component, status) VALUES
+(126, '操作日志查询', 'system:operLog:query', 3, 1, 121, '', '', '', 1)
+ON DUPLICATE KEY UPDATE
+    name = VALUES(name),
+    permission = VALUES(permission),
+    type = VALUES(type),
+    sort = VALUES(sort),
+    parent_id = VALUES(parent_id),
+    status = VALUES(status);
+
+INSERT IGNORE INTO sys_role_menu (role_id, menu_id) VALUES (1, 126);
+
+-- 操作日志操作人员：历史误存 userId 时回填为 username
+UPDATE sys_oper_log o
+INNER JOIN sys_user u ON u.id = CAST(o.oper_name AS UNSIGNED) AND u.deleted = 0
+SET o.oper_name = u.username
+WHERE o.oper_name REGEXP '^[0-9]+$';
+
+-- 普通用户默认菜单与备注（执行后请普通用户重新登录）
+UPDATE sys_role SET remark = '仅部分功能' WHERE id = 2;
+
+DELETE FROM sys_role_menu WHERE role_id = 2;
+
+INSERT INTO sys_role_menu (role_id, menu_id) VALUES
+(2, 2), (2, 10), (2, 3), (2, 20), (2, 4), (2, 30), (2, 5), (2, 40),
+(2, 130), (2, 131), (2, 160), (2, 161),
+(2, 8), (2, 7), (2, 60), (2, 61), (2, 62), (2, 63), (2, 64),
+(2, 9), (2, 70), (2, 71), (2, 73),
+(2, 101), (2, 102),
+(2, 105), (2, 110), (2, 111), (2, 112),
+(2, 121), (2, 126), (2, 6), (2, 50),
+(2, 151);
 
 -- 可选：为历史「待审核」用户补建注册审批单（无则跳过）
 INSERT INTO sys_approval_form (form_no, form_type, title, content, status, applicant_user_id, approver_user_id, creator, updater)

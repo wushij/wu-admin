@@ -10,12 +10,12 @@ spring:
   application:
     name: admin-gateway
   
-  # Redis配置 (统一使用database 3)
+  # Redis配置 (统一使用database 1)
   data:
     redis:
       host: 127.0.0.1
       port: 6379
-      database: 3
+      database: 1
       password:
       lettuce:
         pool:
@@ -128,11 +128,7 @@ sa-token:
   is-share: false
   token-style: uuid
   is-log: false
-  # Redis配置
-  redis:
-    host: 127.0.0.1
-    port: 6379
-    database: 3
+  # 会话存储走 spring.data.redis（与 sa-token-redis-jackson / 后端一致）
 
 # 日志配置
 logging:

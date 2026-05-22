@@ -21,7 +21,7 @@ public class OperLogController {
 
     @GetMapping("/page")
     @Operation(summary = "操作日志分页")
-    @PreAuthorize("@ss.hasPermission('system:operLog:list')")
+    @PreAuthorize("@ss.hasPermission('system:operLog:query')")
     public CommonResult<PageResult<OperLogDO>> page(
             @RequestParam(defaultValue = "1") Integer pageNo,
             @RequestParam(defaultValue = "10") Integer pageSize,

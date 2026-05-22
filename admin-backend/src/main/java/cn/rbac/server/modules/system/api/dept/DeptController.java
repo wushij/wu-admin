@@ -28,7 +28,7 @@ public class DeptController {
 
     @GetMapping("/tree")
     @Operation(summary = "部门树")
-    @PreAuthorize("@ss.hasPermission('system:dept:list')")
+    @PreAuthorize("@ss.hasRead('system:dept:list')")
     public CommonResult<List<DeptDO>> tree(
             @RequestParam(required = false) String name,
             @RequestParam(required = false) Integer status) {

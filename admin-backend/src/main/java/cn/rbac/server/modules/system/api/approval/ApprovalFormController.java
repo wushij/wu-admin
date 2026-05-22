@@ -59,7 +59,7 @@ public class ApprovalFormController {
 
     @Operation(summary = "审批单分页")
     @GetMapping("/page")
-    @PreAuthorize("@ss.hasPermission('system:approval:list')")
+    @PreAuthorize("@ss.hasRead('system:approval:list')")
     public CommonResult<PageResult<ApprovalFormDO>> page(PageParam pageParam,
                                                           @RequestParam(required = false) String title,
                                                           @RequestParam(required = false) String formType,
@@ -90,7 +90,7 @@ public class ApprovalFormController {
 
     @Operation(summary = "审批单详情")
     @GetMapping("/get")
-    @PreAuthorize("@ss.hasPermission('system:approval:list')")
+    @PreAuthorize("@ss.hasRead('system:approval:list')")
     public CommonResult<ApprovalFormDO> get(@RequestParam Long id) {
         ApprovalFormDO form = approvalFormMapper.selectById(id);
         if (form == null) {
@@ -102,7 +102,7 @@ public class ApprovalFormController {
 
     @Operation(summary = "审批单记录")
     @GetMapping("/record/list")
-    @PreAuthorize("@ss.hasPermission('system:approval:list')")
+    @PreAuthorize("@ss.hasRead('system:approval:list')")
     public CommonResult<List<ApprovalRecordDO>> recordList(@RequestParam Long formId) {
         List<ApprovalRecordDO> records = approvalRecordMapper.selectList(new LambdaQueryWrapper<ApprovalRecordDO>()
                 .eq(ApprovalRecordDO::getFormId, formId)

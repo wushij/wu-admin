@@ -28,7 +28,7 @@ public class MenuController {
     
     @Operation(summary = "获取菜单树（管理页）")
     @GetMapping("/list")
-    @PreAuthorize("@ss.hasPermission('system:menu:list')")
+    @PreAuthorize("@ss.hasRead('system:menu:list')")
     public CommonResult<List<MenuDO>> list(
             @RequestParam(required = false) String name,
             @RequestParam(required = false) Integer status,

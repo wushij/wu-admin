@@ -66,8 +66,27 @@ public class TicketController {
     @Resource
     private PermissionService permissionService;
 
+    @Operation(summary = "工单处理人选项（不含敏感字段，供普通用户指派工单）")
+    @GetMapping("/assignee-options")
+    @PreAuthorize("@ss.hasRead('system:ticket:list')")
+    public CommonResult<List<AssigneeOptionVO>> assigneeOptions() {
+        List<UserDO> users = userMapper.selectList(new LambdaQueryWrapper<UserDO>()
+                .eq(UserDO::getStatus, 1)
+                .select(UserDO::getId, UserDO::getUsername, UserDO::getNickname)
+                .orderByAsc(UserDO::getUsername));
+        List<AssigneeOptionVO> options = users.stream().map(u -> {
+            AssigneeOptionVO vo = new AssigneeOptionVO();
+            vo.setId(u.getId());
+            vo.setUsername(u.getUsername());
+            vo.setNickname(u.getNickname());
+            return vo;
+        }).collect(Collectors.toList());
+        return CommonResult.success(options);
+    }
+
     @Operation(summary = "工单分页")
     @GetMapping("/page")
+    @PreAuthorize("@ss.hasRead('system:ticket:list')")
     public CommonResult<PageResult<TicketDO>> page(PageParam pageParam,
                                                     @RequestParam(required = false) String title,
                                                     @RequestParam(required = false) String status,
@@ -463,5 +482,12 @@ public class TicketController {
     public static class TicketCommentCreateReqVO {
         private Long ticketId;
         private String content;
+    }
+
+    @Data
+    public static class AssigneeOptionVO {
+        private Long id;
+        private String username;
+        private String nickname;
     }
 }

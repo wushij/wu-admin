@@ -7,10 +7,11 @@ export function listConfigGroups() {
   })
 }
 
-export function getConfigGroup(groupCode) {
+export function getConfigGroup(groupCode, config = {}) {
   return request({
     url: `/system/config-group/${groupCode}`,
-    method: 'get'
+    method: 'get',
+    ...config
   })
 }
 

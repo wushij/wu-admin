@@ -1,52 +1,30 @@
 package cn.rbac.server.framework.security.core.service;
 
-import cn.hutool.json.JSONUtil;
+import cn.dev33.satoken.stp.SaLoginModel;
+import cn.dev33.satoken.stp.StpUtil;
 import cn.rbac.server.framework.config.DynamicConfigProvider;
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
-import io.jsonwebtoken.security.Keys;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
-import org.redisson.api.RBucket;
-import org.redisson.api.RedissonClient;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import jakarta.annotation.Resource;
-import java.nio.charset.StandardCharsets;
-import java.security.Key;
-import java.util.Date;
-import java.util.concurrent.TimeUnit;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
- * Token 服务
+ * 统一 Sa-Token 会话服务（与网关共用 Redis，同一 Authorization token）
  */
 @Slf4j
 @Service
 public class TokenService {
 
-    @Value("${jwt.secret:rbac-secret-key-2026-rbac-secret-key-2026}")
-    private String secret;
+    public static final String SESSION_USERNAME = "username";
+    public static final String SESSION_NICKNAME = "nickname";
 
     @Resource
     private DynamicConfigProvider dynamicConfigProvider;
 
-    private final RedissonClient redissonClient;
-
-    public TokenService(RedissonClient redissonClient) {
-        this.redissonClient = redissonClient;
-    }
-
-    private long expirationMs() {
-        return dynamicConfigProvider.getTokenExpirationMs();
-    }
-
-    private static final String TOKEN_PREFIX = "rbac:token:";
-
-    /**
-     * Redis 中存储的登录信息
-     */
     @Data
     public static class LoginInfo {
         private Long userId;
@@ -56,123 +34,97 @@ public class TokenService {
         private Long expireTime;
     }
 
-    private Key getSigningKey() {
-        byte[] keyBytes = secret.getBytes(StandardCharsets.UTF_8);
-        return Keys.hmacShaKeyFor(keyBytes);
+    private long timeoutSeconds() {
+        return dynamicConfigProvider.getTokenExpirationMs() / 1000L;
     }
 
     /**
-     * 创建 Token
+     * 登录并返回 token（写入 Sa-Token Redis，网关可直接校验）
      */
     public String createToken(Long userId, String username) {
-        Date now = new Date();
-        long expireMs = expirationMs();
-        Date expiryDate = new Date(now.getTime() + expireMs);
-
-        String token = Jwts.builder()
-                .setSubject(String.valueOf(userId))
-                .claim("username", username)
-                .setIssuedAt(now)
-                .setExpiration(expiryDate)
-                .signWith(getSigningKey(), SignatureAlgorithm.HS256)
-                .compact();
-
-        // 构建易读的登录信息存储到 Redis
         try {
-            LoginInfo loginInfo = new LoginInfo();
-            loginInfo.setUserId(userId);
-            loginInfo.setUsername(username);
-            loginInfo.setToken(token);
-            loginInfo.setCreateTime(now.getTime());
-            loginInfo.setExpireTime(expiryDate.getTime());
-
-            String key = TOKEN_PREFIX + userId;
-            RBucket<String> bucket = redissonClient.getBucket(key);
-            bucket.set(JSONUtil.toJsonStr(loginInfo), expireMs, TimeUnit.MILLISECONDS);
-            log.info("Token created for user: {}", username);
-        } catch (Exception e) {
-            log.error("Failed to store token in Redis for user: {}", username, e);
-            throw new RuntimeException("Token存储失败", e);
+            StpUtil.logout(userId);
+        } catch (Exception ignored) {
         }
-
+        SaLoginModel model = new SaLoginModel()
+                .setTimeout(timeoutSeconds())
+                .setIsLastingCookie(false);
+        StpUtil.login(userId, model);
+        StpUtil.getSession().set(SESSION_USERNAME, username);
+        String token = StpUtil.getTokenValue();
+        log.info("Sa-Token created for user: {}", username);
         return token;
     }
 
-    /**
-     * 从 Token 获取用户ID
-     */
     public Long getUserId(String token) {
-        try {
-            Claims claims = Jwts.parserBuilder()
-                    .setSigningKey(getSigningKey())
-                    .build()
-                    .parseClaimsJws(token)
-                    .getBody();
-            return Long.parseLong(claims.getSubject());
-        } catch (Exception e) {
+        if (!StringUtils.hasText(token)) {
             return null;
         }
-    }
-
-    /**
-     * 从 Token 获取用户名
-     */
-    public String getUsername(String token) {
         try {
-            Claims claims = Jwts.parserBuilder()
-                    .setSigningKey(getSigningKey())
-                    .build()
-                    .parseClaimsJws(token)
-                    .getBody();
-            return claims.get("username", String.class);
-        } catch (Exception e) {
-            return null;
-        }
-    }
-
-    /**
-     * 验证 Token 是否有效
-     */
-    public boolean validateToken(String token) {
-        try {
-            Long userId = getUserId(token);
-            if (userId == null) {
-                return false;
-            }
-            // 检查 Redis 中的 token 是否匹配
-            LoginInfo loginInfo = getLoginInfo(userId);
-            if (loginInfo == null) {
-                return false;
-            }
-            return token.equals(loginInfo.getToken());
-        } catch (Exception e) {
-            return false;
-        }
-    }
-
-    /**
-     * 获取登录信息
-     */
-    public LoginInfo getLoginInfo(Long userId) {
-        try {
-            String key = TOKEN_PREFIX + userId;
-            RBucket<String> bucket = redissonClient.getBucket(key);
-            String json = bucket.get();
-            if (json == null) {
+            Object loginId = StpUtil.getLoginIdByToken(token);
+            if (loginId == null) {
                 return null;
             }
-            return JSONUtil.toBean(json, LoginInfo.class);
+            return Long.parseLong(loginId.toString());
         } catch (Exception e) {
             return null;
         }
     }
 
-    /**
-     * 移除 Token（登出）
-     */
+    public String getUsername(String token) {
+        Long userId = getUserId(token);
+        if (userId == null) {
+            return null;
+        }
+        LoginInfo info = getLoginInfo(userId);
+        return info != null ? info.getUsername() : null;
+    }
+
+    public boolean validateToken(String token) {
+        return getUserId(token) != null;
+    }
+
+    public LoginInfo getLoginInfo(Long userId) {
+        try {
+            String token = StpUtil.getTokenValueByLoginId(userId);
+            if (!StringUtils.hasText(token)) {
+                return null;
+            }
+            LoginInfo loginInfo = new LoginInfo();
+            loginInfo.setUserId(userId);
+            loginInfo.setToken(token);
+            Object username = StpUtil.getSessionByLoginId(userId).get(SESSION_USERNAME);
+            loginInfo.setUsername(username != null ? username.toString() : "");
+            long timeout = StpUtil.getTokenTimeout(token);
+            long now = System.currentTimeMillis();
+            loginInfo.setCreateTime(now);
+            loginInfo.setExpireTime(timeout > 0 ? now + timeout * 1000L : now);
+            return loginInfo;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
     public void removeToken(Long userId) {
-        String key = TOKEN_PREFIX + userId;
-        RBucket<String> bucket = redissonClient.getBucket(key);
-        bucket.delete();
+        try {
+            StpUtil.logout(userId);
+        } catch (Exception ignored) {
+        }
+    }
+
+    /**
+     * 列出当前有效 token（用于在线用户）
+     */
+    public List<String> listActiveTokens() {
+        List<String> tokens = new ArrayList<>();
+        try {
+            List<String> found = StpUtil.searchTokenValue("", 0, -1, false);
+            if (found != null) {
+                tokens.addAll(found);
+            }
+        } catch (Exception e) {
+            log.debug("searchTokenValue failed: {}", e.getMessage());
+        }
+        return tokens;
     }
 }

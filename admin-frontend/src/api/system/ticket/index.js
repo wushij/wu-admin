@@ -8,6 +8,14 @@ export function getTicketPage(params) {
   })
 }
 
+/** 工单处理人下拉（普通用户可用，无需 system:user:list） */
+export function getTicketAssigneeOptions() {
+  return request({
+    url: '/system/ticket/assignee-options',
+    method: 'get'
+  })
+}
+
 export function getTicket(id) {
   return request({
     url: '/system/ticket/get',

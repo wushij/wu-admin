@@ -29,7 +29,7 @@ public class DictTypeController {
 
     @GetMapping("/page")
     @Operation(summary = "字典类型分页")
-    @PreAuthorize("@ss.hasPermission('system:dict:list')")
+    @PreAuthorize("@ss.hasRead('system:dict:list')")
     public CommonResult<PageResult<DictTypeDO>> page(
             @RequestParam(defaultValue = "1") Integer pageNo,
             @RequestParam(defaultValue = "10") Integer pageSize,
@@ -47,14 +47,14 @@ public class DictTypeController {
 
     @GetMapping("/{id}")
     @Operation(summary = "字典类型详情")
-    @PreAuthorize("@ss.hasPermission('system:dict:list')")
+    @PreAuthorize("@ss.hasRead('system:dict:list')")
     public CommonResult<DictTypeDO> detail(@PathVariable Long id) {
         return CommonResult.success(dictTypeService.getById(id));
     }
 
     @GetMapping("/{id}/export")
     @Operation(summary = "导出字典类型及数据")
-    @PreAuthorize("@ss.hasPermission('system:dict:list')")
+    @PreAuthorize("@ss.hasRead('system:dict:list')")
     public CommonResult<Map<String, Object>> export(@PathVariable Long id) {
         DictTypeDO type = dictTypeService.getById(id);
         List<DictDataDO> data = dictDataService.listByDictTypeForManage(type.getDictType());

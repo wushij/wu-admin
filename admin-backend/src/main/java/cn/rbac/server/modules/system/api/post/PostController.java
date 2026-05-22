@@ -22,7 +22,7 @@ public class PostController {
 
     @GetMapping("/tree")
     @Operation(summary = "岗位树")
-    @PreAuthorize("@ss.hasPermission('system:post:list')")
+    @PreAuthorize("@ss.hasRead('system:post:list')")
     public CommonResult<List<PostDO>> tree() {
         return CommonResult.success(postService.tree());
     }
@@ -35,7 +35,7 @@ public class PostController {
 
     @GetMapping("/{id}")
     @Operation(summary = "岗位详情")
-    @PreAuthorize("@ss.hasPermission('system:post:list')")
+    @PreAuthorize("@ss.hasRead('system:post:list')")
     public CommonResult<PostDO> detail(@PathVariable Long id) {
         return CommonResult.success(postService.getById(id));
     }

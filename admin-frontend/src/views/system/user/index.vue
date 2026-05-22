@@ -296,13 +296,15 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, nextTick } from 'vue'
+import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getUserPage, createUser, updateUser, deleteUser, assignUserRole, updateUserStatus, resetUserPassword, getUserRoleIds, getRecycleUserPage, restoreUser, deleteUserPermanent } from '@/api/system/user'
 import { getRoleList } from '@/api/system/role'
 import { getDeptTree } from '@/api/system/dept'
 import { getPostList } from '@/api/system/post'
 
+const route = useRoute()
 const loading = ref(false)
 const total = ref(0)
 const userList = ref([])
@@ -586,10 +588,19 @@ const loadPostOptions = async () => {
   postOptions.value = res.data || []
 }
 
-onMounted(() => {
-  getList()
-  loadDeptTree()
+onMounted(async () => {
+  await loadDeptTree()
   loadPostOptions()
+  const deptIdFromRoute = route.query.deptId
+  if (deptIdFromRoute) {
+    const deptId = Number(deptIdFromRoute)
+    if (!Number.isNaN(deptId) && deptId > 0) {
+      queryParams.deptId = deptId
+      await nextTick()
+      deptTreeRef.value?.setCurrentKey(deptId)
+    }
+  }
+  getList()
 })
 </script>
 

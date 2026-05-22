@@ -1,6 +1,6 @@
 package cn.rbac.server.framework.security.config;
 
-import cn.rbac.server.framework.web.filter.JwtAuthenticationFilter;
+import cn.rbac.server.framework.web.filter.SaTokenAuthenticationFilter;
 import jakarta.annotation.Resource;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -32,7 +32,7 @@ import static org.springframework.security.web.util.matcher.AntPathRequestMatche
 public class SecurityConfig {
 
     @Resource
-    private JwtAuthenticationFilter jwtAuthenticationFilter;
+    private SaTokenAuthenticationFilter saTokenAuthenticationFilter;
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -62,7 +62,9 @@ public class SecurityConfig {
                     antMatcher("/auth/login"),
                     antMatcher("/auth/captcha"),
                     antMatcher("/auth/register"),
-                    antMatcher("/auth/config")
+                    antMatcher("/auth/config"),
+                    antMatcher("/auth/info"),
+                    antMatcher("/auth/logout")
                 ).permitAll()
                 .requestMatchers(
                     antMatcher("/doc.html"),
@@ -75,7 +77,7 @@ public class SecurityConfig {
                 .anyRequest().authenticated()
             )
             .headers(headers -> headers.frameOptions(HeadersConfigurer.FrameOptionsConfig::disable))
-            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+            .addFilterBefore(saTokenAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }

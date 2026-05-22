@@ -113,8 +113,8 @@ export function getFileText(id) {
 import axios from 'axios'
 
 /**
- * 为静态资源 URL 附加网关 Sa-Token（localStorage 里是网关 token，不是 RBAC JWT）。
- * 网关校验通过后会把 RBAC JWT 中继到请求头，img 才能正常显示。
+ * 为静态资源 URL 附加 Sa-Token（与网关、后端共用，存于 localStorage token）。
+ * 网关校验通过后原样转发 Authorization，img 才能正常显示。
  */
 export function withGatewayTokenQuery(url) {
   if (!url) return ''
@@ -127,7 +127,7 @@ export function withGatewayTokenQuery(url) {
 /** @deprecated 使用 withGatewayTokenQuery */
 export const withAuthQuery = withGatewayTokenQuery
 
-/** 列表缩略图 / 视频封面（走 /api/files 或 preview，依赖网关 JWT 中继） */
+/** 列表缩略图 / 视频封面（走 /api/files 或 preview，依赖网关转发 Authorization） */
 export function fileDisplayUrl(file) {
   if (!file) return ''
   let u = file.url || ''

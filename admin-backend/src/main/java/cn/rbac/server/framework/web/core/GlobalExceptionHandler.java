@@ -3,6 +3,7 @@ package cn.rbac.server.framework.web.core;
 import cn.rbac.server.common.pojo.CommonResult;
 import cn.rbac.server.framework.config.DynamicConfigProvider;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -33,5 +34,11 @@ public class GlobalExceptionHandler {
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public CommonResult<Void> handleSecurity(SecurityException e) {
         return CommonResult.error(400, e.getMessage());
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    @ResponseStatus(HttpStatus.FORBIDDEN)
+    public CommonResult<Void> handleAccessDenied(AccessDeniedException e) {
+        return CommonResult.error(403, "权限不足，无法访问");
     }
 }

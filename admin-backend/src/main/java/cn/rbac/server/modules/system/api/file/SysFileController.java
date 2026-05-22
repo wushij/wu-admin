@@ -34,7 +34,7 @@ public class SysFileController {
 
     @GetMapping("/upload-policy")
     @Operation(summary = "上传策略（读取系统配置，保存后立即生效）")
-    @PreAuthorize("@ss.hasPermission('sys:file:list')")
+    @PreAuthorize("@ss.hasRead('sys:file:list')")
     public CommonResult<Map<String, Object>> uploadPolicy() {
         Map<String, Object> policy = new HashMap<>();
         policy.put("maxSizeMb", systemConfigHelper.getFileMaxSizeMb());
@@ -44,7 +44,7 @@ public class SysFileController {
     }
 
     @GetMapping("/page-by-group")
-    @PreAuthorize("@ss.hasPermission('sys:file:list')")
+    @PreAuthorize("@ss.hasRead('sys:file:list')")
     public CommonResult<PageResult<SysFileDO>> pageByGroup(
             @RequestParam(defaultValue = "1") Integer pageNo,
             @RequestParam(defaultValue = "20") Integer pageSize,
@@ -57,7 +57,7 @@ public class SysFileController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("@ss.hasPermission('sys:file:list')")
+    @PreAuthorize("@ss.hasRead('sys:file:list')")
     public CommonResult<SysFileDO> detail(@PathVariable Long id) {
         return CommonResult.success(fileService.getById(id));
     }
@@ -79,7 +79,7 @@ public class SysFileController {
     }
 
     @GetMapping("/download/{id}")
-    @PreAuthorize("@ss.hasPermission('sys:file:list')")
+    @PreAuthorize("@ss.hasRead('sys:file:list')")
     public ResponseEntity<byte[]> download(@PathVariable Long id) {
         SysFileDO file = fileService.getById(id);
         if (file == null) {
@@ -94,7 +94,7 @@ public class SysFileController {
     }
 
     @GetMapping("/preview/{id}")
-    @PreAuthorize("@ss.hasPermission('sys:file:list')")
+    @PreAuthorize("@ss.hasRead('sys:file:list')")
     public ResponseEntity<byte[]> preview(@PathVariable Long id) {
         SysFileDO file = fileService.getById(id);
         if (file == null) {
@@ -107,7 +107,7 @@ public class SysFileController {
     }
 
     @GetMapping("/text/{id}")
-    @PreAuthorize("@ss.hasPermission('sys:file:list')")
+    @PreAuthorize("@ss.hasRead('sys:file:list')")
     public CommonResult<String> text(@PathVariable Long id) {
         SysFileDO file = fileService.getById(id);
         if (file == null) {

@@ -26,7 +26,7 @@ public class LoginLogController {
 
     @Operation(summary = "获取登录日志列表")
     @GetMapping("/list")
-    @PreAuthorize("@ss.hasPermission('system:loginLog:list')")
+    @PreAuthorize("@ss.hasPermission('system:loginLog:query')")
     public CommonResult<PageResult<LoginLogDO>> list(@RequestParam(defaultValue = "1") Integer pageNo,
                                                      @RequestParam(defaultValue = "10") Integer pageSize,
                                                      @RequestParam(required = false) String username,

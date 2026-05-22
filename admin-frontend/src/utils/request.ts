@@ -1,6 +1,14 @@
-import axios, { AxiosInstance, AxiosResponse } from 'axios'
+import axios, { AxiosInstance, AxiosResponse, InternalAxiosRequestConfig } from 'axios'
 import { ElMessage } from 'element-plus'
 import router from '@/router'
+
+let lastForbiddenToastAt = 0
+function showForbiddenOnce(message: string) {
+  const now = Date.now()
+  if (now - lastForbiddenToastAt < 2000) return
+  lastForbiddenToastAt = now
+  ElMessage.error(message)
+}
 
 // 创建axios实例
 const service: AxiosInstance = axios.create({
@@ -43,8 +51,10 @@ service.interceptors.response.use(
       router.push('/login')
       return Promise.reject(new Error(msg || message || '未授权'))
     } else if (code === 403) {
-      // 权限不足
-      ElMessage.error('权限不足，无法操作')
+      const cfg = response.config as InternalAxiosRequestConfig & { silent403?: boolean }
+      if (!cfg?.silent403) {
+        showForbiddenOnce(msg || message || '权限不足，无法操作')
+      }
       return Promise.reject(new Error('权限不足'))
     } else {
       ElMessage.error(msg || message || '请求失败')
@@ -61,7 +71,10 @@ service.interceptors.response.use(
         localStorage.removeItem('token')
         router.push('/login')
       } else if (status === 403) {
-        ElMessage.error('权限不足，无法访问')
+        const cfg = error.config as InternalAxiosRequestConfig & { silent403?: boolean }
+        if (!cfg?.silent403) {
+          showForbiddenOnce(data?.msg || data?.message || '权限不足，无法访问')
+        }
       } else {
         ElMessage.error(data?.msg || data?.message || error.message || '请求失败')
       }

@@ -23,14 +23,14 @@ public class SysConfigGroupController {
 
     @GetMapping("/list")
     @Operation(summary = "配置分组列表")
-    @PreAuthorize("@ss.hasPermission('system:config:list')")
+    @PreAuthorize("@ss.hasRead('system:config:list')")
     public CommonResult<List<SysConfigGroupDO>> list() {
         return CommonResult.success(configGroupService.listAll());
     }
 
     @GetMapping("/{groupCode}")
     @Operation(summary = "获取配置分组")
-    @PreAuthorize("@ss.hasPermission('system:config:list')")
+    @PreAuthorize("@ss.hasRead('system:config:list')")
     public CommonResult<SysConfigGroupDO> get(@PathVariable String groupCode) {
         SysConfigGroupDO row = configGroupService.getByGroupCode(groupCode);
         if (row == null) {

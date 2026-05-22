@@ -6,6 +6,7 @@ import cn.hutool.core.util.IdUtil;
 import cn.rbac.server.common.util.UserAgentUtils;
 import cn.rbac.server.common.util.ClientIpUtils;
 import cn.rbac.server.common.pojo.CommonResult;
+import cn.dev33.satoken.stp.StpUtil;
 import cn.rbac.server.framework.security.core.service.TokenService;
 import cn.rbac.server.modules.system.dal.dataobject.loginlog.LoginLogDO;
 import cn.rbac.server.modules.system.dal.dataobject.permission.RoleDO;
@@ -163,9 +164,9 @@ public class AuthController {
 
         clearLoginFailure(username, clientIp);
 
-        // 生成token并存储到Redis
         String token = tokenService.createToken(user.getId(), user.getUsername());
-        
+        StpUtil.getSession().set(TokenService.SESSION_NICKNAME, user.getNickname());
+
         onlineUserService.recordLoginSession(user.getId(), user.getUsername(), user.getNickname(), request);
 
         // 记录登录成功日志
@@ -399,9 +400,9 @@ public class AuthController {
     
     @Operation(summary = "获取用户信息")
     @GetMapping("/info")
-    public CommonResult<Map<String, Object>> info(@RequestHeader("Authorization") String authHeader) {
-        String token = authHeader.replace("Bearer ", "");
-        Long userId = tokenService.getUserId(token);
+    public CommonResult<Map<String, Object>> info() {
+        StpUtil.checkLogin();
+        Long userId = StpUtil.getLoginIdAsLong();
         UserDO user = userMapper.selectById(userId);
         
         onlineUserService.touchLastAccess(userId);
@@ -414,20 +415,17 @@ public class AuthController {
         // 获取用户权限
         result.put("roles", permissionService.getUserRoleIdListByUserId(userId));
         result.put("menus", permissionService.getUserMenuList(userId));
+        result.put("permissions", permissionService.getUserPermissionCodes(userId));
         return CommonResult.success(result);
     }
     
     @Operation(summary = "登出")
     @PostMapping("/logout")
-    public CommonResult<Boolean> logout(@RequestHeader(value = "Authorization", required = false) String authHeader) {
-        if (authHeader == null || authHeader.isBlank()) {
-            return CommonResult.success(true);
-        }
-        String token = authHeader.replace("Bearer ", "").trim();
-        Long userId = tokenService.getUserId(token);
-        if (userId != null) {
-            tokenService.removeToken(userId);
+    public CommonResult<Boolean> logout() {
+        if (StpUtil.isLogin()) {
+            Long userId = StpUtil.getLoginIdAsLong();
             onlineUserService.forceLogout(userId);
+            tokenService.removeToken(userId);
         }
         return CommonResult.success(true);
     }

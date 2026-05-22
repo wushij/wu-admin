@@ -142,7 +142,6 @@
             :props="{ label: 'name', children: 'children' }"
             show-checkbox
             node-key="id"
-            :default-checked-keys="selectedMenus"
             :default-expand-all="true"
           />
         </el-form-item>
@@ -355,7 +354,8 @@ const handleAssignMenu = async (row) => {
   // 等待 DOM 更新后设置选中状态
   await nextTick()
   if (menuTreeRef.value) {
-    menuTreeRef.value.setCheckedKeys(selectedMenus.value)
+    menuTreeRef.value.setCheckedKeys([], false)
+    menuTreeRef.value.setCheckedKeys(selectedMenus.value, true)
   }
 }
 

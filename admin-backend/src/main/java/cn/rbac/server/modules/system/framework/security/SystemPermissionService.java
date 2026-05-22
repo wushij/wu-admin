@@ -29,6 +29,18 @@ public class SystemPermissionService implements PermissionApi {
     }
 
     @Override
+    public boolean hasRead(String permission) {
+        if (hasPermission(permission)) {
+            return true;
+        }
+        if (permission != null && permission.endsWith(":list")) {
+            String prefix = permission.substring(0, permission.length() - 5);
+            return hasPermission(prefix + "query") || hasPermission(prefix + "upload");
+        }
+        return false;
+    }
+
+    @Override
     public boolean hasRole(String role) {
         Long userId = SecurityUtils.getLoginUserId();
         if (userId == null) {

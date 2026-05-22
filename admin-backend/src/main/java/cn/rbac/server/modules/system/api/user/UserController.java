@@ -49,14 +49,14 @@ public class UserController {
     
     @Operation(summary = "获取用户列表")
     @GetMapping("/list")
-    @PreAuthorize("@ss.hasPermission('system:user:list')")
+    @PreAuthorize("@ss.hasRead('system:user:list')")
     public CommonResult<List<UserDO>> list() {
         return CommonResult.success(userMapper.selectList(null));
     }
     
     @Operation(summary = "获取用户分页")
     @GetMapping("/page")
-    @PreAuthorize("@ss.hasPermission('system:user:list')")
+    @PreAuthorize("@ss.hasRead('system:user:list')")
     public CommonResult<PageResult<UserDO>> page(PageParam pageParam,
             @RequestParam(required = false) String username,
             @RequestParam(required = false) String mobile,

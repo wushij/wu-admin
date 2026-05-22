@@ -47,9 +47,9 @@ services:
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/RBAC1?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&nullCatalogMeansCurrent=true
       SPRING_DATASOURCE_USERNAME: root
       SPRING_DATASOURCE_PASSWORD: root
-      SPRING_REDIS_HOST: redis
-      SPRING_REDIS_PORT: 6379
-      SPRING_REDIS_DATABASE: 3
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+      SPRING_DATA_REDIS_DATABASE: 1
       TZ: Asia/Shanghai
     ports:
       - "8082:8081"
@@ -70,10 +70,7 @@ services:
       APP_BACKEND_BASE_URL: http://admin-backend:8081
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: 6379
-      SPRING_DATA_REDIS_DATABASE: 3
-      SA_TOKEN_REDIS_HOST: redis
-      SA_TOKEN_REDIS_PORT: 6379
-      SA_TOKEN_REDIS_DATABASE: 3
+      SPRING_DATA_REDIS_DATABASE: 1
       TZ: Asia/Shanghai
     ports:
       - "8080:8080"

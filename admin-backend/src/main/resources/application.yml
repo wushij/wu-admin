@@ -1,6 +1,11 @@
 server:
   port: 8081
 
+# Knife4j 调试默认基址（写入 OpenAPI servers，与前端 Vite 代理一致）
+app:
+  api-docs:
+    server-url: http://localhost:8080/api
+
 spring:
   application:
     name: admin-backend
@@ -14,10 +19,11 @@ spring:
       initial-size: 5
       min-idle: 5
       max-active: 20
-  redis:
-    host: 127.0.0.1
-    port: 6379
-    database: 3
+  data:
+    redis:
+      host: 127.0.0.1
+      port: 6379
+      database: 1
   # 禁用Spring Security默认用户（使用网关统一认证）
   security:
     user:
@@ -51,11 +57,19 @@ knife4j:
   enable: false
   setting:
     language: zh_cn
+    # 与 app.api-docs.server-url 一致，文档页「调试」默认请求网关
+    enable-host: true
+    enable-host-text: http://localhost:8080/api
 
-# JWT配置
-jwt:
-  secret: rbac-secret-key-2026-rbac-secret-key-2026
-  expiration: 86400000 # 24小时
+# Sa-Token（与网关共用 Redis database:1，token 名与超时保持一致）
+sa-token:
+  token-name: Authorization
+  timeout: 86400
+  active-timeout: -1
+  is-concurrent: true
+  is-share: false
+  token-style: uuid
+  is-log: false
 
 # 登录防爬：图形验证码开关与按 IP 分钟限流（0 表示不限制）
 file:

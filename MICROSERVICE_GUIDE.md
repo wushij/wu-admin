@@ -131,15 +131,17 @@ spring:
 ## 数据库与 Redis
 
 - 推荐共用 `RBAC1` 库（跨服务查询方便）
-- Redis 统一使用 **database 3**
-- Key 命名：`服务名:功能:ID`，如 `admin:token:1`
+- Redis 统一使用 **database 1**
+- Key 命名：`服务名:功能:ID`；Sa-Token 会话由框架写入 Redis（与网关共用 **database 1**）
 
 ## 认证流程
 
 ```
-登录 → admin-backend 校验 → JWT → Redis + 网关 Sa-Token
-请求 → 前端带 Token → 网关校验 → 转发 admin-backend
+登录 → admin-backend 校验 → StpUtil.login → Sa-Token 写入 Redis
+请求 → 前端 Header: Authorization=<token> → 网关 StpUtil 校验 → 原样转发后端
 ```
+
+新增微服务时引入 `sa-token-spring-boot3-starter` + `sa-token-redis-jackson`，`application.yml` 中 `sa-token.token-name`、`spring.redis.database` 与网关、admin-backend 保持一致即可共享登录态。
 
 登录前可调用 `GET /api/auth/config`（网关已放行）读取 `sys_config_group` 中的公开项（站点文案、验证码类型、注册开关等）。会话时长、限流、上传限制等由 `SystemConfigHelper` 从库读取，详见根目录 [README.md](./README.md#系统配置systemconfig)。
 

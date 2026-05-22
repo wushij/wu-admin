@@ -12,7 +12,6 @@ import cn.rbac.server.modules.system.dal.mysql.user.UserMapper;
 import cn.rbac.server.modules.system.service.monitor.OnlineUserService;
 import lombok.Data;
 import org.redisson.api.RBucket;
-import org.redisson.api.RKeys;
 import org.redisson.api.RedissonClient;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -30,7 +29,6 @@ import java.util.concurrent.TimeUnit;
 @Service
 public class OnlineUserServiceImpl implements OnlineUserService {
 
-    private static final String TOKEN_PREFIX = "rbac:token:";
     private static final String ONLINE_DETAIL_PREFIX = "monitor:online:detail:";
     private static final String ONLINE_ACTIVE_PREFIX = "dashboard:online:user:";
 
@@ -105,17 +103,14 @@ public class OnlineUserServiceImpl implements OnlineUserService {
     @Override
     public List<OnlineUserVO> listOnlineUsers() {
         List<OnlineUserVO> list = new ArrayList<>();
-        RKeys keys = redissonClient.getKeys();
-        Iterable<String> keyNames = keys.getKeysByPattern(TOKEN_PREFIX + "*");
-        for (String key : keyNames) {
+        for (String token : tokenService.listActiveTokens()) {
             try {
-                String userIdStr = key.substring(TOKEN_PREFIX.length());
-                Long userId = Long.parseLong(userIdStr);
-                TokenService.LoginInfo loginInfo = tokenService.getLoginInfo(userId);
-                if (loginInfo == null || !StringUtils.hasText(loginInfo.getToken())) {
+                Long userId = tokenService.getUserId(token);
+                if (userId == null) {
                     continue;
                 }
-                if (!tokenService.validateToken(loginInfo.getToken())) {
+                TokenService.LoginInfo loginInfo = tokenService.getLoginInfo(userId);
+                if (loginInfo == null || !StringUtils.hasText(loginInfo.getToken())) {
                     continue;
                 }
                 RBucket<Long> active = redissonClient.getBucket(ONLINE_ACTIVE_PREFIX + userId);

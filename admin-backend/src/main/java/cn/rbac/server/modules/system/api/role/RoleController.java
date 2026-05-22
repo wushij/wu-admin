@@ -30,7 +30,7 @@ public class RoleController {
     
     @Operation(summary = "获取角色列表")
     @GetMapping("/list")
-    @PreAuthorize("@ss.hasPermission('system:role:list')")
+    @PreAuthorize("@ss.hasRead('system:role:list')")
     public CommonResult<List<RoleDO>> list(
             @RequestParam(required = false) String name,
             @RequestParam(required = false) Integer status) {
@@ -52,7 +52,7 @@ public class RoleController {
     
     @Operation(summary = "获取角色分页")
     @GetMapping("/page")
-    @PreAuthorize("@ss.hasPermission('system:role:list')")
+    @PreAuthorize("@ss.hasRead('system:role:list')")
     public CommonResult<PageResult<RoleDO>> page(PageParam pageParam) {
         Page<RoleDO> page = roleMapper.selectPage(new Page<>(pageParam.getPageNo(), pageParam.getPageSize()), null);
         return CommonResult.success(PageResult.of(page.getRecords(), page.getTotal()));
@@ -142,7 +142,7 @@ public class RoleController {
     @Operation(summary = "获取角色菜单列表")
     @GetMapping("/get-menu-ids")
     public CommonResult<Set<Long>> getMenuIds(@RequestParam Long roleId) {
-        return CommonResult.success(permissionService.getRoleMenuListByRoleId(roleId));
+        return CommonResult.success(permissionService.getRoleMenuIdsForAssign(roleId));
     }
 
     @Operation(summary = "分配角色菜单")

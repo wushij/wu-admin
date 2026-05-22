@@ -48,7 +48,6 @@
           <el-button :icon="Sort" @click="toggleExpandAll">{{ expandAll ? '全部折叠' : '全部展开' }}</el-button>
         </div>
         <div class="toolbar-right">
-          <el-button link type="primary" @click="$router.push('/system/role')">角色权限分配</el-button>
           <el-button v-permission="'system:menu:delete'" @click="openRecycleDialog">回收站</el-button>
         </div>
       </div>

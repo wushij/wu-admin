@@ -35,9 +35,6 @@ public class SystemConfigHelper {
     @Value("${auth.security.captcha-enabled:true}")
     private boolean defaultCaptchaEnabled;
 
-    @Value("${jwt.expiration:86400000}")
-    private long defaultTokenExpirationMs;
-
     @Value("${file.storage.max-size-mb:50}")
     private int defaultMaxSizeMb;
 

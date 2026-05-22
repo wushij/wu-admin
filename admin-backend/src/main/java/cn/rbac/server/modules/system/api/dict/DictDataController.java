@@ -26,7 +26,7 @@ public class DictDataController {
 
     @GetMapping("/page")
     @Operation(summary = "字典数据分页")
-    @PreAuthorize("@ss.hasPermission('system:dict:list')")
+    @PreAuthorize("@ss.hasRead('system:dict:list')")
     public CommonResult<PageResult<DictDataDO>> page(
             @RequestParam(defaultValue = "1") Integer pageNo,
             @RequestParam(defaultValue = "10") Integer pageSize,
@@ -54,14 +54,14 @@ public class DictDataController {
 
     @GetMapping("/manage/{dictType}")
     @Operation(summary = "管理端按类型查询全部字典数据")
-    @PreAuthorize("@ss.hasPermission('system:dict:list')")
+    @PreAuthorize("@ss.hasRead('system:dict:list')")
     public CommonResult<List<DictDataDO>> listForManage(@PathVariable String dictType) {
         return CommonResult.success(dictDataService.listByDictTypeForManage(dictType));
     }
 
     @GetMapping("/{id}")
     @Operation(summary = "字典数据详情")
-    @PreAuthorize("@ss.hasPermission('system:dict:list')")
+    @PreAuthorize("@ss.hasRead('system:dict:list')")
     public CommonResult<DictDataDO> detail(@PathVariable Long id) {
         return CommonResult.success(dictDataService.getById(id));
     }

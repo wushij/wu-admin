@@ -70,7 +70,16 @@
           <div class="card-header">
             <span>{{ memberTitle }}</span>
             <div class="header-actions">
-              <el-button size="small" @click="$router.push('/system/user')">用户管理</el-button>
+              <el-link
+                v-permission="'system:user:list'"
+                type="primary"
+                :underline="false"
+                class="user-mgmt-link"
+                @click="goUserManage"
+              >
+                用户管理
+                <el-icon class="link-icon"><ArrowRight /></el-icon>
+              </el-link>
               <template v-if="selectedId">
                 <el-button
                   v-permission="activeTab === 'dept' ? 'system:dept:update' : 'system:post:update'"
@@ -243,8 +252,10 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, watch, onMounted, nextTick } from 'vue'
+import { ref, reactive, computed, watch, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { ArrowRight } from '@element-plus/icons-vue'
 import { getUserPage } from '@/api/system/user'
 import {
   getDeptTree,
@@ -265,6 +276,8 @@ import {
   deletePost,
   movePost
 } from '@/api/system/post'
+
+const router = useRouter()
 
 const activeTab = ref('dept')
 const treeSearch = ref('')
@@ -338,6 +351,14 @@ async function loadUsers() {
   } finally {
     userLoading.value = false
   }
+}
+
+function goUserManage() {
+  const query = {}
+  if (selectedId.value && activeTab.value === 'dept') {
+    query.deptId = String(selectedId.value)
+  }
+  router.push({ path: '/system/user', query })
 }
 
 function onTreeNodeClick(data) {
@@ -628,7 +649,18 @@ onMounted(() => {
 .header-actions {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 8px;
+}
+.user-mgmt-link {
+  display: inline-flex;
+  align-items: center;
+  font-size: 14px;
+  margin-right: 4px;
+  .link-icon {
+    margin-left: 2px;
+    font-size: 12px;
+  }
 }
 .el-pagination {
   margin-top: 16px;

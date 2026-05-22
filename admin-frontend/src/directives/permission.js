@@ -18,10 +18,10 @@ export const permission = {
       : [requiredPermissions]
     
     // 检查是否有权限（只要有一个权限就通过）
-    const hasPermission = permissionList.some(perm => {
-      // 从菜单中获取权限标识
-      return checkPermissionFromMenus(userStore.menus, perm)
-    })
+    const codes = userStore.userInfo.permissions || []
+    const hasPermission = permissionList.some(perm =>
+      codes.includes(perm) || checkPermissionFromMenus(userStore.menus, perm)
+    )
     
     if (!hasPermission) {
       // 没有权限，移除元素

@@ -203,7 +203,7 @@ services:
       SPRING_DATASOURCE_PASSWORD: root
       SPRING_REDIS_HOST: redis      # 使用服务名
       SPRING_REDIS_PORT: 6379
-      SPRING_REDIS_DATABASE: 3
+      SPRING_REDIS_DATABASE: 1
     ports:
       - "8081:8081"
     depends_on:
@@ -221,7 +221,7 @@ services:
     environment:
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: 6379
-      SPRING_DATA_REDIS_DATABASE: 3
+      SPRING_DATA_REDIS_DATABASE: 1
     ports:
       - "8080:8080"
     depends_on:

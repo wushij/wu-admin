@@ -206,6 +206,7 @@ import {
   deleteTicket,
   deleteTicketPermanent,
   getTicket,
+  getTicketAssigneeOptions,
   getTicketAttachments,
   getTicketComments,
   getTicketPage,
@@ -215,7 +216,6 @@ import {
   uploadTicketAttachment,
   updateTicket
 } from '@/api/system/ticket'
-import { getUserList } from '@/api/system/user'
 
 const loading = ref(false)
 const route = useRoute()
@@ -322,8 +322,12 @@ const getList = async () => {
 }
 
 const loadUsers = async () => {
-  const res = await getUserList()
-  userOptions.value = res.data || []
+  try {
+    const res = await getTicketAssigneeOptions()
+    userOptions.value = res.data || []
+  } catch {
+    userOptions.value = []
+  }
 }
 
 const handleQuery = () => {

@@ -18,7 +18,7 @@
 | **系统监控** | API 访问统计、在线用户与强退 |
 | **文件管理** | 分组、上传、预览；大小与扩展名受**系统配置**约束 |
 | **业务中心** | 工单管理、审批单中心（含**注册审核单** `REGISTER`） |
-| **认证安全** | 图片/滑块验证码、登录/注册限流、JWT + 网关 Sa-Token |
+| **认证安全** | 图片/滑块验证码、登录/注册限流、网关 + 后端共用 Sa-Token（Redis db=1） |
 
 菜单与权限由数据库 `sys_menu` 动态加载；超级管理员默认拥有全部功能。修改菜单或角色后需**重新登录**侧栏才会更新。
 
@@ -31,7 +31,7 @@
 | 分组编码 | 名称 | 主要字段 | 生效范围 |
 |----------|------|----------|----------|
 | `site` | 基础信息 | 平台名称、副标题、登录/注册页标题、版权 | 登录页、注册页、工作台展示 |
-| `session` | 会话配置 | `tokenExpireHours`（1～720） | JWT 与 Redis 会话 TTL |
+| `session` | 会话配置 | `tokenExpireHours`（1～720） | Sa-Token 会话 TTL |
 | `file` | 文件配置 | `maxSizeMb`、`allowedExtensions` | 上传校验（上限不超过平台 500MB） |
 | `rateLimit` | 接口限流 | 验证码/登录/注册 每分钟每 IP 次数（0=不限） | 认证接口防刷 |
 | `login` | 登录认证 | 验证码开关、类型（`image`/`slider`）、记住我、重试锁定 | 登录流程 |
@@ -45,7 +45,7 @@
 - `GET /api/system/config-group/{groupCode}`
 - `PUT /api/system/config-group/{groupCode}`，body：`{ "configValue": "{...json...}" }`
 
-`application.yml` 中 `jwt.expiration`、`auth.security.*`、`file.storage.*` 为**缺省兜底**；库中有对应分组时以库为准。
+`application.yml` 中 `sa-token.timeout`、`auth.security.*`、`file.storage.*` 为**缺省兜底**；库中有对应分组时以库为准（`session.tokenExpireHours` 在登录时写入 Sa-Token 超时）。
 
 ---
 
@@ -88,8 +88,9 @@
 ### 接口文档（`/tool/api-doc`）
 
 - **开发工具 → 接口文档**，内嵌 Knife4j（基于 **Springdoc OpenAPI 3**）
-- 开发：Vite 代理 `/doc.html`、`/webjars`、`/swagger-ui`、`/v3/api-docs` → RBAC `8081`（不经网关）
+- 开发：文档静态资源 → RBAC `8081`；**调试请求**默认 `http://localhost:8080/api`（Vite 已将 `/system`、`/auth` 等代理到网关）
 - 生产：Nginx → 网关 `/api/doc.html`、`/api/v3/api-docs` 等 → RBAC
+- 调试需带请求头 `Authorization: <登录 token>`，修改类接口用 **PUT/POST**，勿用 GET
 - Spring Boot **3.5** 需 **springdoc ≥ 2.8.9**；`knife4j.enable` 建议为 `false`（4.5.0 增强模块与 springdoc 2.8 API 不兼容，关闭后 `doc.html` 仍正常）
 
 ---
@@ -138,7 +139,7 @@
                            ▼                               ▼
                     ┌─────────────┐                ┌─────────────┐
                     │   MySQL     │                │   Redis     │
-                    │   RBAC1     │                │  database 3 │
+                    │   RBAC1     │                │  database 1 │
                     └─────────────┘                └─────────────┘
 ```
 
@@ -155,9 +156,7 @@ admin/
 ├── admin-backend/              # RBAC 后端（见下方「后端包结构」）
 ├── admin-frontend/             # Vue3 前端
 ├── sql/
-│   ├── admin_platform.sql      # 全量安装 + 文末可重复升级段
-│   ├── add1.sql                # 已有库增量：角色管理图标
-│   └── add2.sql                # 已有库增量：接口文档图标改回 Document
+│   └── admin_platform.sql      # 唯一脚本：全量安装 + 文末「附录」升级段
 ├── scripts/
 │   └── docker-rebuild.ps1
 ├── Dockerfile
@@ -239,7 +238,7 @@ docker compose up -d --build
 | 网关 | http://localhost:8080 |
 | admin-backend（宿主机映射） | http://localhost:8082 |
 | MySQL | `127.0.0.1:3307`，库 `RBAC1`，`root`/`root` |
-| Redis | `127.0.0.1:6379`，database `3` |
+| Redis | `127.0.0.1:6379`，database `1` |
 
 详见 [DOCKER_DEPLOY.md](./DOCKER_DEPLOY.md)。
 
@@ -263,7 +262,7 @@ mysql -u root -p < sql/admin_platform.sql
 
 #### 2. 启动 Redis
 
-`127.0.0.1:6379`，database **3**。
+`127.0.0.1:6379`，database **1**。
 
 #### 3. 启动 RBAC（8081）
 
@@ -308,9 +307,9 @@ npm run dev
 |--------|------|
 | `server.port` | `8081` |
 | `spring.datasource.*` | MySQL `RBAC1` |
-| `spring.redis.database` | `3` |
+| `spring.redis.database` | `1` |
 | `spring.servlet.multipart.max-file-size` | 平台物理上限 **500MB** |
-| `jwt.secret` / `jwt.expiration` | JWT 缺省（可被 `session` 分组覆盖） |
+| `sa-token.*` | Sa-Token 缺省（`session.tokenExpireHours` 在登录时覆盖 timeout） |
 | `file.storage.*` | 上传目录与缺省限制 |
 | `auth.security.*` | 验证码与限流缺省 |
 | `knife4j.enable` | 接口文档增强开关；**3.5 + springdoc 2.8 建议 `false`**（见 `application.yml` 注释） |
@@ -344,12 +343,12 @@ npm run dev
 
 ## 数据库脚本
 
-仅维护 **`sql/admin_platform.sql`**（原 add3～add6 已合并）。
+仅维护 **`sql/admin_platform.sql`** 一个文件。
 
 | 场景 | 做法 |
 |------|------|
 | **全新安装** | 执行全文：`mysql -u root -p < sql/admin_platform.sql` |
-| **已有库升级** | 推荐只执行 `sql/add1.sql`（与 `admin_platform.sql` 附录 add1 段相同）；也可执行全文附录 |
+| **已有库升级** | 只执行文末「附录：已有库升级」段（或执行全文亦可，建表语句为 IF NOT EXISTS） |
 
 执行涉及菜单的升级后请**重新登录**。
 
@@ -412,6 +411,9 @@ A：若开启「注册需审核」，需管理员在审批单中心通过；登�
 **Q：接口文档 iframe 空白或 `/v3/api-docs` 403？**  
 A：① 确认 RBAC（8081）已启动，浏览器访问 `http://127.0.0.1:8081/v3/api-docs` 应返回 JSON；② 开发环境重启 Vite 以加载 Knife4j 代理；③ 生产环境确认网关已放行 `/api/v3/api-docs`；④ 勿将 springdoc 降为 2.6（与 Spring Boot 3.5 不兼容）；⑤ `knife4j.enable` 保持 `false` 直至升级兼容的 Knife4j 版本。
 
+**Q：Knife4j 调试 404 或返回 HTML？**  
+A：已配置 OpenAPI 默认服务 `http://localhost:8080/api`；重启后端与 Vite 后，在文档页选择该服务器、方法用 PUT/POST，并填 `Authorization`。若仍 401，先登录管理端复制 token。
+
 **Q：上传失败提示大小或类型？**  
 A：在 **系统配置 → 文件存储** 调整；单文件上限不得超过 500MB。
 
@@ -430,4 +432,4 @@ A：https://github.com/wushij/admin.git
 
 ## 许可证
 
-本项目仅供学习与内部使用。生产部署前请修改默认密码、JWT 密钥等敏感配置。
+本项目仅供学习与内部使用。生产部署前请修改默认密码、数据库与 Redis 等敏感配置。
