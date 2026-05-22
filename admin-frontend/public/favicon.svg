@@ -1,6 +1,10 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
-  <!-- 三层同色阶、弱对比：小尺寸标签栏下更接近「一整块深蓝黑叠层」 -->
-  <path fill="#334155" d="M4 9 16 3l12 6-12 6L4 9Z"/>
-  <path fill="#1e293b" d="M4 15 16 9l12 6-12 6L4 15Z"/>
-  <path fill="#0f172a" d="M4 21 16 15l12 6-12 6L4 21Z"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none" role="img" aria-label="Admin Platform">
+  <defs>
+    <linearGradient id="logoBg" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#111827"/>
+      <stop offset="1" stop-color="#374151"/>
+    </linearGradient>
+  </defs>
+  <rect width="32" height="32" rx="8" fill="url(#logoBg)"/>
+  <path fill="#fff" d="M10 21.5V14h3.2v7.5H10zm5.4 0V10h3.2v11.5h-3.2zm5.4 0V16.5h3.2V21.5h-3.2z"/>
 </svg>

@@ -1,6 +1,6 @@
 package cn.rbac.server.framework.security.config;
 
-import cn.rbac.server.framework.security.core.filter.JwtAuthenticationFilter;
+import cn.rbac.server.framework.web.filter.JwtAuthenticationFilter;
 import jakarta.annotation.Resource;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

@@ -90,11 +90,21 @@ cd admin-frontend
 npm run dev
 ```
 
+## 后端分层（与 admin-backend 一致）
+
+`admin-backend` 已按 **B 方案** 分层：`common` → `framework`（SPI，不依赖业务）→ `modules/system`（含 `api` 与 `framework` 实现类）。新增独立微服务时建议：
+
+1. 复制或依赖 **`common` + `framework` jar**（含 `DynamicConfigProvider`、`PermissionApi` 等接口）；
+2. 新业务代码放在 **`modules/<域>/api|service|dal`**，域内横切放在 **`modules/<域>/framework`**；
+3. 勿在全局 `framework` 中直接 `import` 业务 `service` / `dal`。
+
+详见根目录 [README.md — 后端包结构](./README.md)（「目录结构 → 后端包结构」）。
+
 ## 添加新服务
 
 ### 1. 创建后端项目
 
-在 `admin/` 下新建目录，例如 `order-service/backend`，端口依次递增 8082、8083…
+在 `admin/` 下新建目录，例如 `order-service`，端口依次递增 8082、8083…；可依赖 `admin-backend` 抽出的 `common`/`framework` 模块（后续 Maven 多模块化时）。
 
 ### 2. Gateway 添加路由
 

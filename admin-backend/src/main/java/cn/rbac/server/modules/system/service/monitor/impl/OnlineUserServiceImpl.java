@@ -1,10 +1,10 @@
 package cn.rbac.server.modules.system.service.monitor.impl;
 
-import cn.rbac.server.framework.web.UserAgentUtils;
+import cn.rbac.server.common.util.UserAgentUtils;
 import cn.hutool.json.JSONUtil;
 import cn.rbac.server.framework.security.core.service.TokenService;
-import cn.rbac.server.framework.web.ClientIpUtils;
-import cn.rbac.server.modules.system.controller.admin.monitor.vo.OnlineUserVO;
+import cn.rbac.server.common.util.ClientIpUtils;
+import cn.rbac.server.modules.system.api.monitor.vo.OnlineUserVO;
 import cn.rbac.server.modules.system.dal.dataobject.dept.DeptDO;
 import cn.rbac.server.modules.system.dal.dataobject.user.UserDO;
 import cn.rbac.server.modules.system.dal.mysql.dept.DeptMapper;

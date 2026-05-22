@@ -363,6 +363,20 @@ const resetQuery = () => {
   handleQuery()
 }
 
+/** 支持工作台等入口通过 query 预置筛选（如 formType=REGISTER&status=SUBMITTED） */
+const applyRouteQuery = () => {
+  const { formType, status, title } = route.query
+  if (typeof formType === 'string' && formType) {
+    queryParams.formType = formType
+  }
+  if (typeof status === 'string' && status) {
+    queryParams.status = status
+  }
+  if (typeof title === 'string') {
+    queryParams.title = title
+  }
+}
+
 const handleCreate = () => {
   form.formType = 'GENERAL'
   form.title = ''
@@ -479,9 +493,19 @@ const openDetail = async (id) => {
 }
 
 onMounted(() => {
+  applyRouteQuery()
   getList()
   loadUsers()
 })
+
+watch(
+  () => [route.query.formType, route.query.status, route.query.title],
+  () => {
+    applyRouteQuery()
+    queryParams.pageNo = 1
+    getList()
+  }
+)
 
 watch(
   () => route.query.approvalId,

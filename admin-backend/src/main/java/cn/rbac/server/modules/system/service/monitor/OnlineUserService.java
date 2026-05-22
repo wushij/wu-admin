@@ -1,6 +1,6 @@
 package cn.rbac.server.modules.system.service.monitor;
 
-import cn.rbac.server.modules.system.controller.admin.monitor.vo.OnlineUserVO;
+import cn.rbac.server.modules.system.api.monitor.vo.OnlineUserVO;
 
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;

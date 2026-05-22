@@ -152,10 +152,12 @@
 ```
 admin/
 ├── admin-gateway/              # 微服务网关
-├── admin-backend/              # RBAC 后端
+├── admin-backend/              # RBAC 后端（见下方「后端包结构」）
 ├── admin-frontend/             # Vue3 前端
 ├── sql/
-│   └── admin_platform.sql      # 唯一数据库脚本（全量 + 文末可重复升级段）
+│   ├── admin_platform.sql      # 全量安装 + 文末可重复升级段
+│   ├── add1.sql                # 已有库增量：角色管理图标
+│   └── add2.sql                # 已有库增量：接口文档图标改回 Document
 ├── scripts/
 │   └── docker-rebuild.ps1
 ├── Dockerfile
@@ -164,6 +166,43 @@ admin/
 ├── MICROSERVICE_GUIDE.md
 └── README.md
 ```
+
+### 后端包结构（`admin-backend`，B 方案分层）
+
+依赖方向：**`modules/*` → `framework` → `common`**（`framework` 禁止引用 `modules`）。
+
+```
+cn.rbac.server/
+├── common/
+│   ├── pojo/                         # CommonResult、PageParam、PageResult
+│   └── util/                         # ClientIpUtils、UserAgentUtils
+├── framework/                        # 技术基础设施（可抽公共 starter）
+│   ├── config/                       # DynamicConfigProvider（SPI）
+│   ├── security/
+│   │   ├── api/                      # PermissionApi（SPI）
+│   │   ├── config/                   # SecurityConfig
+│   │   └── core/                     # TokenService、SecurityUtils
+│   ├── web/
+│   │   ├── core/                     # GlobalExceptionHandler
+│   │   └── filter/                   # JwtAuthenticationFilter
+│   ├── log/annotation/               # @Log
+│   ├── mybatis/、redis/、storage/
+└── modules/
+    └── system/                       # 系统域业务
+        ├── api/                      # REST Controller（原 controller.admin）
+        ├── service/、dal/
+        └── framework/                # 对本项目 framework SPI 的实现
+            ├── config/               # SystemConfigProvider
+            ├── security/             # SystemPermissionService（bean 名 ss）
+            ├── operlog/              # LogAspect、OperLogRecorder
+            └── monitor/              # API 访问采集拦截器
+```
+
+| 扩展场景 | 做法 |
+|----------|------|
+| 改会话/上传限制等运行时配置 | 改库表 `sys_config_group`，经 `SystemConfigHelper` → `SystemConfigProvider` |
+| 新增业务模块 | 增加 `modules/xxx`，在 `xxx/framework` 实现 SPI，勿让 `framework` 依赖业务 |
+| 拆独立微服务 | 将 `framework` + `common` 打成 jar，新业务服务只依赖该 jar（见 [MICROSERVICE_GUIDE.md](./MICROSERVICE_GUIDE.md)） |
 
 ---
 
@@ -277,7 +316,7 @@ npm run dev
 | `knife4j.enable` | 接口文档增强开关；**3.5 + springdoc 2.8 建议 `false`**（见 `application.yml` 注释） |
 | `springdoc.api-docs.path` | OpenAPI JSON 路径，默认 `/v3/api-docs` |
 
-运行时优先读取 `sys_config_group`（见 `SystemConfigHelper`）。
+运行时优先读取 `sys_config_group`（`SystemConfigHelper` 实现 `DynamicConfigProvider`，供 Token、文件上传等使用）。
 
 ### 网关
 
@@ -310,7 +349,7 @@ npm run dev
 | 场景 | 做法 |
 |------|------|
 | **全新安装** | 执行全文：`mysql -u root -p < sql/admin_platform.sql` |
-| **已有库升级** | 只执行文末 **「附录：已有库升级」** 段（可重复执行，含配置分组、菜单 160～162、待审核用户补审批单） |
+| **已有库升级** | 推荐只执行 `sql/add1.sql`（与 `admin_platform.sql` 附录 add1 段相同）；也可执行全文附录 |
 
 执行涉及菜单的升级后请**重新登录**。
 
@@ -328,7 +367,7 @@ onMounted(() => load())
 
 ### 操作日志
 
-Controller 方法添加 `@Log`，由 `LogAspect` 写入 `sys_oper_log`。
+在 `modules/system/api` 的 Controller 方法上添加 `@Log`（`framework.log.annotation`），由 `modules/system/framework/operlog/LogAspect` 经 `OperLogRecorder` 写入 `sys_oper_log`。
 
 ### 按钮权限
 

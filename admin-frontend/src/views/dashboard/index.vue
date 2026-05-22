@@ -137,7 +137,11 @@
 
     <el-row :gutter="24" class="stats-row ops-stats-row">
       <el-col :xs="24" :sm="12" :lg="6">
-        <div class="stat-card ops clickable" @click="$router.push('/system/user')">
+        <div
+          class="stat-card ops clickable"
+          v-permission="'system:approval:list'"
+          @click="$router.push({ path: '/system/approval', query: { formType: 'REGISTER', status: 'SUBMITTED' } })"
+        >
           <div class="stat-card-header">
             <div class="stat-icon-box pending-user">
               <el-icon :size="24"><User /></el-icon>
@@ -147,7 +151,7 @@
             <div class="stat-number">{{ stats.userPendingCount }}</div>
             <div class="stat-title">待审核用户</div>
           </div>
-          <div class="stat-card-footer"><span>状态为待审核的账号</span></div>
+          <div class="stat-card-footer"><span>注册审核</span></div>
         </div>
       </el-col>
       <el-col :xs="24" :sm="12" :lg="6">
@@ -253,123 +257,19 @@
             <el-tag type="info" size="small" effect="plain">常用功能</el-tag>
           </div>
           <div class="quick-grid">
-            <div class="quick-item" @click="$router.push('/system/user')">
-              <div class="quick-icon-wrapper user">
-                <el-icon :size="26"><User /></el-icon>
+            <div
+              v-for="item in quickEntries"
+              :key="item.key"
+              v-permission="item.permission"
+              class="quick-item"
+              @click="goQuick(item)"
+            >
+              <div class="quick-icon-wrapper" :class="item.theme">
+                <el-icon :size="26"><component :is="item.icon" /></el-icon>
               </div>
               <div class="quick-info">
-                <div class="quick-name">用户管理</div>
-                <div class="quick-desc">管理系统用户</div>
-              </div>
-              <el-icon class="quick-arrow"><ArrowRight /></el-icon>
-            </div>
-            
-            <div class="quick-item" @click="$router.push('/system/role')">
-              <div class="quick-icon-wrapper role">
-                <el-icon :size="26"><UserFilled /></el-icon>
-              </div>
-              <div class="quick-info">
-                <div class="quick-name">角色管理</div>
-                <div class="quick-desc">配置角色权限</div>
-              </div>
-              <el-icon class="quick-arrow"><ArrowRight /></el-icon>
-            </div>
-            
-            <div class="quick-item" @click="$router.push('/system/menu')">
-              <div class="quick-icon-wrapper menu">
-                <el-icon :size="26"><Menu /></el-icon>
-              </div>
-              <div class="quick-info">
-                <div class="quick-name">菜单管理</div>
-                <div class="quick-desc">管理菜单结构</div>
-              </div>
-              <el-icon class="quick-arrow"><ArrowRight /></el-icon>
-            </div>
-            
-            <div class="quick-item" @click="$router.push('/system/org')">
-              <div class="quick-icon-wrapper dept">
-                <el-icon :size="26"><OfficeBuilding /></el-icon>
-              </div>
-              <div class="quick-info">
-                <div class="quick-name">组织管理</div>
-                <div class="quick-desc">部门与岗位体系</div>
-              </div>
-              <el-icon class="quick-arrow"><ArrowRight /></el-icon>
-            </div>
-
-            <div v-permission="'system:dict:list'" class="quick-item" @click="$router.push('/system/dict')">
-              <div class="quick-icon-wrapper menu">
-                <el-icon :size="26"><Collection /></el-icon>
-              </div>
-              <div class="quick-info">
-                <div class="quick-name">字典管理</div>
-                <div class="quick-desc">类型与数据维护</div>
-              </div>
-              <el-icon class="quick-arrow"><ArrowRight /></el-icon>
-            </div>
-            
-            <div v-permission="'system:operLog:list'" class="quick-item" @click="$router.push('/system/oper-log')">
-              <div class="quick-icon-wrapper log">
-                <el-icon :size="26"><EditPen /></el-icon>
-              </div>
-              <div class="quick-info">
-                <div class="quick-name">操作日志</div>
-                <div class="quick-desc">查看操作记录</div>
-              </div>
-              <el-icon class="quick-arrow"><ArrowRight /></el-icon>
-            </div>
-
-            <div class="quick-item" @click="$router.push('/system/login-log')">
-              <div class="quick-icon-wrapper log">
-                <el-icon :size="26"><Promotion /></el-icon>
-              </div>
-              <div class="quick-info">
-                <div class="quick-name">登录日志</div>
-                <div class="quick-desc">查看登录记录</div>
-              </div>
-              <el-icon class="quick-arrow"><ArrowRight /></el-icon>
-            </div>
-
-            <div v-permission="'system:config:list'" class="quick-item" @click="$router.push('/system/config')">
-              <div class="quick-icon-wrapper config">
-                <el-icon :size="26"><Tools /></el-icon>
-              </div>
-              <div class="quick-info">
-                <div class="quick-name">系统配置</div>
-                <div class="quick-desc">登录、文件、限流等</div>
-              </div>
-              <el-icon class="quick-arrow"><ArrowRight /></el-icon>
-            </div>
-
-            <div v-permission="'sys:file:list'" class="quick-item" @click="$router.push('/system/file')">
-              <div class="quick-icon-wrapper file">
-                <el-icon :size="26"><FolderOpened /></el-icon>
-              </div>
-              <div class="quick-info">
-                <div class="quick-name">文件管理</div>
-                <div class="quick-desc">上传与分组存储</div>
-              </div>
-              <el-icon class="quick-arrow"><ArrowRight /></el-icon>
-            </div>
-
-            <div v-permission="'system:ticket:list'" class="quick-item" @click="$router.push('/system/ticket')">
-              <div class="quick-icon-wrapper ticket">
-                <el-icon :size="26"><Tickets /></el-icon>
-              </div>
-              <div class="quick-info">
-                <div class="quick-name">工单管理</div>
-                <div class="quick-desc">处理与跟踪工单</div>
-              </div>
-              <el-icon class="quick-arrow"><ArrowRight /></el-icon>
-            </div>
-
-            <div v-permission="'system:approval:list'" class="quick-item" @click="$router.push('/system/approval')">
-              <div class="quick-icon-wrapper approval">
-                <el-icon :size="26"><Checked /></el-icon>
-              </div>
-              <div class="quick-info">
-                <div class="quick-name">审批单中心</div>
-                <div class="quick-desc">提交与审批流程单</div>
+                <div class="quick-name">{{ item.name }}</div>
+                <div class="quick-desc">{{ item.desc }}</div>
               </div>
               <el-icon class="quick-arrow"><ArrowRight /></el-icon>
             </div>
@@ -391,10 +291,14 @@
               运行正常
             </el-tag>
           </div>
+          <p v-if="platformSubtitle" class="sys-subtitle">{{ platformSubtitle }}</p>
           <ul class="sys-meta-list">
             <li v-for="item in systemMetaList" :key="item.label" class="sys-meta-item">
               <span class="sys-meta-label">{{ item.label }}</span>
-              <span class="sys-meta-value">{{ item.value }}</span>
+              <span class="sys-meta-value">
+                <el-tag v-if="item.tag" :type="item.tag" size="small" effect="plain">{{ item.value }}</el-tag>
+                <template v-else>{{ item.value }}</template>
+              </span>
             </li>
           </ul>
         </div>
@@ -439,6 +343,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { useUserStore } from '@/store/user'
 import { getDashboardStats, getRecentLogins, recordVisit as apiRecordVisit } from '@/api/dashboard'
 import {
@@ -447,7 +352,6 @@ import {
   Menu,
   Collection,
   OfficeBuilding,
-  EditPen,
   Promotion,
   Grid,
   Top,
@@ -461,10 +365,45 @@ import {
   Checked,
   FolderOpened,
   Tools,
-  Briefcase
+  DataLine,
+  Monitor
 } from '@element-plus/icons-vue'
 
+const router = useRouter()
 const userStore = useUserStore()
+
+/** 工作台固定 12 个核心快捷入口（3×4） */
+const quickEntries = [
+  { key: 'user', name: '用户管理', desc: '账号与状态维护', path: '/system/user', permission: 'system:user:list', icon: User, theme: 'user' },
+  { key: 'role', name: '角色管理', desc: '配置角色权限', path: '/system/role', permission: 'system:role:list', icon: UserFilled, theme: 'role' },
+  { key: 'menu', name: '菜单管理', desc: '目录菜单按钮', path: '/system/menu', permission: 'system:menu:list', icon: Menu, theme: 'menu' },
+  { key: 'org', name: '组织管理', desc: '部门与岗位体系', path: '/system/org', permission: 'system:dept:list', icon: OfficeBuilding, theme: 'dept' },
+  { key: 'config', name: '系统配置', desc: '登录注册与会话', path: '/system/config', permission: 'system:config:list', icon: Tools, theme: 'config' },
+  { key: 'approval', name: '审批单中心', desc: '流程单审批归档', path: '/system/approval', permission: 'system:approval:list', icon: Checked, theme: 'approval' },
+  {
+    key: 'register-audit',
+    name: '注册审核',
+    desc: '待审注册单',
+    path: '/system/approval',
+    query: { formType: 'REGISTER', status: 'SUBMITTED' },
+    permission: 'system:approval:list',
+    icon: Avatar,
+    theme: 'register'
+  },
+  { key: 'ticket', name: '工单管理', desc: '处理跟踪工单', path: '/system/ticket', permission: 'system:ticket:list', icon: Tickets, theme: 'ticket' },
+  { key: 'file', name: '文件管理', desc: '上传分组存储', path: '/system/file', permission: 'sys:file:list', icon: FolderOpened, theme: 'file' },
+  { key: 'online', name: '在线用户', desc: '会话与强退', path: '/monitor/online', permission: 'monitor:online:list', icon: Monitor, theme: 'monitor' },
+  { key: 'api-access', name: 'API 访问', desc: '接口调用统计', path: '/monitor/api-access', permission: 'monitor:apiAccess:list', icon: DataLine, theme: 'api' },
+  { key: 'dict', name: '字典管理', desc: '类型与数据维护', path: '/system/dict', permission: 'system:dict:list', icon: Collection, theme: 'dict' }
+]
+
+const goQuick = (item) => {
+  if (item.query) {
+    router.push({ path: item.path, query: item.query })
+  } else {
+    router.push(item.path)
+  }
+}
 
 // 问候语
 const greetingMessage = computed(() => {
@@ -478,16 +417,42 @@ const greetingMessage = computed(() => {
   return '夜深了，早点休息'
 })
 
-const SYSTEM_VERSION = 'v1.0.0'
+const captchaTypeLabel = (type) => {
+  if (type === 'slider') return '滑块'
+  if (type === 'image') return '图形'
+  return type || '-'
+}
 
-const systemMetaList = computed(() => [
-  { label: '系统名称', value: platformName.value },
-  { label: '系统版本', value: SYSTEM_VERSION },
-  { label: '前端框架', value: 'Vue 3.4 + Element Plus' },
-  { label: '后端框架', value: 'Spring Boot 3.5 + Gateway' },
-  { label: '数据库', value: 'MySQL 8.0' },
-  { label: '缓存', value: 'Redis 7' }
-])
+/** 来自工作台统计与系统配置的运行概况（非写死技术栈） */
+const systemMetaList = computed(() => {
+  const s = stats.value
+  const items = [
+    { label: '平台名称', value: platformName.value || '—' },
+    { label: '在线用户', value: `${s.onlineCount ?? 0} 人` },
+    { label: '今日访问', value: `${s.todayVisits ?? 0} 次` },
+    { label: '会话有效期', value: `${s.tokenExpireHours ?? 24} 小时` },
+    {
+      label: '登录验证码',
+      value: s.loginCaptchaEnabled ? captchaTypeLabel(s.loginCaptchaType) : '未启用',
+      tag: s.loginCaptchaEnabled ? 'info' : undefined
+    },
+    {
+      label: '注册审核',
+      value: s.registerNeedAudit ? '需审核' : '免审核',
+      tag: s.registerNeedAudit ? 'warning' : 'success'
+    },
+    { label: '上传限制', value: `单文件 ≤ ${s.fileMaxSizeMb ?? 50}MB` },
+    { label: '文件数量', value: `${s.fileCount ?? 0} 个` }
+  ]
+  if (s.registerNeedAudit && (s.userPendingCount ?? 0) > 0) {
+    items.splice(2, 0, {
+      label: '待审注册',
+      value: `${s.userPendingCount} 人`,
+      tag: 'warning'
+    })
+  }
+  return items
+})
 
 const platformName = ref('Admin Platform')
 const platformSubtitle = ref('')
@@ -965,9 +930,21 @@ onUnmounted(() => {
 /* 快捷入口 */
 .quick-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  grid-template-columns: repeat(3, 1fr);
   gap: 16px;
   padding: 24px;
+}
+
+@media (max-width: 1200px) {
+  .quick-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .quick-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .quick-item {
@@ -1042,6 +1019,22 @@ onUnmounted(() => {
   background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
 }
 
+.quick-icon-wrapper.register {
+  background: linear-gradient(135deg, #f97316 0%, #fb923c 100%);
+}
+
+.quick-icon-wrapper.monitor {
+  background: linear-gradient(135deg, #0ea5e9 0%, #38bdf8 100%);
+}
+
+.quick-icon-wrapper.api {
+  background: linear-gradient(135deg, #14b8a6 0%, #2dd4bf 100%);
+}
+
+.quick-icon-wrapper.dict {
+  background: linear-gradient(135deg, #6366f1 0%, #818cf8 100%);
+}
+
 .quick-info {
   flex: 1;
   min-width: 0;
@@ -1071,6 +1064,15 @@ onUnmounted(() => {
 }
 
 /* 系统信息 */
+.sys-subtitle {
+  margin: 0 24px 4px;
+  padding-bottom: 12px;
+  font-size: 13px;
+  color: var(--theme-text-secondary, #6b7280);
+  line-height: 1.5;
+  border-bottom: 1px solid #f3f4f6;
+}
+
 .sys-meta-list {
   list-style: none;
   margin: 0;

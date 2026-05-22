@@ -48,8 +48,6 @@
         <el-table-column prop="username" label="用户名" width="120" />
         <el-table-column prop="ipaddr" label="IP地址" width="140" />
         <el-table-column prop="loginLocation" label="登录地点" width="150" />
-        <el-table-column prop="browser" label="浏览器" width="120" />
-        <el-table-column prop="os" label="操作系统" width="120" />
         <el-table-column prop="status" label="状态" width="100">
           <template #default="{ row }">
             <el-tag :type="row.status === 0 ? 'success' : 'danger'">
@@ -59,6 +57,8 @@
         </el-table-column>
         <el-table-column prop="msg" label="消息" min-width="150" show-overflow-tooltip />
         <el-table-column prop="loginTime" label="登录时间" width="180" />
+        <el-table-column prop="browser" label="浏览器" width="120" />
+        <el-table-column prop="os" label="操作系统" width="120" />
         <el-table-column label="操作" width="100" fixed="right" align="center">
           <template #default="{ row }">
             <div class="action-buttons">

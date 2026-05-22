@@ -29,9 +29,16 @@
           
           <!-- 动态菜单：根据用户权限显示 -->
           <template v-for="menu in userMenus" :key="menu.id">
-            <el-sub-menu v-if="menu.children && menu.children.length > 0" :index="String(menu.id)" class="menu-group">
+            <el-sub-menu
+              v-if="menu.children && menu.children.length > 0"
+              :index="String(menu.id)"
+              class="menu-group"
+              @open="handleSubMenuOpen(menu)"
+            >
               <template #title>
-                <el-icon><component :is="getIconComponent(menu.icon)" /></el-icon>
+                <el-icon :class="{ 'is-spin-once': isSystemMenu(menu) && menuIconSpinKey === SYSTEM_MENU_ID }">
+                  <component :is="getIconComponent(menu.icon)" />
+                </el-icon>
                 <span>{{ menu.name }}</span>
               </template>
               <el-menu-item 
@@ -176,6 +183,12 @@ const userStore = useUserStore()
 
 const isCollapse = ref(false)
 const activeMenu = computed(() => route.path)
+/** 仅「系统管理」一级菜单点击时图标转一圈 */
+const SYSTEM_MENU_ID = '1'
+const menuIconSpinKey = ref('')
+const MENU_ICON_SPIN_MS = 520
+
+const isSystemMenu = (menu) => String(menu?.id) === SYSTEM_MENU_ID || menu?.name === '系统管理'
 
 // 主题色配置
 const presetColors = [
@@ -289,7 +302,40 @@ function resolveMenuIndex(menu) {
   return menu.path || String(menu.id)
 }
 
+function findTopMenuSpinKey(index) {
+  const key = String(index)
+  if (key === '/dashboard') return '/dashboard'
+  for (const menu of userMenus.value) {
+    if (String(menu.id) === key) return String(menu.id)
+    if (resolveMenuIndex(menu) === key) return String(menu.id)
+    if (menu.children?.length) {
+      for (const child of menu.children) {
+        if (resolveMenuIndex(child) === key) return String(menu.id)
+      }
+    }
+  }
+  return key
+}
+
+function triggerSystemMenuIconSpin() {
+  menuIconSpinKey.value = SYSTEM_MENU_ID
+  window.setTimeout(() => {
+    if (menuIconSpinKey.value === SYSTEM_MENU_ID) {
+      menuIconSpinKey.value = ''
+    }
+  }, MENU_ICON_SPIN_MS)
+}
+
+function handleSubMenuOpen(menu) {
+  if (isSystemMenu(menu)) {
+    triggerSystemMenuIconSpin()
+  }
+}
+
 function handleMenuSelect(index) {
+  if (findTopMenuSpinKey(index) === SYSTEM_MENU_ID) {
+    triggerSystemMenuIconSpin()
+  }
   const key = String(index)
   if (key.startsWith('external:')) {
     window.open(key.slice('external:'.length), '_blank')
@@ -697,5 +743,19 @@ onMounted(async () => {
 :deep(.el-menu--collapse .el-sub-menu__title) {
   margin-left: 0 !important;
   justify-content: center;
+}
+
+/* 仅「系统管理」：点击/展开时图标转一圈 */
+:deep(.sidebar-menu .el-icon.is-spin-once) {
+  animation: sidebar-menu-icon-spin 0.52s ease;
+}
+
+@keyframes sidebar-menu-icon-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 </style>

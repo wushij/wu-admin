@@ -35,7 +35,7 @@ const routes: RouteRecordRaw[] = [
         path: 'system/role',
         name: 'SystemRole',
         component: () => import('@/views/system/role/index.vue'),
-        meta: { title: '角色管理', icon: 'peoples', permission: 'system:role:list' }
+        meta: { title: '角色管理', icon: 'UserFilled', permission: 'system:role:list' }
       },
       {
         path: 'system/menu',

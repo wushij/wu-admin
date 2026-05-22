@@ -6,9 +6,9 @@ import * as ElementPlusIconsVue from '@element-plus/icons-vue'
 const LEGACY_ICON_MAP: Record<string, string> = {
   system: 'Setting',
   user: 'User',
-  role: 'Key',
-  key: 'Key',
-  Key: 'Key',
+  role: 'UserFilled',
+  key: 'UserFilled',
+  Key: 'UserFilled',
   peoples: 'UserFilled',
   'tree-table': 'Menu',
   tree: 'OfficeBuilding',

@@ -1,7 +1,7 @@
 package cn.rbac.server.framework.security.core.service;
 
 import cn.hutool.json.JSONUtil;
-import cn.rbac.server.modules.system.service.config.SystemConfigHelper;
+import cn.rbac.server.framework.config.DynamicConfigProvider;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
@@ -30,7 +30,7 @@ public class TokenService {
     private String secret;
 
     @Resource
-    private SystemConfigHelper systemConfigHelper;
+    private DynamicConfigProvider dynamicConfigProvider;
 
     private final RedissonClient redissonClient;
 
@@ -39,7 +39,7 @@ public class TokenService {
     }
 
     private long expirationMs() {
-        return systemConfigHelper.getTokenExpirationMs();
+        return dynamicConfigProvider.getTokenExpirationMs();
     }
 
     private static final String TOKEN_PREFIX = "rbac:token:";

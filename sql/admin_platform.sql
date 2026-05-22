@@ -505,7 +505,7 @@ INSERT INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, c
 -- 用户管理
 (2, '用户管理', 'system:user:list', 2, 1, 1, '/system/user', 'User', 'system/user/index', 1),
 -- 角色管理
-(3, '角色管理', 'system:role:list', 2, 2, 1, '/system/role', 'Key', 'system/role/index', 1),
+(3, '角色管理', 'system:role:list', 2, 2, 1, '/system/role', 'UserFilled', 'system/role/index', 1),
 -- 菜单管理
 (4, '菜单管理', 'system:menu:list', 2, 3, 1, '/system/menu', 'Menu', 'system/menu/index', 1),
 -- 组织管理（部门 + 岗位）
@@ -623,7 +623,8 @@ INSERT INTO sys_role_menu (role_id, menu_id) VALUES
 
 -- =============================================
 -- 附录：已有库升级（可重复执行，全新安装执行亦无害）
--- 合并原 add3 / add4 / add5 / add6
+-- 合并原 add3 / add4 / add5 / add6 / add1
+-- 已有库若仅执行增量，可只跑 sql/add1.sql（与本段 add1 内容一致）
 -- =============================================
 
 CREATE TABLE IF NOT EXISTS sys_config_group (
@@ -669,6 +670,9 @@ ON DUPLICATE KEY UPDATE
 
 INSERT IGNORE INTO sys_role_menu (role_id, menu_id) VALUES
 (1, 160), (1, 161), (1, 162);
+
+-- add1：菜单图标（角色管理）
+UPDATE sys_menu SET icon = 'UserFilled' WHERE id = 3 AND icon IN ('Key', 'key');
 
 -- 可选：为历史「待审核」用户补建注册审批单（无则跳过）
 INSERT INTO sys_approval_form (form_no, form_type, title, content, status, applicant_user_id, approver_user_id, creator, updater)

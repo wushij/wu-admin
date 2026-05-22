@@ -1,6 +1,6 @@
 package cn.rbac.server.framework.storage;
 
-import cn.rbac.server.modules.system.service.config.SystemConfigHelper;
+import cn.rbac.server.framework.config.DynamicConfigProvider;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
@@ -19,7 +19,7 @@ public class LocalFileStorage {
     private FileStorageProperties properties;
 
     @Resource
-    private SystemConfigHelper systemConfigHelper;
+    private DynamicConfigProvider dynamicConfigProvider;
 
     public String getBasePath() {
         return properties.getLocalPath();
@@ -29,7 +29,7 @@ public class LocalFileStorage {
         if (size <= 0) {
             throw new IllegalArgumentException("文件为空");
         }
-        int maxMb = systemConfigHelper.getFileMaxSizeMb();
+        int maxMb = dynamicConfigProvider.getFileMaxSizeMb();
         long maxBytes = (long) maxMb * 1024 * 1024;
         if (size > maxBytes) {
             throw new IllegalArgumentException("文件大小不能超过 " + maxMb + "MB");
@@ -38,7 +38,7 @@ public class LocalFileStorage {
             return;
         }
         String ext = getSuffix(originalName).replace(".", "").toLowerCase();
-        String allowed = systemConfigHelper.getFileAllowedExtensions();
+        String allowed = dynamicConfigProvider.getFileAllowedExtensions();
         if (!StringUtils.hasText(allowed) || !StringUtils.hasText(ext)) {
             return;
         }

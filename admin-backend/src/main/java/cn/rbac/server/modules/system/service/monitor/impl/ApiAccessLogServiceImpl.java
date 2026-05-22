@@ -1,7 +1,7 @@
 package cn.rbac.server.modules.system.service.monitor.impl;
 
 import cn.rbac.server.common.pojo.PageResult;
-import cn.rbac.server.modules.system.controller.admin.monitor.vo.ApiAccessUserRankVO;
+import cn.rbac.server.modules.system.api.monitor.vo.ApiAccessUserRankVO;
 import cn.rbac.server.modules.system.dal.dataobject.monitor.ApiAccessLogDO;
 import cn.rbac.server.modules.system.dal.dataobject.user.UserDO;
 import cn.rbac.server.modules.system.dal.mysql.monitor.ApiAccessLogMapper;
