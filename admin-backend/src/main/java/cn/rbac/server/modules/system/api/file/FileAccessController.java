@@ -31,6 +31,15 @@ public class FileAccessController {
         String uri = request.getRequestURI();
         int idx = uri.indexOf("/files/");
         String relative = idx >= 0 ? uri.substring(idx + "/files/".length()) : "";
+        // img 标签通过 ?Authorization= 传 token 时，不能把查询串拼进文件路径
+        int q = relative.indexOf('?');
+        if (q >= 0) {
+            relative = relative.substring(0, q);
+        }
+        int hash = relative.indexOf('#');
+        if (hash >= 0) {
+            relative = relative.substring(0, hash);
+        }
         String basePath = fileStorageProperties.getLocalPath();
         Path base = Paths.get(basePath).normalize().toAbsolutePath();
         Path full = base.resolve(relative).normalize();

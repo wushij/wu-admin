@@ -2,6 +2,7 @@ package cn.rbac.server.framework.web.filter;
 
 import cn.dev33.satoken.stp.StpUtil;
 import cn.rbac.server.framework.security.core.service.TokenService;
+import cn.rbac.server.modules.system.service.monitor.OnlineUserService;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -22,12 +23,16 @@ import java.util.Collections;
 @Component
 public class SaTokenAuthenticationFilter extends OncePerRequestFilter {
 
+    @jakarta.annotation.Resource
+    private OnlineUserService onlineUserService;
+
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
         try {
             if (StpUtil.isLogin()) {
                 Long userId = StpUtil.getLoginIdAsLong();
+                onlineUserService.touchLastAccess(userId);
                 Object usernameObj = StpUtil.getSession().get(TokenService.SESSION_USERNAME);
                 String username = usernameObj != null ? usernameObj.toString() : String.valueOf(userId);
 

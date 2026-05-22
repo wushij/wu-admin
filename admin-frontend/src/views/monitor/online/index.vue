@@ -17,8 +17,7 @@
         :cell-style="{ textAlign: 'center' }"
       >
         <el-table-column type="index" label="序号" width="60" />
-        <el-table-column prop="userId" label="用户编号" width="100" />
-        <el-table-column prop="loginName" label="登录名称" width="120" />
+        <el-table-column prop="loginName" label="用户名" width="120" />
         <el-table-column prop="deptName" label="部门/昵称" width="120" show-overflow-tooltip />
         <el-table-column prop="ipaddr" label="主机" width="130" />
         <el-table-column prop="loginLocation" label="登录地点" width="120" />

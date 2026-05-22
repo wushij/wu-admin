@@ -674,7 +674,7 @@ async function handlePreview(file) {
     return
   }
 
-  const needPreviewApi = isPdf(file) || isVideo(file) || isAudio(file)
+  const needPreviewApi = isPdf(file) || isVideo(file) || isAudio(file) || isImage(file)
   if (needPreviewApi || !file.url) {
     const blob = await fetchFileBlob(`/system/file/preview/${file.id}`)
     previewBlobUrl.value = URL.createObjectURL(blob)

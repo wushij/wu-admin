@@ -24,6 +24,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.redisson.api.RBucket;
 import org.redisson.api.RedissonClient;
+import cn.dev33.satoken.stp.StpUtil;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -72,6 +73,9 @@ public class DashboardController {
     @Operation(summary = "工作台统计数据")
     @GetMapping("/stats")
     public CommonResult<Map<String, Object>> getStats() {
+        if (StpUtil.isLogin()) {
+            onlineUserService.touchLastAccess(StpUtil.getLoginIdAsLong());
+        }
         LocalDateTime todayStart = LocalDate.now().atStartOfDay();
         LocalDateTime yesterdayStart = todayStart.minusDays(1);
 
@@ -145,6 +149,9 @@ public class DashboardController {
     @Operation(summary = "记录工作台访问")
     @GetMapping("/visit")
     public CommonResult<Void> recordVisit() {
+        if (StpUtil.isLogin()) {
+            onlineUserService.touchLastAccess(StpUtil.getLoginIdAsLong());
+        }
         String today = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE);
         RBucket<Long> bucket = redissonClient.getBucket(VISIT_COUNT_KEY + today);
         Long count = bucket.get();

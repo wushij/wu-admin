@@ -10,7 +10,9 @@ import org.springframework.util.StringUtils;
 
 import jakarta.annotation.Resource;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * 统一 Sa-Token 会话服务（与网关共用 Redis，同一 Authorization token）
@@ -86,7 +88,7 @@ public class TokenService {
 
     public LoginInfo getLoginInfo(Long userId) {
         try {
-            String token = StpUtil.getTokenValueByLoginId(userId);
+            String token = resolveTokenByLoginId(userId);
             if (!StringUtils.hasText(token)) {
                 return null;
             }
@@ -103,6 +105,32 @@ public class TokenService {
         } catch (Exception e) {
             return null;
         }
+    }
+
+    /** 多端并发登录时优先取 token 列表中的有效项 */
+    private String resolveTokenByLoginId(Long userId) {
+        if (userId == null) {
+            return null;
+        }
+        try {
+            List<String> tokens = StpUtil.getTokenValueListByLoginId(userId);
+            if (tokens != null) {
+                for (String t : tokens) {
+                    if (StringUtils.hasText(t) && StpUtil.getLoginIdByToken(t) != null) {
+                        return t;
+                    }
+                }
+            }
+        } catch (Exception ignored) {
+        }
+        try {
+            String token = StpUtil.getTokenValueByLoginId(userId);
+            if (StringUtils.hasText(token)) {
+                return token;
+            }
+        } catch (Exception ignored) {
+        }
+        return null;
     }
 
     public void removeToken(Long userId) {
@@ -126,5 +154,37 @@ public class TokenService {
             log.debug("searchTokenValue failed: {}", e.getMessage());
         }
         return tokens;
+    }
+
+    /**
+     * 列出当前已登录用户 ID（优先 searchSessionId，兼容 searchTokenValue）
+     */
+    public List<Long> listActiveUserIds() {
+        Set<Long> ids = new LinkedHashSet<>();
+        try {
+            List<String> sessionIds = StpUtil.searchSessionId("", 0, -1, false);
+            if (sessionIds != null) {
+                for (String sid : sessionIds) {
+                    if (!StringUtils.hasText(sid)) {
+                        continue;
+                    }
+                    try {
+                        ids.add(Long.parseLong(sid.trim()));
+                    } catch (NumberFormatException ignored) {
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.debug("searchSessionId failed: {}", e.getMessage());
+        }
+        if (ids.isEmpty()) {
+            for (String token : listActiveTokens()) {
+                Long userId = getUserId(token);
+                if (userId != null) {
+                    ids.add(userId);
+                }
+            }
+        }
+        return new ArrayList<>(ids);
     }
 }

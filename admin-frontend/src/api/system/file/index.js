@@ -127,9 +127,14 @@ export function withGatewayTokenQuery(url) {
 /** @deprecated 使用 withGatewayTokenQuery */
 export const withAuthQuery = withGatewayTokenQuery
 
-/** 列表缩略图 / 视频封面（走 /api/files 或 preview，依赖网关转发 Authorization） */
+/** 列表缩略图 / 视频封面 */
 export function fileDisplayUrl(file) {
   if (!file) return ''
+  const type = file.fileType || ''
+  // 图片/视频走 preview 接口，避免 /files 直链与 query 参数导致 404
+  if (file.id && (type.startsWith('image/') || type.startsWith('video/'))) {
+    return withGatewayTokenQuery(`/api/system/file/preview/${file.id}`)
+  }
   let u = file.url || ''
   if (u && !u.startsWith('http') && !u.startsWith('/api')) {
     u = u.startsWith('/') ? `/api${u}` : `/api/${u}`
