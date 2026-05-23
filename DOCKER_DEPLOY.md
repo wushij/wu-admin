@@ -4,7 +4,7 @@
 
 ```
 前端 (Nginx) → 后端 (Spring Boot) → MySQL + Redis
-   :3000              :8081           :3307   :6379
+   :3000              :8080           :3307   :6379
 ```
 
 ### 服务端口说明
@@ -12,7 +12,7 @@
 | 服务 | 容器端口 | 外部端口 | 说明 |
 |------|----------|----------|------|
 | 前端 (Nginx) | 80 | 3000 | http://localhost:3000 |
-| 后端 (Spring Boot) | 8081 | 8081 | http://localhost:8081/api |
+| 后端 (Spring Boot) | 8080 | 8080 | http://localhost:8080/api |
 | MySQL | 3306 | 3307 | 127.0.0.1:3307 |
 | Redis | 6379 | 6379 | 127.0.0.1:6379 |
 
@@ -105,7 +105,7 @@ docker compose logs -f
 curl http://localhost:3000
 
 # 测试后端 API
-curl http://localhost:8081/api/auth/config
+curl http://localhost:8080/api/auth/config
 ```
 
 ---
@@ -143,8 +143,8 @@ admin-vue/
 
 要点：
 
-- 前端 Nginx 将 `/api/` 代理到 `http://backend:8081/api/`
-- 后端 `context-path=/api`，容器内外端口均为 **8081**
+- 前端 Nginx 将 `/api/` 代理到 `http://backend:8080/api/`
+- 后端 `context-path=/api`，容器内外端口均为 **8080**
 - MySQL 外部端口 **3307**，Redis **6379**
 
 ### 前端 Dockerfile (多阶段构建)
@@ -174,7 +174,7 @@ CMD ["nginx", "-g", "daemon off;"]
 
 ```nginx
 location /api/ {
-    proxy_pass http://backend:8081/api/;
+    proxy_pass http://backend:8080/api/;
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $remote_addr;
 }
@@ -312,7 +312,7 @@ docker exec -i admin-mysql mysql -uroot -proot --default-character-set=utf8mb4 -
 **解决**: 确认 `frontend/nginx.conf` 中：
 
 ```nginx
-proxy_pass http://backend:8081/api/;
+proxy_pass http://backend:8080/api/;
 ```
 
 ### 5. 前端构建失败
