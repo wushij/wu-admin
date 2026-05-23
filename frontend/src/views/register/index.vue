@@ -234,7 +234,14 @@
               <h2 class="register-form__title">{{ siteRegisterTitle }}</h2>
             </header>
 
-            <el-form ref="formRef" :model="formData" :rules="rules" size="large" class="form-container">
+            <el-form
+              ref="formRef"
+              :model="formData"
+              :rules="rules"
+              :validate-on-rule-change="false"
+              size="large"
+              :class="['form-container', { 'form-container--submitted': submitAttempted }]"
+            >
             <el-form-item prop="username" class="form-item">
               <el-input
                 v-model="formData.username"
@@ -524,10 +531,13 @@ onMounted(async () => {
   if (captchaEnabled.value && captchaType.value === 'image') {
     loadCaptcha()
   }
+  await nextTick()
+  formRef.value?.clearValidate()
 })
 
 const formRef = ref(null)
 const loading = ref(false)
+const submitAttempted = ref(false)
 
 const formData = reactive({
   username: '',
@@ -591,6 +601,7 @@ async function handleRegister() {
 
   if (!formRef.value) return
 
+  submitAttempted.value = true
   await formRef.value.validate(async (valid) => {
     if (!valid) return
     if (captchaEnabled.value && captchaType.value === 'slider') {
@@ -1036,6 +1047,15 @@ function goLogin() {
   opacity: 0.9;
   transform: scale(1.02);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* 进入页面前不展示校验红字，避免规则加载时闪一下 */
+.form-container:not(.form-container--submitted) :deep(.el-form-item__error) {
+  display: none !important;
+}
+
+.form-container:not(.form-container--submitted) :deep(.el-form-item.is-error .el-input__wrapper) {
+  box-shadow: 0 0 0 1px var(--el-input-border-color, var(--el-border-color)) inset !important;
 }
 
 /* 验证码错误提示 */
