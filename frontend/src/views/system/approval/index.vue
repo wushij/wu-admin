@@ -184,7 +184,7 @@
         <el-descriptions-item label="状态">{{ formatStatus(current.status) }}</el-descriptions-item>
         <el-descriptions-item label="申请人">{{ current.applicantName || '-' }}</el-descriptions-item>
         <el-descriptions-item label="审批人">{{ current.approverName || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="审批结果">{{ current.resultRemark || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="审批意见">{{ current.resultRemark?.trim() || '无' }}</el-descriptions-item>
         <el-descriptions-item v-if="current.formType === 'REGISTER'" label="注册账号">
           {{ registerDetail.username || '-' }}
         </el-descriptions-item>
