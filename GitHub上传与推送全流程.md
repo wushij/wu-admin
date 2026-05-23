@@ -1,6 +1,28 @@
 # 项目上传到 GitHub 全流程（含后续更新推送）
 
-本文说明：从本地新项目到首次推送到 GitHub，以及之后日常如何提交、推送更新。适用于本仓库同类场景（HTTPS、Windows、可选代理）。
+本文说明：从本地新项目到首次推送到 GitHub，以及之后日常如何提交、推送更新。适用于本仓库（**Spring Boot `backend/` + Vue `frontend/` 单体结构**）及同类场景（HTTPS、Windows、可选代理）。
+
+### 本仓库目录约定
+
+**GitHub 仓库**：https://github.com/wushij/wu-admin
+
+```
+admin-vue/（本地目录名可与仓库名不同）
+├── backend/      # Spring Boot 后端
+├── frontend/     # Vue 3 前端
+├── sql/          # 数据库脚本（admin_platform.sql、add1.sql）
+└── ...
+```
+
+绑定远程示例：
+
+```bash
+git remote add origin https://github.com/wushij/wu-admin.git
+# 若已绑定旧地址：
+git remote set-url origin https://github.com/wushij/wu-admin.git
+```
+
+提交前请确认 `.gitignore` 已排除 `backend/target/`、`frontend/node_modules/`、`data/` 等目录。
 
 ---
 
@@ -56,7 +78,7 @@ git add .
 git status
 ```
 
-检查 `git status`：不应出现本不该进库的大目录（如 `node_modules`、各模块 `target/`）。若误加过，可先纠正再提交：
+检查 `git status`：不应出现本不该进库的大目录（如 `frontend/node_modules`、`backend/target/`、`data/`）。若误加过，可先纠正再提交：
 
 ```bash
 git rm -r --cached .

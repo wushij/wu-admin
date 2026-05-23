@@ -1,3 +1,4 @@
+# Admin Platform — 单体部署：MySQL + Redis + backend + frontend
 version: '3.8'
 
 services:
@@ -6,7 +7,7 @@ services:
     container_name: admin-mysql
     environment:
       MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: RBAC1
+      MYSQL_DATABASE: wu-admin
       TZ: Asia/Shanghai
     ports:
       - "3307:3306"
@@ -38,21 +39,22 @@ services:
     networks:
       - admin-network
 
-  admin-backend:
+  backend:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: admin-backend
+    container_name: backend
     environment:
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/RBAC1?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&nullCatalogMeansCurrent=true
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/wu-admin?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&nullCatalogMeansCurrent=true
       SPRING_DATASOURCE_USERNAME: root
       SPRING_DATASOURCE_PASSWORD: root
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: 6379
       SPRING_DATA_REDIS_DATABASE: 1
+      APP_API_DOCS_SERVER_URL: http://localhost:3000/api
       TZ: Asia/Shanghai
     ports:
-      - "8082:8081"
+      - "8081:8081"
     depends_on:
       mysql:
         condition: service_healthy
@@ -61,33 +63,15 @@ services:
     networks:
       - admin-network
 
-  admin-gateway:
+  frontend:
     build:
-      context: ./admin-gateway
+      context: ./frontend
       dockerfile: Dockerfile
-    container_name: admin-gateway
-    environment:
-      APP_BACKEND_BASE_URL: http://admin-backend:8081
-      SPRING_DATA_REDIS_HOST: redis
-      SPRING_DATA_REDIS_PORT: 6379
-      SPRING_DATA_REDIS_DATABASE: 1
-      TZ: Asia/Shanghai
-    ports:
-      - "8080:8080"
-    depends_on:
-      - admin-backend
-    networks:
-      - admin-network
-
-  admin-frontend:
-    build:
-      context: ./admin-frontend
-      dockerfile: Dockerfile
-    container_name: admin-frontend
+    container_name: frontend
     ports:
       - "3000:80"
     depends_on:
-      - admin-gateway
+      - backend
     networks:
       - admin-network
 

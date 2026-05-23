@@ -1,6 +1,6 @@
 -- =============================================
 -- Admin Platform 统一数据库脚本（唯一入口）
--- 数据库名: RBAC1
+-- 数据库名: wu-admin
 --
 -- 【全新安装】执行本文件全文即可（建库、建表、初始数据）。
 -- 【已有库升级】若表已存在，可只执行文末「附录：已有库升级」段（可重复执行）。
@@ -9,8 +9,8 @@
 -- =============================================
 
 -- 创建数据库
-CREATE DATABASE IF NOT EXISTS RBAC1 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-USE RBAC1;
+CREATE DATABASE IF NOT EXISTS `wu-admin` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+USE `wu-admin`;
 
 -- =============================================
 -- 1. 用户表
@@ -35,7 +35,8 @@ CREATE TABLE sys_user (
     deleted TINYINT DEFAULT 0 COMMENT '是否删除',
     UNIQUE KEY uk_username (username),
     INDEX idx_mobile (mobile),
-    INDEX idx_dept_id (dept_id)
+    INDEX idx_dept_id (dept_id),
+    INDEX idx_deleted_status (deleted, status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户表';
 
 -- =============================================
@@ -131,7 +132,8 @@ CREATE TABLE sys_user_post (
     user_id BIGINT NOT NULL COMMENT '用户ID',
     post_id BIGINT NOT NULL COMMENT '岗位ID',
     INDEX idx_user_id (user_id),
-    INDEX idx_post_id (post_id)
+    INDEX idx_post_id (post_id),
+    UNIQUE KEY uk_user_post (user_id, post_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户岗位关联表';
 
 -- =============================================
@@ -217,7 +219,8 @@ CREATE TABLE sys_dict_data (
     updater VARCHAR(64) DEFAULT '' COMMENT '更新者',
     deleted INT DEFAULT 0 COMMENT '删除标识',
     PRIMARY KEY (id),
-    KEY idx_dict_type (dict_type)
+    KEY idx_dict_type (dict_type),
+    KEY idx_dict_type_status_deleted (dict_type, status, deleted, sort)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='字典数据表';
 
 -- =============================================
@@ -242,7 +245,8 @@ CREATE TABLE sys_oper_log (
     PRIMARY KEY (id),
     INDEX idx_oper_time (oper_time),
     INDEX idx_oper_name (oper_name),
-    INDEX idx_title (title)
+    INDEX idx_title (title),
+    INDEX idx_oper_time_status (oper_time, status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='操作日志表';
 
 -- =============================================
@@ -742,3 +746,9 @@ WHERE u.deleted = 0
 -- 通用状态字典文案与业务页一致（启用/禁用）
 UPDATE sys_dict_data SET dict_label = '启用' WHERE dict_type = 'sys_normal_disable' AND dict_value = '1';
 UPDATE sys_dict_data SET dict_label = '禁用' WHERE dict_type = 'sys_normal_disable' AND dict_value = '0';
+
+-- ---------- 索引优化（已有库可重复执行；若报 Duplicate key name 表示索引已存在，可忽略） ----------
+ALTER TABLE sys_dict_data ADD INDEX idx_dict_type_status_deleted (dict_type, status, deleted, sort);
+ALTER TABLE sys_user ADD INDEX idx_deleted_status (deleted, status);
+ALTER TABLE sys_user_post ADD UNIQUE INDEX uk_user_post (user_id, post_id);
+ALTER TABLE sys_oper_log ADD INDEX idx_oper_time_status (oper_time, status);

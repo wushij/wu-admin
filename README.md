@@ -1,6 +1,6 @@
 # Admin Platform
 
-基于 **Vue 3 + Spring Cloud Gateway + Spring Boot RBAC** 的企业级后台管理系统，提供用户权限、组织岗位、业务工单、系统监控、日志审计、文件与字典、**分组系统配置**、**注册审核**等能力，支持 Docker 一键部署与本地开发调试。
+基于 **Vue 3 + Spring Boot** 的企业级后台管理系统，提供用户权限、组织岗位、业务工单、系统监控、日志审计、文件与字典、**分组系统配置**、**注册审核**等能力，支持 Docker 一键部署与本地开发调试。
 
 ---
 
@@ -18,7 +18,7 @@
 | **系统监控** | API 访问统计、在线用户与强退 |
 | **文件管理** | 分组、上传、预览；大小与扩展名受**系统配置**约束 |
 | **业务中心** | 工单管理、审批单中心（含**注册审核单** `REGISTER`） |
-| **认证安全** | 图片/滑块验证码、登录/注册限流、网关 + 后端共用 Sa-Token（Redis db=1） |
+| **认证安全** | 图片/滑块验证码、登录/注册限流、Sa-Token 会话（Redis db=1） |
 
 菜单与权限由数据库 `sys_menu` 动态加载；超级管理员默认拥有全部功能。修改菜单或角色后需**重新登录**侧栏才会更新。
 
@@ -88,8 +88,8 @@
 ### 接口文档（`/tool/api-doc`）
 
 - **开发工具 → 接口文档**，内嵌 Knife4j（基于 **Springdoc OpenAPI 3**）
-- 开发：文档静态资源 → RBAC `8081`；**调试请求**默认 `http://localhost:8080/api`（Vite 已将 `/system`、`/auth` 等代理到网关）
-- 生产：Nginx → 网关 `/api/doc.html`、`/api/v3/api-docs` 等 → RBAC
+- 开发：文档静态资源经 Vite 代理到后端 `8081`；**调试请求**默认 `http://localhost:3000/api`
+- 生产：Nginx → 后端 `/api/doc.html`、`/api/v3/api-docs` 等
 - 调试需带请求头 `Authorization: <登录 token>`，修改类接口用 **PUT/POST**，勿用 GET
 - Spring Boot **3.5** 需 **springdoc ≥ 2.8.9**；`knife4j.enable` 建议为 `false`（4.5.0 增强模块与 springdoc 2.8 API 不兼容，关闭后 `doc.html` 仍正常）
 
@@ -100,17 +100,15 @@
 | 层级 | 技术 |
 |------|------|
 | 前端 | Vue 3、Vite、Element Plus、Pinia、Axios、ECharts |
-| 网关 | Spring Boot 3.5、Spring Cloud Gateway 2025.0、Sa-Token、Redis |
-| 后端 | Spring Boot 3.5、Spring Security 6、MyBatis-Plus 3.5、Druid、Knife4j 4.5、Springdoc 2.8 |
+| 后端 | Spring Boot 3.5、Spring Security 6、Sa-Token、MyBatis-Plus 3.5、Druid、Knife4j 4.5、Springdoc 2.8 |
 | 数据 | MySQL 8、Redis 7 |
 | 部署 | Docker Compose、Nginx |
 
-**JDK 17**（RBAC + 网关）。核心版本见下表：
+**JDK 17**。核心版本见下表：
 
 | 组件 | 版本 |
 |------|------|
-| Spring Boot | 3.5.13（`admin-backend`、`admin-gateway`） |
-| Spring Cloud | 2025.0.0（网关） |
+| Spring Boot | 3.5.13（`backend`） |
 | Springdoc OpenAPI | 2.8.9（须 ≥ 2.8.9，兼容 Spring 6.2） |
 | Knife4j | 4.5.0（`knife4j.enable: false` 关闭增强以避免与 springdoc 冲突） |
 | MyBatis-Plus | 3.5.9 |
@@ -124,49 +122,60 @@
    │
    ▼
 ┌─────────────────┐     /api/*      ┌──────────────────┐
-│  admin-frontend │ ──────────────► │  admin-gateway   │
-│  Vite / Nginx   │   /doc.html*  │  :8080           │
-│  :3000          │ ──────────────► │  Sa-Token + 路由 │
+│    frontend     │ ──────────────► │     backend      │
+│  Vite / Nginx   │   /doc.html*    │  Spring Boot     │
+│  :3000          │ ──────────────► │  :8081           │
 └─────────────────┘                 └────────┬─────────┘
-                                           │
-                                           ▼
-                                  ┌──────────────────┐
-                                  │  admin-backend   │
-                                  │  :8081           │
-                                  └────────┬─────────┘
-                                           │
-                           ┌───────────────┴───────────────┐
-                           ▼                               ▼
-                    ┌─────────────┐                ┌─────────────┐
-                    │   MySQL     │                │   Redis     │
-                    │   RBAC1     │                │  database 1 │
-                    └─────────────┘                └─────────────┘
+                                             │
+                         ┌───────────────────┴───────────────────┐
+                         ▼                                       ▼
+                  ┌─────────────┐                        ┌─────────────┐
+                  │   MySQL     │                        │   Redis     │
+                  │  wu-admin   │                        │  database 1 │
+                  └─────────────┘                        └─────────────┘
 ```
 
-- 业务 API 前缀：`/api`（网关去掉 `/api` 转发 RBAC）
-- 示例：`/api/system/config-group/list` → `/system/config-group/list`
+- 业务 API 前缀：`/api`（后端 `server.servlet.context-path=/api`）
+- 示例：`/api/system/config-group/list`
 
 ---
 
 ## 目录结构
 
 ```
-admin/
-├── admin-gateway/              # 微服务网关
-├── admin-backend/              # RBAC 后端（见下方「后端包结构」）
-├── admin-frontend/             # Vue3 前端
+admin-vue/
+├── backend/                    # Spring Boot 后端
+│   ├── pom.xml
+│   ├── src/main/java/cn/rbac/server/
+│   │   ├── common/             # 通用 POJO、工具类
+│   │   ├── framework/          # 安全、MyBatis、Redis、Web 过滤器等
+│   │   └── modules/system/     # 系统业务（api / service / dal）
+│   └── src/main/resources/
+│       └── application.yml
+├── frontend/                   # Vue 3 前端
+│   ├── src/
+│   │   ├── api/                # 接口封装（按模块分子目录）
+│   │   ├── views/              # 页面（system、monitor、login 等）
+│   │   ├── components/         # 公共组件（DictSelect、SliderCaptcha 等）
+│   │   ├── router/             # 路由与守卫
+│   │   ├── store/              # Pinia 状态（user 等）
+│   │   ├── utils/              # request、主题、菜单工具
+│   │   └── directives/         # v-permission 等指令
+│   ├── vite.config.ts          # 开发代理 /api → backend:8081
+│   ├── nginx.conf              # 生产静态资源与 API 反代
+│   └── Dockerfile
 ├── sql/
-│   └── admin_platform.sql      # 唯一脚本：全量安装 + 文末「附录」升级段
+│   └── admin_platform.sql      # 全量安装 + 文末「附录」升级段
+├── data/                       # 本地上传目录（git 忽略，对应 file.storage.local-path）
+├── Dockerfile                  # 后端镜像（根目录）
+├── docker-compose.yml          # MySQL + Redis + backend + frontend
 ├── scripts/
-│   └── docker-rebuild.ps1
-├── Dockerfile
-├── docker-compose.yml
+│   └── docker-rebuild.ps1      # 重新打包后端并 docker compose up --build
 ├── DOCKER_DEPLOY.md
-├── MICROSERVICE_GUIDE.md
 └── README.md
 ```
 
-### 后端包结构（`admin-backend`，B 方案分层）
+### 后端包结构（`backend/src/main/java`，分层约定）
 
 依赖方向：**`modules/*` → `framework` → `common`**（`framework` 禁止引用 `modules`）。
 
@@ -188,7 +197,7 @@ cn.rbac.server/
 │   ├── mybatis/、redis/、storage/
 └── modules/
     └── system/                       # 系统域业务
-        ├── api/                      # REST Controller（原 controller.admin）
+        ├── api/                      # REST Controller
         ├── service/、dal/
         └── framework/                # 对本项目 framework SPI 的实现
             ├── config/               # SystemConfigProvider
@@ -201,7 +210,7 @@ cn.rbac.server/
 |----------|------|
 | 改会话/上传限制等运行时配置 | 改库表 `sys_config_group`，经 `SystemConfigHelper` → `SystemConfigProvider` |
 | 新增业务模块 | 增加 `modules/xxx`，在 `xxx/framework` 实现 SPI，勿让 `framework` 依赖业务 |
-| 拆独立微服务 | 将 `framework` + `common` 打成 jar，新业务服务只依赖该 jar（见 [MICROSERVICE_GUIDE.md](./MICROSERVICE_GUIDE.md)） |
+| 复用基础层 | 将 `common` + `framework` 打成 jar，供其它 Spring Boot 项目依赖 |
 
 ---
 
@@ -211,9 +220,8 @@ cn.rbac.server/
 |------|----------|
 | Node.js | 18+ |
 | Maven | 3.6+ |
-| JDK | 17（RBAC + 网关） |
-| Spring Boot | **3.5.13**（RBAC + 网关，自 2.7 升级） |
-| Spring Cloud | 2025.0.0（网关） |
+| JDK | 17 |
+| Spring Boot | **3.5.13** |
 | Springdoc / Knife4j | 2.8.9 / 4.5.0（见上文接口文档说明） |
 | MySQL | 8.0 |
 | Redis | 7.x |
@@ -226,7 +234,7 @@ cn.rbac.server/
 ### 方式一：Docker Compose（推荐）
 
 ```powershell
-cd admin
+cd admin-vue
 docker compose up -d --build
 ```
 
@@ -235,14 +243,13 @@ docker compose up -d --build
 | 服务 | 地址 |
 |------|------|
 | 前端 | http://localhost:3000 |
-| 网关 | http://localhost:8080 |
-| admin-backend（宿主机映射） | http://localhost:8082 |
-| MySQL | `127.0.0.1:3307`，库 `RBAC1`，`root`/`root` |
+| 后端 API | http://localhost:8081/api |
+| MySQL | `127.0.0.1:3307`，库 `wu-admin`，`root`/`root` |
 | Redis | `127.0.0.1:6379`，database `1` |
 
 详见 [DOCKER_DEPLOY.md](./DOCKER_DEPLOY.md)。
 
-改 Java/前端代码后重建：
+改 Java/前端代码后重建 Docker：
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts/docker-rebuild.ps1
@@ -264,24 +271,17 @@ mysql -u root -p < sql/admin_platform.sql
 
 `127.0.0.1:6379`，database **1**。
 
-#### 3. 启动 RBAC（8081）
+#### 3. 启动后端（8081）
 
 ```powershell
-cd admin-backend
+cd backend
 mvn spring-boot:run -DskipTests
 ```
 
-#### 4. 启动网关（8080）
+#### 4. 启动前端（3000）
 
 ```powershell
-cd admin-gateway
-mvn spring-boot:run -DskipTests
-```
-
-#### 5. 启动前端（3000）
-
-```powershell
-cd admin-frontend
+cd frontend
 npm install
 npm run dev
 ```
@@ -301,12 +301,13 @@ npm run dev
 
 ## 配置说明
 
-### RBAC `application.yml`
+### 后端 `application.yml`
 
 | 配置项 | 说明 |
 |--------|------|
 | `server.port` | `8081` |
-| `spring.datasource.*` | MySQL `RBAC1` |
+| `server.servlet.context-path` | `/api`（统一 API 前缀） |
+| `spring.datasource.*` | MySQL `wu-admin` |
 | `spring.redis.database` | `1` |
 | `spring.servlet.multipart.max-file-size` | 平台物理上限 **500MB** |
 | `sa-token.*` | Sa-Token 缺省（`session.tokenExpireHours` 在登录时覆盖 timeout） |
@@ -317,19 +318,18 @@ npm run dev
 
 运行时优先读取 `sys_config_group`（`SystemConfigHelper` 实现 `DynamicConfigProvider`，供 Token、文件上传等使用）。
 
-### 网关
+**Redis 业务缓存**：启动时预热系统配置（`cache:sys:config:groups`）与字典（`cache:sys:dict:*`）；修改配置或字典后自动刷新。字典管理页「刷新缓存」会同步刷新服务端 Redis。
 
-- `app.backend.base-url`：Docker 为 `http://admin-backend:8081`
-- 已放行：`/api/auth/login`、`/api/auth/register`、`/api/auth/captcha`、`/api/auth/config`、Knife4j 静态路径等
+**日志策略**：操作日志 `@Async` 写入；登录日志异步写入；API 访问日志先入 Redis 队列再批量落库。每天凌晨按 `app.log.retention.*` 清理过期日志（默认操作/登录 90 天、API 访问 30 天）。
 
 ### 前端
 
-- 开发：`vite.config.ts`
-- 生产：`npm run build` + `nginx.conf`
+- 开发：`frontend/vite.config.ts`（`/api` 代理到 `localhost:8081`）
+- 生产：`npm run build` + `frontend/nginx.conf`
 
 ---
 
-## 主要 API 前缀（经网关 `/api`）
+## 主要 API 前缀（`/api`）
 
 | 前缀 | 说明 |
 |------|------|
@@ -347,8 +347,9 @@ npm run dev
 
 | 场景 | 做法 |
 |------|------|
-| **全新安装** | 执行全文：`mysql -u root -p < sql/admin_platform.sql` |
-| **已有库升级** | 只执行文末「附录：已有库升级」段（或执行全文亦可，建表语句为 IF NOT EXISTS） |
+| **全新安装** | 执行全文：`mysql -u root -p < sql/admin_platform.sql`（空库） |
+| **已有库升级（含 wu-admin 迁移库）** | 执行 **`sql/add1.sql`**（无 DROP，可重复执行） |
+| **仅补索引** | 执行 `add1.sql` 末尾 4 条 `ALTER TABLE`，或全文 `admin_platform.sql` 附录索引段 |
 
 执行涉及菜单的升级后请**重新登录**。
 
@@ -368,7 +369,7 @@ npm run dev
 <DictTag :value="row.status" dict-type="sys_normal_disable" />
 ```
 
-常量见 `admin-frontend/src/constants/dict.js`。字典管理页修改数据后点「刷新缓存」，或调用 `clearDictCache('sys_normal_disable')`。
+常量见 `frontend/src/constants/dict.js`。字典管理页修改数据后点「刷新缓存」，或调用 `clearDictCache('sys_normal_disable')`。
 
 脚本方式：`useDict('sys_user_sex')` + `onMounted(() => load())`（见 `composables/useDict.js`）。
 
@@ -387,20 +388,19 @@ npm run dev
 ### 登录页读取配置
 
 ```javascript
-// admin-frontend/src/api/system/auth/index.js
-GET /auth/config  // 经网关 /api/auth/config
+// frontend/src/api/system/auth/index.js
+GET /auth/config  // 实际请求 /api/auth/config
 ```
 
-滑块验证码实现可参考目录 `滑块验证码-关键代码与提示词/`。
+滑块验证码组件见 `frontend/src/components/SliderCaptcha.vue`。
 
 ---
 
 ## 构建与打包
 
 ```powershell
-cd admin-frontend && npm run build
-cd admin-backend && mvn clean package -DskipTests
-cd admin-gateway && mvn clean package -DskipTests
+cd frontend && npm run build
+cd backend && mvn clean package -DskipTests
 ```
 
 ---
@@ -417,24 +417,23 @@ A：对已有库执行 `admin_platform.sql` 文末「附录：已有库升级」
 A：若开启「注册需审核」，需管理员在审批单中心通过；登录提示「账号待审核」属正常。
 
 **Q：接口文档 iframe 空白或 `/v3/api-docs` 403？**  
-A：① 确认 RBAC（8081）已启动，浏览器访问 `http://127.0.0.1:8081/v3/api-docs` 应返回 JSON；② 开发环境重启 Vite 以加载 Knife4j 代理；③ 生产环境确认网关已放行 `/api/v3/api-docs`；④ 勿将 springdoc 降为 2.6（与 Spring Boot 3.5 不兼容）；⑤ `knife4j.enable` 保持 `false` 直至升级兼容的 Knife4j 版本。
+A：① 确认后端（8081）已启动，浏览器访问 `http://127.0.0.1:8081/api/v3/api-docs` 应返回 JSON；② 开发环境重启 Vite 以加载 Knife4j 代理；③ 勿将 springdoc 降为 2.6（与 Spring Boot 3.5 不兼容）；④ `knife4j.enable` 保持 `false` 直至升级兼容的 Knife4j 版本。
 
 **Q：Knife4j 调试 404 或返回 HTML？**  
-A：已配置 OpenAPI 默认服务 `http://localhost:8080/api`；重启后端与 Vite 后，在文档页选择该服务器、方法用 PUT/POST，并填 `Authorization`。若仍 401，先登录管理端复制 token。
+A：已配置 OpenAPI 默认服务 `http://localhost:3000/api`；重启后端与 Vite 后，在文档页选择该服务器、方法用 PUT/POST，并填 `Authorization`。若仍 401，先登录管理端复制 token。
 
 **Q：上传失败提示大小或类型？**  
 A：在 **系统配置 → 文件存储** 调整；单文件上限不得超过 500MB。
 
 **Q：Git 仓库？**  
-A：https://github.com/wushij/admin.git
+A：https://github.com/wushij/wu-admin
 
 ---
 
 ## 相关文档
 
 - [Docker 部署指南](./DOCKER_DEPLOY.md)
-- [微服务说明](./MICROSERVICE_GUIDE.md)
-- [滑块验证码参考](./滑块验证码-关键代码与提示词/README.md)
+- [GitHub 上传与推送](./GitHub上传与推送全流程.md)
 
 ---
 

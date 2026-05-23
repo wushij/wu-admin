@@ -35,7 +35,7 @@ Desktop.ini
 
 # Local uploads & runtime data (file.storage.local-path → ./data/uploads)
 /data/
-admin-backend/data/
+backend/data/
 
 # IDE / editor
 .cursor/
