@@ -79,11 +79,19 @@ public class AuthController {
     
     @Operation(summary = "获取验证码")
     @GetMapping("/captcha")
-    public CommonResult<Map<String, Object>> captcha(HttpServletRequest request) {
-        if (!systemConfigHelper.isCaptchaEnabled()) {
+    public CommonResult<Map<String, Object>> captcha(
+            @RequestParam(value = "scene", defaultValue = "login") String scene,
+            HttpServletRequest request) {
+        boolean captchaEnabled = "register".equalsIgnoreCase(scene)
+                ? systemConfigHelper.isRegisterCaptchaEnabled()
+                : systemConfigHelper.isCaptchaEnabled();
+        if (!captchaEnabled) {
             return CommonResult.error(400, "当前未启用验证码");
         }
-        if (SystemConfigHelper.CAPTCHA_TYPE_SLIDER.equals(systemConfigHelper.getCaptchaType())) {
+        String captchaType = "register".equalsIgnoreCase(scene)
+                ? systemConfigHelper.getRegisterCaptchaType()
+                : systemConfigHelper.getCaptchaType();
+        if (SystemConfigHelper.CAPTCHA_TYPE_SLIDER.equals(captchaType)) {
             return CommonResult.error(400, "当前为滑块验证码，无需拉取图片验证码");
         }
 
@@ -228,7 +236,15 @@ public class AuthController {
         if (!systemConfigHelper.isRegisterCaptchaEnabled()) {
             return null;
         }
-        return validateImageCaptcha(uuid, code == null ? "" : code.trim());
+        String captchaType = systemConfigHelper.getRegisterCaptchaType();
+        String captchaInput = code == null ? "" : code.trim();
+        if (SystemConfigHelper.CAPTCHA_TYPE_SLIDER.equals(captchaType)) {
+            if (!SystemConfigHelper.SLIDER_VERIFIED_CODE.equals(captchaInput)) {
+                return "请完成滑块验证";
+            }
+            return null;
+        }
+        return validateImageCaptcha(uuid, captchaInput);
     }
 
     private String checkUserLoginStatus(UserDO user) {

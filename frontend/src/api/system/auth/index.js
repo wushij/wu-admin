@@ -17,11 +17,12 @@ export function getInfo() {
   })
 }
 
-// 获取验证码
-export function getCaptcha() {
+// 获取验证码（scene: login | register）
+export function getCaptcha(scene = 'login') {
   return request({
     url: '/auth/captcha',
-    method: 'get'
+    method: 'get',
+    params: { scene }
   })
 }
 
