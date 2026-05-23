@@ -20,4 +20,4 @@ try {
     Pop-Location
 }
 
-Write-Host "完成。前端: http://localhost:3000  后端 API: http://localhost:8081/api"
+Write-Host "完成。前端: http://localhost:3000  后端 API: http://localhost:8080/api"

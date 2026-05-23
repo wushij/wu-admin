@@ -31,7 +31,7 @@ import { Document, Refresh, TopRight } from '@element-plus/icons-vue'
 
 /**
  * Knife4j 页面引用 /webjars、/swagger-ui 等同源根路径，
- * 开发环境由 Vite 代理到 backend:8081/api；生产由 nginx 转发
+ * 开发环境由 Vite 代理到 backend:8080/api；生产由 nginx 转发
  */
 const docUrl = '/doc.html'
 

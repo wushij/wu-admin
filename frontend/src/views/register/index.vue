@@ -291,8 +291,8 @@
               </el-input>
             </el-form-item>
 
-            <!-- 图片验证码 -->
-            <el-form-item v-if="captchaEnabled" prop="code" class="form-item">
+            <!-- 图片验证码（滑块模式不显示表单项，提交时弹窗） -->
+            <el-form-item v-if="captchaEnabled && captchaType === 'image'" prop="code" class="form-item">
               <div class="captcha-row">
                 <el-input
                   v-model="formData.code"
@@ -348,6 +348,7 @@
         </div>
       </div>
     </div>
+    <SliderCaptcha v-model:show="showSliderModal" @success="doRegister" />
   </div>
 </template>
 
@@ -357,8 +358,10 @@ import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { User, Lock, Key, UserFilled } from '@element-plus/icons-vue'
 import { getCaptcha, register, getConfig } from '@/api/system/auth'
+import SliderCaptcha from '@/components/SliderCaptcha.vue'
 
 const router = useRouter()
+const showSliderModal = ref(false)
 
 // 粒子加载完成回调
 const particlesLoaded = async (container) => {
@@ -460,6 +463,7 @@ const options3 = {
 
 // 配置
 const captchaEnabled = ref(true)
+const captchaType = ref('image') // image | slider
 const minPasswordLength = ref(6)
 const sitePlatformName = ref('Admin Platform')
 const sitePlatformSubtitle = ref('统一运维 · 高效管控')
@@ -482,6 +486,9 @@ async function loadConfig() {
         if (config.register.captchaEnabled !== undefined) {
           captchaEnabled.value = config.register.captchaEnabled !== false
         }
+        if (config.register.captchaType) {
+          captchaType.value = config.register.captchaType
+        }
         if (config.register.minPasswordLength) {
           minPasswordLength.value = Number(config.register.minPasswordLength) || 6
         }
@@ -501,10 +508,10 @@ async function loadConfig() {
   }
 }
 
-// 加载验证码
+// 加载验证码（仅图片模式）
 async function loadCaptcha() {
   try {
-    const res = await getCaptcha()
+    const res = await getCaptcha('register')
     captchaImg.value = 'data:image/png;base64,' + res.data.img
     captchaUuid.value = res.data.uuid
   } catch (error) {
@@ -514,7 +521,7 @@ async function loadCaptcha() {
 
 onMounted(async () => {
   await loadConfig()
-  if (captchaEnabled.value) {
+  if (captchaEnabled.value && captchaType.value === 'image') {
     loadCaptcha()
   }
 })
@@ -559,7 +566,7 @@ const rules = computed(() => {
       { validator: validateConfirmPassword, trigger: 'blur' }
     ]
   }
-  if (captchaEnabled.value) {
+  if (captchaEnabled.value && captchaType.value === 'image') {
     base.code = [{ required: true, message: '请输入验证码', trigger: 'blur' }]
   }
   return base
@@ -586,33 +593,44 @@ async function handleRegister() {
 
   await formRef.value.validate(async (valid) => {
     if (!valid) return
+    if (captchaEnabled.value && captchaType.value === 'slider') {
+      showSliderModal.value = true
+      return
+    }
+    await doRegister()
+  })
+}
 
-    loading.value = true
-    try {
-      const registerData = {
-        username: formData.username,
-        password: formData.password,
-        nickname: formData.nickname || undefined
-      }
+async function doRegister() {
+  loading.value = true
+  try {
+    const registerData = {
+      username: formData.username,
+      password: formData.password,
+      nickname: formData.nickname || undefined
+    }
 
-      if (captchaEnabled.value) {
+    if (captchaEnabled.value) {
+      if (captchaType.value === 'slider') {
+        registerData.code = 'slider_verified'
+      } else {
         registerData.uuid = captchaUuid.value
         registerData.code = formData.code
       }
-
-      const res = await register(registerData)
-      ElMessage.success(res.message || res.msg || '注册成功，请登录')
-      router.push('/login')
-    } catch (error) {
-      console.error('注册失败', error)
-      if (captchaEnabled.value) {
-        loadCaptcha()
-        formData.code = ''
-      }
-    } finally {
-      loading.value = false
     }
-  })
+
+    const res = await register(registerData)
+    ElMessage.success(res.message || res.msg || '注册成功，请登录')
+    router.push('/login')
+  } catch (error) {
+    console.error('注册失败', error)
+    if (captchaEnabled.value && captchaType.value === 'image') {
+      loadCaptcha()
+      formData.code = ''
+    }
+  } finally {
+    loading.value = false
+  }
 }
 
 function goLogin() {

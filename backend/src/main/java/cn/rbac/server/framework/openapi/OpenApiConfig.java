@@ -25,7 +25,7 @@ public class OpenApiConfig {
                         .version("1.0.0"))
                 .servers(List.of(
                         new Server().url(serverUrl).description("开发环境（经 Vite/Nginx 代理）"),
-                        new Server().url("http://127.0.0.1:8081/api").description("直连后端")
+                        new Server().url("http://127.0.0.1:8080/api").description("直连后端")
                 ));
     }
 }

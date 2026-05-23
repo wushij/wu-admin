@@ -88,7 +88,7 @@
 ### 接口文档（`/tool/api-doc`）
 
 - **开发工具 → 接口文档**，内嵌 Knife4j（基于 **Springdoc OpenAPI 3**）
-- 开发：文档静态资源经 Vite 代理到后端 `8081`；**调试请求**默认 `http://localhost:3000/api`
+- 开发：文档静态资源经 Vite 代理到后端 `8080`；**调试请求**默认 `http://localhost:3000/api`
 - 生产：Nginx → 后端 `/api/doc.html`、`/api/v3/api-docs` 等
 - 调试需带请求头 `Authorization: <登录 token>`，修改类接口用 **PUT/POST**，勿用 GET
 - Spring Boot **3.5** 需 **springdoc ≥ 2.8.9**；`knife4j.enable` 建议为 `false`（4.5.0 增强模块与 springdoc 2.8 API 不兼容，关闭后 `doc.html` 仍正常）
@@ -124,7 +124,7 @@
 ┌─────────────────┐     /api/*      ┌──────────────────┐
 │    frontend     │ ──────────────► │     backend      │
 │  Vite / Nginx   │   /doc.html*    │  Spring Boot     │
-│  :3000          │ ──────────────► │  :8081           │
+│  :3000          │ ──────────────► │  :8080           │
 └─────────────────┘                 └────────┬─────────┘
                                              │
                          ┌───────────────────┴───────────────────┐
@@ -161,7 +161,7 @@ admin-vue/
 │   │   ├── store/              # Pinia 状态（user 等）
 │   │   ├── utils/              # request、主题、菜单工具
 │   │   └── directives/         # v-permission 等指令
-│   ├── vite.config.ts          # 开发代理 /api → backend:8081
+│   ├── vite.config.ts          # 开发代理 /api → backend:8080
 │   ├── nginx.conf              # 生产静态资源与 API 反代
 │   └── Dockerfile
 ├── sql/
@@ -243,7 +243,7 @@ docker compose up -d --build
 | 服务 | 地址 |
 |------|------|
 | 前端 | http://localhost:3000 |
-| 后端 API | http://localhost:8081/api |
+| 后端 API | http://localhost:8080/api |
 | MySQL | `127.0.0.1:3307`，库 `wu-admin`，`root`/`root` |
 | Redis | `127.0.0.1:6379`，database `1` |
 
@@ -271,7 +271,7 @@ mysql -u root -p < sql/admin_platform.sql
 
 `127.0.0.1:6379`，database **1**。
 
-#### 3. 启动后端（8081）
+#### 3. 启动后端（8080）
 
 ```powershell
 cd backend
@@ -305,7 +305,7 @@ npm run dev
 
 | 配置项 | 说明 |
 |--------|------|
-| `server.port` | `8081` |
+| `server.port` | `8080` |
 | `server.servlet.context-path` | `/api`（统一 API 前缀） |
 | `spring.datasource.*` | MySQL `wu-admin` |
 | `spring.redis.database` | `1` |
@@ -324,7 +324,7 @@ npm run dev
 
 ### 前端
 
-- 开发：`frontend/vite.config.ts`（`/api` 代理到 `localhost:8081`）
+- 开发：`frontend/vite.config.ts`（`/api` 代理到 `localhost:8080`）
 - 生产：`npm run build` + `frontend/nginx.conf`
 
 ---
@@ -417,7 +417,7 @@ A：对已有库执行 `admin_platform.sql` 文末「附录：已有库升级」
 A：若开启「注册需审核」，需管理员在审批单中心通过；登录提示「账号待审核」属正常。
 
 **Q：接口文档 iframe 空白或 `/v3/api-docs` 403？**  
-A：① 确认后端（8081）已启动，浏览器访问 `http://127.0.0.1:8081/api/v3/api-docs` 应返回 JSON；② 开发环境重启 Vite 以加载 Knife4j 代理；③ 勿将 springdoc 降为 2.6（与 Spring Boot 3.5 不兼容）；④ `knife4j.enable` 保持 `false` 直至升级兼容的 Knife4j 版本。
+A：① 确认后端（8080）已启动，浏览器访问 `http://127.0.0.1:8080/api/v3/api-docs` 应返回 JSON；② 开发环境重启 Vite 以加载 Knife4j 代理；③ 勿将 springdoc 降为 2.6（与 Spring Boot 3.5 不兼容）；④ `knife4j.enable` 保持 `false` 直至升级兼容的 Knife4j 版本。
 
 **Q：Knife4j 调试 404 或返回 HTML？**  
 A：已配置 OpenAPI 默认服务 `http://localhost:3000/api`；重启后端与 Vite 后，在文档页选择该服务器、方法用 PUT/POST，并填 `Authorization`。若仍 401，先登录管理端复制 token。

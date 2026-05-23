@@ -135,6 +135,13 @@ public class SysConfigGroupServiceImpl implements SysConfigGroupService {
     }
 
     private void validateRegisterConfig(JSONObject json) {
+        boolean captchaEnabled = json.getBool("captchaEnabled", true);
+        if (captchaEnabled) {
+            String type = json.getStr("captchaType", SystemConfigHelper.CAPTCHA_TYPE_IMAGE);
+            if (StrUtil.isBlank(type) || !LOGIN_CAPTCHA_TYPES.contains(type)) {
+                throw new IllegalArgumentException("注册验证码类型仅支持 image 或 slider");
+            }
+        }
         if (json.containsKey("defaultRoleCode")) {
             String code = json.getStr("defaultRoleCode");
             if (StrUtil.isBlank(code)) {
