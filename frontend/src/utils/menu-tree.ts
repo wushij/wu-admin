@@ -23,16 +23,16 @@ export function buildMenuTree<T extends MenuNode>(list: T[]): T[] {
       map.get(pid)!.children.push(node as T)
     }
   })
-  const prune = (nodes: (T & { children?: T[] })[]) => {
+  const prune = (nodes: Array<T & { children?: T[] }>) => {
     nodes.forEach((n) => {
       if (n.children?.length) {
-        prune(n.children)
+        prune(n.children as Array<T & { children?: T[] }>)
       } else {
         delete n.children
       }
     })
   }
-  prune(roots as (T & { children?: T[] })[])
+  prune(roots as Array<T & { children?: T[] }>)
   return roots
 }
 

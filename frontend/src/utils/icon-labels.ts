@@ -237,7 +237,7 @@ export const ICON_CN_LABELS: Record<string, string> = {
   ShoppingTrolley: '手推车',
   ToiletPaper: '纸巾',
   Film: '胶片',
-  PictureRounded: '图像',
+  PictureRoundedAlt: '图像',
   ChromeFilled: '浏览器',
   Eleme: '饿了么',
   ElemeFilled: '饿了么',

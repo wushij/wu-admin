@@ -20,9 +20,11 @@
   </el-select>
 </template>
 
-<script setup>
-import { computed, onMounted, toRef, watch } from 'vue'
+<script setup lang="ts">
+import { computed, onMounted, toRef, watch, type PropType } from 'vue'
 import { useDict } from '@/composables/useDict'
+
+type DictValueType = 'auto' | 'number' | 'string'
 
 const props = defineProps({
   modelValue: { type: [String, Number, Array, Boolean], default: undefined },
@@ -35,7 +37,7 @@ const props = defineProps({
   collapseTags: { type: Boolean, default: false },
   width: { type: String, default: '100%' },
   /** number | string | auto — 与表单字段类型对齐 */
-  valueType: { type: String, default: 'auto' }
+  valueType: { type: String as PropType<DictValueType>, default: 'auto' }
 })
 
 const emit = defineEmits(['update:modelValue'])

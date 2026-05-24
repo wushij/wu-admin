@@ -35,7 +35,7 @@ public class SystemPermissionService implements PermissionApi {
         }
         if (permission != null && permission.endsWith(":list")) {
             String prefix = permission.substring(0, permission.length() - 5);
-            return hasPermission(prefix + "query") || hasPermission(prefix + "upload");
+            return hasPermission(prefix + ":query") || hasPermission(prefix + ":upload");
         }
         return false;
     }

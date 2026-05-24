@@ -11,7 +11,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 
@@ -19,8 +19,9 @@ const route = useRoute()
 const iframeRef = ref(null)
 const loading = ref(true)
 
-const frameSrc = computed(() => {
-  return route.meta.frameSrc || '/doc.html'
+const frameSrc = computed((): string => {
+  const src = route.meta.frameSrc
+  return typeof src === 'string' && src ? src : '/doc.html'
 })
 
 function handleLoad() {

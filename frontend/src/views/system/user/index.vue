@@ -171,7 +171,8 @@
           <el-tree-select
             v-model="form.deptId"
             :data="deptSelectOptions"
-            :props="{ label: 'name', value: 'id', disabled: 'disabled' }"
+            node-key="id"
+            :props="{ label: 'name', children: 'children', disabled: 'disabled' }"
             placeholder="请选择部门"
             check-strictly
             clearable
@@ -214,7 +215,7 @@
           </el-radio-group>
         </el-form-item>
         <el-form-item label="备注" prop="remark">
-          <el-input v-model="form.remark" type="textarea" rows="3" placeholder="请输入备注" />
+          <el-input v-model="form.remark" type="textarea" :rows="3" placeholder="请输入备注" />
         </el-form-item>
       </el-form>
       <template #footer>
@@ -301,10 +302,11 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, reactive, onMounted, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { Refresh, User, Delete } from '@element-plus/icons-vue'
 import { getUserPage, createUser, updateUser, deleteUser, assignUserRole, updateUserStatus, resetUserPassword, getUserRoleIds, getRecycleUserPage, restoreUser, deleteUserPermanent } from '@/api/system/user'
 import { getRoleList } from '@/api/system/role'
 import { getDeptTree } from '@/api/system/dept'
@@ -320,7 +322,7 @@ const roleDialogVisible = ref(false)
 const resetPwdVisible = ref(false)
 const formRef = ref(null)
 const deptTreeRef = ref(null)
-const currentUser = ref({})
+const currentUser = ref<Partial<import('@/api/system/user').UserVO>>({})
 const selectedRole = ref(null)
 const roleOptions = ref([])
 const deptOptions = ref([])

@@ -184,7 +184,7 @@
         <el-descriptions-item label="状态">{{ formatStatus(current.status) }}</el-descriptions-item>
         <el-descriptions-item label="申请人">{{ current.applicantName || '-' }}</el-descriptions-item>
         <el-descriptions-item label="审批人">{{ current.approverName || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="审批意见">{{ current.resultRemark?.trim() || '无' }}</el-descriptions-item>
+        <el-descriptions-item label="审批意见">{{ String(current.resultRemark || '').trim() || '无' }}</el-descriptions-item>
         <el-descriptions-item v-if="current.formType === 'REGISTER'" label="注册账号">
           {{ registerDetail.username || '-' }}
         </el-descriptions-item>
@@ -207,7 +207,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -241,7 +241,7 @@ const recycleList = ref([])
 const recycleTotal = ref(0)
 const detailVisible = ref(false)
 const formRef = ref(null)
-const current = ref({})
+const current = ref<import('@/api/system/approval').ApprovalVO | Record<string, unknown>>({})
 const records = ref([])
 const approveAction = ref('APPROVE')
 const approveRemark = ref('')
@@ -274,7 +274,7 @@ const rules = {
   content: [{ required: true, message: '请输入审批内容', trigger: 'blur' }]
 }
 
-const registerDetail = ref({})
+const registerDetail = ref<Record<string, unknown>>({})
 
 const parseRegisterContent = (content) => {
   if (!content) return {}

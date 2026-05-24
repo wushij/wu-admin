@@ -43,6 +43,7 @@ public class SecurityConfig {
     @Bean
     public WebSecurityCustomizer knife4jWebSecurityCustomizer() {
         return web -> web.ignoring().requestMatchers(
+                "/ws/**",
                 "/doc.html",
                 "/webjars/**",
                 "/v3/api-docs",

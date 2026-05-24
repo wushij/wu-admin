@@ -11,7 +11,7 @@
           <span class="logo-subtitle">{{ sitePlatformSubtitle }}</span>
         </div>
       </div>
-      
+
       <div class="menu-wrapper">
         <el-menu
           :default-active="activeMenu"
@@ -26,7 +26,7 @@
               <span>工作台</span>
             </template>
           </el-menu-item>
-          
+
           <!-- 动态菜单：根据用户权限显示 -->
           <template v-for="menu in userMenus" :key="menu.id">
             <el-sub-menu
@@ -41,9 +41,9 @@
                 </el-icon>
                 <span>{{ menu.name }}</span>
               </template>
-              <el-menu-item 
-                v-for="child in menu.children" 
-                :key="child.id" 
+              <el-menu-item
+                v-for="child in menu.children"
+                :key="child.id"
                 :index="resolveMenuIndex(child)"
                 class="menu-item"
               >
@@ -77,32 +77,75 @@
           </el-breadcrumb>
         </div>
         <div class="header-right">
-          <el-popover trigger="click" placement="bottom-end" :width="340">
+          <el-popover trigger="click" placement="bottom-end" :width="340" @show="loadMessages">
             <template #reference>
-              <el-badge :value="unreadCount" :hidden="!unreadCount" class="notice-badge">
+              <el-badge :value="messageStore.totalUnread" :hidden="!messageStore.totalUnread" class="notice-badge">
                 <el-icon class="notice-icon" :size="20"><component :is="ElementPlusIconsVue.Bell" /></el-icon>
               </el-badge>
             </template>
-            <div class="notice-panel">
-              <div class="notice-panel-header">
-                <span>站内消息</span>
-                <el-button link type="primary" @click="handleReadAllNotice">全部已读</el-button>
-              </div>
-              <div class="notice-list" v-if="noticeList.length">
-                <div
-                  class="notice-item"
-                  :class="{ unread: item.readStatus === 0 }"
-                  v-for="item in noticeList"
-                  :key="item.id"
-                  @click="handleReadNotice(item)"
-                >
-                  <div class="notice-title">{{ item.title }}</div>
-                  <div class="notice-content">{{ item.content }}</div>
-                  <div class="notice-time">{{ item.createTime }}</div>
+            <el-tabs v-model="messageTab" class="message-tabs">
+              <el-tab-pane name="inbox">
+                <template #label>
+                  <span>业务消息</span>
+                  <el-badge v-if="messageStore.inboxCount" :value="messageStore.inboxCount" class="tab-badge" />
+                </template>
+                <div class="notice-panel-header">
+                  <span>工单 / 审批等业务提醒</span>
+                  <el-button link type="primary" @click="handleReadAllInbox">全部已读</el-button>
                 </div>
-              </div>
-              <el-empty v-else description="暂无消息" :image-size="60" />
-            </div>
+                <div class="notice-list" v-if="inboxList.length">
+                  <div
+                    class="notice-item"
+                    :class="{ unread: item.readStatus === 0 }"
+                    v-for="item in inboxList"
+                    :key="item.id"
+                    @click="handleReadInbox(item)"
+                  >
+                    <div class="notice-title">{{ item.title }}</div>
+                    <div class="notice-content">{{ item.content }}</div>
+                    <div class="notice-time">{{ item.createTime }}</div>
+                  </div>
+                </div>
+                <el-empty v-else description="暂无业务消息" :image-size="60" />
+              </el-tab-pane>
+              <el-tab-pane name="announce">
+                <template #label>
+                  <span>系统通知</span>
+                  <el-badge v-if="messageStore.announceCount" :value="messageStore.announceCount" class="tab-badge" />
+                </template>
+                <div class="notice-panel-header">
+                  <span>平台公告与通知</span>
+                  <el-button link type="primary" @click="handleReadAllAnnounce">全部已读</el-button>
+                </div>
+                <div class="notice-list" v-if="announceList.length">
+                  <div
+                    class="notice-item"
+                    :class="{ unread: !item.isRead }"
+                    v-for="item in announceList"
+                    :key="item.id"
+                    @click="handleReadAnnounce(item)"
+                  >
+                    <div class="notice-title">{{ item.title }}</div>
+                    <div class="notice-content">{{ item.content }}</div>
+                    <div class="notice-time">{{ item.createTime }}</div>
+                  </div>
+                </div>
+                <el-empty v-else description="暂无系统通知" :image-size="60" />
+                <div class="panel-footer">
+                  <el-button link type="primary" @click="router.push('/message/notice')">管理通知</el-button>
+                </div>
+              </el-tab-pane>
+              <el-tab-pane name="chat">
+                <template #label>
+                  <span>聊天</span>
+                  <el-badge v-if="messageStore.chatCount" :value="messageStore.chatCount" class="tab-badge" />
+                </template>
+                <div class="chat-tab-body">
+                  <p class="chat-hint">即时聊天未读 {{ messageStore.chatCount }} 条</p>
+                  <el-button type="primary" @click="router.push('/message/chat')">进入聊天</el-button>
+                </div>
+              </el-tab-pane>
+            </el-tabs>
           </el-popover>
           <!-- 主题色选择器 -->
           <el-popover
@@ -135,7 +178,7 @@
               />
             </div>
           </el-popover>
-          
+
           <el-dropdown @command="handleCommand">
             <span class="user-info">
               <el-avatar :size="32" :icon="ElementPlusIconsVue.UserFilled" />
@@ -161,18 +204,23 @@
         </router-view>
       </div>
     </div>
+    <MessageNotification />
   </div>
 </template>
 
-<script setup>
-import { ref, computed, onMounted } from 'vue'
+<script setup lang="ts">
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/store/user'
 import * as ElementPlusIconsVue from '@element-plus/icons-vue'
 import { themePresets, applyTheme, saveTheme, getCurrentTheme, adjustColor } from '@/utils/theme'
 import { resolveMenuIcon } from '@/utils/menu-icon'
 import { ElMessage } from 'element-plus'
-import { getMyNoticeList, getUnreadNoticeCount, readAllNotice, readNotice } from '@/api/system/notice'
+import { getMyNoticeList, readAllNotice, readNotice } from '@/api/system/notice'
+import { getMyAnnounce, readAnnounce, readAllAnnounce } from '@/api/message/index'
+import { useMessageStore, type InboxNoticeItem } from '@/store/message'
+import type { AnnounceItem } from '@/types/message'
+import MessageNotification from '@/components/MessageNotification.vue'
 import { getConfig } from '@/api/system/auth'
 import { preloadDicts } from '@/composables/useDict'
 import { COMMON_DICT_TYPES } from '@/constants/dict'
@@ -182,9 +230,13 @@ const getIconComponent = (iconName) => resolveMenuIcon(iconName)
 const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
+const messageStore = useMessageStore()
 
 const isCollapse = ref(false)
 const activeMenu = computed(() => route.path)
+const messageTab = ref('inbox')
+const inboxList = ref<InboxNoticeItem[]>([])
+const announceList = ref<AnnounceItem[]>([])
 /** 仅「系统管理」一级菜单点击时图标转一圈 */
 const SYSTEM_MENU_ID = '1'
 const menuIconSpinKey = ref('')
@@ -192,7 +244,6 @@ const MENU_ICON_SPIN_MS = 520
 
 const isSystemMenu = (menu) => String(menu?.id) === SYSTEM_MENU_ID || menu?.name === '系统管理'
 
-// 主题色配置
 const presetColors = [
   { name: 'default', color: '#111827', label: '深灰' },
   { name: 'blue', color: '#1890ff', label: '蓝色' },
@@ -207,8 +258,6 @@ const presetColors = [
 ]
 
 const currentColor = ref(getCurrentTheme().primaryColor)
-const unreadCount = ref(0)
-const noticeList = ref([])
 const sitePlatformName = ref('Admin Platform')
 const sitePlatformSubtitle = ref('Management System')
 
@@ -224,18 +273,15 @@ async function loadSiteConfig() {
   }
 }
 
-// 主题色切换
 function handleColorChange(color) {
   if (color) {
     currentColor.value = color
-    // 查找对应的主题配置
     const themeEntry = Object.entries(themePresets).find(([_, config]) => config.primaryColor === color)
     if (themeEntry) {
-      const [themeName, themeConfig] = themeEntry
+      const [, themeConfig] = themeEntry
       applyTheme(themeConfig)
       saveTheme(themeConfig)
     } else {
-      // 自定义颜色
       const customTheme = {
         primaryColor: color,
         primaryColorHover: adjustColor(color, 30),
@@ -243,7 +289,7 @@ function handleColorChange(color) {
         textColorBase: '#1F2937',
         textColor2: '#6B7280',
         borderColor: '#E5E7EB',
-        bgColor: '#F9FAFB'
+        bgColor: '#F9FAFB',
       }
       applyTheme(customTheme)
       saveTheme(customTheme)
@@ -251,38 +297,27 @@ function handleColorChange(color) {
   }
 }
 
-// 获取用户有权限的菜单
 const userMenus = computed(() => {
   const menus = userStore.menus || []
-  // 过滤按钮类型，只保留目录和菜单
   const filteredMenus = menus.filter(menu => menu.type !== 3)
-  // 构建树形结构
   const menuMap = {}
   const rootMenus = []
-  
-  // 先建立映射
+
   filteredMenus.forEach(menu => {
-    menuMap[menu.id] = {
-      ...menu,
-      children: []
-    }
+    menuMap[menu.id] = { ...menu, children: [] }
   })
-  
-  // 构建树
+
   filteredMenus.forEach(menu => {
     const node = menuMap[menu.id]
     if (menu.parentId === 0 || !menu.parentId) {
-      // 根节点
       rootMenus.push(node)
     } else if (menuMap[menu.parentId]) {
-      // 添加到父节点
       menuMap[menu.parentId].children.push(node)
     }
   })
-  
-  // 移除空的 children 数组
-  const cleanChildren = (menus) => {
-    menus.forEach(menu => {
+
+  const cleanChildren = (items) => {
+    items.forEach(menu => {
       if (menu.children && menu.children.length === 0) {
         delete menu.children
       } else if (menu.children) {
@@ -291,11 +326,10 @@ const userMenus = computed(() => {
     })
   }
   cleanChildren(rootMenus)
-  
+
   return rootMenus
 })
 
-/** 外链菜单（component 为 http(s)）新窗口打开；其余走路由 */
 function resolveMenuIndex(menu) {
   const comp = menu?.component?.trim()
   if (comp && /^https?:\/\//i.test(comp)) {
@@ -359,21 +393,33 @@ const handleCommand = async (command) => {
   }
 }
 
-const loadNotices = async () => {
+const loadAnnounceList = async () => {
   try {
-    const [countRes, listRes] = await Promise.all([getUnreadNoticeCount(), getMyNoticeList()])
-    unreadCount.value = countRes.data || 0
-    noticeList.value = listRes.data || []
+    const res = await getMyAnnounce({ pageNo: 1, pageSize: 20 })
+    announceList.value = res.data?.list || []
   } catch (error) {
-    console.error('加载站内消息失败', error)
+    console.error('加载系统通知失败', error)
   }
 }
 
-const handleReadNotice = async (item) => {
+const loadMessages = async () => {
+  try {
+    const [inboxRes] = await Promise.all([
+      getMyNoticeList(),
+      loadAnnounceList(),
+    ])
+    inboxList.value = inboxRes.data || []
+    await messageStore.refreshSummary()
+  } catch (error) {
+    console.error('加载消息失败', error)
+  }
+}
+
+const handleReadInbox = async (item: InboxNoticeItem) => {
   if (item.readStatus === 0) {
     await readNotice(item.id)
     item.readStatus = 1
-    unreadCount.value = Math.max(0, unreadCount.value - 1)
+    messageStore.inboxCount = Math.max(0, messageStore.inboxCount - 1)
   }
   if (item.bizType === 'TICKET' && item.bizId) {
     router.push({ path: '/system/ticket', query: { ticketId: item.bizId } })
@@ -384,18 +430,31 @@ const handleReadNotice = async (item) => {
   }
 }
 
-const handleReadAllNotice = async () => {
-  await readAllNotice()
-  ElMessage.success('已全部标记为已读')
-  unreadCount.value = 0
-  noticeList.value = noticeList.value.map(item => ({ ...item, readStatus: 1 }))
+const handleReadAnnounce = async (item: AnnounceItem) => {
+  if (!item.isRead) {
+    await readAnnounce(item.id)
+    item.isRead = 1
+    messageStore.announceCount = Math.max(0, messageStore.announceCount - 1)
+  }
 }
 
-// 初始化获取用户信息
+const handleReadAllInbox = async () => {
+  await readAllNotice()
+  ElMessage.success('业务消息已全部已读')
+  inboxList.value = inboxList.value.map(item => ({ ...item, readStatus: 1 }))
+  await messageStore.refreshSummary()
+}
+
+const handleReadAllAnnounce = async () => {
+  await readAllAnnounce()
+  ElMessage.success('系统通知已全部已读')
+  announceList.value = announceList.value.map(item => ({ ...item, isRead: 1 }))
+  await messageStore.refreshSummary()
+}
+
 onMounted(async () => {
-  // 应用保存的主题色
   handleColorChange(currentColor.value)
-  
+
   if (!userStore.menus || userStore.menus.length === 0) {
     try {
       await userStore.getUserInfo()
@@ -403,16 +462,30 @@ onMounted(async () => {
       console.error('获取用户信息失败', error)
     }
   }
-  loadNotices()
+  loadMessages()
+  messageStore.initWebSocket()
   loadSiteConfig()
   preloadDicts(COMMON_DICT_TYPES).catch(() => {})
+})
+
+watch(() => messageStore.announceListTick, () => {
+  loadAnnounceList()
+})
+
+watch(messageTab, (tab) => {
+  if (tab === 'announce') loadAnnounceList()
+})
+
+onUnmounted(() => {
+  messageStore.destroyWebSocket()
 })
 </script>
 
 <style scoped>
 .layout-container {
   display: flex;
-  height: 100vh;
+  height: 100%;
+  overflow: hidden;
 }
 
 .sidebar {
@@ -569,6 +642,29 @@ onMounted(async () => {
   color: var(--theme-text-base, #1F2937);
 }
 
+.message-tabs :deep(.el-tabs__header) {
+  margin-bottom: 8px;
+}
+
+.tab-badge {
+  margin-left: 6px;
+}
+
+.panel-footer {
+  text-align: center;
+  padding-top: 8px;
+}
+
+.chat-tab-body {
+  text-align: center;
+  padding: 24px 12px;
+}
+
+.chat-hint {
+  color: #666;
+  margin-bottom: 12px;
+}
+
 .notice-panel-header {
   display: flex;
   justify-content: space-between;
@@ -620,7 +716,6 @@ onMounted(async () => {
   color: var(--theme-primary, #111827);
 }
 
-/* 主题色选择器样式 */
 .theme-picker-content {
   padding: 10px 0;
 }
@@ -671,9 +766,11 @@ onMounted(async () => {
 
 .main-content {
   flex: 1;
+  min-height: 0;
   padding: 20px;
   background: var(--theme-bg, #f0f2f5);
   overflow: auto;
+  scrollbar-gutter: stable;
 }
 
 .fade-enter-active,
@@ -748,7 +845,6 @@ onMounted(async () => {
   justify-content: center;
 }
 
-/* 仅「系统管理」：点击/展开时图标转一圈 */
 :deep(.sidebar-menu .el-icon.is-spin-once) {
   animation: sidebar-menu-icon-spin 0.52s ease;
 }

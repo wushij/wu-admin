@@ -26,6 +26,9 @@ import java.util.UUID;
 @Service
 public class SysFileServiceImpl extends ServiceImpl<SysFileMapper, SysFileDO> implements SysFileService {
 
+    /** 即时聊天图片专用目录，文件列表默认不展示 */
+    public static final String CHAT_IMAGE_PATH_PREFIX = "images/chat/";
+
     @Resource
     private LocalFileStorage localFileStorage;
 
@@ -34,6 +37,7 @@ public class SysFileServiceImpl extends ServiceImpl<SysFileMapper, SysFileDO> im
                                              String fileCategory, String originalName) {
         Page<SysFileDO> pageParam = new Page<>(pageNo, pageSize);
         LambdaQueryWrapper<SysFileDO> wrapper = new LambdaQueryWrapper<>();
+        excludeChatInternalFiles(wrapper);
         if (Boolean.TRUE.equals(ungrouped)) {
             wrapper.isNull(SysFileDO::getGroupId);
         } else if (groupId != null) {
@@ -98,6 +102,20 @@ public class SysFileServiceImpl extends ServiceImpl<SysFileMapper, SysFileDO> im
             throw new IllegalArgumentException("请上传图片文件");
         }
         return upload(file, "images/" + generatePath(), null);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public SysFileDO uploadChatImage(MultipartFile file) {
+        String contentType = file.getContentType();
+        if (contentType == null || !contentType.startsWith("image/")) {
+            throw new IllegalArgumentException("请上传图片文件");
+        }
+        return upload(file, CHAT_IMAGE_PATH_PREFIX + generatePath(), null);
+    }
+
+    private void excludeChatInternalFiles(LambdaQueryWrapper<SysFileDO> wrapper) {
+        wrapper.notLikeRight(SysFileDO::getFilePath, CHAT_IMAGE_PATH_PREFIX);
     }
 
     @Override

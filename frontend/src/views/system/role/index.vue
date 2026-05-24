@@ -126,7 +126,7 @@
           />
         </el-form-item>
         <el-form-item label="备注" prop="remark">
-          <el-input v-model="form.remark" type="textarea" rows="3" placeholder="请输入备注" />
+          <el-input v-model="form.remark" type="textarea" :rows="3" placeholder="请输入备注" />
         </el-form-item>
       </el-form>
       <template #footer>
@@ -199,7 +199,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, reactive, onMounted, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getRoleList, createRole, updateRole, deleteRole, assignRoleMenu, updateRoleStatus, getRoleMenuIds, getRecycleRolePage, restoreRole, deleteRolePermanent } from '@/api/system/role'
@@ -213,7 +213,7 @@ const dialogTitle = ref('')
 const menuDialogVisible = ref(false)
 const formRef = ref(null)
 const menuTreeRef = ref(null)
-const currentRole = ref({})
+const currentRole = ref<Partial<import('@/api/system/role').RoleVO>>({})
 const selectedMenus = ref([])
 const menuOptions = ref([])
 const recycleVisible = ref(false)

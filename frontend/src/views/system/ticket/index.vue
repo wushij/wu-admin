@@ -195,7 +195,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -234,7 +234,7 @@ const formRef = ref(null)
 const comments = ref([])
 const attachments = ref([])
 const commentText = ref('')
-const currentTicket = ref({})
+const currentTicket = ref<Partial<import('@/api/system/ticket').TicketVO>>({})
 
 const queryParams = reactive({
   pageNo: 1,
