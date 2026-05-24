@@ -1,11 +1,6 @@
-export interface MenuNode {
-  id: number
-  name: string
-  type?: number
-  parentId?: number
-  children?: MenuNode[]
-  [key: string]: unknown
-}
+import type { MenuTreeNode } from '@/types/api'
+
+export type MenuNode = MenuTreeNode
 
 /** 扁平列表转树（parentId 为 0 或 null 为根） */
 export function buildMenuTree<T extends MenuNode>(list: T[]): T[] {

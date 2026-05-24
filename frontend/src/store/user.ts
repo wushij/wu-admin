@@ -1,36 +1,21 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
+import type { MenuTreeNode } from '@/types/api'
 import { login, getInfo, logout as logoutApi } from '@/api/system/auth'
-import type { LoginForm } from '@/types/api'
+import type { LoginForm, AuthInfo } from '@/types/api'
 import { useMessageStore } from '@/store/message'
 
-interface UserInfo {
-  userId?: number
-  username?: string
-  nickname?: string
-  avatar?: string
-  roles?: string[]
-  permissions?: string[]
-}
+/** 登录后内存中的用户信息（与 /auth/info 字段子集一致） */
+export type UserInfo = Partial<
+  Pick<AuthInfo, 'userId' | 'username' | 'nickname' | 'avatar' | 'roles' | 'permissions'>
+>
 
-interface MenuItem {
-  id: number
-  name: string
-  permission?: string
-  type?: number
-  sort?: number
-  parentId?: number
-  path?: string
-  icon?: string
-  status?: number
-  component?: string
-  children?: MenuItem[]
-}
+export type { MenuTreeNode as MenuItem } from '@/types/api'
 
 export const useUserStore = defineStore('user', () => {
   const token = ref<string>(localStorage.getItem('token') || '')
   const userInfo = ref<UserInfo>({})
-  const menus = ref<MenuItem[]>([])
+  const menus = ref<MenuTreeNode[]>([])
 
   const loginAction = async (loginForm: LoginForm) => {
     const res = await login(loginForm)

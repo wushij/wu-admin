@@ -6,7 +6,8 @@ export interface OnlineUser {
   nickname?: string
   ipaddr?: string
   loginTime?: string
-  [key: string]: unknown
+  browser?: string
+  os?: string
 }
 
 export const getOnlineUserList = () => {

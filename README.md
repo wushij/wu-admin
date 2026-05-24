@@ -495,7 +495,12 @@ GET /auth/config  // 实际请求 /api/auth/config
 ### 前端 TypeScript
 
 - 业务代码均为 **`.ts`**，Vue 页面使用 `<script setup lang="ts">`。
+- `tsconfig.json` 已开启 **`strict: true`** 与 **`noImplicitAny: true`**。
+- 业务 API（`api/system/*`、`api/message`、`api/monitor`）为各模块定义了 **VO / SaveDTO / PageQuery** 类型。
+- Pinia `store/user`、`store/message` 与 API 类型对齐（`AuthInfo`、`NoticeVO`）。
 - 类型检查：`cd frontend && npm run typecheck`（`vue-tsc --noEmit`）。
+- 单元测试：`cd frontend && npm run test`（Vitest）。
+- ESLint：`cd frontend && npm run lint`。
 - 生产构建会先跑类型检查：`npm run build`。
 
 ### 构建与打包

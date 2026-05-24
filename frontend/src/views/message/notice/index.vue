@@ -181,24 +181,21 @@ import {
   publishAnnounce,
   getAnnounceDetail,
   getAnnounceSendLogs,
-  type AnnouncePayload,
+  type AnnounceSaveDTO,
+  type AnnounceVO,
   type AnnounceSendLog,
+  type MessagePageQuery,
 } from '@/api/message/index'
 import { getUserList, type UserVO } from '@/api/system/user/index'
 import { getDeptTree, type DeptVO } from '@/api/system/dept/index'
 
-interface AnnounceRow extends AnnouncePayload {
-  id: number
-  createName?: string
-  createTime?: string
-}
-
-const loading = ref(false)
-const tableData = ref<AnnounceRow[]>([])
+const tableData = ref<AnnounceVO[]>([])
 const pageNo = ref(1)
 const pageSize = ref(10)
 const total = ref(0)
-const query = reactive<{ title: string; noticeType: number | null; status: number | null }>({
+const loading = ref(false)
+
+const query = reactive<MessagePageQuery>({
   title: '',
   noticeType: null,
   status: null,
@@ -207,7 +204,7 @@ const query = reactive<{ title: string; noticeType: number | null; status: numbe
 const formVisible = ref(false)
 const submitLoading = ref(false)
 const formRef = ref<FormInstance>()
-const form = reactive<AnnouncePayload>({
+const form = reactive<AnnounceSaveDTO>({
   id: null,
   title: '',
   content: '',
@@ -228,7 +225,7 @@ const deptTree = ref<DeptVO[]>([])
 const logVisible = ref(false)
 const sendLogs = ref<AnnounceSendLog[]>([])
 const detailVisible = ref(false)
-const detailRow = ref<AnnounceRow | null>(null)
+const detailRow = ref<AnnounceVO | null>(null)
 
 async function loadData() {
   loading.value = true
@@ -253,7 +250,7 @@ function resetQuery() {
   loadData()
 }
 
-async function openForm(row?: AnnounceRow) {
+async function openForm(row?: AnnounceVO) {
   if (row?.id) {
     const res = await getAnnounceDetail(row.id)
     Object.assign(form, {
@@ -295,13 +292,13 @@ async function submitForm() {
   }
 }
 
-async function handlePublish(row: AnnounceRow) {
+async function handlePublish(row: AnnounceVO) {
   await publishAnnounce(row.id)
   ElMessage.success('发布成功')
   loadData()
 }
 
-async function handleDelete(row: AnnounceRow) {
+async function handleDelete(row: AnnounceVO) {
   await ElMessageBox.confirm('确定要删除该通知吗？', '提示', { type: 'warning' })
   await deleteAnnounce(row.id)
   ElMessage.success('已删除')
@@ -323,20 +320,20 @@ function formatLogTime(time: string | undefined) {
   })
 }
 
-async function showLogs(row: AnnounceRow) {
+async function showLogs(row: AnnounceVO) {
   const res = await getAnnounceSendLogs(row.id)
   sendLogs.value = res.data || []
   logVisible.value = true
 }
 
-async function showDetail(row: AnnounceRow) {
+async function showDetail(row: AnnounceVO) {
   const res = await getAnnounceDetail(row.id)
   detailRow.value = {
     ...row,
     ...res.data,
     createName: row.createName,
     createTime: row.createTime,
-  } as AnnounceRow
+  } as AnnounceVO
   detailVisible.value = true
 }
 

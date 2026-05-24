@@ -219,13 +219,15 @@ import { ElMessage } from 'element-plus'
 import { getMyNoticeList, readAllNotice, readNotice } from '@/api/system/notice'
 import { getMyAnnounce, readAnnounce, readAllAnnounce } from '@/api/message/index'
 import { useMessageStore, type InboxNoticeItem } from '@/store/message'
-import type { AnnounceItem } from '@/types/message'
+import type { AnnounceMyVO } from '@/types/message'
 import MessageNotification from '@/components/MessageNotification.vue'
 import { getConfig } from '@/api/system/auth'
+import type { Component } from 'vue'
+import type { MenuNode } from '@/types/menu'
 import { preloadDicts } from '@/composables/useDict'
 import { COMMON_DICT_TYPES } from '@/constants/dict'
 
-const getIconComponent = (iconName) => resolveMenuIcon(iconName)
+const getIconComponent = (iconName?: string): Component => resolveMenuIcon(iconName) as Component
 
 const route = useRoute()
 const router = useRouter()
@@ -236,13 +238,14 @@ const isCollapse = ref(false)
 const activeMenu = computed(() => route.path)
 const messageTab = ref('inbox')
 const inboxList = ref<InboxNoticeItem[]>([])
-const announceList = ref<AnnounceItem[]>([])
+const announceList = ref<AnnounceMyVO[]>([])
 /** 仅「系统管理」一级菜单点击时图标转一圈 */
 const SYSTEM_MENU_ID = '1'
 const menuIconSpinKey = ref('')
 const MENU_ICON_SPIN_MS = 520
 
-const isSystemMenu = (menu) => String(menu?.id) === SYSTEM_MENU_ID || menu?.name === '系统管理'
+const isSystemMenu = (menu: MenuNode) =>
+  String(menu?.id) === SYSTEM_MENU_ID || menu?.name === '系统管理'
 
 const presetColors = [
   { name: 'default', color: '#111827', label: '深灰' },
@@ -273,7 +276,7 @@ async function loadSiteConfig() {
   }
 }
 
-function handleColorChange(color) {
+function handleColorChange(color: string | null) {
   if (color) {
     currentColor.value = color
     const themeEntry = Object.entries(themePresets).find(([_, config]) => config.primaryColor === color)
@@ -297,11 +300,11 @@ function handleColorChange(color) {
   }
 }
 
-const userMenus = computed(() => {
+const userMenus = computed<MenuNode[]>(() => {
   const menus = userStore.menus || []
   const filteredMenus = menus.filter(menu => menu.type !== 3)
-  const menuMap = {}
-  const rootMenus = []
+  const menuMap: Record<number, MenuNode> = {}
+  const rootMenus: MenuNode[] = []
 
   filteredMenus.forEach(menu => {
     menuMap[menu.id] = { ...menu, children: [] }
@@ -312,11 +315,11 @@ const userMenus = computed(() => {
     if (menu.parentId === 0 || !menu.parentId) {
       rootMenus.push(node)
     } else if (menuMap[menu.parentId]) {
-      menuMap[menu.parentId].children.push(node)
+      menuMap[menu.parentId].children!.push(node)
     }
   })
 
-  const cleanChildren = (items) => {
+  const cleanChildren = (items: MenuNode[]) => {
     items.forEach(menu => {
       if (menu.children && menu.children.length === 0) {
         delete menu.children
@@ -330,7 +333,7 @@ const userMenus = computed(() => {
   return rootMenus
 })
 
-function resolveMenuIndex(menu) {
+function resolveMenuIndex(menu: MenuNode) {
   const comp = menu?.component?.trim()
   if (comp && /^https?:\/\//i.test(comp)) {
     return `external:${comp}`
@@ -338,7 +341,7 @@ function resolveMenuIndex(menu) {
   return menu.path || String(menu.id)
 }
 
-function findTopMenuSpinKey(index) {
+function findTopMenuSpinKey(index: string) {
   const key = String(index)
   if (key === '/dashboard') return '/dashboard'
   for (const menu of userMenus.value) {
@@ -362,13 +365,13 @@ function triggerSystemMenuIconSpin() {
   }, MENU_ICON_SPIN_MS)
 }
 
-function handleSubMenuOpen(menu) {
+function handleSubMenuOpen(menu: MenuNode) {
   if (isSystemMenu(menu)) {
     triggerSystemMenuIconSpin()
   }
 }
 
-function handleMenuSelect(index) {
+function handleMenuSelect(index: string) {
   if (findTopMenuSpinKey(index) === SYSTEM_MENU_ID) {
     triggerSystemMenuIconSpin()
   }
@@ -386,7 +389,7 @@ const toggleCollapse = () => {
   isCollapse.value = !isCollapse.value
 }
 
-const handleCommand = async (command) => {
+const handleCommand = async (command: string) => {
   if (command === 'logout') {
     await userStore.logoutAction()
     router.push('/login')
@@ -430,7 +433,7 @@ const handleReadInbox = async (item: InboxNoticeItem) => {
   }
 }
 
-const handleReadAnnounce = async (item: AnnounceItem) => {
+const handleReadAnnounce = async (item: AnnounceMyVO) => {
   if (!item.isRead) {
     await readAnnounce(item.id)
     item.isRead = 1

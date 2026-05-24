@@ -277,6 +277,8 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import type { DictDataItem } from '@/types/api'
+import type { DictTypeVO, DictTypeSaveDTO, DictDataSaveDTO, DictTypePageQuery } from '@/api/system/dict'
 import {
   pageDictType,
   createDictType,
@@ -294,11 +296,11 @@ import { DICT_TYPE, COMMON_DICT_TYPES } from '@/constants/dict'
 
 const loading = ref(false)
 const total = ref(0)
-const tableData = ref([])
+const tableData = ref<DictTypeVO[]>([])
 const typeFilter = ref('')
-const selectedType = ref(null)
+const selectedType = ref<DictTypeVO | null>(null)
 
-const queryParams = reactive({
+const queryParams = reactive<DictTypePageQuery>({
   pageNo: 1,
   pageSize: 10,
   dictName: '',
@@ -320,12 +322,12 @@ const typeDialogVisible = ref(false)
 const typeDialogTitle = ref('新增字典类型')
 const typeSubmitting = ref(false)
 const typeFormRef = ref()
-const typeForm = reactive({
+const typeForm = reactive<DictTypeSaveDTO>({
   id: undefined,
   dictName: '',
   dictType: '',
   status: 1,
-  remark: ''
+  remark: '',
 })
 const typeRules = {
   dictName: [{ required: true, message: '请输入字典名称', trigger: 'blur' }],
@@ -339,7 +341,7 @@ const typeRules = {
   ]
 }
 
-const dictDataList = ref([])
+const dictDataList = ref<DictDataItem[]>([])
 const dataLoading = ref(false)
 const dataFilter = ref('')
 
@@ -357,7 +359,7 @@ const dataFormVisible = ref(false)
 const dataFormTitle = ref('新增字典数据')
 const dataSubmitting = ref(false)
 const dataFormRef = ref()
-const dataForm = reactive({
+const dataForm = reactive<DictDataSaveDTO>({
   id: undefined,
   sort: 0,
   dictLabel: '',
@@ -366,7 +368,7 @@ const dataForm = reactive({
   listClass: 'default',
   isDefault: 0,
   status: 1,
-  remark: ''
+  remark: '',
 })
 const dataRules = {
   dictLabel: [{ required: true, message: '请输入字典标签', trigger: 'blur' }],
@@ -386,7 +388,8 @@ async function loadTypes() {
     tableData.value = res.data?.list || []
     total.value = Number(res.data?.total) || 0
     if (selectedType.value) {
-      const hit = tableData.value.find((r) => r.id === selectedType.value.id)
+      const currentId = selectedType.value.id
+      const hit = tableData.value.find((r) => r.id === currentId)
       if (hit) {
         selectedType.value = hit
         await loadDictData()
@@ -402,7 +405,7 @@ async function loadTypes() {
   }
 }
 
-function selectType(row) {
+function selectType(row: DictTypeVO) {
   selectedType.value = row
   dataFilter.value = ''
   loadDictData()
@@ -427,7 +430,7 @@ function handleAddType() {
   typeDialogVisible.value = true
 }
 
-function handleEditType(row) {
+function handleEditType(row: DictTypeVO) {
   typeDialogTitle.value = '编辑字典类型'
   Object.assign(typeForm, {
     id: row.id,
@@ -459,7 +462,7 @@ async function submitType() {
   }
 }
 
-async function handleDeleteType(row) {
+async function handleDeleteType(row: DictTypeVO) {
   const n = row.dataCount ?? 0
   await ElMessageBox.confirm(
     `确定删除字典类型「${row.dictName}」吗？将同时删除其下 ${n} 条字典数据，且业务表单将无法再加载该字典。`,
@@ -520,7 +523,7 @@ function handleAddData() {
   dataFormVisible.value = true
 }
 
-function handleEditData(row) {
+function handleEditData(row: DictDataItem) {
   dataFormTitle.value = '编辑字典数据'
   Object.assign(dataForm, {
     id: row.id,
@@ -556,7 +559,8 @@ async function submitData() {
   }
 }
 
-async function handleDeleteData(row) {
+async function handleDeleteData(row: DictDataItem) {
+  if (row.id == null) return
   await ElMessageBox.confirm(`确定要删除字典数据「${row.dictLabel}」吗？`, '提示', { type: 'warning' })
   await deleteDictData(row.id)
   clearDictCache(row.dictType)

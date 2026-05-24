@@ -1,7 +1,8 @@
-import axios, { AxiosInstance, AxiosResponse, InternalAxiosRequestConfig } from 'axios'
+import axios, { AxiosInstance, AxiosResponse, InternalAxiosRequestConfig, AxiosRequestConfig } from 'axios'
 import { ElMessage } from 'element-plus'
 import router from '@/router'
 import type { ApiResult } from '@/types/api'
+import { isApiSuccessCode } from '@/utils/api-response'
 
 export type { ApiResult } from '@/types/api'
 
@@ -45,7 +46,7 @@ service.interceptors.response.use(
     const { code, msg, message } = res
     
     // 根据实际返回结构调整
-    if (code === 200 || code === 0) {
+    if (isApiSuccessCode(code)) {
       return res  // 返回完整响应对象，前端用 res.data 访问数据
     } else if (code === 401) {
       // 未授权，跳转登录
@@ -93,18 +94,22 @@ service.interceptors.response.use(
 export default service
 
 // 便捷方法
-export const get = <T = unknown>(url: string, params?: Record<string, unknown>) => {
-  return service.get(url, { params }) as Promise<ApiResult<T>>
+/** GET 查询参数（axios 会序列化为 query string） */
+export type HttpQueryParamValue = string | number | boolean | null | undefined
+export type HttpQueryParams = Record<string, HttpQueryParamValue>
+
+export const get = <T = unknown>(url: string, params?: object, config?: AxiosRequestConfig) => {
+  return service.get(url, { ...config, params }) as Promise<ApiResult<T>>
 }
 
-export const post = <T = unknown>(url: string, data?: unknown) => {
-  return service.post(url, data) as Promise<ApiResult<T>>
+export const post = <T = unknown>(url: string, data?: unknown, config?: AxiosRequestConfig) => {
+  return service.post(url, data, config) as Promise<ApiResult<T>>
 }
 
-export const put = <T = unknown>(url: string, data?: unknown) => {
-  return service.put(url, data) as Promise<ApiResult<T>>
+export const put = <T = unknown>(url: string, data?: unknown, config?: AxiosRequestConfig) => {
+  return service.put(url, data, config) as Promise<ApiResult<T>>
 }
 
-export const del = <T = unknown>(url: string, config?: Record<string, unknown>) => {
+export const del = <T = unknown>(url: string, config?: AxiosRequestConfig) => {
   return service.delete(url, config) as Promise<ApiResult<T>>
 }

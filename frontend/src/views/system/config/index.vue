@@ -154,6 +154,9 @@ import { onBeforeRouteLeave } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getConfigGroup, updateConfigGroup } from '@/api/system/config'
 import { getRoleList } from '@/api/system/role'
+import { getErrorMessage } from '@/utils/axiosError'
+import type { ConfigGroupCode, ConfigGroupMap } from '@/types/config'
+
 import { useUserStore } from '@/store/user'
 
 const userStore = useUserStore()
@@ -161,10 +164,15 @@ const canEdit = computed(() => (userStore.userInfo?.permissions || []).includes(
 const activeTab = ref('site')
 const loading = ref(false)
 const saving = ref(false)
-const roleOptions = ref([])
+interface RoleOption {
+  name: string
+  code: string
+}
+
+const roleOptions = ref<RoleOption[]>([])
 const platformMaxFileMb = 500
 
-const GROUP_CODES = ['site', 'session', 'file', 'rateLimit', 'login', 'register']
+const GROUP_CODES = ['site', 'session', 'file', 'rateLimit', 'login', 'register'] as const satisfies readonly ConfigGroupCode[]
 
 const DEFAULTS = {
   site: {
@@ -200,22 +208,32 @@ const DEFAULTS = {
     needAudit: false,
     minPasswordLength: 6
   }
+} satisfies ConfigGroupMap
+
+type ConfigState = ConfigGroupMap
+
+function cloneConfig<T>(data: T): T {
+  return JSON.parse(JSON.stringify(data)) as T
 }
 
-function cloneConfig(data) {
-  return JSON.parse(JSON.stringify(data))
+function setConfigGroup<K extends ConfigGroupCode>(
+  state: ConfigState,
+  code: K,
+  value: ConfigState[K]
+) {
+  state[code] = value
 }
 
 /** 已持久化到数据库的配置快照（仅保存成功或加载后更新） */
-const savedSnapshot = reactive(cloneConfig(DEFAULTS))
+const savedSnapshot = reactive(cloneConfig(DEFAULTS) as ConfigState)
 /** 页面编辑草稿，修改不会写入数据库 */
-const draft = reactive(cloneConfig(DEFAULTS))
+const draft = reactive(cloneConfig(DEFAULTS) as ConfigState)
 
 const isDirty = computed(() =>
   GROUP_CODES.some((code) => JSON.stringify(draft[code]) !== JSON.stringify(savedSnapshot[code]))
 )
 
-function parseJson(str) {
+function parseJson(str: string | undefined): unknown {
   try {
     return JSON.parse(str || '{}')
   } catch {
@@ -223,16 +241,17 @@ function parseJson(str) {
   }
 }
 
-function applyGroupFromServer(code, serverJson) {
+function applyGroupFromServer<K extends ConfigGroupCode>(code: K, serverJson: Partial<ConfigGroupMap[K]>) {
   const merged = { ...DEFAULTS[code], ...serverJson }
-  savedSnapshot[code] = cloneConfig(merged)
-  draft[code] = cloneConfig(merged)
+  const cloned = cloneConfig(merged)
+  setConfigGroup(savedSnapshot, code, cloned)
+  setConfigGroup(draft, code, cloned)
 }
 
-async function loadGroup(code) {
+async function loadGroup(code: ConfigGroupCode) {
   const res = await getConfigGroup(code, { silent403: true })
   const serverJson = res.data?.configValue ? parseJson(res.data.configValue) : {}
-  applyGroupFromServer(code, serverJson)
+  applyGroupFromServer(code, serverJson as Partial<ConfigGroupMap[typeof code]>)
 }
 
 async function loadRoles() {
@@ -270,20 +289,21 @@ async function loadAll() {
 
 function handleReset() {
   for (const code of GROUP_CODES) {
-    draft[code] = cloneConfig(savedSnapshot[code])
+    setConfigGroup(draft, code, cloneConfig(savedSnapshot[code]))
   }
   ElMessage.info('已恢复为上次保存的配置')
 }
 
-function normalizePayload(code, payload) {
-  const next = { ...payload }
-  if (code === 'login' && !next.captchaEnabled) {
-    next.captchaType = 'image'
+function normalizePayload<K extends ConfigGroupCode>(code: K, payload: ConfigGroupMap[K]): ConfigGroupMap[K] {
+  if (code === 'login') {
+    const login = payload as ConfigGroupMap['login']
+    return (login.captchaEnabled ? login : { ...login, captchaType: 'image' }) as ConfigGroupMap[K]
   }
-  if (code === 'register' && !next.captchaEnabled) {
-    next.captchaType = 'image'
+  if (code === 'register') {
+    const register = payload as ConfigGroupMap['register']
+    return (register.captchaEnabled ? register : { ...register, captchaType: 'image' }) as ConfigGroupMap[K]
   }
-  return next
+  return payload
 }
 
 async function handleSave() {
@@ -297,12 +317,13 @@ async function handleSave() {
     for (const code of GROUP_CODES) {
       const payload = normalizePayload(code, cloneConfig(draft[code]))
       await updateConfigGroup(code, JSON.stringify(payload))
-      savedSnapshot[code] = cloneConfig(payload)
-      draft[code] = cloneConfig(payload)
+      const saved = cloneConfig(payload)
+      setConfigGroup(savedSnapshot, code, saved)
+      setConfigGroup(draft, code, cloneConfig(saved))
     }
     ElMessage.success('保存成功，配置已生效')
   } catch (e) {
-    ElMessage.error(e?.response?.data?.msg || '保存失败')
+    ElMessage.error(getErrorMessage(e) || '保存失败')
   } finally {
     saving.value = false
   }

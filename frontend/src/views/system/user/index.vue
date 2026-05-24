@@ -305,44 +305,52 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage, ElMessageBox, type FormInstance } from 'element-plus'
+import type { ElTree } from 'element-plus'
 import { Refresh, User, Delete } from '@element-plus/icons-vue'
-import { getUserPage, createUser, updateUser, deleteUser, assignUserRole, updateUserStatus, resetUserPassword, getUserRoleIds, getRecycleUserPage, restoreUser, deleteUserPermanent } from '@/api/system/user'
-import { getRoleList } from '@/api/system/role'
-import { getDeptTree } from '@/api/system/dept'
-import { getPostList } from '@/api/system/post'
+import {
+  getUserPage, createUser, updateUser, deleteUser, assignUserRole, updateUserStatus,
+  resetUserPassword, getUserRoleIds, getRecycleUserPage, restoreUser, deleteUserPermanent,
+  type UserVO,
+  type UserSaveDTO,
+  type UserPageQuery,
+  type UserRecycleQuery,
+} from '@/api/system/user'
+import { getRoleList, type RoleVO } from '@/api/system/role'
+import { getDeptTree, type DeptVO } from '@/api/system/dept'
+import { getPostList, type PostVO } from '@/api/system/post'
 
 const route = useRoute()
 const loading = ref(false)
 const total = ref(0)
-const userList = ref([])
+const userList = ref<UserVO[]>([])
 const dialogVisible = ref(false)
 const dialogTitle = ref('')
 const roleDialogVisible = ref(false)
 const resetPwdVisible = ref(false)
-const formRef = ref(null)
-const deptTreeRef = ref(null)
-const currentUser = ref<Partial<import('@/api/system/user').UserVO>>({})
-const selectedRole = ref(null)
-const roleOptions = ref([])
-const deptOptions = ref([])
-const deptSelectOptions = ref([])
-const postOptions = ref([])
+const formRef = ref<FormInstance | null>(null)
+const deptTreeRef = ref<InstanceType<typeof ElTree> | null>(null)
+const currentUser = ref<Partial<UserVO>>({})
+const selectedRole = ref<number | undefined>(undefined)
+const roleOptions = ref<RoleVO[]>([])
+const deptOptions = ref<DeptVO[]>([])
+const deptSelectOptions = ref<DeptVO[]>([])
+const postOptions = ref<PostVO[]>([])
 const recycleVisible = ref(false)
 const recycleLoading = ref(false)
-const recycleList = ref([])
+const recycleList = ref<UserVO[]>([])
 const recycleTotal = ref(0)
 
-const queryParams = reactive({
+const queryParams = reactive<UserPageQuery>({
   pageNo: 1,
   pageSize: 10,
   username: '',
   mobile: '',
   status: null,
-  deptId: null
+  deptId: null,
 })
 
-const form = reactive({
+const form = reactive<UserSaveDTO>({
   id: null,
   username: '',
   nickname: '',
@@ -351,18 +359,18 @@ const form = reactive({
   email: '',
   deptId: null,
   status: 1,
-  roleId: null,
+  roleId: undefined,
   postIds: [],
-  remark: ''
+  remark: '',
 })
 
-const resetPwdForm = reactive({
+const resetPwdForm = reactive<{ id: number | null; username: string; password: string }>({
   id: null,
   username: '',
-  password: ''
+  password: '',
 })
 
-const recycleQuery = reactive({
+const recycleQuery = reactive<UserRecycleQuery>({
   pageNo: 1,
   pageSize: 10,
   username: '',
@@ -391,7 +399,7 @@ const getList = async () => {
 }
 
 // 点击部门树筛选用户
-const handleDeptClick = (data) => {
+const handleDeptClick = (data: DeptVO) => {
   // 如果点击的是顶级节点（parentId为null或0），则显示全部
   if (data.parentId === null || data.parentId === 0) {
     queryParams.deptId = null
@@ -415,20 +423,21 @@ const resetQuery = () => {
 }
 
 // 状态切换
-const handleStatusChange = async (row) => {
+const handleStatusChange = async (row: UserVO) => {
   try {
     const text = row.status === 1 ? '启用' : '禁用'
     await ElMessageBox.confirm(`确认要${text}用户"${row.username}"吗？`, '提示', { type: 'warning' })
+    if (row.id == null || row.status == null) return
     await updateUserStatus(row.id, row.status)
     ElMessage.success(`${text}成功`)
-  } catch (error) {
+  } catch {
     // 取消时恢复原状态
     row.status = row.status === 1 ? 0 : 1
   }
 }
 
 // 操作命令分发
-const handleCommand = (command, row) => {
+const handleCommand = (command: string, row: UserVO) => {
   switch (command) {
     case 'resetPwd':
       handleResetPwd(row)
@@ -443,7 +452,7 @@ const handleCommand = (command, row) => {
 }
 
 // 重置密码
-const handleResetPwd = (row) => {
+const handleResetPwd = (row: UserVO) => {
   resetPwdForm.id = row.id
   resetPwdForm.username = row.username
   resetPwdForm.password = ''
@@ -455,6 +464,7 @@ const submitResetPwd = async () => {
     ElMessage.warning('请输入新密码')
     return
   }
+  if (resetPwdForm.id == null) return
   try {
     await resetUserPassword(resetPwdForm.id, resetPwdForm.password)
     ElMessage.success('重置密码成功')
@@ -475,7 +485,7 @@ const handleAdd = async () => {
   dialogVisible.value = true
 }
 
-const handleEdit = async (row) => {
+const handleEdit = async (row: UserVO) => {
   resetForm()
   dialogTitle.value = '编辑用户'
   Object.assign(form, row)
@@ -492,7 +502,7 @@ const handleEdit = async (row) => {
   dialogVisible.value = true
 }
 
-const handleDelete = async (row) => {
+const handleDelete = async (row: UserVO) => {
   await ElMessageBox.confirm('确定要删除该用户吗？', '提示', { type: 'warning' })
   await deleteUser(row.id)
   ElMessage.success('删除成功')
@@ -516,27 +526,27 @@ const openRecycleDialog = async () => {
   await getRecycleList()
 }
 
-const handleRestore = async (row) => {
+const handleRestore = async (row: UserVO) => {
   await restoreUser(row.id)
   ElMessage.success('恢复成功')
   await getRecycleList()
   await getList()
 }
 
-const handlePermanentDelete = async (row) => {
+const handlePermanentDelete = async (row: UserVO) => {
   await ElMessageBox.confirm('确定彻底删除该用户吗？该操作不可恢复', '提示', { type: 'warning' })
   await deleteUserPermanent(row.id)
   ElMessage.success('清除成功')
   await getRecycleList()
 }
 
-const handleAssignRole = async (row) => {
+const handleAssignRole = async (row: UserVO) => {
   currentUser.value = row
   // 获取用户已有角色
   const res = await getUserRoleIds(row.id)
   // 取第一个角色ID（单选模式）
   const roleIds = res.data || []
-  selectedRole.value = roleIds.length > 0 ? roleIds[0] : null
+  selectedRole.value = roleIds.length > 0 ? roleIds[0] : undefined
   // 加载角色列表
   if (roleOptions.value.length === 0) {
     const roleRes = await getRoleList()
@@ -546,9 +556,10 @@ const handleAssignRole = async (row) => {
 }
 
 const submitAssignRole = async () => {
-  // 单选模式：将单个角色ID转为数组
-  const roleIds = selectedRole.value ? [selectedRole.value] : []
-  await assignUserRole({ userId: currentUser.value.id, roleIds })
+  const userId = currentUser.value.id
+  if (userId == null) return
+  const roleIds = selectedRole.value != null ? [selectedRole.value] : []
+  await assignUserRole({ userId, roleIds })
   ElMessage.success('分配成功')
   roleDialogVisible.value = false
   getList()
@@ -563,26 +574,27 @@ const resetForm = () => {
   form.email = ''
   form.deptId = null
   form.status = 1
-  form.roleId = null
+  form.roleId = undefined
   form.postIds = []
   form.remark = ''
 }
 
 const submitForm = async () => {
   if (!formRef.value) return
-  await formRef.value.validate(async (valid) => {
-    if (valid) {
-      if (form.id) {
-        await updateUser(form)
-        ElMessage.success('修改成功')
-      } else {
-        await createUser(form)
-        ElMessage.success('新增成功')
-      }
-      dialogVisible.value = false
-      getList()
-    }
-  })
+  try {
+    await formRef.value.validate()
+  } catch {
+    return
+  }
+  if (form.id) {
+    await updateUser(form)
+    ElMessage.success('修改成功')
+  } else {
+    await createUser(form)
+    ElMessage.success('新增成功')
+  }
+  dialogVisible.value = false
+  getList()
 }
 
 const loadDeptTree = async () => {

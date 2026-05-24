@@ -201,11 +201,11 @@
     </el-row>
 
     <el-row
-      v-if="stats.ticketOpenCount > 0 || stats.approvalPendingCount > 0"
+      v-if="(stats.ticketOpenCount ?? 0) > 0 || (stats.approvalPendingCount ?? 0) > 0"
       :gutter="24"
       class="stats-row biz-stats-row"
     >
-      <el-col v-if="stats.ticketOpenCount > 0 || stats.ticketOverdueCount > 0" :xs="24" :sm="12" :lg="6">
+      <el-col v-if="(stats.ticketOpenCount ?? 0) > 0 || (stats.ticketOverdueCount ?? 0) > 0" :xs="24" :sm="12" :lg="6">
         <div
           v-permission="'system:ticket:list'"
           class="stat-card biz clickable"
@@ -217,7 +217,7 @@
           </div>
         </div>
       </el-col>
-      <el-col v-if="stats.ticketOverdueCount > 0" :xs="24" :sm="12" :lg="6">
+      <el-col v-if="(stats.ticketOverdueCount ?? 0) > 0" :xs="24" :sm="12" :lg="6">
         <div
           v-permission="'system:ticket:list'"
           class="stat-card biz clickable"
@@ -229,7 +229,7 @@
           </div>
         </div>
       </el-col>
-      <el-col v-if="stats.approvalPendingCount > 0" :xs="24" :sm="12" :lg="6">
+      <el-col v-if="(stats.approvalPendingCount ?? 0) > 0" :xs="24" :sm="12" :lg="6">
         <div
           v-permission="'system:approval:list'"
           class="stat-card biz clickable"
@@ -345,7 +345,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/store/user'
-import { getDashboardStats, getRecentLogins, recordVisit as apiRecordVisit } from '@/api/dashboard'
+import { getDashboardStats, getRecentLogins, recordVisit as apiRecordVisit, type RecentLogin, type DashboardStats } from '@/api/dashboard'
 import {
   User,
   UserFilled,
@@ -372,8 +372,19 @@ import {
 const router = useRouter()
 const userStore = useUserStore()
 
+interface QuickEntry {
+  key: string
+  name: string
+  desc: string
+  path: string
+  permission: string
+  icon: typeof User
+  theme: string
+  query?: Record<string, string>
+}
+
 /** 工作台固定 12 个核心快捷入口（3×4） */
-const quickEntries = [
+const quickEntries: QuickEntry[] = [
   { key: 'user', name: '用户管理', desc: '账号与状态维护', path: '/system/user', permission: 'system:user:list', icon: User, theme: 'user' },
   { key: 'role', name: '角色管理', desc: '配置角色权限', path: '/system/role', permission: 'system:role:list', icon: UserFilled, theme: 'role' },
   { key: 'menu', name: '菜单管理', desc: '目录菜单按钮', path: '/system/menu', permission: 'system:menu:list', icon: Menu, theme: 'menu' },
@@ -397,7 +408,7 @@ const quickEntries = [
   { key: 'dict', name: '字典管理', desc: '类型与数据维护', path: '/system/dict', permission: 'system:dict:list', icon: Collection, theme: 'dict' }
 ]
 
-const goQuick = (item) => {
+const goQuick = (item: QuickEntry) => {
   if (item.query) {
     router.push({ path: item.path, query: item.query })
   } else {
@@ -417,7 +428,7 @@ const greetingMessage = computed(() => {
   return '夜深了，早点休息'
 })
 
-const captchaTypeLabel = (type) => {
+const captchaTypeLabel = (type: string | undefined) => {
   if (type === 'slider') return '滑块'
   if (type === 'image') return '图形'
   return type || '-'
@@ -457,7 +468,7 @@ const systemMetaList = computed(() => {
 const platformName = ref('Admin Platform')
 const platformSubtitle = ref('')
 
-const stats = ref({
+const stats = ref<DashboardStats>({
   userCount: 0,
   roleCount: 0,
   menuCount: 0,
@@ -486,7 +497,7 @@ const stats = ref({
   approvalPendingCount: 0
 })
 
-const recentLogins = ref([])
+const recentLogins = ref<RecentLogin[]>([])
 
 // 增长趋势
 const trends = ref({
@@ -498,7 +509,7 @@ const trends = ref({
 
 // 当前时间
 const currentTime = ref('')
-let timeTimer = null
+let timeTimer: ReturnType<typeof setInterval> | null = null
 
 const updateTime = () => {
   const now = new Date()
@@ -515,7 +526,7 @@ const updateTime = () => {
 }
 
 // 获取统计数据
-function formatLoginTime(t) {
+function formatLoginTime(t: string | undefined) {
   if (!t) return '-'
   return String(t).replace('T', ' ').slice(0, 19)
 }

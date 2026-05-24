@@ -28,7 +28,7 @@
           draggable
           :allow-drop="allowDeptDrop"
           default-expand-all
-          @node-click="onTreeNodeClick"
+          @node-click="onDeptNodeClick"
           @node-drop="onDeptDrop"
         >
           <template #default="{ data }">
@@ -46,7 +46,7 @@
           draggable
           :allow-drop="allowPostDrop"
           default-expand-all
-          @node-click="onTreeNodeClick"
+          @node-click="onPostNodeClick"
           @node-drop="onPostDrop"
         >
           <template #default="{ data }">
@@ -256,7 +256,10 @@ import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowRight } from '@element-plus/icons-vue'
-import { getUserPage } from '@/api/system/user'
+import type { ElTree } from 'element-plus'
+import { getUserPage, type UserVO, type UserPageQuery } from '@/api/system/user'
+import type { DeptVO, DeptSaveDTO, DeptRecycleQuery } from '@/api/system/dept'
+import type { PostVO, PostSaveDTO } from '@/api/system/post'
 import {
   getDeptTree,
   getDept,
@@ -277,22 +280,23 @@ import {
   movePost
 } from '@/api/system/post'
 
-const router = useRouter()
+import { unwrapOrgTreeNode } from '@/types/org'
 
+const router = useRouter()
 const activeTab = ref('dept')
 const treeSearch = ref('')
-const deptTreeRef = ref()
-const postTreeRef = ref()
-const deptTree = ref([])
-const postTree = ref([])
+const deptTreeRef = ref<InstanceType<typeof ElTree> | null>(null)
+const postTreeRef = ref<InstanceType<typeof ElTree> | null>(null)
+const deptTree = ref<DeptVO[]>([])
+const postTree = ref<PostVO[]>([])
 
-const selectedId = ref(null)
+const selectedId = ref<number | null>(null)
 const selectedName = ref('')
 
 const userLoading = ref(false)
-const userList = ref([])
+const userList = ref<UserVO[]>([])
 const userTotal = ref(0)
-const userQuery = reactive({ pageNo: 1, pageSize: 10 })
+const userQuery = reactive<UserPageQuery>({ pageNo: 1, pageSize: 10 })
 
 const memberTitle = computed(() => {
   if (!selectedId.value) return '所有用户'
@@ -317,14 +321,17 @@ watch(treeSearch, (val) => {
   }
 })
 
-function filterTreeNode(value, data) {
+function filterTreeNode(value: string, data: unknown) {
+  const node = data as DeptVO
   if (!value) return true
-  return data.name?.includes(value)
+  return String(node.name ?? '').includes(value)
 }
 
-function filterPostTreeNode(value, data) {
+function filterPostTreeNode(value: string, data: unknown) {
+  const node = data as PostVO
   if (!value) return true
-  return data.postName?.includes(value)
+  const label = String(node.postName ?? node.name ?? '')
+  return label.includes(value)
 }
 
 async function loadTree() {
@@ -340,7 +347,7 @@ async function loadTree() {
 async function loadUsers() {
   userLoading.value = true
   try {
-    const params: import('@/api/system/user').UserPageQuery = {
+    const params: UserPageQuery = {
       pageNo: userQuery.pageNo,
       pageSize: userQuery.pageSize,
     }
@@ -364,49 +371,69 @@ function goUserManage() {
   router.push({ path: '/system/user', query })
 }
 
-function onTreeNodeClick(data) {
+function onDeptNodeClick(data: DeptVO) {
   if (selectedId.value === data.id) {
     selectedId.value = null
     selectedName.value = ''
   } else {
     selectedId.value = data.id
-    selectedName.value = activeTab.value === 'dept' ? data.name : data.postName
+    selectedName.value = data.name
   }
   userQuery.pageNo = 1
   loadUsers()
 }
 
-function allowDeptDrop(dragging, drop, type) {
-  if (type === 'inner' && dragging.data.id === drop.data.id) return false
-  return true
-}
-
-function allowPostDrop(dragging, drop, type) {
-  if (type === 'inner' && dragging.data.id === drop.data.id) return false
-  return true
-}
-
-async function onDeptDrop(dragging, drop, dropType) {
-  const id = dragging.data.id
-  let parentId = 0
-  if (dropType === 'inner') {
-    parentId = drop.data.id
+function onPostNodeClick(data: PostVO) {
+  if (selectedId.value === data.id) {
+    selectedId.value = null
+    selectedName.value = ''
   } else {
-    parentId = drop.data.parentId || 0
+    selectedId.value = data.id
+    selectedName.value = String(data.postName ?? data.name ?? '')
   }
+  userQuery.pageNo = 1
+  loadUsers()
+}
+
+function allowDeptDrop(dragging: unknown, drop: unknown, type: string) {
+  const dragData = unwrapOrgTreeNode<DeptVO>(dragging)
+  const dropData = unwrapOrgTreeNode<DeptVO>(drop)
+  if (type === 'inner' && dragData.id === dropData.id) return false
+  return true
+}
+
+function allowPostDrop(dragging: unknown, drop: unknown, type: string) {
+  const dragData = unwrapOrgTreeNode<PostVO>(dragging)
+  const dropData = unwrapOrgTreeNode<PostVO>(drop)
+  if (type === 'inner' && dragData.id === dropData.id) return false
+  return true
+}
+
+async function onDeptDrop(
+  dragging: unknown,
+  drop: unknown,
+  dropType: 'before' | 'after' | 'inner',
+  _evt?: DragEvent
+) {
+  const dragData = unwrapOrgTreeNode<DeptVO>(dragging)
+  const dropData = unwrapOrgTreeNode<DeptVO>(drop)
+  const id = dragData.id
+  const parentId = dropType === 'inner' ? dropData.id : (dropData.parentId || 0)
   await moveDept(id, parentId, 0)
   ElMessage.success('移动成功')
   loadTree()
 }
 
-async function onPostDrop(dragging, drop, dropType) {
-  const id = dragging.data.id
-  let parentId = 0
-  if (dropType === 'inner') {
-    parentId = drop.data.id
-  } else {
-    parentId = drop.data.parentId || 0
-  }
+async function onPostDrop(
+  dragging: unknown,
+  drop: unknown,
+  dropType: 'before' | 'after' | 'inner',
+  _evt?: DragEvent
+) {
+  const dragData = unwrapOrgTreeNode<PostVO>(dragging)
+  const dropData = unwrapOrgTreeNode<PostVO>(drop)
+  const id = dragData.id
+  const parentId = dropType === 'inner' ? dropData.id : (dropData.parentId || 0)
   await movePost(id, parentId)
   ElMessage.success('移动成功')
   loadTree()
@@ -417,7 +444,7 @@ const deptDialogVisible = ref(false)
 const deptDialogTitle = ref('')
 const deptSubmitting = ref(false)
 const deptFormRef = ref()
-const deptForm = reactive({
+const deptForm = reactive<DeptSaveDTO>({
   id: undefined,
   parentId: 0,
   name: '',
@@ -425,7 +452,7 @@ const deptForm = reactive({
   phone: '',
   email: '',
   sort: 0,
-  status: 1
+  status: 1,
 })
 const deptRules = { name: [{ required: true, message: '请输入部门名称', trigger: 'blur' }] }
 const deptTreeOptions = computed(() => [{ id: 0, name: '主目录', children: deptTree.value }])
@@ -435,14 +462,14 @@ const postDialogVisible = ref(false)
 const postDialogTitle = ref('')
 const postSubmitting = ref(false)
 const postFormRef = ref()
-const postForm = reactive({
+const postForm = reactive<PostSaveDTO>({
   id: undefined,
   parentId: 0,
   postCode: '',
   postName: '',
   sort: 0,
   status: 1,
-  remark: ''
+  remark: '',
 })
 const postRules = {
   postCode: [{ required: true, message: '请输入岗位编码', trigger: 'blur' }],
@@ -461,16 +488,18 @@ function handleAddChild() {
 }
 
 async function handleEditNode() {
+  if (selectedId.value == null) return
+  const nodeId = selectedId.value
   if (activeTab.value === 'dept') {
-    const res = await getDept(selectedId.value)
+    const res = await getDept(nodeId)
     openDeptForm(res.data, res.data?.parentId ?? 0)
   } else {
-    const res = await getPost(selectedId.value)
+    const res = await getPost(nodeId)
     openPostForm(res.data, res.data?.parentId ?? 0)
   }
 }
 
-function openDeptForm(row, parentId) {
+function openDeptForm(row: DeptVO | null, parentId?: number | null) {
   deptDialogTitle.value = row?.id ? '编辑部门' : '新增部门'
   Object.assign(deptForm, {
     id: row?.id,
@@ -486,7 +515,7 @@ function openDeptForm(row, parentId) {
   deptDialogVisible.value = true
 }
 
-function openPostForm(row, parentId) {
+function openPostForm(row: PostVO | null, parentId?: number | null) {
   postDialogTitle.value = row?.id ? '编辑岗位' : '新增岗位'
   Object.assign(postForm, {
     id: row?.id,
@@ -540,12 +569,14 @@ async function submitPost() {
 }
 
 async function handleDeleteNode() {
+  if (selectedId.value == null) return
+  const nodeId = selectedId.value
   const name = selectedName.value
   await ElMessageBox.confirm(`确定删除「${name}」？`, '提示', { type: 'warning' })
   if (activeTab.value === 'dept') {
-    await deleteDept(selectedId.value)
+    await deleteDept(nodeId)
   } else {
-    await deletePost(selectedId.value)
+    await deletePost(nodeId)
   }
   ElMessage.success('删除成功')
   selectedId.value = null
@@ -557,9 +588,9 @@ async function handleDeleteNode() {
 // ---------- 回收站 ----------
 const recycleVisible = ref(false)
 const recycleLoading = ref(false)
-const recycleList = ref([])
+const recycleList = ref<DeptVO[]>([])
 const recycleTotal = ref(0)
-const recycleQuery = reactive({ pageNo: 1, pageSize: 10 })
+const recycleQuery = reactive<DeptRecycleQuery>({ pageNo: 1, pageSize: 10 })
 
 function openRecycle() {
   recycleVisible.value = true
@@ -577,14 +608,14 @@ async function loadRecycle() {
   }
 }
 
-async function handleRestore(row) {
+async function handleRestore(row: DeptVO) {
   await restoreDept(row.id)
   ElMessage.success('已恢复')
   loadRecycle()
   loadTree()
 }
 
-async function handlePermanentDelete(row) {
+async function handlePermanentDelete(row: DeptVO) {
   await ElMessageBox.confirm('彻底删除后不可恢复，是否继续？', '警告', { type: 'warning' })
   await deleteDeptPermanent(row.id)
   ElMessage.success('已删除')
