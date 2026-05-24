@@ -18,6 +18,7 @@
           class="sidebar-menu"
           :collapse="isCollapse"
           :collapse-transition="true"
+          router
           @select="handleMenuSelect"
         >
           <el-menu-item index="/dashboard" class="menu-item-dashboard">
@@ -34,6 +35,7 @@
               :index="String(menu.id)"
               class="menu-group"
               @open="handleSubMenuOpen(menu)"
+              @close="handleSubMenuClose(menu)"
             >
               <template #title>
                 <el-icon :class="{ 'is-spin-once': isSystemMenu(menu) && menuIconSpinKey === SYSTEM_MENU_ID }">
@@ -242,6 +244,7 @@ const announceList = ref<AnnounceMyVO[]>([])
 /** 仅「系统管理」一级菜单点击时图标转一圈 */
 const SYSTEM_MENU_ID = '1'
 const menuIconSpinKey = ref('')
+let menuIconSpinTimer: ReturnType<typeof window.setTimeout> | null = null
 const MENU_ICON_SPIN_MS = 520
 
 const isSystemMenu = (menu: MenuNode) =>
@@ -357,15 +360,29 @@ function findTopMenuSpinKey(index: string) {
 }
 
 function triggerSystemMenuIconSpin() {
-  menuIconSpinKey.value = SYSTEM_MENU_ID
-  window.setTimeout(() => {
-    if (menuIconSpinKey.value === SYSTEM_MENU_ID) {
-      menuIconSpinKey.value = ''
-    }
-  }, MENU_ICON_SPIN_MS)
+  if (menuIconSpinTimer) {
+    window.clearTimeout(menuIconSpinTimer)
+    menuIconSpinTimer = null
+  }
+  menuIconSpinKey.value = ''
+  requestAnimationFrame(() => {
+    menuIconSpinKey.value = SYSTEM_MENU_ID
+    menuIconSpinTimer = window.setTimeout(() => {
+      if (menuIconSpinKey.value === SYSTEM_MENU_ID) {
+        menuIconSpinKey.value = ''
+      }
+      menuIconSpinTimer = null
+    }, MENU_ICON_SPIN_MS)
+  })
 }
 
 function handleSubMenuOpen(menu: MenuNode) {
+  if (isSystemMenu(menu)) {
+    triggerSystemMenuIconSpin()
+  }
+}
+
+function handleSubMenuClose(menu: MenuNode) {
   if (isSystemMenu(menu)) {
     triggerSystemMenuIconSpin()
   }
@@ -378,10 +395,6 @@ function handleMenuSelect(index: string) {
   const key = String(index)
   if (key.startsWith('external:')) {
     window.open(key.slice('external:'.length), '_blank')
-    return
-  }
-  if (key.startsWith('/')) {
-    router.push(key)
   }
 }
 
@@ -480,6 +493,10 @@ watch(messageTab, (tab) => {
 })
 
 onUnmounted(() => {
+  if (menuIconSpinTimer) {
+    window.clearTimeout(menuIconSpinTimer)
+    menuIconSpinTimer = null
+  }
   messageStore.destroyWebSocket()
 })
 </script>
