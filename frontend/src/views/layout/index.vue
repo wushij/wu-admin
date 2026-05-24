@@ -244,7 +244,7 @@ const announceList = ref<AnnounceMyVO[]>([])
 /** 仅「系统管理」一级菜单点击时图标转一圈 */
 const SYSTEM_MENU_ID = '1'
 const menuIconSpinKey = ref('')
-let menuIconSpinTimer: ReturnType<typeof window.setTimeout> | null = null
+let menuIconSpinTimer: number | null = null
 const MENU_ICON_SPIN_MS = 520
 
 const isSystemMenu = (menu: MenuNode) =>
