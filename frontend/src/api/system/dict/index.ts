@@ -8,10 +8,32 @@ export interface DictTypeVO {
   status?: number
   remark?: string
   dataCount?: number
-  [key: string]: unknown
+  createTime?: string
+  updateTime?: string
 }
 
-export function pageDictType(params: PageQuery) {
+export interface DictTypeSaveDTO {
+  id?: number
+  dictName: string
+  dictType: string
+  status?: number
+  remark?: string
+}
+
+export type DictDataSaveDTO = DictDataItem
+
+export interface DictTypeExportData {
+  dictType?: DictTypeVO
+  dictDataList?: DictDataItem[]
+}
+
+export interface DictTypePageQuery extends PageQuery {
+  dictName?: string
+  dictType?: string
+  status?: number | null
+}
+
+export function pageDictType(params: DictTypePageQuery) {
   return get<PageResult<DictTypeVO>>('/system/dict-type/page', params)
 }
 
@@ -24,14 +46,14 @@ export function getDictType(id: number) {
 }
 
 export function exportDictType(id: number) {
-  return get<Record<string, unknown>>(`/system/dict-type/${id}/export`)
+  return get<DictTypeExportData>(`/system/dict-type/${id}/export`)
 }
 
-export function createDictType(data: Record<string, unknown>) {
+export function createDictType(data: DictTypeSaveDTO) {
   return post('/system/dict-type', data)
 }
 
-export function updateDictType(data: Record<string, unknown>) {
+export function updateDictType(data: DictTypeSaveDTO) {
   return put('/system/dict-type', data)
 }
 
@@ -60,11 +82,11 @@ export function refreshDictCache() {
   return post('/system/dict-data/refresh-cache')
 }
 
-export function createDictData(data: Record<string, unknown>) {
+export function createDictData(data: DictDataSaveDTO) {
   return post('/system/dict-data', data)
 }
 
-export function updateDictData(data: Record<string, unknown>) {
+export function updateDictData(data: DictDataSaveDTO) {
   return put('/system/dict-data', data)
 }
 

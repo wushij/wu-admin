@@ -90,13 +90,19 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getLoginLogList, deleteLoginLog, clearLoginLog } from '@/api/system'
+import {
+  getLoginLogList,
+  deleteLoginLog,
+  clearLoginLog,
+  type LoginLogVO,
+  type LoginLogPageQuery,
+} from '@/api/system/login-log'
 
 const loading = ref(false)
 const total = ref(0)
-const logList = ref([])
+const logList = ref<LoginLogVO[]>([])
 
-const queryParams = reactive({
+const queryParams = reactive<LoginLogPageQuery>({
   pageNo: 1,
   pageSize: 10,
   username: '',
@@ -129,7 +135,7 @@ const resetQuery = () => {
   handleQuery()
 }
 
-const handleDelete = async (row) => {
+const handleDelete = async (row: LoginLogVO) => {
   await ElMessageBox.confirm('确定要删除该日志吗？', '提示', { type: 'warning' })
   await deleteLoginLog(row.id)
   ElMessage.success('删除成功')

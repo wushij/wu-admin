@@ -1,13 +1,20 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { getMessageSummary } from '@/api/message'
-import { getMyNoticeList } from '@/api/system/notice'
+import { getMyNoticeList, type NoticeVO } from '@/api/system/notice'
 import {
   connectMessageWebSocket,
   disconnectMessageWebSocket,
   onMessageWebSocket,
   type WsPushMessage,
 } from '@/utils/messageWebSocket'
+import {
+  resolvePushTitle,
+  shouldNotifyChat,
+  type ActiveChatTarget,
+} from '@/utils/message-push'
+
+export type { ActiveChatTarget } from '@/utils/message-push'
 
 export interface PushNotification {
   id: number
@@ -19,20 +26,7 @@ export interface PushNotification {
   groupId?: number
 }
 
-export interface InboxNoticeItem {
-  id: number
-  title: string
-  content: string
-  readStatus?: number
-  bizType?: string
-  bizId?: number
-  createTime?: string
-}
-
-export interface ActiveChatTarget {
-  type: 'user' | 'group'
-  id: number
-}
+export type InboxNoticeItem = NoticeVO
 
 export const useMessageStore = defineStore('message', () => {
   const inboxCount = ref(0)
@@ -60,18 +54,6 @@ export const useMessageStore = defineStore('message', () => {
 
   function setActiveChatTarget(target: ActiveChatTarget | null) {
     activeChatTarget.value = target
-  }
-
-  function shouldNotifyChat(msg: WsPushMessage): boolean {
-    const active = activeChatTarget.value
-    if (!active) return true
-    if (msg.type === 'groupChat' && active.type === 'group' && active.id === msg.groupId) {
-      return false
-    }
-    if (msg.type === 'chat' && active.type === 'user' && active.id === msg.senderId) {
-      return false
-    }
-    return true
   }
 
   function incrementGroupUnread(groupId: number) {
@@ -107,23 +89,15 @@ export const useMessageStore = defineStore('message', () => {
   async function loadInbox() {
     try {
       const res = await getMyNoticeList()
-      inboxList.value = (res.data || []) as InboxNoticeItem[]
+      inboxList.value = res.data || []
     } catch (e) {
       console.error('loadInbox failed', e)
     }
   }
 
   function showPushNotification(msg: WsPushMessage) {
-    let title = '新消息'
-    let type: PushNotification['type'] = 'chat'
-    if (msg.type === 'notice') {
-      type = 'notice'
-      title = msg.title || '系统通知'
-    } else if (msg.type === 'groupChat') {
-      title = msg.senderName ? `${msg.senderName}(群消息)` : '群消息'
-    } else {
-      title = msg.senderName || '新消息'
-    }
+    const type: PushNotification['type'] = msg.type === 'notice' ? 'notice' : 'chat'
+    const title = resolvePushTitle(msg)
     const notification: PushNotification = {
       id: Date.now(),
       type,
@@ -156,14 +130,14 @@ export const useMessageStore = defineStore('message', () => {
       return
     }
     if (msg.type === 'chat') {
-      if (shouldNotifyChat(msg)) {
+      if (shouldNotifyChat(activeChatTarget.value, msg)) {
         showPushNotification(msg)
       }
       refreshSummary()
       return
     }
     if (msg.type === 'groupChat' && msg.groupId != null) {
-      if (shouldNotifyChat(msg)) {
+      if (shouldNotifyChat(activeChatTarget.value, msg)) {
         incrementGroupUnread(msg.groupId)
         showPushNotification(msg)
       }

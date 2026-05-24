@@ -466,9 +466,13 @@ onMounted(async () => {
 }
 
 .register-brand {
-  position: relative;
+  position: sticky;
+  top: 0;
+  align-self: flex-start;
   flex: 1 1 46%;
   min-width: 0;
+  height: 100vh;
+  box-sizing: border-box;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -545,6 +549,8 @@ onMounted(async () => {
   align-items: center;
   justify-content: center;
   background: transparent;
+  /* 表单项较多，整体略上移避免视觉偏下 */
+  transform: translateY(-14px);
 }
 
 .register-form__head {
@@ -919,17 +925,28 @@ onMounted(async () => {
   }
 
   .register-brand {
+    position: relative;
+    align-self: stretch;
+    height: auto;
     flex: none;
     width: 100%;
     padding: 28px 20px 22px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   }
 
+  .register-brand__inner {
+    transform: translateY(-48px);
+  }
+
   .register-form-pane {
     flex: none;
     width: 100%;
     border-left: none;
-    padding-top: 4px;
+    padding-top: 0;
+  }
+
+  .register-form-wrapper {
+    transform: translateY(-10px);
   }
 
   .register-brand__visual {

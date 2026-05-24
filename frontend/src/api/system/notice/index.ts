@@ -1,5 +1,5 @@
-import request from '@/utils/request'
-import type { ApiResult, PageQuery, PageResult } from '@/types/api'
+import { get, put } from '@/utils/request'
+import type { PageQuery, PageResult } from '@/types/api'
 
 export interface NoticeVO {
   id: number
@@ -11,25 +11,30 @@ export interface NoticeVO {
   isRead?: number
   readStatus?: number
   createTime?: string
-  [key: string]: unknown
+}
+
+export interface NoticePageQuery extends PageQuery {
+  title?: string
+  bizType?: string
+  isRead?: number | null
 }
 
 export function getUnreadNoticeCount() {
-  return request.get('/system/notice/unread-count') as Promise<ApiResult<number>>
+  return get<number>('/system/notice/unread-count')
 }
 
 export function getMyNoticeList() {
-  return request.get('/system/notice/my-list') as Promise<ApiResult<NoticeVO[]>>
+  return get<NoticeVO[]>('/system/notice/my-list')
 }
 
 export function readNotice(id: number) {
-  return request.put('/system/notice/read', { id })
+  return put('/system/notice/read', { id })
 }
 
 export function readAllNotice() {
-  return request.put('/system/notice/read-all')
+  return put('/system/notice/read-all')
 }
 
-export function getNoticePage(params: PageQuery) {
-  return request.get('/system/notice/page', { params }) as Promise<ApiResult<PageResult<NoticeVO>>>
+export function getNoticePage(params: NoticePageQuery) {
+  return get<PageResult<NoticeVO>>('/system/notice/page', params)
 }

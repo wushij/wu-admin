@@ -163,58 +163,22 @@ import type { ECharts } from 'echarts'
 import type { CallbackDataParams } from 'echarts/types/dist/shared'
 import { useUserStore } from '@/store/user'
 import { hasMenuPermission } from '@/directives/permission'
-import { getApiAccessPage, getApiAccessStatistics } from '@/api/monitor/api-access'
-
-interface TopUserRow {
-  userId: number
-  username?: string
-  count?: number
-}
-
-interface TopPathRow {
-  apiPath?: string
-  count?: number
-}
-
-interface DailyStatItem {
-  total?: number
-  success?: number
-  fail?: number
-}
-
-interface ApiAccessStats {
-  totalCount: number
-  successCount: number
-  failCount: number
-  dailyStats: Record<string, DailyStatItem>
-  topPaths: TopPathRow[]
-  topUsers: TopUserRow[]
-  methodCount: Record<string, number>
-}
-
-interface ApiAccessLogRow {
-  id?: number
-  userId?: number
-  username?: string
-  apiPath?: string
-  method?: string
-  success?: number
-  createTime?: string
-  [key: string]: unknown
-}
+import {
+  getApiAccessPage,
+  getApiAccessStatistics,
+  createEmptyApiAccessStats,
+  toApiAccessStatsView,
+  type ApiAccessPageQuery,
+  type ApiAccessStatisticsQuery,
+  type ApiAccessLogRow,
+  type ApiAccessStatsView,
+  type ApiAccessTopUser,
+} from '@/api/monitor/api-access'
 
 const userStore = useUserStore()
 const canQuery = computed(() => hasMenuPermission(userStore.menus, 'monitor:apiAccess:query'))
 
-const stats = reactive<ApiAccessStats>({
-  totalCount: 0,
-  successCount: 0,
-  failCount: 0,
-  dailyStats: {},
-  topPaths: [],
-  topUsers: [],
-  methodCount: {},
-})
+const stats = reactive<ApiAccessStatsView>(createEmptyApiAccessStats())
 
 const methodChartRef = ref<HTMLElement | null>(null)
 const pathChartRef = ref<HTMLElement | null>(null)
@@ -224,13 +188,13 @@ let pathChart: ECharts | null = null
 let lineChart: ECharts | null = null
 let echartsModule: typeof import('echarts') | null = null
 
-const queryParams = reactive({
+const queryParams = reactive<ApiAccessPageQuery>({
   pageNo: 1,
   pageSize: 20,
-  userId: null as number | null,
+  userId: null,
   apiPath: '',
-  method: null as string | null,
-  success: null as number | null,
+  method: null,
+  success: null,
 })
 const dateRange = ref<[string, string] | null>(null)
 const tableData = ref<ApiAccessLogRow[]>([])
@@ -269,7 +233,7 @@ function buildDailyDateKeys() {
   return keys
 }
 
-function displayUser(row: TopUserRow) {
+function displayUser(row: ApiAccessTopUser) {
   return row?.username || '-'
 }
 
@@ -282,18 +246,12 @@ async function ensureEcharts() {
 
 async function loadStatistics() {
   try {
-    const res = await getApiAccessStatistics({
+    const statParams: ApiAccessStatisticsQuery = {
       startDate: startDate.value,
-      endDate: endDate.value
-    })
-    const data = (res.data || {}) as Partial<ApiAccessStats>
-    stats.totalCount = data.totalCount ?? 0
-    stats.successCount = data.successCount ?? 0
-    stats.failCount = data.failCount ?? 0
-    stats.dailyStats = data.dailyStats || {}
-    stats.topPaths = data.topPaths || []
-    stats.topUsers = data.topUsers || []
-    stats.methodCount = data.methodCount || {}
+      endDate: endDate.value,
+    }
+    const res = await getApiAccessStatistics(statParams)
+    Object.assign(stats, toApiAccessStatsView(res.data))
     await nextTick()
     updateCharts()
   } catch (e) {
@@ -365,12 +323,12 @@ async function updateCharts() {
 async function loadPage() {
   loading.value = true
   try {
-    const params: Record<string, unknown> = {
+    const params: ApiAccessPageQuery = {
       pageNo: queryParams.pageNo,
       pageSize: queryParams.pageSize,
       userId: queryParams.userId ?? undefined,
       apiPath: queryParams.apiPath || undefined,
-      method: queryParams.method || undefined,
+      method: queryParams.method ?? undefined,
       success: queryParams.success ?? undefined,
     }
     if (dateRange.value?.length === 2) {

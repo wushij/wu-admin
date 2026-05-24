@@ -272,7 +272,7 @@ function rebuildFormRules() {
 function syncAutofillFromDom() {
   const root = formRef.value?.$el as HTMLElement | undefined
   if (!root) return
-  const inputs = root.querySelectorAll('input.el-input__inner') as NodeListOf<HTMLInputElement>
+  const inputs = Array.from(root.querySelectorAll<HTMLInputElement>('input.el-input__inner'))
   if (inputs[0]?.value) formData.username = inputs[0].value.trim()
   if (inputs[1]?.value) formData.password = inputs[1].value
   if (inputs[2]?.value && captchaEnabled.value && captchaType.value === 'image') {
@@ -417,9 +417,13 @@ onMounted(async () => {
 }
 
 .login-brand {
-  position: relative;
+  position: sticky;
+  top: 0;
+  align-self: flex-start;
   flex: 1 1 46%;
   min-width: 0;
+  height: 100vh;
+  box-sizing: border-box;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -810,10 +814,17 @@ onMounted(async () => {
   }
 
   .login-brand {
+    position: relative;
+    align-self: stretch;
+    height: auto;
     flex: none;
     width: 100%;
     padding: 28px 20px 22px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .login-brand__inner {
+    transform: translateY(-48px);
   }
 
   .login-form-pane {

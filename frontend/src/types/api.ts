@@ -10,7 +10,21 @@ export interface ApiResult<T = unknown> {
 export interface PageQuery {
   pageNo?: number
   pageSize?: number
-  [key: string]: unknown
+}
+
+/** 回收站分页（pageNo/pageSize 必填，便于列表翻页逻辑类型安全） */
+export interface RecyclePageQuery {
+  pageNo: number
+  pageSize: number
+}
+
+/** 实体公共时间字段（与后端 BaseEntity 一致） */
+export interface EntityTimestamps {
+  createTime?: string
+  updateTime?: string
+  creator?: string
+  updater?: string
+  deleted?: number
 }
 
 /** 分页列表响应 */
@@ -80,6 +94,8 @@ export interface DictDataItem {
   listClass?: string
   status?: number
   sort?: number
+  isDefault?: number
+  remark?: string
 }
 
 /** 字典下拉选项 */

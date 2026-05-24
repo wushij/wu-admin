@@ -476,7 +476,7 @@ const availableAddUsers = computed(() => {
 
 async function loadUsers() {
   const res = await getChatUsers()
-  users.value = (res.data || []) as ChatUser[]
+  users.value = res.data ?? []
   users.value.forEach((u) => {
     onlineMap.value[u.id] = !!u.online
   })
@@ -484,7 +484,7 @@ async function loadUsers() {
 
 async function loadGroups() {
   const res = await getChatGroups()
-  groups.value = (res.data || []) as ChatGroup[]
+  groups.value = res.data ?? []
 }
 
 async function selectUser(user: ChatUser) {
@@ -541,7 +541,7 @@ async function loadGroupMembersList() {
   membersLoading.value = true
   try {
     const res = await getGroupMembers(selectedGroup.value.id)
-    groupMembers.value = (res.data || []) as GroupMember[]
+    groupMembers.value = res.data ?? []
   } finally {
     membersLoading.value = false
   }
@@ -552,7 +552,7 @@ async function loadGroupLogs() {
   logsLoading.value = true
   try {
     const res = await getGroupLogs(selectedGroup.value.id)
-    groupLogs.value = (res.data || []) as ChatGroupLogItem[]
+    groupLogs.value = res.data ?? []
   } finally {
     logsLoading.value = false
   }
@@ -570,8 +570,10 @@ async function handleSend() {
     content: inputContent.value.trim(),
     msgType: 1,
   })
-  messages.value.push(res.data)
-  updateUserLastMsg(selectedUser.value.id, res.data.content, 1)
+  const message = res.data
+  if (!message) return
+  messages.value.push(message)
+  updateUserLastMsg(selectedUser.value.id, message.content, 1)
   inputContent.value = ''
   await nextTick()
   scrollBottom(messageListRef)
@@ -583,7 +585,9 @@ async function handleGroupSend() {
     content: groupInput.value.trim(),
     msgType: 1,
   })
-  groupMessages.value.push(res.data)
+  const message = res.data
+  if (!message) return
+  groupMessages.value.push(message)
   groupInput.value = ''
   await nextTick()
   scrollBottom(groupListRef)
@@ -598,6 +602,7 @@ async function handleUploadImage({ file }: { file: File }) {
     return
   }
   const msg = await sendChat({ receiverId: selectedUser.value.id, content: url, msgType: 2 })
+  if (!msg.data) return
   messages.value.push(msg.data)
   updateUserLastMsg(selectedUser.value.id, '[图片]', 2)
   await nextTick()
@@ -624,6 +629,7 @@ async function handleCreateGroup() {
     return
   }
   const res = await createChatGroup({ name: newGroupName.value.trim(), memberIds: newGroupMembers.value })
+  if (!res.data) return
   ElMessage.success('群组创建成功')
   showCreateGroup.value = false
   newGroupName.value = ''
@@ -643,8 +649,10 @@ async function openGroupDetail() {
 }
 
 async function handleQuit() {
+  const group = selectedGroup.value
+  if (!group) return
   await ElMessageBox.confirm('确定要退出该群组吗？', '提示', { type: 'warning' })
-  await quitGroup(selectedGroup.value!.id)
+  await quitGroup(group.id)
   ElMessage.success('已退出群组')
   showGroupDetail.value = false
   selectedGroup.value = null
@@ -653,8 +661,10 @@ async function handleQuit() {
 }
 
 async function handleDissolve() {
+  const group = selectedGroup.value
+  if (!group) return
   await ElMessageBox.confirm('确定要解散该群组吗？此操作不可撤销！', '警告', { type: 'warning' })
-  await dissolveGroup(selectedGroup.value!.id)
+  await dissolveGroup(group.id)
   ElMessage.success('群组已解散')
   showGroupDetail.value = false
   selectedGroup.value = null
@@ -702,8 +712,9 @@ async function handleUpdateGroup() {
 }
 
 async function handleAddMembers() {
-  if (!selectedGroup.value || !addMemberIds.value.length) return
-  await addGroupMembers(selectedGroup.value!.id, addMemberIds.value)
+  const group = selectedGroup.value
+  if (!group || !addMemberIds.value.length) return
+  await addGroupMembers(group.id, addMemberIds.value)
   ElMessage.success('成员已添加')
   addMemberIds.value = []
   await loadGroupMembersList()

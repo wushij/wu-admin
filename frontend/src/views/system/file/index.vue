@@ -43,7 +43,7 @@
             >
               <el-icon><Folder /></el-icon>
               <span class="group-name">{{ group.name }}</span>
-              <span v-if="group.fileCount > 0" class="group-count">{{ group.fileCount }}</span>
+              <span v-if="(group.fileCount ?? 0) > 0" class="group-count">{{ group.fileCount }}</span>
               <el-dropdown trigger="click" @command="(cmd) => handleGroupCmd(cmd, group)">
                 <el-icon class="group-more" @click.stop><MoreFilled /></el-icon>
                 <template #dropdown>
@@ -155,12 +155,12 @@
               <div
                 v-for="file in files"
                 :key="file.id"
-                :class="['file-card', { selected: selectedIds.includes(file.id) }]"
+                :class="['file-card', { selected: isFileSelected(file) }]"
                 @click="toggleSelect(file)"
               >
                 <div class="file-checkbox" @click.stop>
                   <el-checkbox
-                    :model-value="selectedIds.includes(file.id)"
+                    :model-value="isFileSelected(file)"
                     @change="toggleSelect(file)"
                   />
                 </div>
@@ -191,12 +191,12 @@
               <div
                 v-for="file in files"
                 :key="file.id"
-                :class="['file-row', { selected: selectedIds.includes(file.id) }]"
+                :class="['file-row', { selected: isFileSelected(file) }]"
                 @click="toggleSelect(file)"
               >
                 <div class="file-checkbox" @click.stop>
                   <el-checkbox
-                    :model-value="selectedIds.includes(file.id)"
+                    :model-value="isFileSelected(file)"
                     @change="toggleSelect(file)"
                   />
                 </div>
@@ -266,7 +266,7 @@
       <el-form label-width="80px">
         <el-form-item label="目标分组">
           <el-select v-model="moveGroupId" placeholder="请选择分组" clearable style="width: 100%">
-            <el-option label="未分组" :value="null" />
+            <el-option label="未分组" :value="0" />
             <el-option v-for="g in groups" :key="g.id" :label="g.name" :value="g.id" />
           </el-select>
         </el-form-item>
@@ -303,7 +303,7 @@
           <el-icon :size="64"><Document /></el-icon>
           <p>{{ previewFile?.originalName }}</p>
           <p class="preview-tip">该文件类型暂不支持预览</p>
-          <el-button type="primary" @click="handleDownload(previewFile)">下载文件</el-button>
+          <el-button type="primary" @click="previewFile && handleDownload(previewFile)">下载文件</el-button>
         </div>
       </div>
     </el-dialog>
@@ -312,7 +312,13 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import {
+  ElMessage,
+  ElMessageBox,
+  type CheckboxValueType,
+  type UploadRawFile,
+  type UploadRequestOptions,
+} from 'element-plus'
 import {
   Folder,
   MoreFilled,
@@ -345,7 +351,10 @@ import {
   validateFileBeforeUpload,
   getFileUploadPolicy,
   setUploadPolicyFromApi,
-  uploadPolicy
+  uploadPolicy,
+  type FileGroupVO,
+  type FileRecord,
+  type FilePageByGroupQuery,
 } from '@/api/system/file'
 
 const typeTabs = [
@@ -354,34 +363,34 @@ const typeTabs = [
   { label: '文件', value: 'other' }
 ]
 
-const groups = ref([])
+const groups = ref<FileGroupVO[]>([])
 const ungroupedCount = ref(0)
 const activeType = ref('image')
-const activeGroupId = ref(-1)
+const activeGroupId = ref<number | null>(-1)
 
 const viewMode = ref('grid')
 const searchName = ref('')
 
-const files = ref([])
+const files = ref<FileRecord[]>([])
 const loading = ref(false)
 const pageNo = ref(1)
 const pageSize = ref(20)
 const total = ref(0)
-const selectedIds = ref([])
+const selectedIds = ref<number[]>([])
 
 const groupVisible = ref(false)
-const editingGroup = ref(null)
+const editingGroup = ref<FileGroupVO | null>(null)
 const groupName = ref('')
 
 const renameVisible = ref(false)
 const renameValue = ref('')
-const renamingFile = ref(null)
+const renamingFile = ref<FileRecord | null>(null)
 
 const moveVisible = ref(false)
-const moveGroupId = ref(null)
+const moveGroupId = ref<number | null>(null)
 
 const previewVisible = ref(false)
-const previewFile = ref(null)
+const previewFile = ref<FileRecord | null>(null)
 const previewBlobUrl = ref('')
 const previewText = ref('')
 
@@ -432,7 +441,7 @@ const officePreviewUrl = computed(() => {
   return `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(abs)}`
 })
 
-function formatSize(bytes) {
+function formatSize(bytes: number | undefined) {
   if (!bytes) return '0 B'
   const k = 1024
   const s = ['B', 'KB', 'MB', 'GB', 'TB']
@@ -466,7 +475,7 @@ async function loadFiles() {
   loading.value = true
   selectedIds.value = []
   try {
-    const params: Record<string, unknown> = {
+    const params: FilePageByGroupQuery = {
       pageNo: pageNo.value,
       pageSize: pageSize.value,
       fileCategory: activeType.value,
@@ -490,13 +499,14 @@ function handlePageSizeChange() {
   loadFiles()
 }
 
-function selectGroup(groupId) {
+function selectGroup(groupId: number | null) {
   activeGroupId.value = groupId
   pageNo.value = 1
   loadFiles()
 }
 
-function toggleSelect(file) {
+function toggleSelect(file: FileRecord) {
+  if (file.id == null) return
   const idx = selectedIds.value.indexOf(file.id)
   if (idx === -1) {
     selectedIds.value.push(file.id)
@@ -505,11 +515,18 @@ function toggleSelect(file) {
   }
 }
 
-function handleSelectAll(checked) {
-  selectedIds.value = checked ? files.value.map((f) => f.id) : []
+function isFileSelected(file: FileRecord): boolean {
+  return file.id != null && selectedIds.value.includes(file.id)
 }
 
-function checkUploadFile(file) {
+function handleSelectAll(val: CheckboxValueType) {
+  const checked = val === true
+  selectedIds.value = checked
+    ? files.value.map((f) => f.id).filter((id): id is number => id != null)
+    : []
+}
+
+function checkUploadFile(file: UploadRawFile) {
   const err = validateFileBeforeUpload(file)
   if (err) {
     ElMessage.error(err)
@@ -518,8 +535,9 @@ function checkUploadFile(file) {
   return true
 }
 
-async function handleUpload({ file }) {
-  if (!checkUploadFile(file)) return
+async function handleUpload(options: UploadRequestOptions) {
+  const file = options.file
+  if (!file || !checkUploadFile(file)) return
   try {
     await uploadFile(file, getUploadGroupId())
     ElMessage.success('上传成功')
@@ -543,7 +561,7 @@ function handleDragLeave() {
   }
 }
 
-async function handleDrop(e) {
+async function handleDrop(e: DragEvent) {
   isDragging.value = false
   dragCounter = 0
   const dropped = e.dataTransfer?.files
@@ -551,7 +569,7 @@ async function handleDrop(e) {
   const groupId = getUploadGroupId()
   for (let i = 0; i < dropped.length; i++) {
     const f = dropped[i]
-    if (!checkUploadFile(f)) continue
+    if (!checkUploadFile(f as UploadRawFile)) continue
     try {
       await uploadFile(f, groupId)
       ElMessage.success(`${f.name} 上传成功`)
@@ -563,7 +581,7 @@ async function handleDrop(e) {
   loadGroups()
 }
 
-function openGroupDialog(group) {
+function openGroupDialog(group?: FileGroupVO | null) {
   editingGroup.value = group || null
   groupName.value = group?.name || ''
   groupVisible.value = true
@@ -587,7 +605,7 @@ async function saveGroup() {
   loadGroups()
 }
 
-function handleGroupCmd(cmd, group) {
+function handleGroupCmd(cmd: string, group: FileGroupVO) {
   if (cmd === 'edit') openGroupDialog(group)
   if (cmd === 'delete') {
     ElMessageBox.confirm(
@@ -605,9 +623,9 @@ function handleGroupCmd(cmd, group) {
   }
 }
 
-function handleRename(file) {
+function handleRename(file: FileRecord) {
   renamingFile.value = file
-  renameValue.value = file.originalName
+  renameValue.value = file.originalName ?? ''
   renameVisible.value = true
 }
 
@@ -616,13 +634,16 @@ async function saveRename() {
     ElMessage.warning('请输入文件名')
     return
   }
-  await renameFile(renamingFile.value.id, renameValue.value)
+  const file = renamingFile.value
+  if (!file?.id) return
+  await renameFile(file.id, renameValue.value)
   renameVisible.value = false
   ElMessage.success('重命名成功')
   loadFiles()
 }
 
-async function handleDelete(file) {
+async function handleDelete(file: FileRecord) {
+  if (file.id == null) return
   await ElMessageBox.confirm(`确定要删除文件「${file.originalName}」吗？`, '提示', { type: 'warning' })
   await deleteFile(file.id)
   ElMessage.success('删除成功')
@@ -642,7 +663,8 @@ async function handleBatchDelete() {
 }
 
 async function saveMove() {
-  await moveFiles(selectedIds.value, moveGroupId.value)
+  const targetGroupId = moveGroupId.value ?? 0
+  await moveFiles(selectedIds.value, targetGroupId)
   moveVisible.value = false
   selectedIds.value = []
   ElMessage.success('移动成功')
@@ -657,12 +679,13 @@ function revokePreviewUrl() {
   }
 }
 
-async function handlePreview(file) {
+async function handlePreview(file: FileRecord) {
   revokePreviewUrl()
   previewFile.value = file
   previewText.value = ''
 
   if (isText(file)) {
+    if (file.id == null) return
     const res = await getFileText(file.id)
     previewText.value = res.data || ''
     previewVisible.value = true
@@ -687,32 +710,33 @@ async function handlePreview(file) {
   previewVisible.value = true
 }
 
-function handleDownload(file) {
+function handleDownload(file: FileRecord) {
+  if (file.id == null) return
   const link = document.createElement('a')
   link.href = getDownloadApiUrl(file.id)
-  link.download = file.originalName
+  link.download = file.originalName ?? 'download'
   link.click()
 }
 
-function isImage(file) {
+function isImage(file: FileRecord | null | undefined) {
   return file?.fileType?.startsWith('image/') || false
 }
-function isVideo(file) {
+function isVideo(file: FileRecord | null | undefined) {
   return file?.fileType?.startsWith('video/') || false
 }
-function isAudio(file) {
+function isAudio(file: FileRecord | null | undefined) {
   return file?.fileType?.startsWith('audio/') || false
 }
-function isPdf(file) {
+function isPdf(file: FileRecord | null | undefined) {
   return (
     file?.fileType === 'application/pdf' || file?.fileSuffix?.toLowerCase() === '.pdf'
   )
 }
-function isOffice(file) {
+function isOffice(file: FileRecord | null | undefined) {
   const s = file?.fileSuffix?.toLowerCase() || ''
   return ['.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx'].includes(s)
 }
-function isText(file) {
+function isText(file: FileRecord | null | undefined) {
   if (!file) return false
   const textTypes = ['text/', 'application/json', 'application/xml', 'application/javascript']
   const s = file.fileSuffix?.toLowerCase() || ''
@@ -724,11 +748,11 @@ function isText(file) {
   ]
   return textTypes.some((t) => file.fileType?.startsWith(t)) || textSuffixes.includes(s)
 }
-function isPreviewable(file) {
+function isPreviewable(file: FileRecord | null | undefined) {
   return isImage(file) || isVideo(file) || isAudio(file) || isPdf(file) || isText(file) || isOffice(file)
 }
 
-function getFileIcon(file) {
+function getFileIcon(file: FileRecord | null | undefined) {
   const s = file?.fileSuffix?.toLowerCase() || ''
   if (['.doc', '.docx', '.xls', '.xlsx', '.pdf', '.txt', '.md'].includes(s)) return DocumentCopy
   if (file?.fileType?.startsWith('image/')) return Picture
@@ -737,7 +761,7 @@ function getFileIcon(file) {
   return Document
 }
 
-function getFileIconColor(file) {
+function getFileIconColor(file: FileRecord | null | undefined) {
   const s = file?.fileSuffix?.toLowerCase() || ''
   if (['.doc', '.docx'].includes(s)) return '#2b579a'
   if (['.xls', '.xlsx'].includes(s)) return '#217346'

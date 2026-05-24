@@ -142,18 +142,21 @@
 
       <div v-if="canEdit" class="footer-actions">
         <el-button @click="handleReset">重置</el-button>
-        <el-button type="primary" :loading="saving" :disabled="!isDirty" @click="handleSave">保存全部</el-button>
+        <el-button type="primary" :loading="saving" @click="handleSave">保存全部</el-button>
       </div>
     </el-card>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { onBeforeRouteLeave } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getConfigGroup, updateConfigGroup } from '@/api/system/config'
 import { getRoleList } from '@/api/system/role'
+import { getErrorMessage } from '@/utils/axiosError'
+import type { ConfigGroupCode, ConfigGroupMap } from '@/types/config'
+
 import { useUserStore } from '@/store/user'
 
 const userStore = useUserStore()
@@ -161,10 +164,15 @@ const canEdit = computed(() => (userStore.userInfo?.permissions || []).includes(
 const activeTab = ref('site')
 const loading = ref(false)
 const saving = ref(false)
-const roleOptions = ref([])
+interface RoleOption {
+  name: string
+  code: string
+}
+
+const roleOptions = ref<RoleOption[]>([])
 const platformMaxFileMb = 500
 
-const GROUP_CODES = ['site', 'session', 'file', 'rateLimit', 'login', 'register']
+const GROUP_CODES = ['site', 'session', 'file', 'rateLimit', 'login', 'register'] as const satisfies readonly ConfigGroupCode[]
 
 const DEFAULTS = {
   site: {
@@ -200,22 +208,54 @@ const DEFAULTS = {
     needAudit: false,
     minPasswordLength: 6
   }
+} satisfies ConfigGroupMap
+
+type ConfigState = ConfigGroupMap
+
+function cloneConfig<T>(data: T): T {
+  return JSON.parse(JSON.stringify(data)) as T
 }
 
-function cloneConfig(data) {
-  return JSON.parse(JSON.stringify(data))
+function setConfigGroup<K extends ConfigGroupCode>(
+  state: ConfigState,
+  code: K,
+  value: ConfigState[K]
+) {
+  state[code] = value
 }
 
 /** 已持久化到数据库的配置快照（仅保存成功或加载后更新） */
-const savedSnapshot = reactive(cloneConfig(DEFAULTS))
+const savedSnapshot = reactive(cloneConfig(DEFAULTS) as ConfigState)
 /** 页面编辑草稿，修改不会写入数据库 */
-const draft = reactive(cloneConfig(DEFAULTS))
+const draft = reactive(cloneConfig(DEFAULTS) as ConfigState)
 
-const isDirty = computed(() =>
-  GROUP_CODES.some((code) => JSON.stringify(draft[code]) !== JSON.stringify(savedSnapshot[code]))
-)
+function normalizePayload<K extends ConfigGroupCode>(code: K, payload: ConfigGroupMap[K]): ConfigGroupMap[K] {
+  if (code === 'login') {
+    const login = payload as ConfigGroupMap['login']
+    return (login.captchaEnabled ? login : { ...login, captchaType: 'image' }) as ConfigGroupMap[K]
+  }
+  if (code === 'register') {
+    const register = payload as ConfigGroupMap['register']
+    return (register.captchaEnabled ? register : { ...register, captchaType: 'image' }) as ConfigGroupMap[K]
+  }
+  return payload
+}
 
-function parseJson(str) {
+/** 草稿是否与已保存快照不一致（watchEffect 追踪深层字段，避免开关/数字框修改后按钮仍禁用） */
+const isDirty = ref(false)
+
+function checkDirty() {
+  isDirty.value = GROUP_CODES.some((code) => {
+    const normalizedDraft = normalizePayload(code, cloneConfig(draft[code]))
+    const normalizedSaved = normalizePayload(code, cloneConfig(savedSnapshot[code]))
+    return JSON.stringify(normalizedDraft) !== JSON.stringify(normalizedSaved)
+  })
+}
+
+watch(draft, checkDirty, { deep: true })
+watch(savedSnapshot, checkDirty, { deep: true })
+
+function parseJson(str: string | undefined): unknown {
   try {
     return JSON.parse(str || '{}')
   } catch {
@@ -223,16 +263,17 @@ function parseJson(str) {
   }
 }
 
-function applyGroupFromServer(code, serverJson) {
+function applyGroupFromServer<K extends ConfigGroupCode>(code: K, serverJson: Partial<ConfigGroupMap[K]>) {
   const merged = { ...DEFAULTS[code], ...serverJson }
-  savedSnapshot[code] = cloneConfig(merged)
-  draft[code] = cloneConfig(merged)
+  // 必须为 draft / savedSnapshot 各克隆一份，否则共享引用会导致编辑时快照被同步改掉
+  setConfigGroup(savedSnapshot, code, cloneConfig(merged))
+  setConfigGroup(draft, code, cloneConfig(merged))
 }
 
-async function loadGroup(code) {
+async function loadGroup(code: ConfigGroupCode) {
   const res = await getConfigGroup(code, { silent403: true })
   const serverJson = res.data?.configValue ? parseJson(res.data.configValue) : {}
-  applyGroupFromServer(code, serverJson)
+  applyGroupFromServer(code, serverJson as Partial<ConfigGroupMap[typeof code]>)
 }
 
 async function loadRoles() {
@@ -266,27 +307,23 @@ async function loadAll() {
     ElMessage.warning('部分配置无查看权限，请联系管理员')
   }
   loading.value = false
+  checkDirty()
 }
 
 function handleReset() {
   for (const code of GROUP_CODES) {
-    draft[code] = cloneConfig(savedSnapshot[code])
+    setConfigGroup(draft, code, cloneConfig(savedSnapshot[code]))
   }
+  checkDirty()
   ElMessage.info('已恢复为上次保存的配置')
 }
 
-function normalizePayload(code, payload) {
-  const next = { ...payload }
-  if (code === 'login' && !next.captchaEnabled) {
-    next.captchaType = 'image'
-  }
-  if (code === 'register' && !next.captchaEnabled) {
-    next.captchaType = 'image'
-  }
-  return next
-}
-
 async function handleSave() {
+  checkDirty()
+  if (!isDirty.value) {
+    ElMessage.info('暂无修改，无需保存')
+    return
+  }
   if (!draft.site.platformName?.trim()) {
     ElMessage.warning('请填写平台名称')
     activeTab.value = 'site'
@@ -297,12 +334,14 @@ async function handleSave() {
     for (const code of GROUP_CODES) {
       const payload = normalizePayload(code, cloneConfig(draft[code]))
       await updateConfigGroup(code, JSON.stringify(payload))
-      savedSnapshot[code] = cloneConfig(payload)
-      draft[code] = cloneConfig(payload)
+      const saved = cloneConfig(payload)
+      setConfigGroup(savedSnapshot, code, saved)
+      setConfigGroup(draft, code, cloneConfig(saved))
     }
+    checkDirty()
     ElMessage.success('保存成功，配置已生效')
   } catch (e) {
-    ElMessage.error(e?.response?.data?.msg || '保存失败')
+    ElMessage.error(getErrorMessage(e) || '保存失败')
   } finally {
     saving.value = false
   }
@@ -316,14 +355,14 @@ function confirmLeave() {
   })
 }
 
-onBeforeRouteLeave((_to, _from, next) => {
-  if (!isDirty.value) {
-    next()
-    return
+onBeforeRouteLeave(async () => {
+  if (!isDirty.value) return true
+  try {
+    await confirmLeave()
+    return true
+  } catch {
+    return false
   }
-  confirmLeave()
-    .then(() => next())
-    .catch(() => next(false))
 })
 
 onMounted(loadAll)

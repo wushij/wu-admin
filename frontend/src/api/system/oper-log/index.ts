@@ -16,10 +16,15 @@ export interface OperLogVO {
   errorMsg?: string
   operTime?: string
   costTime?: number
-  [key: string]: unknown
 }
 
-export function pageOperLog(params: PageQuery) {
+export interface OperLogPageQuery extends PageQuery {
+  title?: string
+  operName?: string
+  status?: number | null
+}
+
+export function pageOperLog(params: OperLogPageQuery) {
   return get<PageResult<OperLogVO>>('/system/oper-log/page', params)
 }
 

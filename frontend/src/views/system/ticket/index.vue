@@ -198,7 +198,7 @@
 <script setup lang="ts">
 import { nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage, ElMessageBox, type FormInstance, type TableInstance } from 'element-plus'
 import { useUserStore } from '@/store/user'
 import {
   createTicket,
@@ -214,29 +214,37 @@ import {
   restoreTicket,
   transitionTicket,
   uploadTicketAttachment,
-  updateTicket
+  updateTicket,
+  type TicketVO,
+  type AssigneeOptionVO,
+  type TicketCommentVO,
+  type TicketAttachmentVO,
+  type TicketSaveDTO,
+  type TicketPageQuery,
 } from '@/api/system/ticket'
+import type { RecyclePageQuery, MenuTreeNode } from '@/types/api'
+import type { UploadFile } from 'element-plus'
 
 const loading = ref(false)
 const route = useRoute()
 const userStore = useUserStore()
 const total = ref(0)
-const ticketList = ref([])
-const tableRef = ref(null)
-const userOptions = ref([])
+const ticketList = ref<TicketVO[]>([])
+const tableRef = ref<TableInstance | null>(null)
+const userOptions = ref<AssigneeOptionVO[]>([])
 const formVisible = ref(false)
 const recycleVisible = ref(false)
 const recycleLoading = ref(false)
-const recycleList = ref([])
+const recycleList = ref<TicketVO[]>([])
 const recycleTotal = ref(0)
 const detailVisible = ref(false)
-const formRef = ref(null)
-const comments = ref([])
-const attachments = ref([])
+const formRef = ref<FormInstance | null>(null)
+const comments = ref<TicketCommentVO[]>([])
+const attachments = ref<TicketAttachmentVO[]>([])
 const commentText = ref('')
 const currentTicket = ref<Partial<import('@/api/system/ticket').TicketVO>>({})
 
-const queryParams = reactive({
+const queryParams = reactive<TicketPageQuery>({
   pageNo: 1,
   pageSize: 10,
   title: '',
@@ -244,16 +252,16 @@ const queryParams = reactive({
   priority: ''
 })
 
-const form = reactive({
+const form = reactive<TicketSaveDTO>({
   id: null,
   title: '',
   description: '',
   priority: 'MEDIUM',
   assigneeUserId: null,
-  deadline: null
+  deadline: null,
 })
 
-const recycleQuery = reactive({
+const recycleQuery = reactive<RecyclePageQuery>({
   pageNo: 1,
   pageSize: 10
 })
@@ -262,21 +270,21 @@ const rules = {
   title: [{ required: true, message: '请输入工单标题', trigger: 'blur' }]
 }
 
-const priorityTagType = (priority) => {
+const priorityTagType = (priority: string | undefined) => {
   if (priority === 'URGENT') return 'danger'
   if (priority === 'HIGH') return 'warning'
   if (priority === 'LOW') return 'info'
   return 'success'
 }
 
-const statusTagType = (status) => {
+const statusTagType = (status: string | undefined) => {
   if (status === 'OPEN') return 'info'
   if (status === 'IN_PROGRESS') return 'warning'
   if (status === 'RESOLVED') return 'success'
   return 'danger'
 }
 
-const formatPriority = (priority) => {
+const formatPriority = (priority: string | undefined) => {
   if (priority === 'LOW') return '低'
   if (priority === 'MEDIUM') return '中'
   if (priority === 'HIGH') return '高'
@@ -284,7 +292,7 @@ const formatPriority = (priority) => {
   return priority || '-'
 }
 
-const formatStatus = (status) => {
+const formatStatus = (status: string | undefined) => {
   if (status === 'OPEN') return '待处理'
   if (status === 'IN_PROGRESS') return '处理中'
   if (status === 'RESOLVED') return '已解决'
@@ -292,8 +300,8 @@ const formatStatus = (status) => {
   return status || '-'
 }
 
-const hasPermission = (permission) => {
-  const checkPermissionFromMenus = (menus) => {
+const hasPermission = (permission: string) => {
+  const checkPermissionFromMenus = (menus: MenuTreeNode[] | undefined) => {
     if (!menus || !Array.isArray(menus)) return false
     for (const menu of menus) {
       if (menu.permission === permission) return true
@@ -304,7 +312,7 @@ const hasPermission = (permission) => {
   return checkPermissionFromMenus(userStore.menus)
 }
 
-const canTransitionRow = (row) => {
+const canTransitionRow = (row: TicketVO) => {
   if (hasPermission('system:ticket:transition')) return true
   const currentUserId = userStore.userInfo?.userId
   return !!currentUserId && row?.assigneeUserId === currentUserId
@@ -373,7 +381,7 @@ const openRecycleDialog = () => {
   getRecycleList()
 }
 
-const openTicketDetailById = async (ticketId) => {
+const openTicketDetailById = async (ticketId: number) => {
   if (!ticketId) return
   const detailRes = await getTicket(ticketId)
   currentTicket.value = detailRes.data || {}
@@ -385,19 +393,20 @@ const openTicketDetailById = async (ticketId) => {
   detailVisible.value = true
 }
 
-const handleDetail = async (row) => {
+const handleDetail = async (row: TicketVO) => {
+  if (row.id == null) return
   await openTicketDetailById(row.id)
 }
 
-const handleUploadAttachment = async (uploadFile) => {
-  if (!currentTicket.value.id) return
+const handleUploadAttachment = async (uploadFile: UploadFile) => {
+  if (!currentTicket.value.id || !uploadFile.raw) return
   await uploadTicketAttachment(currentTicket.value.id, uploadFile.raw)
   ElMessage.success('附件上传成功')
   const attachmentRes = await getTicketAttachments(currentTicket.value.id)
   attachments.value = attachmentRes.data || []
 }
 
-const downloadAttachmentUrl = (id) => `/api/system/ticket/attachment/download/${id}`
+const downloadAttachmentUrl = (id: number) => `/api/system/ticket/attachment/download/${id}`
 
 const relayoutTable = async () => {
   await nextTick()
@@ -426,7 +435,7 @@ watch(
   { immediate: true }
 )
 
-const handleStatusCommand = async (status, row) => {
+const handleStatusCommand = async (status: string, row: TicketVO) => {
   await transitionTicket({ id: row.id, status })
   ElMessage.success('状态更新成功')
   getList()
@@ -435,24 +444,25 @@ const handleStatusCommand = async (status, row) => {
   }
 }
 
-const handleDelete = async (row) => {
+const handleDelete = async (row: TicketVO) => {
   await ElMessageBox.confirm(`确定删除工单【${row.ticketNo}】吗？删除后不可恢复。`, '提示', { type: 'warning' })
   await deleteTicket(row.id)
   ElMessage.success('删除成功')
-  if (queryParams.pageNo > 1 && ticketList.value.length === 1) {
-    queryParams.pageNo -= 1
+  const pageNo = queryParams.pageNo ?? 1
+  if (pageNo > 1 && ticketList.value.length === 1) {
+    queryParams.pageNo = pageNo - 1
   }
   getList()
 }
 
-const handleRestore = async (row) => {
+const handleRestore = async (row: TicketVO) => {
   await restoreTicket(row.id)
   ElMessage.success('恢复成功')
   getRecycleList()
   getList()
 }
 
-const handleDeletePermanent = async (row) => {
+const handleDeletePermanent = async (row: TicketVO) => {
   await ElMessageBox.confirm(`确定彻底删除工单【${row.ticketNo}】吗？该操作不可恢复。`, '警告', { type: 'warning' })
   await deleteTicketPermanent(row.id)
   ElMessage.success('已彻底删除')
@@ -483,10 +493,12 @@ const submitComment = async () => {
     ElMessage.warning('请输入评论内容')
     return
   }
-  await createTicketComment({ ticketId: currentTicket.value.id, content: commentText.value })
+  const ticketId = currentTicket.value.id
+  if (ticketId == null) return
+  await createTicketComment({ ticketId, content: commentText.value })
   ElMessage.success('评论成功')
   commentText.value = ''
-  const commentRes = await getTicketComments(currentTicket.value.id)
+  const commentRes = await getTicketComments(ticketId)
   comments.value = commentRes.data || []
 }
 
