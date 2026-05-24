@@ -1,6 +1,6 @@
 # Admin Platform
 
-基于 **Vue 3 + Spring Boot** 的企业级后台管理系统，提供用户权限、组织岗位、业务工单、系统监控、日志审计、文件与字典、**分组系统配置**、**注册审核**等能力，支持 Docker 一键部署与本地开发调试。
+基于 **Vue 3 + Spring Boot** 的企业级后台管理系统，提供用户权限、组织岗位、业务工单、系统监控、日志审计、文件与字典、**分组系统配置**、**注册审核**等能力，支持本地开发调试与自建部署。
 
 ---
 
@@ -188,7 +188,7 @@ mysql -u root -p wu-admin < sql/add3.sql
 | 前端 | Vue 3、TypeScript、Vite、Element Plus、Pinia、Axios、ECharts、Three.js |
 | 后端 | Spring Boot 3.5、Spring Security 6、Sa-Token、MyBatis-Plus 3.5、Druid、Knife4j 4.5、Springdoc 2.8 |
 | 数据 | MySQL 8、Redis 7 |
-| 部署 | Docker Compose、Nginx |
+| 部署 | 静态资源 + 反向代理（如 Nginx） |
 
 **JDK 17**。核心版本见下表：
 
@@ -209,7 +209,7 @@ mysql -u root -p wu-admin < sql/add3.sql
    ▼
 ┌─────────────────┐     /api/*      ┌──────────────────┐
 │    frontend     │ ──────────────► │     backend      │
-│  Vite / Nginx   │   /doc.html*    │  Spring Boot     │
+│  前端静态资源   │   /doc.html*    │  Spring Boot     │
 │  :3000          │ ──────────────► │  :8080           │
 └─────────────────┘                 └────────┬─────────┘
                                              │
@@ -249,18 +249,13 @@ admin-vue/
 │   │   ├── utils/              # request、主题、菜单、WebSocket 工具
 │   │   └── directives/         # v-permission 等指令
 │   ├── tsconfig.json
-│   ├── vite.config.ts          # 开发代理 /api → backend:8080
-│   ├── nginx.conf              # 生产静态资源与 API 反代
-│   └── Dockerfile
+│   └── vite.config.ts          # 开发代理 /api → localhost:8080
 ├── sql/
 │   ├── admin_platform.sql      # 全量安装 + 文末「附录」升级段
 │   ├── add1.sql                # 已有库增量（配置/注册等）
 │   ├── add2.sql                # 已有库增量（消息中心）
 │   └── add3.sql                # 已有库增量（群聊操作日志）
 ├── data/                       # 本地上传目录（git 忽略，对应 file.storage.local-path）
-├── Dockerfile                  # 后端镜像（根目录）
-├── docker-compose.yml          # MySQL + Redis + backend + frontend
-├── DOCKER_DEPLOY.md
 └── README.md
 ```
 
@@ -314,41 +309,12 @@ cn.rbac.server/
 | Springdoc / Knife4j | 2.8.9 / 4.5.0（见上文接口文档说明） |
 | MySQL | 8.0 |
 | Redis | 7.x |
-| Docker Desktop | 可选 |
 
 ---
 
 ## 快速开始
 
-### 方式一：Docker Compose（推荐）
-
-```powershell
-cd admin-vue
-docker compose up -d --build
-```
-
-首次启动会执行 `sql/admin_platform.sql`（`docker-entrypoint-initdb.d` 仅对**空数据卷**生效）。
-
-| 服务 | 地址 |
-|------|------|
-| 前端 | http://localhost:3000 |
-| 后端 API | http://localhost:8080/api |
-| MySQL | `127.0.0.1:3307`，库 `wu-admin`，`root`/`root` |
-| Redis | `127.0.0.1:6379`，database `1` |
-
-详见 [DOCKER_DEPLOY.md](./DOCKER_DEPLOY.md)。
-
-改 Java/前端代码后重建 Docker：
-
-```powershell
-docker compose up -d --build
-```
-
----
-
-### 方式二：本地开发
-
-#### 1. 初始化数据库
+### 1. 初始化数据库
 
 ```bash
 mysql -u root -p < sql/admin_platform.sql
@@ -356,18 +322,18 @@ mysql -u root -p < sql/admin_platform.sql
 
 > 全量脚本含 `DROP TABLE`，仅用于新库。已有旧库按下方「数据库脚本」顺序执行增量。
 
-#### 2. 启动 Redis
+### 2. 启动 Redis
 
 `127.0.0.1:6379`，database **1**。
 
-#### 3. 启动后端（8080）
+### 3. 启动后端（8080）
 
 ```powershell
 cd backend
 mvn spring-boot:run -DskipTests
 ```
 
-#### 4. 启动前端（3000）
+### 4. 启动前端（3000）
 
 ```powershell
 cd frontend
@@ -414,7 +380,7 @@ npm run dev
 ### 前端
 
 - 开发：`frontend/vite.config.ts`（`/api` 代理到 `localhost:8080`）
-- 生产：`npm run build` + `frontend/nginx.conf`
+- 生产：`npm run build` 后将 `dist` 部署到 Web 服务器，并将 `/api` 反代到后端 `8080`（context-path 为 `/api`）
 
 ---
 
@@ -548,7 +514,6 @@ A：https://github.com/wushij/wu-admin
 
 ## 相关文档
 
-- [Docker 部署指南](./DOCKER_DEPLOY.md)
 - [GitHub 上传与推送](./GitHub上传与推送全流程.md)
 
 ---
