@@ -1,0 +1,73 @@
+@use './variables.scss' as *;
+
+@mixin hero-gradient-dashboard {
+  background: linear-gradient(135deg, #4f46e5 0%, #6366f1 45%, #7c3aed 100%);
+}
+
+@mixin hero-gradient-profile {
+  background: linear-gradient(135deg, #4338ca 0%, #6366f1 55%, #8b5cf6 100%);
+}
+
+@mixin hero-dot-pattern {
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: radial-gradient(rgba(255, 255, 255, 0.07) 1px, transparent 1px);
+    background-size: 24rpx 24rpx;
+    pointer-events: none;
+  }
+}
+
+@mixin glass-bar {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: $radius-lg;
+  backdrop-filter: blur(20px);
+}
+
+@mixin auth-submit-gradient {
+  background: linear-gradient(135deg, #4f46e5 0%, #6d28d9 50%, #6366f1 100%);
+  color: #f8f7ff;
+}
+
+/** 认证页玻璃卡片外框（与 PC login-form.css 一致） */
+@mixin auth-glass-form-shell {
+  border: 1px solid $color-auth-glass-border;
+  box-shadow: $shadow-auth, inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  background: transparent;
+  overflow: hidden;
+  transform: translateZ(0);
+}
+
+/** 毛玻璃背景层（独立层以保证 H5 backdrop-filter 生效） */
+@mixin auth-glass-form-backdrop {
+  background: linear-gradient(
+    160deg,
+    rgba(255, 255, 255, 0.055) 0%,
+    rgba(255, 255, 255, 0.02) 45%,
+    rgba(255, 255, 255, 0.035) 100%
+  );
+  backdrop-filter: blur(10px) saturate(135%);
+  -webkit-backdrop-filter: blur(10px) saturate(135%);
+}
+
+@mixin card-elevated {
+  background: $color-bg-card;
+  border-radius: $radius-lg;
+  border: 1px solid $color-border-light;
+  box-shadow: $shadow-elevated;
+}
+
+@mixin text-ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@mixin module-icon-gradient($from, $to) {
+  background: linear-gradient(135deg, $from, $to);
+}

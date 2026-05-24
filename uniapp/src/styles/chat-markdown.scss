@@ -1,0 +1,176 @@
+/**
+ * AI 回答 Markdown 正文样式 mixin（v-html 渲染产物，仅 H5）
+ * 由 chat-markdown-global.scss 在 App.vue 全局挂载到 .aiwu-markdown / .markdown-body
+ *（组件内 style 块会被 uni-app 强制加 data-v 作用域，v-html 产物命中不了）
+ * 表格用渲染器注入的 md-* 类名命中（uni-app H5 会改写标签选择器，不可靠）
+ */
+@mixin chat-markdown-body {
+  width: 100%;
+  overflow-x: auto;
+  font-size: 26rpx;
+  line-height: 1.7;
+  color: inherit;
+  word-break: break-word;
+
+  p {
+    margin: 0 0 12rpx;
+  }
+
+  p:first-child,
+  h1:first-child,
+  h2:first-child,
+  h3:first-child,
+  h4:first-child {
+    margin-top: 0;
+  }
+
+  p:last-child,
+  ul:last-child,
+  ol:last-child,
+  pre:last-child,
+  blockquote:last-child,
+  .md-table:last-child {
+    margin-bottom: 0;
+  }
+
+  strong {
+    font-weight: 700;
+    color: #0f172a;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    margin: 16rpx 0 10rpx;
+    font-weight: 700;
+    line-height: 1.35;
+    color: #0f172a;
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-size: 27rpx;
+  }
+
+  h4 {
+    font-size: 26rpx;
+  }
+
+  ul,
+  ol {
+    margin: 10rpx 0 12rpx;
+    padding-left: 34rpx;
+  }
+
+  li {
+    margin: 5rpx 0;
+  }
+
+  li::marker {
+    color: #6366f1;
+  }
+
+  blockquote {
+    margin: 12rpx 0;
+    padding: 10rpx 16rpx;
+    border-left: 5rpx solid #6366f1;
+    background: rgba(99, 102, 241, 0.06);
+    border-radius: 0 12rpx 12rpx 0;
+    color: #475569;
+  }
+
+  a {
+    color: #4f46e5;
+    text-decoration: underline;
+    text-underline-offset: 3rpx;
+  }
+
+  .md-table {
+    display: table;
+    width: 100%;
+    table-layout: fixed;
+    border-collapse: collapse;
+    margin: 12rpx 0;
+    font-size: 22rpx;
+    border: 2rpx solid #e2e8f0;
+    border-radius: 12rpx;
+    overflow: hidden;
+    background: #ffffff;
+  }
+
+  .md-thead {
+    display: table-header-group;
+  }
+
+  .md-tbody {
+    display: table-row-group;
+  }
+
+  .md-tr {
+    display: table-row;
+  }
+
+  .md-th,
+  .md-td {
+    display: table-cell;
+    border: 2rpx solid #e2e8f0;
+    padding: 10rpx 12rpx;
+    text-align: left;
+    vertical-align: top;
+    white-space: normal;
+    word-break: break-all;
+    overflow-wrap: anywhere;
+  }
+
+  .md-th {
+    background: #f8fafc;
+    font-weight: 600;
+    color: #0f172a;
+  }
+
+  .md-tbody .md-tr:nth-child(even) .md-td {
+    background: #fbfcfe;
+  }
+
+  pre {
+    margin: 12rpx 0;
+    padding: 18rpx;
+    border-radius: 16rpx;
+    background: #0f172a;
+    overflow-x: auto;
+    font-size: 22rpx;
+    line-height: 1.55;
+  }
+
+  code {
+    font-family: Consolas, 'Courier New', ui-monospace, monospace;
+    font-size: 22rpx;
+  }
+
+  :not(pre) > code {
+    padding: 3rpx 10rpx;
+    border-radius: 6rpx;
+    background: rgba(99, 102, 241, 0.1);
+    color: #4338ca;
+  }
+
+  pre code {
+    background: transparent;
+    color: #e2e8f0;
+    padding: 0;
+  }
+
+  img {
+    max-width: 100%;
+    border-radius: 16rpx;
+    margin: 10rpx 0;
+  }
+
+  hr {
+    border: none;
+    border-top: 2rpx solid #e2e8f0;
+    margin: 16rpx 0;
+  }
+}

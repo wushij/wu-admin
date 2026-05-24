@@ -1,0 +1,248 @@
+/**
+ * 管理后台页面统一视觉：圆角卡片、浅灰底、轻边框（与文件管理页一致）
+ */
+:root {
+  --admin-radius-sm: 6px;
+  --admin-radius-md: 8px;
+  --admin-radius-lg: 12px;
+  --admin-page-gap: 12px;
+  --el-border-radius-base: var(--admin-radius-md);
+  --el-border-radius-small: var(--admin-radius-sm);
+}
+
+/* 主内容区背景 */
+.main-content {
+  background: var(--theme-bg, #f1f5f9) !important;
+}
+
+.app-container,
+.page-container {
+  min-height: 100%;
+}
+
+/* 卡片：大圆角 + 细边框，去掉默认重阴影 */
+.main-content .app-container .el-card,
+.main-content .page-container .el-card,
+.app-container > .el-card,
+.page-container > .el-card,
+.app-container .search-card,
+.app-container .table-card,
+.page-container .group-card,
+.page-container .file-list-card {
+  border-radius: var(--admin-radius-lg) !important;
+  border: 1px solid var(--el-border-color-lighter) !important;
+  box-shadow: none !important;
+  overflow: hidden;
+}
+
+.main-content .el-card.is-hover-shadow:hover,
+.main-content .el-card.is-always-shadow {
+  box-shadow: none !important;
+}
+
+.app-container .search-card,
+.page-container .search-card {
+  margin-bottom: var(--admin-page-gap);
+}
+
+/* 按钮 */
+.main-content .el-button {
+  border-radius: var(--admin-radius-md) !important;
+}
+
+.main-content .el-button.is-round {
+  border-radius: var(--el-border-radius-round) !important;
+}
+
+/* 输入框、选择器 */
+.main-content .el-input__wrapper,
+.main-content .el-select__wrapper,
+.main-content .el-textarea__inner {
+  border-radius: var(--admin-radius-md) !important;
+}
+
+.main-content .el-input-group__append,
+.main-content .el-input-group__prepend {
+  border-radius: 0 var(--admin-radius-md) var(--admin-radius-md) 0 !important;
+}
+
+/* 表格：外层圆角（卡片内溢出裁剪） */
+.main-content .el-card .el-table {
+  border-radius: var(--admin-radius-md);
+}
+
+.main-content .el-table th.el-table__cell:first-child {
+  border-top-left-radius: var(--admin-radius-md);
+}
+
+.main-content .el-table th.el-table__cell:last-child {
+  border-top-right-radius: var(--admin-radius-md);
+}
+
+/* 分页 */
+.main-content .el-pagination .el-pager li,
+.main-content .el-pagination .btn-prev,
+.main-content .el-pagination .btn-next,
+.main-content .el-pagination .el-select .el-input__wrapper {
+  border-radius: var(--admin-radius-md) !important;
+}
+
+/* 标签、告警 */
+.main-content .el-tag,
+.main-content .el-alert {
+  border-radius: var(--admin-radius-md) !important;
+}
+
+/* 弹窗 */
+.el-dialog {
+  border-radius: var(--admin-radius-lg) !important;
+  overflow: hidden;
+}
+
+.el-message-box {
+  border-radius: var(--admin-radius-lg) !important;
+}
+
+/* 下拉、日期面板 */
+.el-dropdown-menu,
+.el-select-dropdown,
+.el-picker-panel {
+  border-radius: var(--admin-radius-md) !important;
+}
+
+/* 文件管理：平铺卡片、类型标签 */
+.file-page {
+  .type-tab {
+    border-radius: var(--admin-radius-md);
+  }
+
+  .group-item {
+    border-radius: var(--admin-radius-md);
+    margin: 0 8px;
+  }
+
+  .file-card {
+    border-radius: var(--admin-radius-lg) !important;
+  }
+
+  .file-preview,
+  .file-preview-small {
+    border-radius: var(--admin-radius-md);
+  }
+
+  .add-group-btn {
+    border-radius: var(--admin-radius-md) !important;
+  }
+
+  .drag-content {
+    border-radius: var(--admin-radius-lg);
+  }
+}
+
+/* 表格操作列：实心小按钮（与用户/角色/菜单等管理页一致） */
+.main-content .action-buttons {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.main-content .action-buttons .el-button {
+  margin: 0;
+}
+
+/* 模块页：代码生成 / 审批单 / 工单等统一头图与搜索区 */
+.module-page {
+  .module-hero-card {
+    margin-bottom: var(--admin-page-gap);
+    background: linear-gradient(135deg, var(--theme-primary, #111827) 0%, #374151 100%);
+    border: none !important;
+    color: #fff;
+
+    .el-card__body {
+      padding: 20px 24px;
+    }
+  }
+
+  .module-hero-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+  }
+
+  .module-hero-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+
+  .module-hero-desc {
+    margin: 0;
+    font-size: 13px;
+    opacity: 0.85;
+  }
+
+  .module-hero-stats {
+    text-align: center;
+    min-width: 88px;
+  }
+
+  .module-hero-stats .stat-num {
+    font-size: 28px;
+    font-weight: 700;
+    line-height: 1.2;
+  }
+
+  .module-hero-stats .stat-label {
+    margin-top: 4px;
+    font-size: 12px;
+    opacity: 0.8;
+  }
+
+  .module-search-card .el-card__body {
+    padding: 12px 16px;
+  }
+
+  .module-search-form.el-form--inline {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px 16px;
+
+    .el-form-item {
+      margin-right: 0;
+      margin-bottom: 0;
+    }
+  }
+
+  .card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .header-actions {
+    display: flex;
+    gap: 8px;
+  }
+
+  .table-pagination {
+    margin-top: 16px;
+    justify-content: flex-end;
+  }
+}
+
+/* 统计卡片（API 访问等） */
+.api-access-page .api-stat-card {
+  border-radius: var(--admin-radius-lg) !important;
+  transition: border-color 0.2s;
+
+  &:hover {
+    border-color: var(--el-color-primary-light-5) !important;
+  }
+}

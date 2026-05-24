@@ -1,0 +1,40 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "后端 dev",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "mvn spring-boot:run -DskipTests",
+      "cwd": "${workspaceFolder}/backend",
+      "env": {
+        "SPRING_PROFILES_ACTIVE": "dev"
+      }
+    },
+    {
+      "name": "前端 dev",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "npm run dev",
+      "cwd": "${workspaceFolder}/frontend"
+    },
+    {
+      "name": "H5 dev",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "npm run dev:h5",
+      "cwd": "${workspaceFolder}/uniapp"
+    }
+  ],
+  "compounds": [
+    {
+      "name": "全栈 dev",
+      "configurations": [
+        "后端 dev",
+        "前端 dev",
+        "H5 dev"
+      ],
+      "stopAll": true
+    }
+  ]
+}

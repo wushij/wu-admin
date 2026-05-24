@@ -1,0 +1,31 @@
+# 服务器生产环境（application.yml 默认即 prod，一般无需再配启动参数）
+spring:
+  datasource:
+    url: jdbc:mysql://127.0.0.1:3306/wuadmin?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&nullCatalogMeansCurrent=true
+    username: wuadmin
+    password: root
+  data:
+    redis:
+      host: 127.0.0.1
+      port: 6379
+      password: root
+      database: 1
+
+# 生产环境 CORS：配置具体域名，逗号分隔（须与站点一致，勿留占位符）
+app:
+  security:
+    cookie-secure: true
+  cors:
+    allowed-origins: "https://wushij.com,https://www.wushij.com,https://app.wushij.com"
+
+# 生产环境上传目录：与宝塔 Java 项目同目录，www 用户可写；Nginx alias 须保持一致
+file:
+  storage:
+    local-path: /www/server/wuadmin/data/uploads
+
+# 生产环境关闭接口文档（避免暴露 API 结构；开发环境 dev 仍继承主配置的 enabled: true）
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false

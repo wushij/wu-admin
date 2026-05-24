@@ -1,0 +1,65 @@
+package com.admin.server.modules.${moduleName}.api.${businessName};
+
+import com.admin.server.common.core.CommonResult;
+import com.admin.server.common.core.PageResult;
+import com.admin.server.framework.log.annotation.Log;
+import com.admin.server.modules.system.dal.dataobject.${businessName}.${className}DO;
+import com.admin.server.modules.system.service.${businessName}.${className}Service;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.*;
+
+@Tag(name = "${functionName}")
+@RestController
+@RequestMapping("/${moduleName}/${businessName}")
+@RequiredArgsConstructor
+public class ${className}Controller {
+
+    private final ${className}Service ${classname}Service;
+
+    @GetMapping("/page")
+    @Operation(summary = "${functionName}分页")
+    @PreAuthorize("@ss.hasRead('${permPrefix}:list')")
+    public CommonResult<PageResult<${className}DO>> page(
+            @RequestParam(defaultValue = "1") Integer pageNo,
+            @RequestParam(defaultValue = "10") Integer pageSize#foreach($column in $columns)#if($column.isQuery == 1),
+            @RequestParam(required = false) $column.javaType $column.javaField#end#end) {
+        return CommonResult.success(${classname}Service.page(pageNo, pageSize#foreach($column in $columns)#if($column.isQuery == 1), $column.javaField#end#end));
+    }
+
+    @GetMapping("/{id}")
+    @Operation(summary = "${functionName}详情")
+    @PreAuthorize("@ss.hasRead('${permPrefix}:list')")
+    public CommonResult<${className}DO> detail(@PathVariable ${pkColumn.javaType} id) {
+        return CommonResult.success(${classname}Service.getById(id));
+    }
+
+    @PostMapping
+    @Operation(summary = "新增${functionName}")
+    @PreAuthorize("@ss.hasPermission('${permPrefix}:create')")
+    @Log(title = "${functionName}", businessType = Log.BusinessType.INSERT)
+    public CommonResult<Boolean> create(@RequestBody ${className}DO entity) {
+        ${classname}Service.create(entity);
+        return CommonResult.success(true);
+    }
+
+    @PutMapping
+    @Operation(summary = "修改${functionName}")
+    @PreAuthorize("@ss.hasPermission('${permPrefix}:update')")
+    @Log(title = "${functionName}", businessType = Log.BusinessType.UPDATE)
+    public CommonResult<Boolean> update(@RequestBody ${className}DO entity) {
+        ${classname}Service.update(entity);
+        return CommonResult.success(true);
+    }
+
+    @DeleteMapping("/{id}")
+    @Operation(summary = "删除${functionName}")
+    @PreAuthorize("@ss.hasPermission('${permPrefix}:delete')")
+    @Log(title = "${functionName}", businessType = Log.BusinessType.DELETE)
+    public CommonResult<Boolean> delete(@PathVariable ${pkColumn.javaType} id) {
+        ${classname}Service.delete(id);
+        return CommonResult.success(true);
+    }
+}

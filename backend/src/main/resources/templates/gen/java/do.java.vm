@@ -1,0 +1,34 @@
+package com.admin.server.modules.${moduleName}.dal.dataobject.${businessName};
+
+import com.admin.server.framework.mybatis.core.dataobject.BaseDO;
+import com.baomidou.mybatisplus.annotation.TableName;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+#if($hasBigDecimal)
+import java.math.BigDecimal;
+#end
+#if($hasLocalDateTime)
+import java.time.LocalDateTime;
+#end
+#if($hasLocalDate)
+import java.time.LocalDate;
+#end
+
+/**
+ * ${functionName}
+ *
+ * @author ${author}
+ * @date ${datetime}
+ */
+@Data
+@EqualsAndHashCode(callSuper = true)
+@TableName("${tableName}")
+public class ${className}DO extends BaseDO {
+#foreach($column in $columns)
+#if(!$baseFields.contains($column.javaField))
+    /** $column.columnComment */
+    private $column.javaType $column.javaField;
+
+#end
+#end
+}

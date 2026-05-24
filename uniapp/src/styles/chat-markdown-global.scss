@@ -1,0 +1,37 @@
+/**
+ * AI Markdown 正文全局样式入口（App.vue 引入，仅 H5 生效）
+ * uni-app 编译 H5 时会给组件内所有 style 块强制注入 data-v 作用域，
+ * v-html 动态插入的 Markdown 节点不带 data-v 属性导致样式全部失效，
+ * 故必须挂载在 App.vue 全局样式中（App.vue 样式不参与 scoped 改写）
+ */
+@use './chat-markdown.scss' as *;
+
+/* #ifdef H5 */
+/* 悬浮球对话窗 AI 回答正文 */
+.aiwu-markdown {
+  @include chat-markdown-body;
+
+  /* 流式输出时在最后一个块元素尾部追加闪烁光标 */
+  &.is-streaming > *:last-child::after {
+    content: '';
+    display: inline-block;
+    width: 4rpx;
+    height: 26rpx;
+    margin-left: 4rpx;
+    vertical-align: -4rpx;
+    background: #6366f1;
+    animation: aiwu-md-cursor 0.9s steps(2) infinite;
+  }
+}
+
+/* AI 日志详情页回答正文 */
+.markdown-body {
+  @include chat-markdown-body;
+}
+
+@keyframes aiwu-md-cursor {
+  50% {
+    opacity: 0;
+  }
+}
+/* #endif */

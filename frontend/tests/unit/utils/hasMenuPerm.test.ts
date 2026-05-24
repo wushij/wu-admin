@@ -1,0 +1,61 @@
+import { describe, expect, it } from 'vitest'
+import { hasMenuPerm, hasMonitorPerm, hasChatPerm } from '@/utils/hasMenuPerm'
+
+const menus = [
+  {
+    permission: 'system:user:list',
+    children: [
+      { permission: 'system:user:create' },
+    ],
+  },
+  {
+    permission: 'system:role:list',
+    children: [],
+  },
+]
+
+describe('hasMenuPerm', () => {
+  it('returns false for empty menus', () => {
+    expect(hasMenuPerm(undefined, 'system:user:list')).toBe(false)
+    expect(hasMenuPerm([], 'system:user:list')).toBe(false)
+  })
+
+  it('matches permission on root node', () => {
+    expect(hasMenuPerm(menus, 'system:role:list')).toBe(true)
+  })
+
+  it('matches permission on nested child', () => {
+    expect(hasMenuPerm(menus, 'system:user:create')).toBe(true)
+  })
+
+  it('returns false when permission not found', () => {
+    expect(hasMenuPerm(menus, 'system:dept:list')).toBe(false)
+  })
+})
+
+describe('hasMonitorPerm', () => {
+  it('returns true when permission array contains perm', () => {
+    expect(hasMonitorPerm(['monitor:cache:query'], [], 'monitor:cache:query')).toBe(true)
+  })
+
+  it('falls back to menu tree when not in permission array', () => {
+    expect(hasMonitorPerm([], menus, 'system:user:list')).toBe(true)
+  })
+
+  it('returns false when neither source has perm', () => {
+    expect(hasMonitorPerm([], menus, 'monitor:server:query')).toBe(false)
+  })
+})
+
+describe('hasChatPerm', () => {
+  const chatMenus = [{ permission: 'system:chat:list', children: [] }]
+
+  it('returns true when chat menu is in tree', () => {
+    expect(hasChatPerm([], chatMenus)).toBe(true)
+  })
+
+  it('returns false when chat menu is absent', () => {
+    expect(hasChatPerm(['system:chat:query'], [])).toBe(false)
+    expect(hasChatPerm(['system:user:list'], menus)).toBe(false)
+  })
+})

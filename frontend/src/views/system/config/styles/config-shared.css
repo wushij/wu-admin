@@ -1,0 +1,135 @@
+.config-form {
+  max-width: 640px;
+  padding-top: 8px;
+}
+
+.config-form.wide-form {
+  max-width: 720px;
+}
+
+.config-form .unit {
+  margin-left: 8px;
+  color: #909399;
+  font-size: 13px;
+}
+
+.config-auditor-field {
+  width: 100%;
+}
+
+.config-auditor-select {
+  width: 100%;
+}
+
+.config-auditor-select .el-select__wrapper {
+  min-height: 36px;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  align-items: flex-start;
+}
+
+.config-auditor-select .el-select__selection {
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.config-auditor-select .el-tag {
+  max-width: none;
+  height: 26px;
+  padding: 0 8px;
+  border-radius: 4px;
+}
+
+.config-auditor-select .el-tag__close {
+  margin-left: 4px;
+}
+
+.config-auditor-field__hint {
+  margin: 6px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #909399;
+}
+
+.pay-collapse {
+  max-width: 760px;
+}
+
+.pay-tip-alert {
+  max-width: 760px;
+  margin-top: 16px;
+}
+
+.sms-config-layout {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+}
+
+.sms-config-left {
+  flex: 6;
+  min-width: 0;
+}
+
+.sms-config-right {
+  flex: 4;
+  min-width: 300px;
+}
+
+.sms-section-card {
+  margin-bottom: 16px;
+  border: 1px solid #ebeef5;
+}
+
+.sms-section-card:last-child {
+  margin-bottom: 0;
+}
+
+.sms-card-title {
+  font-weight: 600;
+  color: #303133;
+}
+
+.sms-form {
+  max-width: none;
+}
+
+.sms-form .el-input,
+.sms-form .el-select {
+  max-width: none;
+}
+
+.sms-test-form {
+  margin-bottom: 4px;
+}
+
+.sms-test-row {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+}
+
+.sms-test-row .el-input {
+  flex: 1;
+}
+
+.sms-log-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sms-tip-alert {
+  margin-top: 16px;
+}
+
+@media (max-width: 960px) {
+  .sms-config-layout {
+    flex-direction: column;
+  }
+
+  .sms-config-right {
+    width: 100%;
+    min-width: 0;
+  }
+}

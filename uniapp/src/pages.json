@@ -1,0 +1,616 @@
+{
+  "easycom": {
+    "autoscan": true,
+    "custom": {
+      "^uv-(.*)": "@climblee/uv-ui/components/uv-$1/uv-$1.vue",
+      "^custom-tab-bar$": "@/custom-tab-bar/index.vue",
+      "^AiWuAssistant$": "@/components/business/AiWuAssistant/index.vue"
+    }
+  },
+  "globalStyle": {
+    "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "Wu-Admin",
+    "navigationBarBackgroundColor": "#ffffff",
+    "backgroundColor": "#f3f5f8",
+    "backgroundTextStyle": "dark"
+  },
+  "tabBar": {
+    "custom": true,
+    "color": "#999999",
+    "selectedColor": "#010710",
+    "backgroundColor": "rgba(0,0,0,0)",
+    "borderStyle": "white",
+    "list": [
+      {
+        "pagePath": "pages/index/index",
+        "text": "首页"
+      },
+      {
+        "pagePath": "pages/work/index",
+        "text": "工作台"
+      },
+      {
+        "pagePath": "pages/message/index",
+        "text": "消息"
+      },
+      {
+        "pagePath": "pages/mine/index",
+        "text": "我的"
+      }
+    ]
+  },
+  "pages": [
+    {
+      "path": "pages/login/index",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "登录",
+        "backgroundColor": "#000000"
+      }
+    },
+    {
+      "path": "pages/login/forgot-password",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "忘记密码",
+        "backgroundColor": "#000000"
+      }
+    },
+    {
+      "path": "pages/register/index",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "注册",
+        "backgroundColor": "#000000"
+      }
+    },
+    {
+      "path": "pages/index/index",
+      "style": {
+        "navigationBarTitleText": "首页",
+        "enablePullDownRefresh": true
+      }
+    },
+    {
+      "path": "pages/work/index",
+      "style": {
+        "navigationBarTitleText": "工作台"
+      }
+    },
+    {
+      "path": "pages/message/index",
+      "style": {
+        "navigationBarTitleText": "消息",
+        "enablePullDownRefresh": true
+      }
+    },
+    {
+      "path": "pages/mine/index",
+      "style": {
+        "navigationBarTitleText": "我的"
+      }
+    }
+  ],
+  "subPackages": [
+    {
+      "root": "pages-sub/msg",
+      "pages": [
+        {
+          "path": "announce/index",
+          "style": {
+            "navigationBarTitleText": "系统公告",
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "announce/detail",
+          "style": {
+            "navigationBarTitleText": "公告详情",
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "inbox/index",
+          "style": {
+            "navigationBarTitleText": "业务消息",
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "inbox/detail",
+          "style": {
+            "navigationBarTitleText": "消息详情",
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "chat/index",
+          "style": {
+            "navigationBarTitleText": "企业IM",
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "chat/detail",
+          "style": {
+            "navigationBarTitleText": "聊天",
+            "disableScroll": true,
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "chat/group-form",
+          "style": {
+            "navigationBarTitleText": "群聊",
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "chat/group-detail",
+          "style": {
+            "navigationBarTitleText": "群组详情",
+            "navigationStyle": "custom"
+          }
+        }
+      ]
+    },
+    {
+      "root": "pages-sub/mine",
+      "pages": [
+        {
+          "path": "profile",
+          "style": {
+            "navigationBarTitleText": "编辑资料",
+            "navigationBarBackgroundColor": "#eef2ff",
+            "backgroundColor": "#f3f5f8",
+            "h5": {
+              "navigationBarBorderStyle": "white"
+            },
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "password",
+          "style": {
+            "navigationBarTitleText": "修改密码",
+            "navigationBarBackgroundColor": "#eef2ff",
+            "backgroundColor": "#f3f5f8",
+            "h5": {
+              "navigationBarBorderStyle": "white"
+            },
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "mobile-bind",
+          "style": {
+            "navigationBarTitleText": "更换手机号",
+            "navigationBarBackgroundColor": "#eef2ff",
+            "backgroundColor": "#f3f5f8",
+            "h5": {
+              "navigationBarBorderStyle": "white"
+            },
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "email-bind",
+          "style": {
+            "navigationBarTitleText": "更换邮箱",
+            "navigationBarBackgroundColor": "#eef2ff",
+            "backgroundColor": "#f3f5f8",
+            "h5": {
+              "navigationBarBorderStyle": "white"
+            },
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "login-logs",
+          "style": {
+            "navigationBarTitleText": "登录记录",
+            "navigationBarBackgroundColor": "#eef2ff",
+            "backgroundColor": "#f3f5f8",
+            "h5": {
+              "navigationBarBorderStyle": "white"
+            },
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "account",
+          "style": {
+            "navigationBarTitleText": "账号概览",
+            "navigationBarBackgroundColor": "#eef2ff",
+            "backgroundColor": "#f3f5f8",
+            "h5": {
+              "navigationBarBorderStyle": "white"
+            },
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "about",
+          "style": {
+            "navigationBarTitleText": "关于应用",
+            "navigationBarBackgroundColor": "#eef2ff",
+            "backgroundColor": "#f3f5f8",
+            "h5": {
+              "navigationBarBorderStyle": "white"
+            },
+            "navigationStyle": "custom"
+          }
+        }
+      ]
+    },
+    {
+      "root": "pages-sub/system",
+      "pages": [
+        {
+          "path": "user/index",
+          "style": {
+            "navigationBarTitleText": "用户管理",
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "user/detail",
+          "style": {
+            "navigationBarTitleText": "用户详情",
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "user/edit",
+          "style": {
+            "navigationBarTitleText": "编辑用户",
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "tree-select",
+          "style": {
+            "navigationBarTitleText": "选择",
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "user-select",
+          "style": {
+            "navigationBarTitleText": "选择负责人",
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "org/index",
+          "style": {
+            "navigationBarTitleText": "组织管理",
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "org/edit",
+          "style": {
+            "navigationBarTitleText": "编辑组织",
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "ticket/index",
+          "style": {
+            "navigationBarTitleText": "工单管理",
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "ticket/detail",
+          "style": {
+            "navigationBarTitleText": "工单详情",
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "ticket/create",
+          "style": {
+            "navigationBarTitleText": "新建工单",
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "approval/index",
+          "style": {
+            "navigationBarTitleText": "审批中心",
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "approval/detail",
+          "style": {
+            "navigationBarTitleText": "审批详情",
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "approval/create",
+          "style": {
+            "navigationBarTitleText": "提交审批单",
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "role/index",
+          "style": {
+            "navigationBarTitleText": "角色管理",
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "role/edit",
+          "style": {
+            "navigationBarTitleText": "编辑角色",
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "role/menu-assign",
+          "style": {
+            "navigationBarTitleText": "分配权限",
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "menu/index",
+          "style": {
+            "navigationBarTitleText": "菜单管理",
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "menu/edit",
+          "style": {
+            "navigationBarTitleText": "编辑菜单",
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "dict/index",
+          "style": {
+            "navigationBarTitleText": "字典管理",
+            "navigationBarBackgroundColor": "#eef2ff",
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "dict/data-list",
+          "style": {
+            "navigationBarTitleText": "字典项",
+            "navigationBarBackgroundColor": "#eef2ff",
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "dict/type-form",
+          "style": {
+            "navigationBarTitleText": "字典类型",
+            "navigationBarBackgroundColor": "#eef2ff",
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "dict/data-form",
+          "style": {
+            "navigationBarTitleText": "字典项",
+            "navigationBarBackgroundColor": "#eef2ff",
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "announce/index",
+          "style": {
+            "navigationBarTitleText": "通知管理",
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "announce/detail",
+          "style": {
+            "navigationBarTitleText": "通知详情",
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "announce/form",
+          "style": {
+            "navigationBarTitleText": "编辑通知",
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "recycle/index",
+          "style": {
+            "navigationBarTitleText": "回收中心",
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "recycle/detail",
+          "style": {
+            "navigationBarTitleText": "回收详情",
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "recycle/list",
+          "style": {
+            "navigationBarTitleText": "回收中心",
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "config/index",
+          "style": {
+            "navigationBarTitleText": "系统配置",
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "config/sms-logs",
+          "style": {
+            "navigationBarTitleText": "短信发送记录",
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "config/email-logs",
+          "style": {
+            "navigationBarTitleText": "邮件发送记录",
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "file/index",
+          "style": {
+            "navigationBarTitleText": "文件列表",
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "file/preview",
+          "style": {
+            "navigationBarTitleText": "文件预览",
+            "navigationStyle": "custom"
+          }
+        }
+      ]
+    },
+    {
+      "root": "pages-sub/monitor",
+      "pages": [
+        {
+          "path": "online",
+          "style": {
+            "navigationBarTitleText": "在线用户",
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "online-detail",
+          "style": {
+            "navigationBarTitleText": "会话详情",
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "server",
+          "style": {
+            "navigationBarTitleText": "服务器监控",
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "job",
+          "style": {
+            "navigationBarTitleText": "定时任务",
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "job-form",
+          "style": {
+            "navigationBarTitleText": "编辑任务",
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "cache",
+          "style": {
+            "navigationBarTitleText": "缓存监控",
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "cache-key",
+          "style": {
+            "navigationBarTitleText": "缓存详情",
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "api-access",
+          "style": {
+            "navigationBarTitleText": "API访问统计",
+            "navigationStyle": "custom"
+          }
+        }
+      ]
+    },
+    {
+      "root": "pages-sub/ai",
+      "pages": [
+        {
+          "path": "model/index",
+          "style": {
+            "navigationBarTitleText": "AI 模型配置",
+            "navigationStyle": "custom",
+            "enablePullDownRefresh": true
+          }
+        },
+        {
+          "path": "model/form",
+          "style": {
+            "navigationBarTitleText": "编辑模型",
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "log/index",
+          "style": {
+            "navigationBarTitleText": "AI 对话日志",
+            "navigationStyle": "custom",
+            "enablePullDownRefresh": true
+          }
+        },
+        {
+          "path": "log/detail",
+          "style": {
+            "navigationBarTitleText": "日志详情",
+            "navigationStyle": "custom"
+          }
+        }
+      ]
+    },
+    {
+      "root": "pages-sub/log",
+      "pages": [
+        {
+          "path": "oper-log",
+          "style": {
+            "navigationBarTitleText": "操作日志",
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "oper-log-detail",
+          "style": {
+            "navigationBarTitleText": "日志详情",
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "login-log",
+          "style": {
+            "navigationBarTitleText": "登录日志",
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "login-log-detail",
+          "style": {
+            "navigationBarTitleText": "登录详情",
+            "navigationStyle": "custom"
+          }
+        }
+      ]
+    }
+  ]
+}

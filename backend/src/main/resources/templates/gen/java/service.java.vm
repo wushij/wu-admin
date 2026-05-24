@@ -1,0 +1,17 @@
+package com.admin.server.modules.${moduleName}.service.${businessName};
+
+import com.admin.server.common.core.PageResult;
+import com.admin.server.modules.${moduleName}.dal.dataobject.${businessName}.${className}DO;
+
+public interface ${className}Service {
+
+    PageResult<${className}DO> page(Integer pageNo, Integer pageSize#foreach($column in $columns)#if($column.isQuery == 1), $column.javaType $column.javaField#end#end);
+
+    ${className}DO getById(${pkColumn.javaType} id);
+
+    void create(${className}DO entity);
+
+    void update(${className}DO entity);
+
+    void delete(${pkColumn.javaType} id);
+}

@@ -1,0 +1,86 @@
+package com.admin.server.modules.${moduleName}.service.${businessName}.impl;
+
+import com.admin.server.common.core.PageResult;
+import com.admin.server.modules.${moduleName}.dal.dataobject.${businessName}.${className}DO;
+import com.admin.server.modules.${moduleName}.dal.mysql.${businessName}.${className}Mapper;
+import com.admin.server.modules.${moduleName}.service.${businessName}.${className}Service;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+
+@Service
+public class ${className}ServiceImpl extends ServiceImpl<${className}Mapper, ${className}DO> implements ${className}Service {
+
+    @Override
+    public PageResult<${className}DO> page(Integer pageNo, Integer pageSize#foreach($column in $columns)#if($column.isQuery == 1), $column.javaType $column.javaField#end#end) {
+        Page<${className}DO> page = new Page<>(pageNo, pageSize);
+        LambdaQueryWrapper<${className}DO> wrapper = new LambdaQueryWrapper<>();
+#foreach($column in $columns)
+#if($column.isQuery == 1)
+#set($getter = "${className}DO::get${column.javaField.substring(0,1).toUpperCase()}${column.javaField.substring(1)}")
+#if($column.javaType == 'String')
+        if (StringUtils.hasText($column.javaField)) {
+#if($column.queryType == 'LIKE')
+            wrapper.like($getter, $column.javaField);
+#elseif($column.queryType == 'NE')
+            wrapper.ne($getter, $column.javaField);
+#elseif($column.queryType == 'GT')
+            wrapper.gt($getter, $column.javaField);
+#elseif($column.queryType == 'LT')
+            wrapper.lt($getter, $column.javaField);
+#else
+            wrapper.eq($getter, $column.javaField);
+#end
+        }
+#else
+        if ($column.javaField != null) {
+#if($column.queryType == 'NE')
+            wrapper.ne($getter, $column.javaField);
+#elseif($column.queryType == 'GT')
+            wrapper.gt($getter, $column.javaField);
+#elseif($column.queryType == 'LT')
+            wrapper.lt($getter, $column.javaField);
+#elseif($column.queryType == 'LIKE')
+            wrapper.like($getter, $column.javaField);
+#else
+            wrapper.eq($getter, $column.javaField);
+#end
+        }
+#end
+#end
+#end
+        wrapper.orderByDesc(${className}DO::getId);
+        Page<${className}DO> result = baseMapper.selectPage(page, wrapper);
+        return PageResult.of(result.getRecords(), result.getTotal());
+    }
+
+    @Override
+    public ${className}DO getById(${pkColumn.javaType} id) {
+        ${className}DO entity = super.getById(id);
+        if (entity == null) {
+            throw new IllegalArgumentException("${functionName}不存在");
+        }
+        return entity;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void create(${className}DO entity) {
+        save(entity);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void update(${className}DO entity) {
+        updateById(entity);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void delete(${pkColumn.javaType} id) {
+        removeById(id);
+    }
+}
