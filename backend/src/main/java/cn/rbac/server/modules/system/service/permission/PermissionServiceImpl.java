@@ -133,21 +133,21 @@ public class PermissionServiceImpl implements PermissionService {
         if (required == null || !required.endsWith(":list")) {
             return null;
         }
-        return required.substring(0, required.length() - 5) + "query";
+        return required.substring(0, required.length() - 5) + ":query";
     }
 
     private String toUploadAlias(String required) {
         if (required == null || !required.endsWith(":list")) {
             return null;
         }
-        return required.substring(0, required.length() - 5) + "upload";
+        return required.substring(0, required.length() - 5) + ":upload";
     }
 
     private String toListAlias(String owned) {
         if (owned == null || !owned.endsWith(":query")) {
             return null;
         }
-        return owned.substring(0, owned.length() - 6) + "list";
+        return owned.substring(0, owned.length() - 6) + ":list";
     }
 
     private Set<String> loadUserPermissionCodes(Long userId) {

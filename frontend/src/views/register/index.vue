@@ -7,7 +7,7 @@
         <vue-particles
           id="sparkles-1"
           @particles-loaded="particlesLoaded"
-          :options="options1"
+          :options="authParticleOptions1"
         />
       </div>
       
@@ -16,7 +16,7 @@
         <vue-particles
           id="sparkles-2"
           @particles-loaded="particlesLoaded"
-          :options="options2"
+          :options="authParticleOptions2"
         />
       </div>
       
@@ -25,7 +25,7 @@
         <vue-particles
           id="sparkles-3"
           @particles-loaded="particlesLoaded"
-          :options="options3"
+          :options="authParticleOptions3"
         />
       </div>
       
@@ -180,197 +180,72 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, reactive, computed, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { User, Lock, Key, UserFilled } from '@element-plus/icons-vue'
 import { getCaptcha, register, getConfig } from '@/api/system/auth'
+import type { RegisterForm } from '@/types/api'
+import {
+  authParticleOptions1,
+  authParticleOptions2,
+  authParticleOptions3,
+} from '@/constants/authParticles'
+import { getErrorMessage } from '@/utils/axiosError'
 import SliderCaptcha from '@/components/SliderCaptcha.vue'
 import Earth3D from '@/components/earth/Earth3D.vue'
+
+type CaptchaMode = 'image' | 'slider'
+
+interface RegisterFormModel {
+  username: string
+  password: string
+  confirmPassword: string
+  nickname: string
+  code: string
+}
 
 const router = useRouter()
 const showSliderModal = ref(false)
 
-// 粒子加载完成回调
-const particlesLoaded = async (container) => {
+const particlesLoaded = (container: unknown) => {
   console.log('Particles loaded', container)
 }
 
-// 第一层配置：大粒子，慢速，靛蓝色
-const options1 = {
-  background: {
-    color: {
-      value: 'transparent'
-    }
-  },
-  fullScreen: { enable: false },
-  fpsLimit: 120,
-  particles: {
-    color: { value: '#6366f1' },
-    move: {
-      enable: true,
-      speed: 0.5,
-      direction: 'none',
-      outModes: { default: 'out' }
-    },
-    number: {
-      density: { enable: true, width: 400, height: 400 },
-      value: 60
-    },
-    opacity: {
-      value: { min: 0.1, max: 1 },
-      animation: { enable: true, speed: 0.5, startValue: 'random', sync: false }
-    },
-    shape: { type: 'circle' },
-    size: { value: { min: 0.6, max: 1.5 } }
-  },
-  detectRetina: true
-}
-
-// 第二层配置：中等粒子，中速，紫色
-const options2 = {
-  background: {
-    color: {
-      value: 'transparent'
-    }
-  },
-  fullScreen: { enable: false },
-  fpsLimit: 120,
-  particles: {
-    color: { value: '#a855f7' },
-    move: {
-      enable: true,
-      speed: 0.8,
-      direction: 'none',
-      outModes: { default: 'out' }
-    },
-    number: {
-      density: { enable: true, width: 400, height: 400 },
-      value: 80
-    },
-    opacity: {
-      value: { min: 0.1, max: 1 },
-      animation: { enable: true, speed: 0.8, startValue: 'random', sync: false }
-    },
-    shape: { type: 'circle' },
-    size: { value: { min: 0.4, max: 1 } }
-  },
-  detectRetina: true
-}
-
-// 第三层配置：小粒子，快速，白色
-const options3 = {
-  background: {
-    color: {
-      value: 'transparent'
-    }
-  },
-  fullScreen: { enable: false },
-  fpsLimit: 120,
-  particles: {
-    color: { value: '#ffffff' },
-    move: {
-      enable: true,
-      speed: 1.2,
-      direction: 'none',
-      outModes: { default: 'out' }
-    },
-    number: {
-      density: { enable: true, width: 400, height: 400 },
-      value: 100
-    },
-    opacity: {
-      value: { min: 0.1, max: 1 },
-      animation: { enable: true, speed: 1.2, startValue: 'random', sync: false }
-    },
-    shape: { type: 'circle' },
-    size: { value: { min: 0.2, max: 0.6 } }
-  },
-  detectRetina: true
-}
-
-// 配置
 const captchaEnabled = ref(true)
-const captchaType = ref('image') // image | slider
+const captchaType = ref<CaptchaMode>('image')
 const minPasswordLength = ref(6)
 const sitePlatformName = ref('Admin Platform')
 const sitePlatformSubtitle = ref('统一运维 · 高效管控')
 const siteRegisterTitle = ref('Sign Up')
 const agreeTerms = ref(false)
-/** 未勾选协议时：协议行抖动提示（无 Toast） */
 const agreeRowAlert = ref(false)
 
-// 验证码
 const captchaImg = ref('')
 const captchaUuid = ref('')
 
-// 加载配置
-async function loadConfig() {
-  try {
-    const res = await getConfig()
-    if (res.data) {
-      const config = res.data
-      if (config.register) {
-        if (config.register.captchaEnabled !== undefined) {
-          captchaEnabled.value = config.register.captchaEnabled !== false
-        }
-        if (config.register.captchaType) {
-          captchaType.value = config.register.captchaType
-        }
-        if (config.register.minPasswordLength) {
-          minPasswordLength.value = Number(config.register.minPasswordLength) || 6
-        }
-        if (!config.register.enabled) {
-          ElMessage.warning('系统暂未开放注册')
-          router.push('/login')
-        }
-      }
-      if (config.site) {
-        if (config.site.platformName) sitePlatformName.value = config.site.platformName
-        if (config.site.platformSubtitle) sitePlatformSubtitle.value = config.site.platformSubtitle
-        if (config.site.registerTitle) siteRegisterTitle.value = config.site.registerTitle
-      }
-    }
-  } catch (error) {
-    console.error('加载配置失败', error)
-  }
-}
-
-// 加载验证码（仅图片模式）
-async function loadCaptcha() {
-  try {
-    const res = await getCaptcha('register')
-    captchaImg.value = 'data:image/png;base64,' + res.data.img
-    captchaUuid.value = res.data.uuid
-  } catch (error) {
-    console.error('获取验证码失败', error)
-  }
-}
-
-onMounted(async () => {
-  await loadConfig()
-  if (captchaEnabled.value && captchaType.value === 'image') {
-    loadCaptcha()
-  }
-  await nextTick()
-  formRef.value?.clearValidate()
-})
-
-const formRef = ref(null)
+const formRef = ref<FormInstance | null>(null)
 const loading = ref(false)
 const submitAttempted = ref(false)
 
-const formData = reactive({
+const formData = reactive<RegisterFormModel>({
   username: '',
   password: '',
   confirmPassword: '',
   nickname: '',
-  code: ''
+  code: '',
 })
 
-// 验证密码一致性
-const validateConfirmPassword = (rule, value, callback) => {
+function parseCaptchaMode(value: string | undefined): CaptchaMode {
+  return value === 'slider' ? 'slider' : 'image'
+}
+
+const validateConfirmPassword = (
+  _rule: unknown,
+  value: string,
+  callback: (error?: Error) => void,
+) => {
   if (value !== formData.password) {
     callback(new Error('两次输入的密码不一致'))
   } else {
@@ -378,11 +253,15 @@ const validateConfirmPassword = (rule, value, callback) => {
   }
 }
 
-const rules = computed(() => {
-  const base = {
+const rules = computed<FormRules>(() => {
+  const base: FormRules = {
     username: [
       { required: true, message: '请输入用户名', trigger: 'blur' },
-      { pattern: /^[a-zA-Z0-9_]{4,20}$/, message: '用户名只能包含字母、数字、下划线，长度4-20位', trigger: 'blur' }
+      {
+        pattern: /^[a-zA-Z0-9_]{4,20}$/,
+        message: '用户名只能包含字母、数字、下划线，长度4-20位',
+        trigger: 'blur',
+      },
     ],
     password: [
       { required: true, message: '请输入密码', trigger: 'blur' },
@@ -390,19 +269,63 @@ const rules = computed(() => {
         min: minPasswordLength.value,
         max: 32,
         message: `密码长度至少 ${minPasswordLength.value} 位`,
-        trigger: 'blur'
-      }
+        trigger: 'blur',
+      },
     ],
     confirmPassword: [
       { required: true, message: '请确认密码', trigger: 'blur' },
-      { validator: validateConfirmPassword, trigger: 'blur' }
-    ]
+      { validator: validateConfirmPassword, trigger: 'blur' },
+    ],
   }
   if (captchaEnabled.value && captchaType.value === 'image') {
     base.code = [{ required: true, message: '请输入验证码', trigger: 'blur' }]
   }
   return base
 })
+
+async function loadConfig() {
+  try {
+    const res = await getConfig()
+    const config = res.data
+    if (!config) return
+
+    if (config.register) {
+      if (config.register.captchaEnabled !== undefined) {
+        captchaEnabled.value = config.register.captchaEnabled !== false
+      }
+      if (config.register.captchaType) {
+        captchaType.value = parseCaptchaMode(config.register.captchaType)
+      }
+      if (config.register.minPasswordLength) {
+        minPasswordLength.value = Number(config.register.minPasswordLength) || 6
+      }
+      if (config.register.enabled === false) {
+        ElMessage.warning('系统暂未开放注册')
+        router.push('/login')
+      }
+    }
+    if (config.site) {
+      if (config.site.platformName) sitePlatformName.value = config.site.platformName
+      if (config.site.platformSubtitle) sitePlatformSubtitle.value = config.site.platformSubtitle
+      if (config.site.registerTitle) siteRegisterTitle.value = config.site.registerTitle
+    }
+  } catch (error) {
+    console.error('加载配置失败', error)
+  }
+}
+
+async function loadCaptcha() {
+  try {
+    const res = await getCaptcha('register')
+    const img = res.data.img ?? res.data.image
+    if (img) {
+      captchaImg.value = `data:image/png;base64,${img}`
+      captchaUuid.value = res.data.uuid
+    }
+  } catch (error) {
+    console.error('获取验证码失败', error)
+  }
+}
 
 function bumpAgreeRow() {
   agreeRowAlert.value = false
@@ -414,33 +337,36 @@ function bumpAgreeRow() {
   })
 }
 
-// 注册处理
 async function handleRegister() {
   if (!agreeTerms.value) {
     bumpAgreeRow()
     return
   }
-
   if (!formRef.value) return
 
   submitAttempted.value = true
-  await formRef.value.validate(async (valid) => {
-    if (!valid) return
-    if (captchaEnabled.value && captchaType.value === 'slider') {
-      showSliderModal.value = true
-      return
-    }
-    await doRegister()
-  })
+  formData.username = (formData.username || '').trim()
+
+  try {
+    await formRef.value.validate()
+  } catch {
+    return
+  }
+
+  if (captchaEnabled.value && captchaType.value === 'slider') {
+    showSliderModal.value = true
+    return
+  }
+  await doRegister()
 }
 
 async function doRegister() {
   loading.value = true
   try {
-    const registerData = {
+    const registerData: RegisterForm = {
       username: formData.username,
       password: formData.password,
-      nickname: formData.nickname || undefined
+      nickname: formData.nickname || undefined,
     }
 
     if (captchaEnabled.value) {
@@ -457,6 +383,10 @@ async function doRegister() {
     router.push('/login')
   } catch (error) {
     console.error('注册失败', error)
+    const errorMessage = getErrorMessage(error)
+    if (errorMessage && !errorMessage.includes('status code')) {
+      ElMessage.error(errorMessage)
+    }
     if (captchaEnabled.value && captchaType.value === 'image') {
       loadCaptcha()
       formData.code = ''
@@ -469,6 +399,15 @@ async function doRegister() {
 function goLogin() {
   router.push('/login')
 }
+
+onMounted(async () => {
+  await loadConfig()
+  if (captchaEnabled.value && captchaType.value === 'image') {
+    loadCaptcha()
+  }
+  await nextTick()
+  formRef.value?.clearValidate()
+})
 </script>
 
 <style scoped>

@@ -1,0 +1,90 @@
+/** 统一 API 响应结构（与后端 CommonResult 一致） */
+export interface ApiResult<T = unknown> {
+  code: number
+  msg?: string
+  message?: string
+  data: T
+}
+
+/** 分页查询参数 */
+export interface PageQuery {
+  pageNo?: number
+  pageSize?: number
+  [key: string]: unknown
+}
+
+/** 分页列表响应 */
+export interface PageResult<T> {
+  list: T[]
+  total: number
+}
+
+/** 登录表单 */
+export interface LoginForm {
+  username: string
+  password: string
+  uuid?: string
+  code?: string
+  rememberMe?: boolean
+}
+
+/** 注册表单 */
+export interface RegisterForm {
+  username: string
+  password: string
+  nickname?: string
+  mobile?: string
+  uuid?: string
+  code?: string
+}
+
+/** 登录响应 */
+export interface LoginResult {
+  token: string
+  userId: number
+  username: string
+  nickname?: string
+}
+
+/** 用户信息（/auth/info） */
+export interface AuthInfo {
+  userId: number
+  username: string
+  nickname?: string
+  avatar?: string
+  roles?: string[]
+  permissions?: string[]
+  menus?: MenuTreeNode[]
+}
+
+export interface MenuTreeNode {
+  id: number
+  name: string
+  permission?: string
+  type?: number
+  sort?: number
+  parentId?: number
+  path?: string
+  icon?: string
+  status?: number
+  component?: string
+  children?: MenuTreeNode[]
+}
+
+/** 字典项（后端 DictData） */
+export interface DictDataItem {
+  id?: number
+  dictType?: string
+  dictLabel: string
+  dictValue: string
+  listClass?: string
+  status?: number
+  sort?: number
+}
+
+/** 字典下拉选项 */
+export interface DictOption {
+  label: string
+  value: string | number
+  raw?: DictDataItem
+}

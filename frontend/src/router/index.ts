@@ -112,6 +112,18 @@ const routes: RouteRecordRaw[] = [
         name: 'ToolApiDoc',
         component: () => import('@/views/tool/api-doc/index.vue'),
         meta: { title: '接口文档', icon: 'Document', permission: 'tool:apiDoc:view' }
+      },
+      {
+        path: 'message/notice',
+        name: 'MessageNotice',
+        component: () => import('@/views/message/notice/index.vue'),
+        meta: { title: '系统通知', icon: 'Notification', permission: 'system:announce:list' }
+      },
+      {
+        path: 'message/chat',
+        name: 'MessageChat',
+        component: () => import('@/views/message/chat/index.vue'),
+        meta: { title: '即时聊天', icon: 'ChatDotRound', permission: 'system:chat:list' }
       }
     ]
   }

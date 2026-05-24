@@ -296,7 +296,7 @@
             <li v-for="item in systemMetaList" :key="item.label" class="sys-meta-item">
               <span class="sys-meta-label">{{ item.label }}</span>
               <span class="sys-meta-value">
-                <el-tag v-if="item.tag" :type="item.tag" size="small" effect="plain">{{ item.value }}</el-tag>
+                <el-tag v-if="item.tag" :type="item.tag as 'success' | 'primary' | 'warning' | 'info' | 'danger'" size="small" effect="plain">{{ item.value }}</el-tag>
                 <template v-else>{{ item.value }}</template>
               </span>
             </li>
@@ -341,7 +341,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/store/user'
@@ -502,15 +502,15 @@ let timeTimer = null
 
 const updateTime = () => {
   const now = new Date()
-  const options = { 
-    year: 'numeric', 
-    month: 'long', 
-    day: 'numeric', 
+  const options = {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
     weekday: 'long',
-    hour: '2-digit', 
-    minute: '2-digit', 
-    second: '2-digit' 
-  }
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  } as const
   currentTime.value = now.toLocaleString('zh-CN', options)
 }
 

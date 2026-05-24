@@ -14,6 +14,8 @@ public interface SysFileService extends IService<SysFileDO> {
 
     SysFileDO uploadImage(MultipartFile file);
 
+    SysFileDO uploadChatImage(MultipartFile file);
+
     byte[] getFileBytes(Long id);
 
     void delete(Long id);

@@ -1,12 +1,13 @@
 <template>
-  <el-tag v-if="showTag" :type="tagType" :size="size" :effect="effect">
+  <el-tag v-if="showTag" :type="tagType" :size="tagSize" :effect="tagEffect">
     {{ label }}
   </el-tag>
   <span v-else class="dict-tag-plain">{{ label }}</span>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed, onMounted, watch } from 'vue'
+import type { TagProps } from 'element-plus'
 import { getDictLabel, getDictListClass, listClassToTagType, useDict } from '@/composables/useDict'
 
 const props = defineProps({
@@ -21,7 +22,9 @@ const props = defineProps({
 const { load } = useDict(props.dictType)
 
 const label = computed(() => getDictLabel(props.dictType, props.value))
-const tagType = computed(() => listClassToTagType(getDictListClass(props.dictType, props.value)))
+const tagType = computed(() => listClassToTagType(getDictListClass(props.dictType, props.value)) as TagProps['type'])
+const tagSize = computed(() => props.size as TagProps['size'])
+const tagEffect = computed(() => props.effect as TagProps['effect'])
 const showTag = computed(() => props.tag && label.value !== '-')
 
 onMounted(() => load())

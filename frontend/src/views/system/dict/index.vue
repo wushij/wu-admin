@@ -137,7 +137,7 @@
             <el-table-column prop="dictValue" label="字典键值" min-width="100" />
             <el-table-column label="回显" width="100">
               <template #default="{ row }">
-                <el-tag :type="listClassToTagType(row.listClass)" size="small">{{ row.dictLabel }}</el-tag>
+                <el-tag :type="listClassToTagType(row.listClass) as 'success' | 'primary' | 'warning' | 'info' | 'danger'" size="small">{{ row.dictLabel }}</el-tag>
               </template>
             </el-table-column>
             <el-table-column label="默认" width="70">
@@ -274,7 +274,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {

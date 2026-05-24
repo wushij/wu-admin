@@ -1,11 +1,8 @@
 import { get, post, put, del } from '@/utils/request'
-
-/**
- * 系统管理相关API
- */
+import type { PageQuery } from '@/types/api'
 
 // ========== 用户管理 ==========
-export const getUserList = (params: any) => {
+export const getUserList = (params?: Record<string, unknown>) => {
   return get('/system/user/list', params)
 }
 
@@ -13,11 +10,11 @@ export const getUserDetail = (id: number) => {
   return get(`/system/user/${id}`)
 }
 
-export const createUser = (data: any) => {
+export const createUser = (data: Record<string, unknown>) => {
   return post('/system/user', data)
 }
 
-export const updateUser = (data: any) => {
+export const updateUser = (data: Record<string, unknown>) => {
   return put('/system/user', data)
 }
 
@@ -26,7 +23,7 @@ export const deleteUser = (id: number) => {
 }
 
 // ========== 角色管理 ==========
-export const getRoleList = (params: any) => {
+export const getRoleList = (params?: Record<string, unknown>) => {
   return get('/system/role/list', params)
 }
 
@@ -34,11 +31,11 @@ export const getRoleDetail = (id: number) => {
   return get(`/system/role/${id}`)
 }
 
-export const createRole = (data: any) => {
+export const createRole = (data: Record<string, unknown>) => {
   return post('/system/role', data)
 }
 
-export const updateRole = (data: any) => {
+export const updateRole = (data: Record<string, unknown>) => {
   return put('/system/role', data)
 }
 
@@ -47,7 +44,7 @@ export const deleteRole = (id: number) => {
 }
 
 // ========== 菜单管理 ==========
-export const getMenuList = (params?: any) => {
+export const getMenuList = (params?: Record<string, unknown>) => {
   return get('/system/menu/list', params)
 }
 
@@ -55,11 +52,11 @@ export const getMenuDetail = (id: number) => {
   return get(`/system/menu/${id}`)
 }
 
-export const createMenu = (data: any) => {
+export const createMenu = (data: Record<string, unknown>) => {
   return post('/system/menu', data)
 }
 
-export const updateMenu = (data: any) => {
+export const updateMenu = (data: Record<string, unknown>) => {
   return put('/system/menu', data)
 }
 
@@ -68,7 +65,7 @@ export const deleteMenu = (id: number) => {
 }
 
 // ========== 部门管理 ==========
-export const getDeptList = (params?: any) => {
+export const getDeptList = (params?: Record<string, unknown>) => {
   return get('/system/dept/list', params)
 }
 
@@ -76,11 +73,11 @@ export const getDeptDetail = (id: number) => {
   return get(`/system/dept/${id}`)
 }
 
-export const createDept = (data: any) => {
+export const createDept = (data: Record<string, unknown>) => {
   return post('/system/dept', data)
 }
 
-export const updateDept = (data: any) => {
+export const updateDept = (data: Record<string, unknown>) => {
   return put('/system/dept', data)
 }
 
@@ -89,8 +86,8 @@ export const deleteDept = (id: number) => {
 }
 
 // ========== 登录日志 ==========
-export const getLoginLogList = (params: any) => {
-  return get('/system/login-log/list', params)
+export const getLoginLogList = (params: PageQuery) => {
+  return get<import('@/types/api').PageResult<Record<string, unknown>>>('/system/login-log/list', params)
 }
 
 export const deleteLoginLog = (id: number) => {

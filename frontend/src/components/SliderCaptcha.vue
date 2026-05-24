@@ -79,7 +79,7 @@
   </el-dialog>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, watch, nextTick, onBeforeUnmount } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Close, ArrowRight, Refresh, Check } from '@element-plus/icons-vue'
@@ -105,7 +105,7 @@ const BG_URLS = [
   '/captcha/bg4.jpg'
 ]
 
-const imageRef = ref(null)
+const imageRef = ref<HTMLElement | null>(null)
 const imageWidth = ref(340)
 const offsetX = ref(0)
 const targetX = ref(180)
@@ -120,7 +120,7 @@ let dragStartX = 0
 
 const currentBgUrl = computed(() => BG_URLS[bgIndex.value % BG_URLS.length])
 
-function puzzleBoxStyle(left) {
+function puzzleBoxStyle(left: number) {
   return {
     left: `${left}px`,
     top: `${pieceTop.value}px`,
@@ -140,7 +140,7 @@ const pieceImgStyle = computed(() => ({
 
 function genCaptchaId() {
   const d = new Date()
-  const pad = (n) => String(n).padStart(2, '0')
+  const pad = (n: number) => String(n).padStart(2, '0')
   const ts =
     d.getFullYear() +
     pad(d.getMonth() + 1) +
@@ -187,14 +187,19 @@ function onClosed() {
   emit('close')
 }
 
-function clampX(x) {
+function clampX(x: number) {
   return Math.max(0, Math.min(maxOffset.value, x))
 }
 
-function onDragStart(e) {
+function getClientX(e: MouseEvent | TouchEvent): number {
+  if ('touches' in e && e.touches.length) return e.touches[0].clientX
+  return (e as MouseEvent).clientX
+}
+
+function onDragStart(e: MouseEvent | TouchEvent) {
   if (verified.value) return
   dragging.value = true
-  const clientX = e.touches ? e.touches[0].clientX : e.clientX
+  const clientX = getClientX(e)
   dragStartX = clientX - offsetX.value
   document.addEventListener('mousemove', onDragMove)
   document.addEventListener('mouseup', onDragEnd)
@@ -203,10 +208,10 @@ function onDragStart(e) {
   document.addEventListener('touchcancel', onDragEnd)
 }
 
-function onDragMove(e) {
+function onDragMove(e: MouseEvent | TouchEvent) {
   if (!dragging.value || verified.value) return
   if (e.cancelable) e.preventDefault()
-  const clientX = e.touches ? e.touches[0].clientX : e.clientX
+  const clientX = getClientX(e)
   offsetX.value = clampX(clientX - dragStartX)
 }
 

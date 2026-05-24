@@ -1,6 +1,9 @@
 import axios, { AxiosInstance, AxiosResponse, InternalAxiosRequestConfig } from 'axios'
 import { ElMessage } from 'element-plus'
 import router from '@/router'
+import type { ApiResult } from '@/types/api'
+
+export type { ApiResult } from '@/types/api'
 
 let lastForbiddenToastAt = 0
 function showForbiddenOnce(message: string) {
@@ -90,18 +93,18 @@ service.interceptors.response.use(
 export default service
 
 // 便捷方法
-export const get = (url: string, params?: any) => {
-  return service.get(url, { params })
+export const get = <T = unknown>(url: string, params?: Record<string, unknown>) => {
+  return service.get(url, { params }) as Promise<ApiResult<T>>
 }
 
-export const post = (url: string, data?: any) => {
-  return service.post(url, data)
+export const post = <T = unknown>(url: string, data?: unknown) => {
+  return service.post(url, data) as Promise<ApiResult<T>>
 }
 
-export const put = (url: string, data?: any) => {
-  return service.put(url, data)
+export const put = <T = unknown>(url: string, data?: unknown) => {
+  return service.put(url, data) as Promise<ApiResult<T>>
 }
 
-export const del = (url: string) => {
-  return service.delete(url)
+export const del = <T = unknown>(url: string, config?: Record<string, unknown>) => {
+  return service.delete(url, config) as Promise<ApiResult<T>>
 }

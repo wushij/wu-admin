@@ -158,7 +158,8 @@
           <el-tree-select
             v-model="form.parentId"
             :data="parentOptions"
-            :props="{ label: 'name', value: 'id', children: 'children' }"
+            node-key="id"
+            :props="{ label: 'name', children: 'children' }"
             placeholder="请选择上级菜单"
             check-strictly
             default-expand-all
@@ -306,7 +307,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, reactive, computed, onMounted, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, Refresh, Plus, Sort } from '@element-plus/icons-vue'
@@ -425,7 +426,7 @@ const toggleExpandAll = async () => {
   })
 }
 
-const handleAdd = (row) => {
+const handleAdd = (row?: import('@/api/system/menu').MenuVO) => {
   resetForm()
   if (row) {
     form.parentId = row.id
@@ -463,7 +464,7 @@ const fillPermissionPrefix = () => {
   const flat = flattenMenuTree(menuList.value)
   const parent = flat.find((m) => m.id === form.parentId)
   if (parent?.permission) {
-    const base = parent.permission.replace(/:list$/, '')
+    const base = String(parent.permission).replace(/:list$/, '')
     form.permission = `${base}:`
   } else {
     ElMessage.warning('上级菜单无权限标识，请手动填写')

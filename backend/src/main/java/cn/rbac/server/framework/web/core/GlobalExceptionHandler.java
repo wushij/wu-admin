@@ -17,6 +17,12 @@ public class GlobalExceptionHandler {
     @Resource
     private DynamicConfigProvider dynamicConfigProvider;
 
+    @ExceptionHandler(IllegalStateException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public CommonResult<Void> handleIllegalState(IllegalStateException e) {
+        return CommonResult.error(400, e.getMessage());
+    }
+
     @ExceptionHandler(IllegalArgumentException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public CommonResult<Void> handleIllegalArgument(IllegalArgumentException e) {
