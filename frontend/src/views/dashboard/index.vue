@@ -366,7 +366,8 @@ import {
   FolderOpened,
   Tools,
   DataLine,
-  Monitor
+  Monitor,
+  ChatDotRound
 } from '@element-plus/icons-vue'
 
 const router = useRouter()
@@ -392,14 +393,13 @@ const quickEntries: QuickEntry[] = [
   { key: 'config', name: '系统配置', desc: '登录注册与会话', path: '/system/config', permission: 'system:config:list', icon: Tools, theme: 'config' },
   { key: 'approval', name: '审批单中心', desc: '流程单审批归档', path: '/system/approval', permission: 'system:approval:list', icon: Checked, theme: 'approval' },
   {
-    key: 'register-audit',
-    name: '注册审核',
-    desc: '待审注册单',
-    path: '/system/approval',
-    query: { formType: 'REGISTER', status: 'SUBMITTED' },
-    permission: 'system:approval:list',
-    icon: Avatar,
-    theme: 'register'
+    key: 'chat',
+    name: '即时聊天',
+    desc: '私聊与群聊消息',
+    path: '/message/chat',
+    permission: 'system:chat:list',
+    icon: ChatDotRound,
+    theme: 'chat'
   },
   { key: 'ticket', name: '工单管理', desc: '处理跟踪工单', path: '/system/ticket', permission: 'system:ticket:list', icon: Tickets, theme: 'ticket' },
   { key: 'file', name: '文件管理', desc: '上传分组存储', path: '/system/file', permission: 'sys:file:list', icon: FolderOpened, theme: 'file' },
@@ -1030,7 +1030,7 @@ onUnmounted(() => {
   background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
 }
 
-.quick-icon-wrapper.register {
+.quick-icon-wrapper.chat {
   background: linear-gradient(135deg, #f97316 0%, #fb923c 100%);
 }
 

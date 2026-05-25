@@ -12,7 +12,7 @@
 | **组织管理** | 部门体系 + 岗位体系；左树右表、拖拽调整部门、岗位成员、部门回收站 |
 | **用户管理** | 部门、岗位多选、角色单选、回收站；支持**待审核 / 已驳回**状态 |
 | **菜单管理** | 树形表格；目录/菜单/按钮联动；图标网格选择器；外链新窗口打开 |
-| **系统配置** | 六分组 Tab：基础信息、会话令牌、文件存储、接口限流、登录认证、注册认证 |
+| **系统配置** | 七分组 Tab：基础信息、会话令牌、文件存储、接口限流、登录认证、注册认证、**安全配置（前端安全）** |
 | **开发工具** | 内嵌 Knife4j 接口文档（`doc.html`） |
 | **系统日志** | 操作日志（AOP）、登录日志 |
 | **系统监控** | API 访问统计、在线用户与强退 |
@@ -37,8 +37,9 @@
 | `rateLimit` | 接口限流 | 验证码/登录/注册 每分钟每 IP 次数（0=不限） | 认证接口防刷 |
 | `login` | 登录认证 | 验证码开关、类型（`image`/`slider`）、记住我、重试锁定 | 登录流程 |
 | `register` | 注册认证 | 开放注册、验证码、默认角色、**需审核**、密码最小长度 | 注册流程 |
+| `security` | 安全配置 | `disableDevtool`（禁止 F12 等前端调试）、`isConcurrent`（false=禁止多端同时在线，新登录踢旧会话） | 前端调试需**刷新页面**；会话策略**保存后对新登录立即生效** |
 
-**公开接口**（无需登录）：`GET /api/auth/config`，返回 `site`、`login`、`register` 等前端登录/注册页所需配置。
+**公开接口**（无需登录）：`GET /api/auth/config`，返回 `site`、`login`、`register`、`security`（仅 `disableDevtool`）等前端所需配置。
 
 **管理接口**（需权限 `system:config:list` / `system:config:update`）：
 
@@ -137,7 +138,7 @@ frontend/src/
 
 ### 数据库
 
-全量安装：`sql/admin_platform.sql` 已含消息中心表（§11b）及 `sys_chat_group_log`。
+全量安装：`sql/admin_platform.sql` 已含消息中心表（§11b）、`sys_chat_group_log` 及组织管理示例部门/岗位数据。
 
 **已有库增量**（按顺序执行，均可重复执行、无 DROP）：
 
@@ -147,6 +148,8 @@ frontend/src/
 | `sql/add2.sql` | **消息中心**（通知/聊天/群聊表 + 菜单 170–178） |
 | `sql/add3.sql` | **群聊操作日志**表 `sys_chat_group_log` |
 | `sql/add4.sql` | **性能索引**（聊天/审批/工单/文件/API 日志等，已有库单独执行） |
+| `sql/add5.sql` | **安全配置**分组 `security`（`disableDevtool`、`isConcurrent`） |
+| `sql/add6.sql` | **组织示例数据**（部门、岗位增量，可重复执行） |
 
 ```bash
 mysql -u root -p wu-admin < sql/add2.sql
@@ -252,11 +255,13 @@ admin-vue/
 │   ├── tsconfig.json
 │   └── vite.config.ts          # 开发代理 /api → localhost:8080
 ├── sql/
-│   ├── admin_platform.sql      # 全量安装 + 文末「附录」升级段
+│   ├── admin_platform.sql      # 全量安装 + 文末「附录」升级段（含组织示例数据）
 │   ├── add1.sql                # 已有库增量（配置/注册等）
 │   ├── add2.sql                # 已有库增量（消息中心）
 │   ├── add3.sql                # 已有库增量（群聊操作日志）
-│   └── add4.sql                # 已有库增量（性能索引）
+│   ├── add4.sql                # 已有库增量（性能索引）
+│   ├── add5.sql                # 已有库增量（前端安全配置）
+│   └── add6.sql                # 已有库增量（部门/岗位示例数据）
 ├── data/                       # 本地上传目录（git 忽略，对应 file.storage.local-path）
 └── README.md
 ```
@@ -400,7 +405,7 @@ npm run dev
 
 ## 数据库脚本
 
-维护 **`sql/admin_platform.sql`**（全量）及增量脚本 **`add1.sql` ~ `add4.sql`**。
+维护 **`sql/admin_platform.sql`**（全量）及增量脚本 **`add1.sql` ~ `add6.sql`**。
 
 | 场景 | 做法 |
 |------|------|
@@ -409,6 +414,8 @@ npm run dev
 | **已有库升级消息中心** | `mysql -u root -p wu-admin < sql/add2.sql` |
 | **已有库升级群聊日志** | `mysql -u root -p wu-admin < sql/add3.sql` |
 | **已有库补性能索引** | `mysql -u root -p wu-admin < sql/add4.sql`（可重复执行，索引已存在可忽略报错） |
+| **已有库补安全配置** | `mysql -u root -p wu-admin < sql/add5.sql` |
+| **已有库补组织示例** | `mysql -u root -p wu-admin < sql/add6.sql`（部门/岗位，按名称与编码判重） |
 
 增量脚本均 **无 DROP**，可重复执行。执行涉及菜单的升级后请 **重新登录**。
 
@@ -508,6 +515,9 @@ A：确认 WebSocket 已连接（登录后自动初始化）；在顶栏铃铛�
 
 **Q：聊天图片出现在文件管理里？**  
 A：升级后新图片走 `/system/chat/upload/image`，存储于 `images/chat/` 且文件列表已排除；历史旧数据可手动删除。
+
+**Q：开启「禁止前端调试」无效？**  
+A：在 **系统配置 → 安全配置** 保存后需 **整页刷新**；已有库需先执行 `sql/add5.sql` 插入 `security` 分组。此为浏览器端限制，无法替代后端鉴权。
 
 **Q：Git 仓库？**  
 A：https://github.com/wushij/wu-admin

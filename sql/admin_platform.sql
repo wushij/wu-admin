@@ -5,8 +5,8 @@
 -- 【全新安装】执行本文件全文即可（建库、建表、初始数据）。
 -- 【已有库升级】若表已存在，可只执行文末「附录：已有库升级」段（可重复执行）。
 --
--- 已有库性能索引升级：执行 sql/add4.sql（可重复执行，索引已存在则跳过报错）。
--- 其它增量：add1.sql / add2.sql / add3.sql；升级业务数据见文末「附录」。
+-- 已有库增量：add1.sql～add3.sql（业务/消息）、add4.sql（索引）、add5.sql（安全配置）、add6.sql（组织示例数据）；
+-- 或执行文末「附录：已有库升级」段（配置/菜单/消息表/组织数据等，可重复执行）。
 -- =============================================
 
 -- 创建数据库
@@ -598,12 +598,32 @@ INSERT INTO sys_dept (id, name, parent_id, ancestors, sort, status, leader_name)
 (1, '总公司', 0, '0', 0, 1, '管理员'),
 (2, '研发部', 1, '0,1', 1, 1, '张三'),
 (3, '市场部', 1, '0,1', 2, 1, '李四'),
-(4, '财务部', 1, '0,1', 3, 1, '王五');
+(4, '财务部', 1, '0,1', 3, 1, '王五'),
+(5, '实训部', 1, '0,1', 4, 1, NULL),
+(6, '人事部', 1, '0,1', 5, 1, NULL),
+(7, '运维部', 1, '0,1', 6, 1, NULL),
+(8, '产品部', 1, '0,1', 7, 1, NULL),
+(9, '客服部', 1, '0,1', 8, 1, NULL),
+(10, '前端组', 2, '0,1,2', 1, 1, NULL),
+(11, '后端组', 2, '0,1,2', 2, 1, NULL);
 
 INSERT INTO sys_post (id, parent_id, post_code, post_name, sort, status, remark) VALUES
 (1, 0, 'ceo', '总经理', 0, 1, '顶级岗位'),
 (2, 0, 'dev', '研发工程师', 1, 1, ''),
-(3, 2, 'dev_lead', '研发组长', 0, 1, '隶属研发工程师');
+(3, 2, 'dev_lead', '研发组长', 0, 1, '隶属研发工程师'),
+(4, 0, 'qa', '测试', 2, 1, ''),
+(5, 4, 'qa_lead', '测试组长', 0, 1, '隶属测试'),
+(6, 0, 'market_spec', '市场专员', 3, 1, ''),
+(7, 0, 'finance_mgr', '财务主管', 4, 1, ''),
+(8, 0, 'train_lecturer', '实训讲师', 5, 1, ''),
+(9, 0, 'hr_spec', '人事专员', 6, 1, ''),
+(10, 0, 'ops_eng', '运维工程师', 7, 1, ''),
+(11, 0, 'product_mgr', '产品经理', 8, 1, ''),
+(12, 2, 'fe_dev', '前端开发', 1, 1, '隶属研发工程师'),
+(13, 2, 'be_dev', '后端开发', 2, 1, '隶属研发工程师');
+
+ALTER TABLE sys_dept AUTO_INCREMENT = 12;
+ALTER TABLE sys_post AUTO_INCREMENT = 14;
 
 -- 初始化用户 (密码为 admin123，BCrypt加密)
 INSERT INTO sys_user (id, username, password, nickname, mobile, email, status, dept_id) VALUES
@@ -636,7 +656,8 @@ INSERT INTO sys_config_group (group_code, group_name, config_value, remark) VALU
 ('file', '文件配置', '{"maxSizeMb":50,"allowedExtensions":"jpg,jpeg,png,gif,webp,bmp,svg,pdf,doc,docx,xls,xlsx,ppt,pptx,txt,md,json,xml,zip,rar,mp4,mp3,wav,avi,mov"}', '文件管理上传限制'),
 ('rateLimit', '接口限流', '{"captchaPerIpMinute":40,"loginPerIpMinute":30,"registerPerIpMinute":10}', '认证接口按 IP 限流'),
 ('login', '登录配置', '{"captchaEnabled":true,"captchaType":"image","rememberMe":true,"maxRetryCount":5,"lockTime":10}', '验证码类型 image=图片 slider=滑块'),
-('register', '注册配置', '{"enabled":true,"captchaEnabled":true,"captchaType":"image","defaultRoleCode":"user","needAudit":false,"minPasswordLength":6}', '开放注册、验证码类型、默认角色、是否审核');
+('register', '注册配置', '{"enabled":true,"captchaEnabled":true,"captchaType":"image","defaultRoleCode":"user","needAudit":false,"minPasswordLength":6}', '开放注册、验证码类型、默认角色、是否审核'),
+('security', '安全配置', '{"disableDevtool":false,"isConcurrent":false}', '前端安全与会话：禁止调试、禁止多端同时在线');
 
 -- 初始化菜单
 INSERT INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, component, status) VALUES
@@ -804,7 +825,8 @@ INSERT INTO sys_config_group (group_code, group_name, config_value, remark) VALU
 ('file', '文件配置', '{"maxSizeMb":50,"allowedExtensions":"jpg,jpeg,png,gif,webp,bmp,svg,pdf,doc,docx,xls,xlsx,ppt,pptx,txt,md,json,xml,zip,rar,mp4,mp3,wav,avi,mov"}', '文件管理上传限制'),
 ('rateLimit', '接口限流', '{"captchaPerIpMinute":40,"loginPerIpMinute":30,"registerPerIpMinute":10}', '认证接口按 IP 限流'),
 ('login', '登录配置', '{"captchaEnabled":true,"captchaType":"image","rememberMe":true,"maxRetryCount":5,"lockTime":10}', '验证码类型 image=图片 slider=滑块'),
-('register', '注册配置', '{"enabled":true,"captchaEnabled":true,"captchaType":"image","defaultRoleCode":"user","needAudit":false,"minPasswordLength":6}', '开放注册、验证码类型、默认角色、是否审核')
+('register', '注册配置', '{"enabled":true,"captchaEnabled":true,"captchaType":"image","defaultRoleCode":"user","needAudit":false,"minPasswordLength":6}', '开放注册、验证码类型、默认角色、是否审核'),
+('security', '安全配置', '{"disableDevtool":false,"isConcurrent":false}', '前端安全与会话：禁止调试、禁止多端同时在线')
 ON DUPLICATE KEY UPDATE
     group_name = VALUES(group_name),
     config_value = VALUES(config_value),
@@ -1039,5 +1061,100 @@ WHERE u.deleted = 0
 -- 通用状态字典文案与业务页一致（启用/禁用）
 UPDATE sys_dict_data SET dict_label = '启用' WHERE dict_type = 'sys_normal_disable' AND dict_value = '1';
 UPDATE sys_dict_data SET dict_label = '禁用' WHERE dict_type = 'sys_normal_disable' AND dict_value = '0';
+
+-- ---------- 组织示例数据（已有库可单独执行 sql/add6.sql，与下文一致） ----------
+INSERT INTO sys_dept (name, parent_id, ancestors, sort, status, leader_name)
+SELECT '实训部', 1, '0,1', 4, 1, NULL FROM DUAL
+WHERE EXISTS (SELECT 1 FROM sys_dept WHERE id = 1 AND deleted = 0)
+  AND NOT EXISTS (SELECT 1 FROM sys_dept WHERE name = '实训部' AND parent_id = 1 AND deleted = 0);
+
+INSERT INTO sys_dept (name, parent_id, ancestors, sort, status, leader_name)
+SELECT '人事部', 1, '0,1', 5, 1, NULL FROM DUAL
+WHERE EXISTS (SELECT 1 FROM sys_dept WHERE id = 1 AND deleted = 0)
+  AND NOT EXISTS (SELECT 1 FROM sys_dept WHERE name = '人事部' AND parent_id = 1 AND deleted = 0);
+
+INSERT INTO sys_dept (name, parent_id, ancestors, sort, status, leader_name)
+SELECT '运维部', 1, '0,1', 6, 1, NULL FROM DUAL
+WHERE EXISTS (SELECT 1 FROM sys_dept WHERE id = 1 AND deleted = 0)
+  AND NOT EXISTS (SELECT 1 FROM sys_dept WHERE name = '运维部' AND parent_id = 1 AND deleted = 0);
+
+INSERT INTO sys_dept (name, parent_id, ancestors, sort, status, leader_name)
+SELECT '产品部', 1, '0,1', 7, 1, NULL FROM DUAL
+WHERE EXISTS (SELECT 1 FROM sys_dept WHERE id = 1 AND deleted = 0)
+  AND NOT EXISTS (SELECT 1 FROM sys_dept WHERE name = '产品部' AND parent_id = 1 AND deleted = 0);
+
+INSERT INTO sys_dept (name, parent_id, ancestors, sort, status, leader_name)
+SELECT '客服部', 1, '0,1', 8, 1, NULL FROM DUAL
+WHERE EXISTS (SELECT 1 FROM sys_dept WHERE id = 1 AND deleted = 0)
+  AND NOT EXISTS (SELECT 1 FROM sys_dept WHERE name = '客服部' AND parent_id = 1 AND deleted = 0);
+
+INSERT INTO sys_dept (name, parent_id, ancestors, sort, status, leader_name)
+SELECT '前端组', d.id, CONCAT(d.ancestors, ',', d.id), 1, 1, NULL
+FROM sys_dept d
+WHERE d.name = '研发部' AND d.parent_id = 1 AND d.deleted = 0
+  AND NOT EXISTS (SELECT 1 FROM sys_dept c WHERE c.name = '前端组' AND c.parent_id = d.id AND c.deleted = 0)
+LIMIT 1;
+
+INSERT INTO sys_dept (name, parent_id, ancestors, sort, status, leader_name)
+SELECT '后端组', d.id, CONCAT(d.ancestors, ',', d.id), 2, 1, NULL
+FROM sys_dept d
+WHERE d.name = '研发部' AND d.parent_id = 1 AND d.deleted = 0
+  AND NOT EXISTS (SELECT 1 FROM sys_dept c WHERE c.name = '后端组' AND c.parent_id = d.id AND c.deleted = 0)
+LIMIT 1;
+
+INSERT INTO sys_post (parent_id, post_code, post_name, sort, status, remark)
+SELECT 0, 'qa', '测试', 2, 1, '' FROM DUAL
+WHERE NOT EXISTS (SELECT 1 FROM sys_post WHERE post_code = 'qa' AND deleted = 0);
+
+INSERT INTO sys_post (parent_id, post_code, post_name, sort, status, remark)
+SELECT p.id, 'qa_lead', '测试组长', 0, 1, '隶属测试'
+FROM sys_post p
+WHERE p.post_code = 'qa' AND p.deleted = 0
+  AND NOT EXISTS (SELECT 1 FROM sys_post WHERE post_code = 'qa_lead' AND deleted = 0)
+LIMIT 1;
+
+INSERT INTO sys_post (parent_id, post_code, post_name, sort, status, remark)
+SELECT 0, 'market_spec', '市场专员', 3, 1, '' FROM DUAL
+WHERE NOT EXISTS (SELECT 1 FROM sys_post WHERE post_code = 'market_spec' AND deleted = 0);
+
+INSERT INTO sys_post (parent_id, post_code, post_name, sort, status, remark)
+SELECT 0, 'finance_mgr', '财务主管', 4, 1, '' FROM DUAL
+WHERE NOT EXISTS (SELECT 1 FROM sys_post WHERE post_code = 'finance_mgr' AND deleted = 0);
+
+INSERT INTO sys_post (parent_id, post_code, post_name, sort, status, remark)
+SELECT 0, 'train_lecturer', '实训讲师', 5, 1, '' FROM DUAL
+WHERE NOT EXISTS (SELECT 1 FROM sys_post WHERE post_code = 'train_lecturer' AND deleted = 0);
+
+INSERT INTO sys_post (parent_id, post_code, post_name, sort, status, remark)
+SELECT 0, 'hr_spec', '人事专员', 6, 1, '' FROM DUAL
+WHERE NOT EXISTS (SELECT 1 FROM sys_post WHERE post_code = 'hr_spec' AND deleted = 0);
+
+INSERT INTO sys_post (parent_id, post_code, post_name, sort, status, remark)
+SELECT 0, 'ops_eng', '运维工程师', 7, 1, '' FROM DUAL
+WHERE NOT EXISTS (SELECT 1 FROM sys_post WHERE post_code = 'ops_eng' AND deleted = 0);
+
+INSERT INTO sys_post (parent_id, post_code, post_name, sort, status, remark)
+SELECT 0, 'product_mgr', '产品经理', 8, 1, '' FROM DUAL
+WHERE NOT EXISTS (SELECT 1 FROM sys_post WHERE post_code = 'product_mgr' AND deleted = 0);
+
+INSERT INTO sys_post (parent_id, post_code, post_name, sort, status, remark)
+SELECT p.id, 'fe_dev', '前端开发', 0, 1, '隶属研发工程师'
+FROM sys_post p
+WHERE p.post_code = 'dev' AND p.deleted = 0
+  AND NOT EXISTS (SELECT 1 FROM sys_post WHERE post_code = 'fe_dev' AND deleted = 0)
+LIMIT 1;
+
+INSERT INTO sys_post (parent_id, post_code, post_name, sort, status, remark)
+SELECT p.id, 'be_dev', '后端开发', 1, 1, '隶属研发工程师'
+FROM sys_post p
+WHERE p.post_code = 'dev' AND p.deleted = 0
+  AND NOT EXISTS (SELECT 1 FROM sys_post WHERE post_code = 'be_dev' AND deleted = 0)
+LIMIT 1;
+
+-- 已有 security 分组但缺少 isConcurrent 时补默认 false（与 add5.sql 一致）
+UPDATE sys_config_group
+SET config_value = JSON_SET(config_value, '$.isConcurrent', CAST(false AS JSON))
+WHERE group_code = 'security'
+  AND JSON_EXTRACT(config_value, '$.isConcurrent') IS NULL;
 
 -- ---------- 性能索引（已有库请单独执行 sql/add4.sql，勿重复执行下方 ALTER） ----------

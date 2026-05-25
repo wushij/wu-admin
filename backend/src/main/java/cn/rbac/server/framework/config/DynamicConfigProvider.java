@@ -7,6 +7,9 @@ public interface DynamicConfigProvider {
 
     long getTokenExpirationMs();
 
+    /** Sa-Token is-concurrent：true 允许多端同时在线，false 新登录踢掉旧会话 */
+    boolean isConcurrentLogin();
+
     int getFileMaxSizeMb();
 
     String getFileAllowedExtensions();

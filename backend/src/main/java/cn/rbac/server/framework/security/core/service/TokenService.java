@@ -44,9 +44,12 @@ public class TokenService {
      * 登录并返回 token（写入 Sa-Token Redis）
      */
     public String createToken(Long userId, String username) {
-        try {
-            StpUtil.logout(userId);
-        } catch (Exception ignored) {
+        boolean concurrent = dynamicConfigProvider.isConcurrentLogin();
+        if (!concurrent) {
+            try {
+                StpUtil.logout(userId);
+            } catch (Exception ignored) {
+            }
         }
         SaLoginModel model = new SaLoginModel()
                 .setTimeout(timeoutSeconds())

@@ -19,6 +19,7 @@
     "@tsparticles/slim": "^3.9.1",
     "@tsparticles/vue3": "^3.0.1",
     "axios": "^1.6.5",
+    "disable-devtool": "^0.3.9",
     "echarts": "^5.6.0",
     "element-plus": "^2.4.0",
     "jsencrypt": "^3.3.2",

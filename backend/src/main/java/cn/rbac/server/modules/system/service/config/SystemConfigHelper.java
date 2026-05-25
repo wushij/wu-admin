@@ -19,6 +19,7 @@ public class SystemConfigHelper {
     public static final String GROUP_RATE_LIMIT = "rateLimit";
     public static final String GROUP_LOGIN = "login";
     public static final String GROUP_REGISTER = "register";
+    public static final String GROUP_SECURITY = "security";
     public static final String CAPTCHA_TYPE_IMAGE = "image";
     public static final String CAPTCHA_TYPE_SLIDER = "slider";
     public static final String SLIDER_VERIFIED_CODE = "slider_verified";
@@ -177,6 +178,16 @@ public class SystemConfigHelper {
         return n < 6 ? 6 : Math.min(n, 32);
     }
 
+    // ---------- 前端安全 ----------
+    public boolean isDisableDevtool() {
+        return getGroupJson(GROUP_SECURITY).getBool("disableDevtool", false);
+    }
+
+    /** Sa-Token is-concurrent，默认 false（禁止多端同时在线） */
+    public boolean isConcurrentLogin() {
+        return getGroupJson(GROUP_SECURITY).getBool("isConcurrent", false);
+    }
+
     public Map<String, Object> buildPublicConfig() {
         Map<String, Object> result = new HashMap<>();
 
@@ -205,6 +216,10 @@ public class SystemConfigHelper {
         register.put("needAudit", isRegisterNeedAudit());
         register.put("minPasswordLength", getRegisterMinPasswordLength());
         result.put("register", register);
+
+        Map<String, Object> security = new HashMap<>();
+        security.put("disableDevtool", isDisableDevtool());
+        result.put("security", security);
 
         return result;
     }

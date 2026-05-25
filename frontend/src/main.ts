@@ -13,11 +13,13 @@ import { setupPermissionDirectives } from './directives/permission'
 import { getCurrentTheme, applyTheme } from './utils/theme'
 import DictSelect from './components/DictSelect.vue'
 import DictTag from './components/DictTag.vue'
+import { useSiteStore } from './store/site'
 
 const app = createApp(App)
+const pinia = createPinia()
 
 // 注册Pinia
-app.use(createPinia())
+app.use(pinia)
 
 // 注册路由
 app.use(router)
@@ -48,4 +50,14 @@ app.component('DictTag', DictTag)
 const currentTheme = getCurrentTheme()
 applyTheme(currentTheme)
 
-app.mount('#app')
+async function bootstrap() {
+  const siteStore = useSiteStore()
+  await siteStore.loadConfig()
+  if (siteStore.disableDevtool) {
+    const mod = await import('disable-devtool')
+    mod.default()
+  }
+  app.mount('#app')
+}
+
+bootstrap()

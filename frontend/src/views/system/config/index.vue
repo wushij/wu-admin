@@ -138,6 +138,27 @@
             </el-form-item>
           </el-form>
         </el-tab-pane>
+
+        <el-tab-pane label="安全配置" name="security">
+          <el-form :model="draft.security" label-width="140px" class="config-form">
+            <el-divider content-position="left">前端安全</el-divider>
+            <el-form-item label="禁止前端调试">
+              <el-switch v-model="draft.security.disableDevtool" :disabled="!canEdit" />
+              <span class="unit">开启后将限制打开开发者工具（F12），降低随意查看源码与调试的风险</span>
+            </el-form-item>
+            <el-divider content-position="left">会话安全</el-divider>
+            <el-form-item label="禁止多端同时在线">
+              <el-switch v-model="forbidConcurrentLogin" :disabled="!canEdit" />
+              <span class="unit">开启后，同一账号再次登录会先踢掉之前的会话，只保留最新一次登录</span>
+            </el-form-item>
+          </el-form>
+          <el-alert
+            type="info"
+            :closable="false"
+            show-icon
+            title="保存全部后立即生效：禁止多端对新登录生效；禁止前端调试需刷新浏览器页面。"
+          />
+        </el-tab-pane>
       </el-tabs>
 
       <div v-if="canEdit" class="footer-actions">
@@ -158,8 +179,10 @@ import { getErrorMessage } from '@/utils/axiosError'
 import type { ConfigGroupCode, ConfigGroupMap } from '@/types/config'
 
 import { useUserStore } from '@/store/user'
+import { useSiteStore } from '@/store/site'
 
 const userStore = useUserStore()
+const siteStore = useSiteStore()
 const canEdit = computed(() => (userStore.userInfo?.permissions || []).includes('system:config:update'))
 const activeTab = ref('site')
 const loading = ref(false)
@@ -172,7 +195,7 @@ interface RoleOption {
 const roleOptions = ref<RoleOption[]>([])
 const platformMaxFileMb = 500
 
-const GROUP_CODES = ['site', 'session', 'file', 'rateLimit', 'login', 'register'] as const satisfies readonly ConfigGroupCode[]
+const GROUP_CODES = ['site', 'session', 'file', 'rateLimit', 'login', 'register', 'security'] as const satisfies readonly ConfigGroupCode[]
 
 const DEFAULTS = {
   site: {
@@ -207,6 +230,10 @@ const DEFAULTS = {
     defaultRoleCode: 'user',
     needAudit: false,
     minPasswordLength: 6
+  },
+  security: {
+    disableDevtool: false,
+    isConcurrent: false
   }
 } satisfies ConfigGroupMap
 
@@ -243,6 +270,14 @@ function normalizePayload<K extends ConfigGroupCode>(code: K, payload: ConfigGro
 
 /** 草稿是否与已保存快照不一致（watchEffect 追踪深层字段，避免开关/数字框修改后按钮仍禁用） */
 const isDirty = ref(false)
+
+/** 禁止多端 = isConcurrent 取反，与 Sa-Token 字段对齐 */
+const forbidConcurrentLogin = computed({
+  get: () => !draft.security.isConcurrent,
+  set: (value: boolean) => {
+    draft.security.isConcurrent = !value
+  }
+})
 
 function checkDirty() {
   isDirty.value = GROUP_CODES.some((code) => {
@@ -339,7 +374,8 @@ async function handleSave() {
       setConfigGroup(draft, code, cloneConfig(saved))
     }
     checkDirty()
-    ElMessage.success('保存成功，配置已生效')
+    siteStore.setDisableDevtool(draft.security.disableDevtool)
+    ElMessage.success('保存成功，配置已生效；若修改了「禁止前端调试」，请刷新页面后生效')
   } catch (e) {
     ElMessage.error(getErrorMessage(e) || '保存失败')
   } finally {
