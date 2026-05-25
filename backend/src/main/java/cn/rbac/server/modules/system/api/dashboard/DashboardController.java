@@ -9,7 +9,9 @@ import cn.rbac.server.modules.system.dal.dataobject.permission.RoleDO;
 import cn.rbac.server.modules.system.dal.dataobject.ticket.TicketDO;
 import cn.rbac.server.modules.system.dal.dataobject.user.UserDO;
 import cn.rbac.server.modules.system.dal.mysql.dept.DeptMapper;
+import cn.rbac.server.modules.system.dal.dataobject.file.SysFileDO;
 import cn.rbac.server.modules.system.dal.mysql.file.SysFileMapper;
+import cn.rbac.server.modules.system.service.file.impl.SysFileServiceImpl;
 import cn.rbac.server.modules.system.dal.mysql.loginlog.LoginLogMapper;
 import cn.rbac.server.modules.system.dal.mysql.permission.MenuMapper;
 import cn.rbac.server.modules.system.dal.mysql.permission.RoleMapper;
@@ -92,7 +94,8 @@ public class DashboardController {
         stats.put("userPendingCount", userMapper.selectCount(userWrapper().eq(UserDO::getStatus, 2)));
         stats.put("userDisabledCount", userMapper.selectCount(userWrapper().eq(UserDO::getStatus, 0)));
 
-        stats.put("fileCount", sysFileMapper.selectCount(null));
+        stats.put("fileCount", sysFileMapper.selectCount(new LambdaQueryWrapper<SysFileDO>()
+                .notLikeRight(SysFileDO::getFilePath, SysFileServiceImpl.CHAT_IMAGE_PATH_PREFIX)));
         stats.put("fileMaxSizeMb", systemConfigHelper.getFileMaxSizeMb());
         stats.put("fileAllowedExtensions", systemConfigHelper.getFileAllowedExtensions());
 

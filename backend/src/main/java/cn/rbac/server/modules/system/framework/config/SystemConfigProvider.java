@@ -18,6 +18,11 @@ public class SystemConfigProvider implements DynamicConfigProvider {
     }
 
     @Override
+    public boolean isConcurrentLogin() {
+        return systemConfigHelper.isConcurrentLogin();
+    }
+
+    @Override
     public int getFileMaxSizeMb() {
         return systemConfigHelper.getFileMaxSizeMb();
     }

@@ -20,10 +20,15 @@ export interface RegisterConfig {
   minPasswordLength?: number
 }
 
+export interface SecurityPublicConfig {
+  disableDevtool?: boolean
+}
+
 export interface AuthPublicConfig {
   site?: SiteConfig
   login?: LoginConfig
   register?: RegisterConfig
+  security?: SecurityPublicConfig
 }
 
 /** 系统配置页各分组（与后端 configValue JSON 结构一致） */
@@ -67,7 +72,13 @@ export interface RegisterAdminConfig {
   minPasswordLength: number
 }
 
-export type ConfigGroupCode = 'site' | 'session' | 'file' | 'rateLimit' | 'login' | 'register'
+export interface SecurityConfig {
+  disableDevtool: boolean
+  /** Sa-Token is-concurrent，false 表示禁止多端同时在线 */
+  isConcurrent: boolean
+}
+
+export type ConfigGroupCode = 'site' | 'session' | 'file' | 'rateLimit' | 'login' | 'register' | 'security'
 
 export interface ConfigGroupMap {
   site: AdminSiteConfig
@@ -76,4 +87,5 @@ export interface ConfigGroupMap {
   rateLimit: RateLimitConfig
   login: LoginAdminConfig
   register: RegisterAdminConfig
+  security: SecurityConfig
 }
