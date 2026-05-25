@@ -146,6 +146,7 @@ frontend/src/
 | `sql/add1.sql` | 注册验证码类型、系统配置补全等 |
 | `sql/add2.sql` | **消息中心**（通知/聊天/群聊表 + 菜单 170–178） |
 | `sql/add3.sql` | **群聊操作日志**表 `sys_chat_group_log` |
+| `sql/add4.sql` | **性能索引**（聊天/审批/工单/文件/API 日志等，已有库单独执行） |
 
 ```bash
 mysql -u root -p wu-admin < sql/add2.sql
@@ -254,7 +255,8 @@ admin-vue/
 │   ├── admin_platform.sql      # 全量安装 + 文末「附录」升级段
 │   ├── add1.sql                # 已有库增量（配置/注册等）
 │   ├── add2.sql                # 已有库增量（消息中心）
-│   └── add3.sql                # 已有库增量（群聊操作日志）
+│   ├── add3.sql                # 已有库增量（群聊操作日志）
+│   └── add4.sql                # 已有库增量（性能索引）
 ├── data/                       # 本地上传目录（git 忽略，对应 file.storage.local-path）
 └── README.md
 ```
@@ -398,7 +400,7 @@ npm run dev
 
 ## 数据库脚本
 
-维护 **`sql/admin_platform.sql`**（全量）及增量脚本 **`add1.sql` / `add2.sql` / `add3.sql`**。
+维护 **`sql/admin_platform.sql`**（全量）及增量脚本 **`add1.sql` ~ `add4.sql`**。
 
 | 场景 | 做法 |
 |------|------|
@@ -406,7 +408,7 @@ npm run dev
 | **已有库升级（配置/注册等）** | `mysql -u root -p wu-admin < sql/add1.sql` |
 | **已有库升级消息中心** | `mysql -u root -p wu-admin < sql/add2.sql` |
 | **已有库升级群聊日志** | `mysql -u root -p wu-admin < sql/add3.sql` |
-| **仅补索引** | 执行 `add1.sql` 末尾 `ALTER TABLE`，或全文 `admin_platform.sql` 附录索引段 |
+| **已有库补性能索引** | `mysql -u root -p wu-admin < sql/add4.sql`（可重复执行，索引已存在可忽略报错） |
 
 增量脚本均 **无 DROP**，可重复执行。执行涉及菜单的升级后请 **重新登录**。
 

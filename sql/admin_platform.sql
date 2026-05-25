@@ -5,7 +5,8 @@
 -- 【全新安装】执行本文件全文即可（建库、建表、初始数据）。
 -- 【已有库升级】若表已存在，可只执行文末「附录：已有库升级」段（可重复执行）。
 --
--- 仅维护本文件；历史 add*.sql 已删除，升级内容见文末「附录」。
+-- 已有库性能索引升级：执行 sql/add4.sql（可重复执行，索引已存在则跳过报错）。
+-- 其它增量：add1.sql / add2.sql / add3.sql；升级业务数据见文末「附录」。
 -- =============================================
 
 -- 创建数据库
@@ -273,7 +274,8 @@ CREATE TABLE sys_ticket (
     INDEX idx_status (status),
     INDEX idx_priority (priority),
     INDEX idx_creator_user_id (creator_user_id),
-    INDEX idx_assignee_user_id (assignee_user_id)
+    INDEX idx_assignee_user_id (assignee_user_id),
+    INDEX idx_deleted_status_time (deleted, status, create_time)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='工单表';
 
 -- =============================================
@@ -332,6 +334,7 @@ CREATE TABLE sys_notice (
     updater VARCHAR(64) DEFAULT '' COMMENT '更新者',
     deleted TINYINT DEFAULT 0 COMMENT '是否删除',
     INDEX idx_user_read_status (user_id, read_status),
+    INDEX idx_user_read_deleted (user_id, read_status, deleted),
     INDEX idx_biz (biz_type, biz_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='站内消息表';
 
@@ -403,6 +406,7 @@ CREATE TABLE sys_chat_message (
     send_time DATETIME DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_sender (sender_id),
     INDEX idx_receiver (receiver_id),
+    INDEX idx_receiver_unread (receiver_id, is_read, sender_id),
     INDEX idx_pair_time (sender_id, receiver_id, send_time)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='私聊消息';
 
@@ -435,7 +439,8 @@ CREATE TABLE sys_chat_group_member (
     role TINYINT DEFAULT 0 COMMENT '0成员 1管理员 2群主',
     muted TINYINT DEFAULT 0,
     join_time DATETIME DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE KEY uk_group_user (group_id, user_id)
+    UNIQUE KEY uk_group_user (group_id, user_id),
+    INDEX idx_user_id (user_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='群成员';
 
 CREATE TABLE sys_chat_group_message (
@@ -485,7 +490,8 @@ CREATE TABLE sys_approval_form (
     UNIQUE KEY uk_form_no (form_no),
     INDEX idx_status (status),
     INDEX idx_applicant_user_id (applicant_user_id),
-    INDEX idx_approver_user_id (approver_user_id)
+    INDEX idx_approver_user_id (approver_user_id),
+    INDEX idx_type_applicant_status (form_type, applicant_user_id, status, deleted)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='审批单表';
 
 -- =============================================
@@ -524,6 +530,7 @@ CREATE TABLE sys_api_access_log (
     user_id BIGINT NULL DEFAULT NULL COMMENT '用户ID(未登录为空)',
     PRIMARY KEY (id),
     INDEX idx_start_time (start_time),
+    INDEX idx_start_time_success (start_time, success),
     INDEX idx_api_path (api_path(100)),
     INDEX idx_user_id (user_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='API访问统计日志';
@@ -549,7 +556,8 @@ CREATE TABLE sys_file (
     create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     PRIMARY KEY (id),
     INDEX idx_group_id (group_id),
-    INDEX idx_create_time (create_time)
+    INDEX idx_create_time (create_time),
+    INDEX idx_group_time (group_id, create_time)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='文件记录表';
 
 DROP TABLE IF EXISTS sys_file_group;
@@ -893,6 +901,7 @@ CREATE TABLE IF NOT EXISTS sys_chat_message (
     send_time DATETIME DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_sender (sender_id),
     INDEX idx_receiver (receiver_id),
+    INDEX idx_receiver_unread (receiver_id, is_read, sender_id),
     INDEX idx_pair_time (sender_id, receiver_id, send_time)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='私聊消息';
 
@@ -925,7 +934,8 @@ CREATE TABLE IF NOT EXISTS sys_chat_group_member (
     role TINYINT DEFAULT 0 COMMENT '0成员 1管理员 2群主',
     muted TINYINT DEFAULT 0,
     join_time DATETIME DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE KEY uk_group_user (group_id, user_id)
+    UNIQUE KEY uk_group_user (group_id, user_id),
+    INDEX idx_user_id (user_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='群成员';
 
 CREATE TABLE IF NOT EXISTS sys_chat_group_message (
@@ -994,7 +1004,15 @@ INSERT INTO sys_role_menu (role_id, menu_id) VALUES
 (2, 151),
 (2, 170), (2, 172), (2, 178);
 
--- 可选：为历史「待审核」用户补建注册审批单（无则跳过）
+-- 可选：为历史「待审核」用户补建注册审批单（无则跳过；审批人只查一次）
+SET @register_approver_id := (
+    SELECT ur.user_id
+    FROM sys_user_role ur
+    INNER JOIN sys_role r ON r.id = ur.role_id AND r.code = 'super_admin' AND r.deleted = 0
+    ORDER BY ur.user_id
+    LIMIT 1
+);
+
 INSERT INTO sys_approval_form (form_no, form_type, title, content, status, applicant_user_id, approver_user_id, creator, updater)
 SELECT
     CONCAT('RG', UNIX_TIMESTAMP(), LPAD(u.id, 4, '0')),
@@ -1003,14 +1021,13 @@ SELECT
     CONCAT('{"bizType":"USER_REGISTER","userId":', u.id, ',"username":"', u.username, '","nickname":"', IFNULL(u.nickname, ''), '","mobile":"', IFNULL(u.mobile, ''), '"}'),
     'SUBMITTED',
     u.id,
-    (SELECT ur.user_id FROM sys_user_role ur
-     INNER JOIN sys_role r ON r.id = ur.role_id AND r.code = 'super_admin' AND r.deleted = 0
-     ORDER BY ur.user_id LIMIT 1),
+    @register_approver_id,
     'system',
     'system'
 FROM sys_user u
 WHERE u.deleted = 0
   AND u.status = 2
+  AND @register_approver_id IS NOT NULL
   AND NOT EXISTS (
     SELECT 1 FROM sys_approval_form f
     WHERE f.deleted = 0
@@ -1023,8 +1040,4 @@ WHERE u.deleted = 0
 UPDATE sys_dict_data SET dict_label = '启用' WHERE dict_type = 'sys_normal_disable' AND dict_value = '1';
 UPDATE sys_dict_data SET dict_label = '禁用' WHERE dict_type = 'sys_normal_disable' AND dict_value = '0';
 
--- ---------- 索引优化（已有库可重复执行；若报 Duplicate key name 表示索引已存在，可忽略） ----------
-ALTER TABLE sys_dict_data ADD INDEX idx_dict_type_status_deleted (dict_type, status, deleted, sort);
-ALTER TABLE sys_user ADD INDEX idx_deleted_status (deleted, status);
-ALTER TABLE sys_user_post ADD UNIQUE INDEX uk_user_post (user_id, post_id);
-ALTER TABLE sys_oper_log ADD INDEX idx_oper_time_status (oper_time, status);
+-- ---------- 性能索引（已有库请单独执行 sql/add4.sql，勿重复执行下方 ALTER） ----------
