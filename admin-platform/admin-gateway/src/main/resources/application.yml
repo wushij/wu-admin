@@ -1,6 +1,11 @@
 server:
   port: 8080
 
+# RBAC 服务地址：本机开发默认 127.0.0.1；Docker 部署时在 compose 中覆盖为 http://rbac-server:8081
+app:
+  rbac:
+    base-url: http://127.0.0.1:8081
+
 spring:
   application:
     name: admin-gateway
@@ -36,7 +41,7 @@ spring:
       routes:
         # 认证服务路由 (RBAC后端)
         - id: admin-auth
-          uri: http://rbac-server:8081
+          uri: ${app.rbac.base-url}
           predicates:
             - Path=/api/auth/**
           filters:
@@ -44,23 +49,44 @@ spring:
         
         # 系统管理服务路由 (RBAC后端)
         - id: admin-system
-          uri: http://rbac-server:8081
+          uri: ${app.rbac.base-url}
           predicates:
             - Path=/api/system/**
+          filters:
+            - StripPrefix=1
+
+        - id: admin-files
+          uri: ${app.rbac.base-url}
+          predicates:
+            - Path=/api/files/**
           filters:
             - StripPrefix=1
         
         # Dashboard统计路由 (RBAC后端)
         - id: admin-dashboard
-          uri: http://rbac-server:8081
+          uri: ${app.rbac.base-url}
           predicates:
             - Path=/api/dashboard/**
+          filters:
+            - StripPrefix=1
+
+        # 系统监控 (RBAC后端)
+        - id: admin-monitor-api-access
+          uri: ${app.rbac.base-url}
+          predicates:
+            - Path=/api/monitor/api-access/**
+          filters:
+            - StripPrefix=1
+        - id: admin-monitor-online
+          uri: ${app.rbac.base-url}
+          predicates:
+            - Path=/api/monitor/online/**
           filters:
             - StripPrefix=1
         
         # RBAC管理端路由
         - id: rbac-admin
-          uri: http://rbac-server:8081
+          uri: ${app.rbac.base-url}
           predicates:
             - Path=/rbac/**
           filters:
@@ -86,3 +112,12 @@ logging:
   level:
     com.admin.gateway: debug
     org.springframework.cloud.gateway: debug
+
+# 网关对认证公开接口按 IP 限流（0 表示不限制）；与 RBAC 内限流叠加
+gateway:
+  security:
+    rate-limit:
+      login-per-minute: 25
+      captcha-per-minute: 35
+      register-per-minute: 8
+      config-per-minute: 120

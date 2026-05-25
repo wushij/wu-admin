@@ -146,6 +146,71 @@ CREATE TABLE sys_login_log (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='登录日志表';
 
 -- =============================================
+-- 7.0 字典类型 / 字典数据
+-- =============================================
+DROP TABLE IF EXISTS sys_dict_data;
+DROP TABLE IF EXISTS sys_dict_type;
+CREATE TABLE sys_dict_type (
+    id BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    dict_name VARCHAR(100) NOT NULL COMMENT '字典名称',
+    dict_type VARCHAR(100) NOT NULL COMMENT '字典类型编码',
+    status TINYINT DEFAULT 1 COMMENT '状态(0停用 1正常)',
+    remark VARCHAR(500) DEFAULT NULL COMMENT '备注',
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    creator VARCHAR(64) DEFAULT '' COMMENT '创建者',
+    updater VARCHAR(64) DEFAULT '' COMMENT '更新者',
+    deleted INT DEFAULT 0 COMMENT '删除标识',
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_dict_type (dict_type)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='字典类型表';
+
+CREATE TABLE sys_dict_data (
+    id BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    sort INT DEFAULT 0 COMMENT '排序',
+    dict_label VARCHAR(100) NOT NULL COMMENT '字典标签',
+    dict_value VARCHAR(100) NOT NULL COMMENT '字典键值',
+    dict_type VARCHAR(100) NOT NULL COMMENT '字典类型编码',
+    css_class VARCHAR(100) DEFAULT NULL COMMENT '样式属性',
+    list_class VARCHAR(100) DEFAULT NULL COMMENT '回显样式',
+    is_default TINYINT DEFAULT 0 COMMENT '是否默认(0否 1是)',
+    status TINYINT DEFAULT 1 COMMENT '状态(0停用 1正常)',
+    remark VARCHAR(500) DEFAULT NULL COMMENT '备注',
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    creator VARCHAR(64) DEFAULT '' COMMENT '创建者',
+    updater VARCHAR(64) DEFAULT '' COMMENT '更新者',
+    deleted INT DEFAULT 0 COMMENT '删除标识',
+    PRIMARY KEY (id),
+    KEY idx_dict_type (dict_type)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='字典数据表';
+
+-- =============================================
+-- 7.1 操作日志表
+-- =============================================
+DROP TABLE IF EXISTS sys_oper_log;
+CREATE TABLE sys_oper_log (
+    id BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    title VARCHAR(50) DEFAULT NULL COMMENT '模块标题',
+    business_type INT DEFAULT 0 COMMENT '业务类型(0其它 1新增 2修改 3删除 4查询 5导出 6导入)',
+    method VARCHAR(100) DEFAULT NULL COMMENT '方法名称',
+    request_method VARCHAR(10) DEFAULT NULL COMMENT '请求方式',
+    oper_name VARCHAR(50) DEFAULT NULL COMMENT '操作人员',
+    oper_url VARCHAR(255) DEFAULT NULL COMMENT '请求URL',
+    oper_ip VARCHAR(128) DEFAULT NULL COMMENT '主机地址',
+    oper_param VARCHAR(2000) DEFAULT NULL COMMENT '请求参数',
+    json_result VARCHAR(2000) DEFAULT NULL COMMENT '返回参数',
+    status INT DEFAULT 0 COMMENT '操作状态(0正常 1异常)',
+    error_msg VARCHAR(2000) DEFAULT NULL COMMENT '错误消息',
+    oper_time DATETIME DEFAULT NULL COMMENT '操作时间',
+    cost_time BIGINT DEFAULT 0 COMMENT '消耗时间(ms)',
+    PRIMARY KEY (id),
+    INDEX idx_oper_time (oper_time),
+    INDEX idx_oper_name (oper_name),
+    INDEX idx_title (title)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='操作日志表';
+
+-- =============================================
 -- 8. 工单表
 -- =============================================
 DROP TABLE IF EXISTS sys_ticket;
@@ -276,6 +341,62 @@ CREATE TABLE sys_approval_record (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='审批记录表';
 
 -- =============================================
+-- 14. API 访问统计日志表
+-- =============================================
+DROP TABLE IF EXISTS sys_api_access_log;
+CREATE TABLE sys_api_access_log (
+    id BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    start_time DATETIME NULL DEFAULT NULL COMMENT '请求开始时间',
+    end_time DATETIME NULL DEFAULT NULL COMMENT '请求结束时间',
+    api_path VARCHAR(500) NULL DEFAULT NULL COMMENT 'API路径',
+    method VARCHAR(10) NULL DEFAULT NULL COMMENT 'HTTP方法',
+    status_code INT NULL DEFAULT NULL COMMENT 'HTTP状态码',
+    success TINYINT NULL DEFAULT 1 COMMENT '是否成功(0否 1是)',
+    cost_time BIGINT NULL DEFAULT NULL COMMENT '耗时(毫秒)',
+    ip VARCHAR(64) NULL DEFAULT NULL COMMENT '客户端IP',
+    user_id BIGINT NULL DEFAULT NULL COMMENT '用户ID(未登录为空)',
+    PRIMARY KEY (id),
+    INDEX idx_start_time (start_time),
+    INDEX idx_api_path (api_path(100)),
+    INDEX idx_user_id (user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='API访问统计日志';
+
+-- =============================================
+-- 15. 文件管理
+-- =============================================
+DROP TABLE IF EXISTS sys_file;
+CREATE TABLE sys_file (
+    id BIGINT NOT NULL AUTO_INCREMENT COMMENT '文件ID',
+    original_name VARCHAR(200) DEFAULT '' COMMENT '原始文件名',
+    file_name VARCHAR(200) NOT NULL COMMENT '存储文件名',
+    file_path VARCHAR(500) NOT NULL COMMENT '文件路径',
+    url VARCHAR(500) DEFAULT '' COMMENT '访问URL',
+    file_size BIGINT DEFAULT 0 COMMENT '文件大小（字节）',
+    file_type VARCHAR(100) DEFAULT '' COMMENT 'MIME',
+    file_suffix VARCHAR(20) DEFAULT '' COMMENT '后缀',
+    storage_type VARCHAR(20) DEFAULT 'local' COMMENT '存储类型',
+    bucket_name VARCHAR(100) DEFAULT '' COMMENT '桶名',
+    group_id BIGINT DEFAULT NULL COMMENT '分组ID',
+    remark VARCHAR(500) DEFAULT '' COMMENT '备注',
+    create_by VARCHAR(64) DEFAULT '' COMMENT '创建者',
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    PRIMARY KEY (id),
+    INDEX idx_group_id (group_id),
+    INDEX idx_create_time (create_time)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='文件记录表';
+
+DROP TABLE IF EXISTS sys_file_group;
+CREATE TABLE sys_file_group (
+    id BIGINT NOT NULL AUTO_INCREMENT COMMENT '分组ID',
+    name VARCHAR(100) NOT NULL COMMENT '分组名称',
+    sort INT DEFAULT 0 COMMENT '排序',
+    create_by VARCHAR(64) DEFAULT NULL COMMENT '创建者',
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time DATETIME DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='文件分组表';
+
+-- =============================================
 -- 初始化数据
 -- =============================================
 
@@ -296,26 +417,41 @@ INSERT INTO sys_role (id, name, code, sort, status, remark) VALUES
 (1, '超级管理员', 'super_admin', 1, 1, '超级管理员，拥有所有权限'),
 (2, '普通用户', 'user', 2, 1, '普通用户角色');
 
+-- 初始化字典
+INSERT INTO sys_dict_type (id, dict_name, dict_type, status, remark) VALUES
+(1, '系统状态', 'sys_normal_disable', 1, '通用启用停用'),
+(2, '用户性别', 'sys_user_sex', 1, '用户性别'),
+(3, '是否', 'sys_yes_no', 1, '是或否');
+
+INSERT INTO sys_dict_data (dict_type, sort, dict_label, dict_value, list_class, is_default, status) VALUES
+('sys_normal_disable', 1, '正常', '1', 'success', 1, 1),
+('sys_normal_disable', 2, '停用', '0', 'danger', 0, 1),
+('sys_user_sex', 1, '男', '1', 'primary', 0, 1),
+('sys_user_sex', 2, '女', '2', 'danger', 0, 1),
+('sys_user_sex', 3, '未知', '0', 'info', 1, 1),
+('sys_yes_no', 1, '是', 'Y', 'success', 1, 1),
+('sys_yes_no', 2, '否', 'N', 'info', 0, 1);
+
 -- 初始化菜单
 INSERT INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, component, status) VALUES
 -- 系统管理目录
-(1, '系统管理', '', 1, 1, 0, '/system', 'system', '', 1),
+(1, '系统管理', '', 1, 1, 0, '/system', 'Setting', '', 1),
 -- 用户管理
-(2, '用户管理', 'system:user:list', 2, 1, 1, '/system/user', 'user', 'system/user/index', 1),
+(2, '用户管理', 'system:user:list', 2, 1, 1, '/system/user', 'User', 'system/user/index', 1),
 -- 角色管理
-(3, '角色管理', 'system:role:list', 2, 2, 1, '/system/role', 'peoples', 'system/role/index', 1),
+(3, '角色管理', 'system:role:list', 2, 2, 1, '/system/role', 'Key', 'system/role/index', 1),
 -- 菜单管理
-(4, '菜单管理', 'system:menu:list', 2, 3, 1, '/system/menu', 'tree-table', 'system/menu/index', 1),
+(4, '菜单管理', 'system:menu:list', 2, 3, 1, '/system/menu', 'Menu', 'system/menu/index', 1),
 -- 部门管理
-(5, '部门管理', 'system:dept:list', 2, 4, 1, '/system/dept', 'tree', 'system/dept/index', 1),
--- 登录日志
-(6, '登录日志', 'system:loginLog:list', 2, 5, 1, '/system/login-log', 'document', 'system/login-log/index', 1),
--- 工单管理
-(7, '工单管理', 'system:ticket:list', 2, 6, 1, '/system/ticket', 'Document', 'system/ticket/index', 1),
+(5, '部门管理', 'system:dept:list', 2, 4, 1, '/system/dept', 'OfficeBuilding', 'system/dept/index', 1),
+-- 字典管理
+(130, '字典管理', 'system:dict:list', 2, 5, 1, '/system/dict', 'Collection', 'system/dict/index', 1),
 -- 业务中心目录
 (8, '业务中心', '', 1, 2, 0, '/business', 'Suitcase', '', 1),
 -- 审批单中心
 (9, '审批单中心', 'system:approval:list', 2, 1, 8, '/system/approval', 'Checked', 'system/approval/index', 1),
+-- 工单管理（隶属业务中心）
+(7, '工单管理', 'system:ticket:list', 2, 2, 8, '/system/ticket', 'Tickets', 'system/ticket/index', 1),
 -- 用户管理按钮
 (10, '用户查询', 'system:user:query', 3, 1, 2, '', '', '', 1),
 (11, '用户新增', 'system:user:create', 3, 2, 2, '', '', '', 1),
@@ -336,6 +472,12 @@ INSERT INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, c
 (41, '部门新增', 'system:dept:create', 3, 2, 5, '', '', '', 1),
 (42, '部门修改', 'system:dept:update', 3, 3, 5, '', '', '', 1),
 (43, '部门删除', 'system:dept:delete', 3, 4, 5, '', '', '', 1),
+-- 字典管理按钮
+(131, '字典查询', 'system:dict:query', 3, 1, 130, '', '', '', 1),
+(132, '字典新增', 'system:dict:create', 3, 2, 130, '', '', '', 1),
+(133, '字典修改', 'system:dict:update', 3, 3, 130, '', '', '', 1),
+(134, '字典删除', 'system:dict:delete', 3, 4, 130, '', '', '', 1),
+(135, '字典复制', 'system:dict:copy', 3, 5, 130, '', '', '', 1),
 -- 登录日志按钮
 (50, '日志查询', 'system:loginLog:query', 3, 1, 6, '', '', '', 1),
 (51, '日志删除', 'system:loginLog:delete', 3, 2, 6, '', '', '', 1),
@@ -352,7 +494,28 @@ INSERT INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, c
 (71, '审批单创建', 'system:approval:create', 3, 2, 9, '', '', '', 1),
 (72, '审批单审批', 'system:approval:approve', 3, 3, 9, '', '', '', 1),
 (73, '审批单归档', 'system:approval:archive', 3, 4, 9, '', '', '', 1),
-(74, '审批单删除', 'system:approval:delete', 3, 5, 9, '', '', '', 1);
+(74, '审批单删除', 'system:approval:delete', 3, 5, 9, '', '', '', 1),
+-- 文件管理目录（与系统管理、系统监控同级）
+(105, '文件管理', '', 1, 4, 0, '/file', 'Folder', '', 1),
+(110, '文件列表', 'sys:file:list', 2, 1, 105, '/system/file', 'Document', 'system/file/index', 1),
+(111, '文件查询', 'sys:file:query', 3, 1, 110, '', '', '', 1),
+(112, '文件上传', 'sys:file:upload', 3, 2, 110, '', '', '', 1),
+(113, '文件删除', 'sys:file:delete', 3, 3, 110, '', '', '', 1),
+-- 系统监控目录
+(100, '系统监控', '', 1, 3, 0, '/monitor', 'Monitor', '', 1),
+-- API 访问统计
+(101, 'API访问统计', 'monitor:apiAccess:list', 2, 1, 100, '/monitor/api-access', 'DataLine', 'monitor/api-access/index', 1),
+(102, '访问统计查询', 'monitor:apiAccess:query', 3, 1, 101, '', '', '', 1),
+-- 在线用户
+(103, '在线用户', 'monitor:online:list', 2, 2, 100, '/monitor/online', 'User', 'monitor/online/index', 1),
+(104, '在线用户强退', 'monitor:online:forceLogout', 3, 1, 103, '', '', '', 1),
+-- 系统日志目录
+(120, '系统日志', '', 1, 5, 0, '/log', 'Notebook', '', 1),
+(121, '操作日志', 'system:operLog:list', 2, 1, 120, '/system/oper-log', 'EditPen', 'system/oper-log/index', 1),
+(127, '操作日志删除', 'system:operLog:delete', 3, 2, 121, '', '', '', 1),
+(128, '操作日志清空', 'system:operLog:clear', 3, 3, 121, '', '', '', 1),
+-- 登录日志（隶属系统日志）
+(6, '登录日志', 'system:loginLog:list', 2, 2, 120, '/system/login-log', 'Promotion', 'system/login-log/index', 1);
 
 -- 初始化用户角色关联
 INSERT INTO sys_user_role (user_id, role_id) VALUES
@@ -361,16 +524,21 @@ INSERT INTO sys_user_role (user_id, role_id) VALUES
 
 -- 初始化角色菜单关联 (超级管理员拥有所有菜单权限)
 INSERT INTO sys_role_menu (role_id, menu_id) VALUES
-(1, 1), (1, 2), (1, 3), (1, 4), (1, 5), (1, 6), (1, 7), (1, 8), (1, 9),
+(1, 1), (1, 2), (1, 3), (1, 4), (1, 5), (1, 130), (1, 7), (1, 8), (1, 9),
+(1, 6), (1, 120), (1, 121), (1, 127), (1, 128),
 (1, 10), (1, 11), (1, 12), (1, 13),
 (1, 20), (1, 21), (1, 22), (1, 23),
 (1, 30), (1, 31), (1, 32), (1, 33),
 (1, 40), (1, 41), (1, 42), (1, 43),
+(1, 131), (1, 132), (1, 133), (1, 134), (1, 135),
 (1, 50), (1, 51), (1, 52),
 (1, 60), (1, 61), (1, 62), (1, 63), (1, 64), (1, 65),
-(1, 70), (1, 71), (1, 72), (1, 73), (1, 74);
+(1, 70), (1, 71), (1, 72), (1, 73), (1, 74),
+(1, 100), (1, 101), (1, 102), (1, 103), (1, 104),
+(1, 105), (1, 110), (1, 111), (1, 112), (1, 113);
 
 -- 普通用户只有查询权限
 INSERT INTO sys_role_menu (role_id, menu_id) VALUES
-(2, 1), (2, 2), (2, 3), (2, 4), (2, 5), (2, 6), (2, 7), (2, 8), (2, 9),
+(2, 1), (2, 2), (2, 3), (2, 4), (2, 5), (2, 7), (2, 8), (2, 9),
+(2, 6), (2, 120), (2, 121),
 (2, 10), (2, 20), (2, 30), (2, 40), (2, 50), (2, 60), (2, 70), (2, 71), (2, 72), (2, 73);

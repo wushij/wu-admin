@@ -44,6 +44,13 @@ const emit = defineEmits(['update:modelValue', 'change'])
 
 const selectedIcon = ref(props.modelValue)
 
+// 菜单常用图标（置顶，便于在「菜单管理」里快速选到）
+const MENU_COMMON_ICONS = [
+  'Folder', 'FolderOpened', 'Document', 'DocumentCopy', 'Files', 'List', 'Menu',
+  'Setting', 'User', 'Key', 'UserFilled', 'Monitor', 'OfficeBuilding', 'Tickets',
+  'HomeFilled', 'Management', 'Grid', 'Collection', 'Tools', 'Lock', 'Bell'
+]
+
 // Element Plus 所有图标（200+）
 const allIcons = [
   // 基础图标
@@ -101,14 +108,16 @@ const allIcons = [
   'WarningFilled', 'Watch', 'Watermelon', 'WindPower', 'ZoomIn', 'ZoomOut'
 ]
 
-// 图标列表
+// 图标列表：常用置顶 + 其余按字母
 const iconList = computed(() => {
-  return allIcons
-    .filter(name => ElementPlusIconsVue[name])
-    .map(name => ({
-      name,
-      component: ElementPlusIconsVue[name]
-    }))
+  const valid = allIcons.filter((name) => ElementPlusIconsVue[name])
+  const commonSet = new Set(MENU_COMMON_ICONS)
+  const common = MENU_COMMON_ICONS.filter((name) => valid.includes(name))
+  const rest = valid.filter((name) => !commonSet.has(name)).sort()
+  return [...common, ...rest].map((name) => ({
+    name,
+    component: ElementPlusIconsVue[name]
+  }))
 })
 
 // 监听外部变化

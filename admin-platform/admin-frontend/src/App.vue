@@ -37,7 +37,12 @@ body.el-popup-parent--hidden {
   --theme-text-base: #1F2937;
   --theme-text-secondary: #6B7280;
   --theme-border: #E5E7EB;
-  --theme-bg: #F9FAFB;
+  --theme-bg: #f0f2f5;
+  --admin-radius-sm: 6px;
+  --admin-radius-md: 8px;
+  --admin-radius-lg: 12px;
+  --el-border-radius-base: 8px;
+  --el-border-radius-small: 6px;
 }
 
 /* 使用主题变量的通用样式 */

@@ -137,6 +137,13 @@ export function applyTheme(themeConfig: ThemeConfig): void {
   root.style.setProperty('--theme-text-secondary', themeConfig.textColor2)
   root.style.setProperty('--theme-border', themeConfig.borderColor)
   root.style.setProperty('--theme-bg', themeConfig.bgColor)
+
+  // 管理页圆角（与 admin-page.scss 一致）
+  root.style.setProperty('--admin-radius-sm', '6px')
+  root.style.setProperty('--admin-radius-md', '8px')
+  root.style.setProperty('--admin-radius-lg', '12px')
+  root.style.setProperty('--el-border-radius-base', '8px')
+  root.style.setProperty('--el-border-radius-small', '6px')
 }
 
 /**

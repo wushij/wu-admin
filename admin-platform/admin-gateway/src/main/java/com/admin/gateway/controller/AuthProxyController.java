@@ -1,12 +1,17 @@
 package com.admin.gateway.controller;
 
+import com.admin.gateway.util.ClientIpUtils;
+import com.admin.gateway.util.OnlineSessionHelper;
 import cn.dev33.satoken.session.SaSession;
 import cn.dev33.satoken.stp.StpUtil;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -23,25 +28,27 @@ import java.util.Map;
 @RequestMapping("/api/auth")
 public class AuthProxyController {
 
-    private static final String RBAC_BASE_URL = "http://rbac-server:8081/auth";
     private static final String SESSION_JWT_KEY = "rbacJwtToken";
     private static final ParameterizedTypeReference<Map<String, Object>> MAP_TYPE =
             new ParameterizedTypeReference<>() {};
 
+    /** 如 http://127.0.0.1:8081/auth */
+    private final String rbacAuthBase;
     private final WebClient webClient = WebClient.builder().build();
+
+    public AuthProxyController(@Value("${app.rbac.base-url:http://127.0.0.1:8081}") String rbacBaseUrl) {
+        String b = rbacBaseUrl.endsWith("/") ? rbacBaseUrl.substring(0, rbacBaseUrl.length() - 1) : rbacBaseUrl;
+        this.rbacAuthBase = b + "/auth";
+    }
 
     @PostMapping("/login")
     public Mono<ResponseEntity<Map<String, Object>>> login(@RequestBody Map<String, Object> loginBody, ServerWebExchange exchange) {
         String userAgent = exchange.getRequest().getHeaders().getFirst("User-Agent");
-        String xForwardedFor = exchange.getRequest().getHeaders().getFirst("X-Forwarded-For");
-        if (!StringUtils.hasText(xForwardedFor) && exchange.getRequest().getRemoteAddress() != null) {
-            xForwardedFor = exchange.getRequest().getRemoteAddress().getAddress().getHostAddress();
-        }
-        final String clientIp = xForwardedFor;
+        final String clientIp = ClientIpUtils.resolve(exchange.getRequest());
         final String clientUa = userAgent;
 
         return webClient.post()
-                .uri(RBAC_BASE_URL + "/login")
+                .uri(rbacAuthBase + "/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .headers(headers -> {
                     if (StringUtils.hasText(clientUa)) {
@@ -50,6 +57,7 @@ public class AuthProxyController {
                     if (StringUtils.hasText(clientIp)) {
                         headers.set("X-Forwarded-For", clientIp);
                     }
+                    copyClientHintHeaders(exchange.getRequest().getHeaders(), headers);
                 })
                 .bodyValue(loginBody)
                 .exchangeToMono(response ->
@@ -59,7 +67,7 @@ public class AuthProxyController {
                 .map(body -> {
                     SaReactorSyncHolder.setContext(exchange);
                     try {
-                        return handleLoginResponse(body);
+                        return handleLoginResponse(body, clientIp, clientUa);
                     } finally {
                         SaReactorSyncHolder.clearContext();
                     }
@@ -70,13 +78,14 @@ public class AuthProxyController {
     public Mono<ResponseEntity<Map<String, Object>>> info() {
         try {
             StpUtil.checkLogin();
+            OnlineSessionHelper.touchLastAccess(StpUtil.getSession());
             String rbacJwt = StpUtil.getSession().getString(SESSION_JWT_KEY);
             if (rbacJwt == null || rbacJwt.isEmpty()) {
                 return Mono.just(ResponseEntity.ok(error(401, "登录信息已失效，请重新登录")));
             }
 
             return webClient.get()
-                    .uri(RBAC_BASE_URL + "/info")
+                    .uri(rbacAuthBase + "/info")
                     .header("Authorization", "Bearer " + rbacJwt)
                     .exchangeToMono(response ->
                             response.bodyToMono(MAP_TYPE).defaultIfEmpty(error(response.statusCode().value(), "获取用户信息失败"))
@@ -88,8 +97,31 @@ public class AuthProxyController {
         }
     }
 
+    /**
+     * 强退时同步注销该用户在网关的 Sa-Token 会话（与 RBAC 强退配合调用）
+     */
+    @PostMapping("/force-kick/{userId}")
+    public Mono<ResponseEntity<Map<String, Object>>> forceKick(@PathVariable("userId") Long userId,
+                                                               ServerWebExchange exchange) {
+        SaReactorSyncHolder.setContext(exchange);
+        try {
+            StpUtil.checkLogin();
+            try {
+                StpUtil.kickout(userId);
+            } catch (Exception ignored) {
+                // 目标用户可能已无网关会话（仅 RBAC 在线记录），忽略即可
+            }
+            return Mono.just(ResponseEntity.ok(success(true, "已注销网关会话")));
+        } catch (Exception e) {
+            return Mono.just(ResponseEntity.ok(error(401, e.getMessage())));
+        } finally {
+            SaReactorSyncHolder.clearContext();
+        }
+    }
+
     @PostMapping("/logout")
     public Mono<ResponseEntity<Map<String, Object>>> logout(ServerWebExchange exchange) {
+        SaReactorSyncHolder.setContext(exchange);
         try {
             if (!StpUtil.isLogin()) {
                 return Mono.just(ResponseEntity.ok(success(true, "退出成功")));
@@ -104,7 +136,7 @@ public class AuthProxyController {
                 logoutMono = Mono.just(success(true, "退出成功"));
             } else {
                 logoutMono = webClient.post()
-                        .uri(RBAC_BASE_URL + "/logout")
+                        .uri(rbacAuthBase + "/logout")
                         .header("Authorization", "Bearer " + rbacJwt)
                         .exchangeToMono(response ->
                                 response.bodyToMono(MAP_TYPE).defaultIfEmpty(success(true, "退出成功"))
@@ -113,20 +145,21 @@ public class AuthProxyController {
             }
 
             return logoutMono.map(result -> {
-                SaReactorSyncHolder.setContext(exchange);
                 try {
                     StpUtil.logout(loginId);
-                } finally {
-                    SaReactorSyncHolder.clearContext();
+                } catch (Exception ignored) {
                 }
                 return ResponseEntity.ok(result == null ? success(true, "退出成功") : result);
             });
         } catch (Exception e) {
             return Mono.just(ResponseEntity.ok(error(401, e.getMessage())));
+        } finally {
+            SaReactorSyncHolder.clearContext();
         }
     }
 
-    private ResponseEntity<Map<String, Object>> handleLoginResponse(Map<String, Object> body) {
+    private ResponseEntity<Map<String, Object>> handleLoginResponse(Map<String, Object> body,
+                                                                    String clientIp, String userAgent) {
         Object codeObj = body.get("code");
         int code = codeObj instanceof Number ? ((Number) codeObj).intValue() : -1;
         if (code != 200) {
@@ -147,9 +180,16 @@ public class AuthProxyController {
         Long userId = ((Number) userIdObj).longValue();
         String rbacJwt = (String) rbacJwtObj;
 
+        try {
+            StpUtil.logout(userId);
+        } catch (Exception ignored) {
+        }
         StpUtil.login(userId);
         SaSession session = StpUtil.getSession();
         session.set(SESSION_JWT_KEY, rbacJwt);
+        String username = dataMap.get("username") != null ? String.valueOf(dataMap.get("username")) : "";
+        String nickname = dataMap.get("nickname") != null ? String.valueOf(dataMap.get("nickname")) : username;
+        OnlineSessionHelper.writeLoginSession(session, username, nickname, clientIp, userAgent);
 
         Map<String, Object> resultData = new HashMap<>();
         resultData.putAll((Map<String, Object>) dataMap);
@@ -169,6 +209,22 @@ public class AuthProxyController {
         result.put("msg", message);
         result.put("message", message);
         return result;
+    }
+
+    /** 转发浏览器 Client Hints，供 RBAC 区分 Windows 10 / 11 */
+    private static void copyClientHintHeaders(HttpHeaders source, HttpHeaders target) {
+        for (String name : new String[]{
+                "Sec-CH-UA-Platform",
+                "Sec-CH-UA-Platform-Version",
+                "Sec-CH-UA",
+                "Sec-CH-UA-Mobile",
+                "Sec-CH-UA-Arch"
+        }) {
+            String value = source.getFirst(name);
+            if (StringUtils.hasText(value)) {
+                target.set(name, value);
+            }
+        }
     }
 
     private Map<String, Object> success(Object data, String message) {

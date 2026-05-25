@@ -31,6 +31,13 @@ export const permission = {
 }
 
 /**
+ * 从菜单树中判断是否拥有某权限标识（与角色勾选的菜单/按钮一致）
+ */
+export function hasMenuPermission(menus, permission) {
+  return checkPermissionFromMenus(menus, permission)
+}
+
+/**
  * 从菜单列表中检查权限
  */
 function checkPermissionFromMenus(menus, permission) {

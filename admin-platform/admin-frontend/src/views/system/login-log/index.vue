@@ -61,14 +61,16 @@
         <el-table-column prop="loginTime" label="登录时间" width="180" />
         <el-table-column label="操作" width="100" fixed="right" align="center">
           <template #default="{ row }">
-            <el-button 
-              type="danger" 
-              size="small"
-              v-permission="'system:loginLog:delete'"
-              @click="handleDelete(row)"
-            >
-              删除
-            </el-button>
+            <div class="action-buttons">
+              <el-button
+                type="danger"
+                size="small"
+                v-permission="'system:loginLog:delete'"
+                @click="handleDelete(row)"
+              >
+                删除
+              </el-button>
+            </div>
           </template>
         </el-table-column>
       </el-table>

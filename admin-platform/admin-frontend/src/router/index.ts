@@ -50,10 +50,28 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '部门管理', icon: 'tree', permission: 'system:dept:list' }
       },
       {
+        path: 'system/dict',
+        name: 'SystemDict',
+        component: () => import('@/views/system/dict/index.vue'),
+        meta: { title: '字典管理', icon: 'Collection', permission: 'system:dict:list' }
+      },
+      {
+        path: 'system/oper-log',
+        name: 'SystemOperLog',
+        component: () => import('@/views/system/oper-log/index.vue'),
+        meta: { title: '操作日志', icon: 'EditPen', permission: 'system:operLog:list' }
+      },
+      {
         path: 'system/login-log',
         name: 'SystemLoginLog',
         component: () => import('@/views/system/login-log/index.vue'),
-        meta: { title: '登录日志', icon: 'document', permission: 'system:loginLog:list' }
+        meta: { title: '登录日志', icon: 'Promotion', permission: 'system:loginLog:list' }
+      },
+      {
+        path: 'system/file',
+        name: 'SystemFile',
+        component: () => import('@/views/system/file/index.vue'),
+        meta: { title: '文件列表', icon: 'Folder', permission: 'sys:file:list' }
       },
       {
         path: 'system/ticket',
@@ -66,6 +84,18 @@ const routes: RouteRecordRaw[] = [
         name: 'SystemApproval',
         component: () => import('@/views/system/approval/index.vue'),
         meta: { title: '审批单中心', icon: 'Checked', permission: 'system:approval:list' }
+      },
+      {
+        path: 'monitor/api-access',
+        name: 'MonitorApiAccess',
+        component: () => import('@/views/monitor/api-access/index.vue'),
+        meta: { title: 'API访问统计', icon: 'DataLine', permission: 'monitor:apiAccess:list' }
+      },
+      {
+        path: 'monitor/online',
+        name: 'MonitorOnline',
+        component: () => import('@/views/monitor/online/index.vue'),
+        meta: { title: '在线用户', icon: 'User', permission: 'monitor:online:list' }
       }
     ]
   }

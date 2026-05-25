@@ -1,5 +1,6 @@
 package cn.rbac.server.modules.system.controller.admin.role;
 
+import cn.rbac.server.framework.log.annotation.Log;
 import cn.rbac.server.common.pojo.CommonResult;
 import cn.rbac.server.common.pojo.PageParam;
 import cn.rbac.server.common.pojo.PageResult;
@@ -64,6 +65,7 @@ public class RoleController {
         return CommonResult.success(roleMapper.selectById(id));
     }
     
+    @Log(title = "角色管理", businessType = Log.BusinessType.INSERT)
     @Operation(summary = "新增角色")
     @PostMapping("/create")
     @PreAuthorize("@ss.hasPermission('system:role:create')")
@@ -78,6 +80,7 @@ public class RoleController {
         return CommonResult.success(role.getId());
     }
     
+    @Log(title = "角色管理", businessType = Log.BusinessType.UPDATE)
     @Operation(summary = "修改角色")
     @PutMapping("/update")
     @PreAuthorize("@ss.hasPermission('system:role:update')")
@@ -92,6 +95,7 @@ public class RoleController {
         return CommonResult.success(true);
     }
     
+    @Log(title = "角色管理", businessType = Log.BusinessType.DELETE)
     @Operation(summary = "删除角色")
     @DeleteMapping("/delete")
     @PreAuthorize("@ss.hasPermission('system:role:delete')")
@@ -142,6 +146,7 @@ public class RoleController {
     }
 
     @Operation(summary = "分配角色菜单")
+    @Log(title = "角色管理", businessType = Log.BusinessType.UPDATE)
     @PostMapping("/assign-menu")
     public CommonResult<Boolean> assignMenu(@RequestBody AssignMenuReqVO reqVO) {
         permissionService.assignRoleMenu(reqVO.getRoleId(), reqVO.getMenuIds());
