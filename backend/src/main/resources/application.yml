@@ -1,14 +1,11 @@
 server:
-  port: 8080
+  port: 8081
   servlet:
     # 统一 API 前缀，与前端 axios baseURL `/api` 一致
     context-path: /api
 
 # Knife4j 调试默认基址（写入 OpenAPI servers，与前端 Vite 代理一致）
 app:
-  security:
-    # 生产环境（https）设为 true；本地开发（http）保持 false
-    cookie-secure: false
   api-docs:
     server-url: http://localhost:3000/api
   log:
@@ -17,63 +14,29 @@ app:
       oper-log-days: 90
       login-log-days: 90
       api-access-log-days: 30
-  job:
-    log-retention-days: 30
-    notice-read-retention-days: 90
-    ticket-recycle-retention-days: 30
-    file-recycle-retention-days: 30
-    chat-message-retention-days: 180
-    group-chat-message-retention-days: 180
-  # CORS：开发 *；生产在 application-prod.yml 配具体域名
-  cors:
-    allowed-origins: "*"
 
 spring:
   application:
     name: backend
-  mvc:
-    throw-exception-if-no-handler-found: true
-  profiles:
-    # 默认 prod（宝塔直连）；本地 IDE 加 VM 选项：-Dspring.profiles.active=dev
-    active: ${SPRING_PROFILES_ACTIVE:prod}
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://127.0.0.1:3306/wu-admin?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&nullCatalogMeansCurrent=true
+    username: root
+    password: root
     type: com.alibaba.druid.pool.DruidDataSource
     druid:
       initial-size: 5
       min-idle: 5
-      max-active: 50
-      max-wait: 60000
-      validation-query: SELECT 1
-      test-while-idle: true
-      test-on-borrow: false
-      test-on-return: false
-      time-between-eviction-runs-millis: 60000
-      min-evictable-idle-time-millis: 300000
-      keep-alive: true
+      max-active: 20
   data:
     redis:
       host: 127.0.0.1
       port: 6379
       database: 1
-      # Redis 密码仅在 application-prod.yml（prod 环境）；本地 dev 无密码
   # 禁用 Spring Security 默认用户（使用 Sa-Token + 自定义 SecurityConfig）
   security:
     user:
       password: disabled
-  mail:
-    host: ${SPRING_MAIL_HOST:smtp.qq.com}
-    port: ${SPRING_MAIL_PORT:465}
-    username: ${SPRING_MAIL_USERNAME:}
-    password: ${SPRING_MAIL_PASSWORD:}
-    protocol: smtp
-    default-encoding: UTF-8
-    properties:
-      mail:
-        smtp:
-          auth: true
-          ssl:
-            enable: true
   servlet:
     multipart:
       # 平台物理上限（MB），实际上传限制由系统配置-文件存储中的 maxSizeMb 控制（保存后立即生效）
@@ -88,7 +51,7 @@ mybatis-plus:
       id-type: AUTO
       logic-delete-value: 1
       logic-not-delete-value: 0
-  type-aliases-package: com.admin.server.modules.**.dal.dataobject
+  type-aliases-package: cn.rbac.server.modules.**.dal.dataobject
 
 springdoc:
   api-docs:
@@ -116,12 +79,6 @@ sa-token:
   is-share: false
   token-style: uuid
   is-log: false
-  is-read-cookie: true
-  is-read-header: true
-  is-write-cookie: true
-  # SameSite=Lax 防 CSRF；Secure 由 app.security.cookie-secure 动态控制
-  cookie-same-site: Lax
-  is-read-body: false
 
 # 登录防爬：图形验证码开关与按 IP 分钟限流（0 表示不限制）
 file:
@@ -136,5 +93,3 @@ auth:
     captcha-per-ip-minute: 40
     login-per-ip-minute: 30
     register-per-ip-minute: 10
-    # 注意：注册最小密码长度由系统配置-安全设置中的 minPasswordLength 控制
-    # 建议在管理后台将其设置为 8 以上，默认值为 6（兼容存量配置）

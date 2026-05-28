@@ -1,23 +1,8 @@
 <template>
-  <div class="app-container module-page">
-    <el-card class="search-card module-hero-card" shadow="never">
-      <div class="module-hero-row">
-        <div class="module-hero-text">
-          <div class="module-hero-title">
-            <ModulePageIcon :icon="MODULE_PAGE_ICON.org" />
-            <span>部门管理</span>
-          </div>
-          <p class="module-hero-desc">维护组织部门树结构，支持负责人与联系方式配置</p>
-        </div>
-        <div class="module-hero-stats">
-          <div class="stat-num">{{ deptCount }}</div>
-          <div class="stat-label">部门总数</div>
-        </div>
-      </div>
-    </el-card>
-
-    <el-card class="search-card module-search-card" shadow="never">
-      <el-form :model="queryParams" inline class="module-search-form">
+  <div class="app-container">
+    <!-- 搜索区域 -->
+    <el-card class="search-card">
+      <el-form :model="queryParams" inline>
         <el-form-item label="部门名称">
           <el-input v-model="queryParams.name" placeholder="请输入部门名称" clearable />
         </el-form-item>
@@ -31,8 +16,8 @@
           />
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" :icon="Search" @click="handleQuery">搜索</el-button>
-          <el-button :icon="Refresh" @click="resetQuery">重置</el-button>
+          <el-button type="primary" @click="handleQuery">搜索</el-button>
+          <el-button @click="resetQuery">重置</el-button>
         </el-form-item>
       </el-form>
     </el-card>
@@ -44,7 +29,7 @@
           <span>部门列表</span>
           <div class="header-actions">
             <el-button v-permission="'system:dept:delete'" @click="openRecycleDialog">回收站</el-button>
-            <el-button type="primary" v-permission="'system:dept:create'" @click="handleAdd()">新增部门</el-button>
+            <el-button type="primary" v-permission="'system:dept:create'" @click="handleAdd(null)">新增部门</el-button>
           </div>
         </div>
       </template>
@@ -54,15 +39,15 @@
         row-key="id"
         border
         :tree-props="{ children: 'children' }"
-        :header-cell-style="tableHeaderStyle"
-        :cell-style="tableCellStyle"
+        :header-cell-style="{ textAlign: 'center' }"
+        :cell-style="{ textAlign: 'center' }"
       >
-        <el-table-column prop="name" label="部门名称" width="200" align="center" header-align="center" />
-        <el-table-column prop="leaderName" label="负责人" width="120" align="center" header-align="center" />
-        <el-table-column prop="phone" label="联系电话" width="150" align="center" header-align="center" />
-        <el-table-column prop="email" label="邮箱" align="center" header-align="center" show-overflow-tooltip />
-        <el-table-column prop="sort" label="排序" width="80" align="center" header-align="center" />
-        <el-table-column prop="status" label="状态" width="100" align="center" header-align="center">
+        <el-table-column prop="name" label="部门名称" width="200" />
+        <el-table-column prop="leaderName" label="负责人" width="120" />
+        <el-table-column prop="phone" label="联系电话" width="150" />
+        <el-table-column prop="email" label="邮箱" show-overflow-tooltip />
+        <el-table-column prop="sort" label="排序" width="80" />
+        <el-table-column prop="status" label="状态" width="100">
           <template #default="{ row }">
             <el-switch
               v-model="row.status"
@@ -73,7 +58,7 @@
             />
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="220" fixed="right" align="center" header-align="center">
+        <el-table-column label="操作" width="220" fixed="right" align="center">
           <template #default="{ row }">
             <div class="action-buttons">
               <el-button 
@@ -113,8 +98,7 @@
           <el-tree-select
             v-model="form.parentId"
             :data="deptOptions"
-            node-key="id"
-            :props="{ label: 'name', children: 'children' }"
+            :props="{ label: 'name', value: 'id', children: 'children' }"
             placeholder="请选择上级部门"
             check-strictly
             clearable
@@ -123,8 +107,8 @@
         <el-form-item label="部门名称" prop="name">
           <el-input v-model="form.name" placeholder="请输入部门名称" />
         </el-form-item>
-        <el-form-item label="负责人" prop="leaderUserId">
-          <DeptLeaderSelect v-model="form.leaderUserId" />
+        <el-form-item label="负责人" prop="leaderName">
+          <el-input v-model="form.leaderName" placeholder="请输入负责人" />
         </el-form-item>
         <el-form-item label="联系电话" prop="phone">
           <el-input v-model="form.phone" placeholder="请输入联系电话" />
@@ -189,46 +173,38 @@
   </div>
 </template>
 
-<script setup lang="ts">
-import { ref, reactive, onMounted, computed } from 'vue'
-import { Search, Refresh } from '@element-plus/icons-vue'
-import ModulePageIcon from '@/components/ModulePageIcon.vue'
-import { MODULE_PAGE_ICON } from '@/constants/module-page-icons'
-import { ElMessage, ElMessageBox, type FormInstance } from 'element-plus'
-import type { DeptVO, DeptSaveDTO, DeptRecycleQuery, DeptTreeQuery } from '@/api/system/dept'
+<script setup>
+import { ref, reactive, onMounted } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { getDeptList, createDept, updateDept, deleteDept, updateDeptStatus, getRecycleDeptPage, restoreDept, deleteDeptPermanent } from '@/api/system/dept'
-import DeptLeaderSelect from '@/components/DeptLeaderSelect.vue'
-
-const tableHeaderStyle = { textAlign: 'center' as const }
-const tableCellStyle = { textAlign: 'center' as const }
 
 const loading = ref(false)
-const deptList = ref<DeptVO[]>([])
-const deptOptions = ref<DeptVO[]>([])
+const deptList = ref([])
+const deptOptions = ref([])
 const dialogVisible = ref(false)
 const dialogTitle = ref('')
-const formRef = ref<FormInstance | null>(null)
+const formRef = ref(null)
 const recycleVisible = ref(false)
 const recycleLoading = ref(false)
-const recycleList = ref<DeptVO[]>([])
+const recycleList = ref([])
 const recycleTotal = ref(0)
 
-const queryParams = reactive<DeptTreeQuery>({
+const queryParams = reactive({
   name: '',
   status: null
 })
-const recycleQuery = reactive<DeptRecycleQuery>({
+const recycleQuery = reactive({
   pageNo: 1,
   pageSize: 10,
   name: '',
   status: null
 })
 
-const form = reactive<DeptSaveDTO>({
+const form = reactive({
   id: null,
   parentId: null,
   name: '',
-  leaderUserId: null as number | null,
+  leaderName: '',
   phone: '',
   email: '',
   sort: 0,
@@ -239,15 +215,10 @@ const rules = {
   name: [{ required: true, message: '请输入部门名称', trigger: 'blur' }]
 }
 
-const countDeptNodes = (list: DeptVO[]): number =>
-  list.reduce((sum, item) => sum + 1 + countDeptNodes(item.children || []), 0)
-
-const deptCount = computed(() => countDeptNodes(deptList.value))
-
 const getList = async () => {
   loading.value = true
   try {
-    const res = await getDeptList()
+    const res = await getDeptList(queryParams)
     const allDepts = res.data || []
     deptList.value = allDepts
     deptOptions.value = [{ id: 0, name: '根部门', children: allDepts }]
@@ -268,7 +239,7 @@ const resetQuery = () => {
   handleQuery()
 }
 
-const handleAdd = (row?: DeptVO) => {
+const handleAdd = (row) => {
   resetForm()
   if (row) {
     form.parentId = row.id
@@ -277,14 +248,14 @@ const handleAdd = (row?: DeptVO) => {
   dialogVisible.value = true
 }
 
-const handleEdit = (row: DeptVO) => {
+const handleEdit = (row) => {
   resetForm()
   dialogTitle.value = '编辑部门'
   Object.assign(form, row)
   dialogVisible.value = true
 }
 
-const handleDelete = async (row: DeptVO) => {
+const handleDelete = async (row) => {
   await ElMessageBox.confirm('确定要删除该部门吗？', '提示', { type: 'warning' })
   await deleteDept(row.id)
   ElMessage.success('删除成功')
@@ -308,14 +279,14 @@ const openRecycleDialog = async () => {
   await getRecycleList()
 }
 
-const handleRestore = async (row: DeptVO) => {
+const handleRestore = async (row) => {
   await restoreDept(row.id)
   ElMessage.success('恢复成功')
   await getRecycleList()
   await getList()
 }
 
-const handlePermanentDelete = async (row: DeptVO) => {
+const handlePermanentDelete = async (row) => {
   await ElMessageBox.confirm('确定彻底删除该部门吗？该操作不可恢复', '提示', { type: 'warning' })
   await deleteDeptPermanent(row.id)
   ElMessage.success('清除成功')
@@ -323,14 +294,13 @@ const handlePermanentDelete = async (row: DeptVO) => {
 }
 
 // 状态切换
-const handleStatusChange = async (row: DeptVO) => {
+const handleStatusChange = async (row) => {
   try {
     const text = row.status === 1 ? '启用' : '禁用'
     await ElMessageBox.confirm(`确认要${text}部门"${row.name}"吗？`, '提示', { type: 'warning' })
-    if (row.id == null || row.status == null) return
     await updateDeptStatus(row.id, row.status)
     ElMessage.success(`${text}成功`)
-  } catch {
+  } catch (error) {
     row.status = row.status === 1 ? 0 : 1
   }
 }
@@ -339,7 +309,7 @@ const resetForm = () => {
   form.id = null
   form.parentId = null
   form.name = ''
-  form.leaderUserId = null
+  form.leaderName = ''
   form.phone = ''
   form.email = ''
   form.sort = 0
@@ -350,16 +320,11 @@ const submitForm = async () => {
   if (!formRef.value) return
   await formRef.value.validate(async (valid) => {
     if (valid) {
-      const payload = {
-        ...form,
-        leaderUserId: form.leaderUserId ?? null,
-      }
-      delete (payload as { leaderName?: string }).leaderName
       if (form.id) {
-        await updateDept(payload)
+        await updateDept(form)
         ElMessage.success('修改成功')
       } else {
-        await createDept(payload)
+        await createDept(form)
         ElMessage.success('新增成功')
       }
       dialogVisible.value = false
@@ -373,3 +338,33 @@ onMounted(() => {
 })
 </script>
 
+<style scoped>
+.app-container {
+  padding: 0;
+}
+.search-card {
+  margin-bottom: 20px;
+}
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* 操作按钮样式 */
+.action-buttons {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.action-buttons .el-button {
+  margin: 0;
+}
+</style>

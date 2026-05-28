@@ -1,23 +1,8 @@
 <template>
-  <div class="app-container module-page">
-    <el-card class="search-card module-hero-card" shadow="never">
-      <div class="module-hero-row">
-        <div class="module-hero-text">
-          <div class="module-hero-title">
-            <ModulePageIcon :icon="MODULE_PAGE_ICON.role" />
-            <span>角色管理</span>
-          </div>
-          <p class="module-hero-desc">配置系统角色与权限，控制菜单访问与操作授权</p>
-        </div>
-        <div class="module-hero-stats">
-          <div class="stat-num">{{ roleList.length }}</div>
-          <div class="stat-label">角色总数</div>
-        </div>
-      </div>
-    </el-card>
-
-    <el-card class="search-card module-search-card" shadow="never">
-      <el-form :model="queryParams" inline class="module-search-form">
+  <div class="app-container">
+    <!-- 搜索区域 -->
+    <el-card class="search-card">
+      <el-form :model="queryParams" inline>
         <el-form-item label="角色名称">
           <el-input v-model="queryParams.name" placeholder="请输入角色名称" clearable />
         </el-form-item>
@@ -31,8 +16,8 @@
           />
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" :icon="Search" @click="handleQuery">搜索</el-button>
-          <el-button :icon="Refresh" @click="resetQuery">重置</el-button>
+          <el-button type="primary" @click="handleQuery">搜索</el-button>
+          <el-button @click="resetQuery">重置</el-button>
         </el-form-item>
       </el-form>
     </el-card>
@@ -43,7 +28,7 @@
         <div class="card-header">
           <span>角色列表</span>
           <div class="header-actions">
-            <RecycleCenterLink tab="role" />
+            <el-button v-permission="'system:role:delete'" @click="openRecycleDialog">回收站</el-button>
             <el-button type="primary" v-permission="'system:role:create'" @click="handleAdd">新增角色</el-button>
           </div>
         </div>
@@ -53,14 +38,14 @@
         v-loading="loading"
         border
         stripe
-        :header-cell-style="tableHeaderStyle"
-        :cell-style="tableCellStyle"
+        :header-cell-style="{ textAlign: 'center' }"
+        :cell-style="{ textAlign: 'center' }"
       >
-        <el-table-column prop="id" label="ID" width="80" align="center" header-align="center" />
-        <el-table-column prop="name" label="角色名称" width="150" align="center" header-align="center" />
-        <el-table-column prop="code" label="角色编码" width="150" align="center" header-align="center" />
-        <el-table-column prop="sort" label="排序" width="100" align="center" header-align="center" />
-        <el-table-column prop="status" label="状态" width="100" align="center" header-align="center">
+        <el-table-column prop="id" label="ID" width="80" />
+        <el-table-column prop="name" label="角色名称" width="150" />
+        <el-table-column prop="code" label="角色编码" width="150" />
+        <el-table-column prop="sort" label="排序" width="100" />
+        <el-table-column prop="status" label="状态" width="100">
           <template #default="{ row }">
             <el-switch
               v-model="row.status"
@@ -71,9 +56,9 @@
             />
           </template>
         </el-table-column>
-        <el-table-column prop="remark" label="备注" align="center" header-align="center" show-overflow-tooltip />
-        <el-table-column prop="createTime" label="创建时间" width="180" align="center" header-align="center" />
-        <el-table-column label="操作" width="180" fixed="right" align="center" header-align="center">
+        <el-table-column prop="remark" label="备注" show-overflow-tooltip />
+        <el-table-column prop="createTime" label="创建时间" width="180" />
+        <el-table-column label="操作" width="180" fixed="right" align="center">
           <template #default="{ row }">
             <div class="action-buttons">
               <el-button 
@@ -141,7 +126,7 @@
           />
         </el-form-item>
         <el-form-item label="备注" prop="remark">
-          <el-input v-model="form.remark" type="textarea" :rows="3" placeholder="请输入备注" />
+          <el-input v-model="form.remark" type="textarea" rows="3" placeholder="请输入备注" />
         </el-form-item>
       </el-form>
       <template #footer>
@@ -172,58 +157,88 @@
         <el-button type="primary" @click="submitAssignMenu">确定</el-button>
       </template>
     </el-dialog>
+
+    <el-dialog v-model="recycleVisible" title="角色回收站" width="900px" :lock-scroll="false">
+      <el-table
+        :data="recycleList"
+        v-loading="recycleLoading"
+        border
+        stripe
+        :header-cell-style="{ textAlign: 'center' }"
+        :cell-style="{ textAlign: 'center' }"
+      >
+        <el-table-column prop="id" label="ID" width="80" />
+        <el-table-column prop="name" label="角色名称" width="150" />
+        <el-table-column prop="code" label="角色编码" width="150" />
+        <el-table-column prop="sort" label="排序" width="80" />
+        <el-table-column prop="status" label="状态" width="100">
+          <template #default="{ row }">
+            <DictTag :value="row.status" dict-type="sys_normal_disable" />
+          </template>
+        </el-table-column>
+        <el-table-column prop="updateTime" label="删除时间" width="180" />
+        <el-table-column label="操作" width="170" fixed="right">
+          <template #default="{ row }">
+            <div class="action-buttons">
+              <el-button size="small" type="success" @click="handleRestore(row)">恢复</el-button>
+              <el-button size="small" type="danger" @click="handlePermanentDelete(row)">清除</el-button>
+            </div>
+          </template>
+        </el-table-column>
+      </el-table>
+      <el-pagination
+        v-model:current-page="recycleQuery.pageNo"
+        v-model:page-size="recycleQuery.pageSize"
+        :total="recycleTotal"
+        :page-sizes="[10, 20, 50, 100]"
+        layout="total, sizes, prev, pager, next, jumper"
+        @size-change="getRecycleList"
+        @current-change="getRecycleList"
+      />
+    </el-dialog>
   </div>
 </template>
 
-<script setup lang="ts">
+<script setup>
 import { ref, reactive, onMounted, nextTick } from 'vue'
-import { Search, Refresh } from '@element-plus/icons-vue'
-import ModulePageIcon from '@/components/ModulePageIcon.vue'
-import { MODULE_PAGE_ICON } from '@/constants/module-page-icons'
-import { ElMessage, ElMessageBox, type FormInstance } from 'element-plus'
-import type { ElTree } from 'element-plus'
-import {
-  getRoleList,
-  createRole,
-  updateRole,
-  deleteRole,
-  assignRoleMenu,
-  updateRoleStatus,
-  type RoleSaveDTO,
-  type RoleListQuery,
-  getRoleMenuIds,
-  type RoleVO,
-} from '@/api/system/role'
-import { getMenuList, type MenuVO } from '@/api/system/menu'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { getRoleList, createRole, updateRole, deleteRole, assignRoleMenu, updateRoleStatus, getRoleMenuIds, getRecycleRolePage, restoreRole, deleteRolePermanent } from '@/api/system/role'
+import { getMenuList } from '@/api/system/menu'
 import { buildMenuTree } from '@/utils/menu-tree'
-import RecycleCenterLink from '@/components/RecycleCenterLink.vue'
-
-const tableHeaderStyle = { textAlign: 'center' as const }
-const tableCellStyle = { textAlign: 'center' as const }
 
 const loading = ref(false)
-const roleList = ref<RoleVO[]>([])
+const roleList = ref([])
 const dialogVisible = ref(false)
 const dialogTitle = ref('')
 const menuDialogVisible = ref(false)
-const formRef = ref<FormInstance | null>(null)
-const menuTreeRef = ref<InstanceType<typeof ElTree> | null>(null)
-const currentRole = ref<Partial<RoleVO>>({})
-const selectedMenus = ref<number[]>([])
-const menuOptions = ref<MenuVO[]>([])
+const formRef = ref(null)
+const menuTreeRef = ref(null)
+const currentRole = ref({})
+const selectedMenus = ref([])
+const menuOptions = ref([])
+const recycleVisible = ref(false)
+const recycleLoading = ref(false)
+const recycleList = ref([])
+const recycleTotal = ref(0)
 
-const queryParams = reactive<RoleListQuery>({
+const queryParams = reactive({
+  name: '',
+  status: null
+})
+const recycleQuery = reactive({
+  pageNo: 1,
+  pageSize: 10,
   name: '',
   status: null
 })
 
-const form = reactive<RoleSaveDTO>({
+const form = reactive({
   id: null,
   name: '',
   code: '',
   sort: 0,
   status: 1,
-  remark: '',
+  remark: ''
 })
 
 const rules = {
@@ -259,35 +274,65 @@ const handleAdd = () => {
   dialogVisible.value = true
 }
 
-const handleEdit = (row: RoleVO) => {
+const handleEdit = (row) => {
   resetForm()
   dialogTitle.value = '编辑角色'
   Object.assign(form, row)
   dialogVisible.value = true
 }
 
-const handleDelete = async (row: RoleVO) => {
+const handleDelete = async (row) => {
   await ElMessageBox.confirm('确定要删除该角色吗？', '提示', { type: 'warning' })
   await deleteRole(row.id)
   ElMessage.success('删除成功')
   getList()
 }
 
+const getRecycleList = async () => {
+  recycleLoading.value = true
+  try {
+    const res = await getRecycleRolePage(recycleQuery)
+    recycleList.value = res.data?.list || []
+    recycleTotal.value = res.data?.total || 0
+  } finally {
+    recycleLoading.value = false
+  }
+}
+
+const openRecycleDialog = async () => {
+  recycleQuery.pageNo = 1
+  recycleVisible.value = true
+  await getRecycleList()
+}
+
+const handleRestore = async (row) => {
+  await restoreRole(row.id)
+  ElMessage.success('恢复成功')
+  await getRecycleList()
+  await getList()
+}
+
+const handlePermanentDelete = async (row) => {
+  await ElMessageBox.confirm('确定彻底删除该角色吗？该操作不可恢复', '提示', { type: 'warning' })
+  await deleteRolePermanent(row.id)
+  ElMessage.success('清除成功')
+  await getRecycleList()
+}
+
 // 状态切换
-const handleStatusChange = async (row: RoleVO) => {
+const handleStatusChange = async (row) => {
   try {
     const text = row.status === 1 ? '启用' : '禁用'
     await ElMessageBox.confirm(`确认要${text}角色"${row.name}"吗？`, '提示', { type: 'warning' })
-    if (row.id == null || row.status == null) return
     await updateRoleStatus(row.id, row.status)
     ElMessage.success(`${text}成功`)
-  } catch {
+  } catch (error) {
     row.status = row.status === 1 ? 0 : 1
   }
 }
 
 // 操作命令分发
-const handleCommand = (command: string, row: RoleVO) => {
+const handleCommand = (command, row) => {
   switch (command) {
     case 'assignMenu':
       handleAssignMenu(row)
@@ -298,7 +343,7 @@ const handleCommand = (command: string, row: RoleVO) => {
   }
 }
 
-const handleAssignMenu = async (row: RoleVO) => {
+const handleAssignMenu = async (row) => {
   currentRole.value = row
   // 先加载菜单列表
   if (menuOptions.value.length === 0) {
@@ -310,7 +355,7 @@ const handleAssignMenu = async (row: RoleVO) => {
   }
   // 获取角色已有菜单
   const res = await getRoleMenuIds(row.id)
-  selectedMenus.value = (res.data || []).map((id) => Number(id))
+  selectedMenus.value = res.data || []
   menuDialogVisible.value = true
   // 等待 DOM 更新后设置选中状态
   await nextTick()
@@ -321,11 +366,7 @@ const handleAssignMenu = async (row: RoleVO) => {
 }
 
 const submitAssignMenu = async () => {
-  if (!menuTreeRef.value || currentRole.value.id == null) return
-  const menuIds = menuTreeRef.value
-    .getCheckedKeys()
-    .map((key) => Number(key))
-    .filter((id) => !Number.isNaN(id))
+  const menuIds = menuTreeRef.value.getCheckedKeys()
   await assignRoleMenu({ roleId: currentRole.value.id, menuIds })
   ElMessage.success('分配成功')
   menuDialogVisible.value = false
@@ -364,6 +405,36 @@ onMounted(() => {
 </script>
 
 <style scoped>
+.app-container {
+  padding: 0;
+}
+.search-card {
+  margin-bottom: 20px;
+}
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* 操作按钮样式 */
+.action-buttons {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.action-buttons .el-button {
+  margin: 0;
+}
+
+/* 下拉菜单危险操作样式 */
 :deep(.dropdown-item-danger) {
   color: #f56c6c !important;
 }

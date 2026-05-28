@@ -33,8 +33,9 @@ Desktop.ini
 .env.*
 !.env.example
 
-# Local uploads & runtime data
-admin-backend/data/
+# Local uploads & runtime data (file.storage.local-path → ./data/uploads)
+/data/
+backend/data/
 
 # IDE / editor
 .cursor/

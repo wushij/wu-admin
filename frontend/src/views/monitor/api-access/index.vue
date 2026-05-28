@@ -1,5 +1,5 @@
 <template>
-  <div class="app-container module-page api-access-page">
+  <div class="app-container api-access-page">
     <el-alert
       v-if="!canQuery"
       type="warning"
@@ -10,35 +10,23 @@
     />
 
     <template v-if="canQuery">
-      <el-card class="search-card module-hero-card" shadow="never">
-        <div class="module-hero-row">
-          <div class="module-hero-text">
-            <div class="module-hero-title">
-              <ModulePageIcon :icon="MODULE_PAGE_ICON.apiAccess" />
-              <span>API 访问统计</span>
-            </div>
-            <p class="module-hero-desc">近 7 日接口访问概览，支持路径、方法与用户维度分析</p>
-          </div>
-        </div>
-      </el-card>
-
       <el-row :gutter="16" class="stats-cards">
         <el-col :span="8">
-          <el-card shadow="hover" class="api-stat-card">
-            <div class="api-stat-value">{{ stats.totalCount }}</div>
-            <div class="api-stat-label">请求总数</div>
+          <el-card shadow="hover" class="stat-card">
+            <div class="stat-value">{{ stats.totalCount }}</div>
+            <div class="stat-label">请求总数</div>
           </el-card>
         </el-col>
         <el-col :span="8">
-          <el-card shadow="hover" class="api-stat-card success">
-            <div class="api-stat-value">{{ stats.successCount }}</div>
-            <div class="api-stat-label">成功</div>
+          <el-card shadow="hover" class="stat-card success">
+            <div class="stat-value">{{ stats.successCount }}</div>
+            <div class="stat-label">成功</div>
           </el-card>
         </el-col>
         <el-col :span="8">
-          <el-card shadow="hover" class="api-stat-card fail">
-            <div class="api-stat-value">{{ stats.failCount }}</div>
-            <div class="api-stat-label">失败</div>
+          <el-card shadow="hover" class="stat-card fail">
+            <div class="stat-value">{{ stats.failCount }}</div>
+            <div class="stat-label">失败</div>
           </el-card>
         </el-col>
       </el-row>
@@ -73,19 +61,19 @@
           border
           stripe
           empty-text="暂无用户访问记录"
-          :header-cell-style="tableHeaderStyle"
-          :cell-style="tableCellStyle"
+          :header-cell-style="{ textAlign: 'center' }"
+          :cell-style="{ textAlign: 'center' }"
         >
-          <el-table-column label="排名" width="80" align="center" header-align="center">
+          <el-table-column label="排名" width="80">
             <template #default="{ $index }">{{ $index + 1 }}</template>
           </el-table-column>
-          <el-table-column prop="username" label="用户名" min-width="140" align="center" header-align="center" show-overflow-tooltip />
-          <el-table-column prop="count" label="访问次数" width="120" align="center" header-align="center" sortable />
+          <el-table-column prop="username" label="用户名" min-width="140" show-overflow-tooltip />
+          <el-table-column prop="count" label="访问次数" width="120" sortable />
         </el-table>
       </el-card>
 
-      <el-card class="search-card module-search-card" shadow="never">
-        <el-form :model="queryParams" inline class="module-search-form">
+      <el-card class="table-card">
+        <el-form :model="queryParams" inline class="search-form">
           <el-form-item label="用户">
             <el-select
               v-model="queryParams.userId"
@@ -131,48 +119,27 @@
             />
           </el-form-item>
           <el-form-item>
-            <el-button type="primary" :icon="Search" @click="handleQuery">搜索</el-button>
-            <el-button :icon="Refresh" @click="resetQuery">重置</el-button>
+            <el-button type="primary" @click="handleQuery">搜索</el-button>
+            <el-button @click="resetQuery">重置</el-button>
           </el-form-item>
         </el-form>
-      </el-card>
 
-      <el-card class="table-card">
-        <template #header>
-          <div class="card-header">
-            <span>访问日志明细</span>
-            <ListExportButton
-              module="api-access"
-              :query-params="queryParams"
-              :extra-params="exportExtraParams"
-              permission="monitor:apiAccess:query"
-            />
-          </div>
-        </template>
-
-        <el-table
-          :data="tableData"
-          v-loading="loading"
-          border
-          stripe
-          :header-cell-style="tableHeaderStyle"
-          :cell-style="tableCellStyle"
-        >
-          <el-table-column prop="id" label="ID" width="70" align="center" header-align="center" />
-          <el-table-column prop="username" label="用户名" width="120" align="center" header-align="center" show-overflow-tooltip />
-          <el-table-column prop="apiPath" label="API 路径" min-width="220" align="center" header-align="center" show-overflow-tooltip />
-          <el-table-column prop="method" label="方法" width="80" align="center" header-align="center" />
-          <el-table-column prop="statusCode" label="状态码" width="90" align="center" header-align="center" />
-          <el-table-column prop="success" label="成功" width="80" align="center" header-align="center">
+        <el-table :data="tableData" v-loading="loading" border stripe>
+          <el-table-column prop="id" label="ID" width="70" align="center" />
+          <el-table-column prop="username" label="用户名" width="120" align="center" show-overflow-tooltip />
+          <el-table-column prop="apiPath" label="API 路径" min-width="220" show-overflow-tooltip />
+          <el-table-column prop="method" label="方法" width="80" align="center" />
+          <el-table-column prop="statusCode" label="状态码" width="90" align="center" />
+          <el-table-column prop="success" label="成功" width="80" align="center">
             <template #default="{ row }">
               <el-tag :type="row.success === 1 ? 'success' : 'danger'" size="small">
                 {{ row.success === 1 ? '是' : '否' }}
               </el-tag>
             </template>
           </el-table-column>
-          <el-table-column prop="costTime" label="耗时(ms)" width="100" align="center" header-align="center" />
-          <el-table-column prop="ip" label="IP" width="130" align="center" header-align="center" />
-          <el-table-column prop="startTime" label="请求时间" width="180" align="center" header-align="center" />
+          <el-table-column prop="costTime" label="耗时(ms)" width="100" align="center" />
+          <el-table-column prop="ip" label="IP" width="130" align="center" />
+          <el-table-column prop="startTime" label="请求时间" width="180" align="center" />
         </el-table>
 
         <el-pagination
@@ -181,7 +148,7 @@
           :total="total"
           :page-sizes="[10, 20, 50, 100]"
           layout="total, sizes, prev, pager, next, jumper"
-          class="table-pagination"
+          class="pagination"
           @size-change="loadPage"
           @current-change="loadPage"
         />
@@ -190,66 +157,48 @@
   </div>
 </template>
 
-<script setup lang="ts">
+<script setup>
 import { ref, reactive, computed, onMounted, onUnmounted, nextTick } from 'vue'
-import { Search, Refresh } from '@element-plus/icons-vue'
-import ModulePageIcon from '@/components/ModulePageIcon.vue'
-import { MODULE_PAGE_ICON } from '@/constants/module-page-icons'
-import ListExportButton from '@/components/ListExportButton.vue'
-import type { ECharts } from 'echarts'
-import type { CallbackDataParams } from 'echarts/types/dist/shared'
 import { useUserStore } from '@/store/user'
 import { hasMenuPermission } from '@/directives/permission'
-import {
-  getApiAccessPage,
-  getApiAccessStatistics,
-  createEmptyApiAccessStats,
-  toApiAccessStatsView,
-  type ApiAccessPageQuery,
-  type ApiAccessStatisticsQuery,
-  type ApiAccessLogRow,
-  type ApiAccessStatsView,
-  type ApiAccessTopUser,
-} from '@/api/monitor/api-access'
-
-const tableHeaderStyle = { textAlign: 'center' as const }
-const tableCellStyle = { textAlign: 'center' as const }
+import { getApiAccessPage, getApiAccessStatistics } from '@/api/monitor/api-access'
 
 const userStore = useUserStore()
 const canQuery = computed(() => hasMenuPermission(userStore.menus, 'monitor:apiAccess:query'))
 
-const stats = reactive<ApiAccessStatsView>(createEmptyApiAccessStats())
+const stats = reactive({
+  totalCount: 0,
+  successCount: 0,
+  failCount: 0,
+  dailyStats: {},
+  topPaths: [],
+  topUsers: [],
+  methodCount: {}
+})
 
-const methodChartRef = ref<HTMLElement | null>(null)
-const pathChartRef = ref<HTMLElement | null>(null)
-const lineChartRef = ref<HTMLElement | null>(null)
-let methodChart: ECharts | null = null
-let pathChart: ECharts | null = null
-let lineChart: ECharts | null = null
-let echartsModule: typeof import('echarts') | null = null
+const methodChartRef = ref(null)
+const pathChartRef = ref(null)
+const lineChartRef = ref(null)
+let methodChart = null
+let pathChart = null
+let lineChart = null
+let echartsModule = null
 
-const queryParams = reactive<ApiAccessPageQuery>({
+const queryParams = reactive({
   pageNo: 1,
   pageSize: 20,
   userId: null,
   apiPath: '',
   method: null,
-  success: null,
+  success: null
 })
-const dateRange = ref<[string, string] | null>(null)
-const exportExtraParams = computed(() => {
-  if (!dateRange.value) return {}
-  return {
-    startTime: dateRange.value[0],
-    endTime: dateRange.value[1],
-  }
-})
-const tableData = ref<ApiAccessLogRow[]>([])
+const dateRange = ref(null)
+const tableData = ref([])
 const loading = ref(false)
 const total = ref(0)
 
 /** 本地日期 YYYY-MM-DD（避免 toISOString 用 UTC 导致「今天」偏差一天） */
-function formatLocalDate(d: Date) {
+function formatLocalDate(d) {
   const y = d.getFullYear()
   const m = String(d.getMonth() + 1).padStart(2, '0')
   const day = String(d.getDate()).padStart(2, '0')
@@ -263,14 +212,14 @@ const startDate = computed(() => {
 })
 const endDate = computed(() => formatLocalDate(new Date()))
 
-function parseLocalDate(str: string) {
+function parseLocalDate(str) {
   const [y, m, d] = str.split('-').map(Number)
   return new Date(y, m - 1, d)
 }
 
 /** 近 7 天完整日期轴（含无访问的 0） */
 function buildDailyDateKeys() {
-  const keys: string[] = []
+  const keys = []
   let cur = parseLocalDate(startDate.value)
   const end = parseLocalDate(endDate.value)
   while (cur <= end) {
@@ -280,7 +229,7 @@ function buildDailyDateKeys() {
   return keys
 }
 
-function displayUser(row: ApiAccessTopUser) {
+function displayUser(row) {
   return row?.username || '-'
 }
 
@@ -293,12 +242,18 @@ async function ensureEcharts() {
 
 async function loadStatistics() {
   try {
-    const statParams: ApiAccessStatisticsQuery = {
+    const res = await getApiAccessStatistics({
       startDate: startDate.value,
-      endDate: endDate.value,
-    }
-    const res = await getApiAccessStatistics(statParams)
-    Object.assign(stats, toApiAccessStatsView(res.data))
+      endDate: endDate.value
+    })
+    const data = res.data || {}
+    stats.totalCount = data.totalCount ?? 0
+    stats.successCount = data.successCount ?? 0
+    stats.failCount = data.failCount ?? 0
+    stats.dailyStats = data.dailyStats || {}
+    stats.topPaths = data.topPaths || []
+    stats.topUsers = data.topUsers || []
+    stats.methodCount = data.methodCount || {}
     await nextTick()
     updateCharts()
   } catch (e) {
@@ -329,11 +284,10 @@ async function updateCharts() {
     pathChart.setOption({
       tooltip: {
         trigger: 'axis',
-        formatter(params: CallbackDataParams | CallbackDataParams[]) {
-          const list = Array.isArray(params) ? params : [params]
-          const idx = list[0]?.dataIndex
-          const full = paths[idx as number]?.apiPath ?? list[0]?.name
-          return `${full}<br/>次数: ${list[0]?.value ?? 0}`
+        formatter(params) {
+          const idx = params[0]?.dataIndex
+          const full = paths[idx]?.apiPath ?? params[0]?.name
+          return `${full}<br/>次数: ${params[0]?.value ?? 0}`
         }
       },
       grid: { left: 50, right: 24, bottom: 88, top: 24 },
@@ -370,13 +324,13 @@ async function updateCharts() {
 async function loadPage() {
   loading.value = true
   try {
-    const params: ApiAccessPageQuery = {
+    const params = {
       pageNo: queryParams.pageNo,
       pageSize: queryParams.pageSize,
       userId: queryParams.userId ?? undefined,
       apiPath: queryParams.apiPath || undefined,
-      method: queryParams.method ?? undefined,
-      success: queryParams.success ?? undefined,
+      method: queryParams.method || undefined,
+      success: queryParams.success ?? undefined
     }
     if (dateRange.value?.length === 2) {
       params.startTime = dateRange.value[0]
@@ -413,7 +367,7 @@ function handleResize() {
   lineChart?.resize()
 }
 
-let statsTimer: ReturnType<typeof setInterval> | null = null
+let statsTimer = null
 
 onMounted(() => {
   if (!canQuery.value) return
@@ -440,30 +394,22 @@ onUnmounted(() => {
   .stats-cards {
     margin-bottom: 16px;
   }
-  .api-stat-card {
-    :deep(.el-card__body) {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
-      padding: 20px 16px;
-      gap: 8px;
-    }
-    .api-stat-value {
+  .stat-card {
+    text-align: center;
+    .stat-value {
       font-size: 28px;
       font-weight: 700;
-      line-height: 1.2;
       color: var(--el-text-color-primary);
     }
-    .api-stat-label {
+    .stat-label {
+      margin-top: 8px;
       font-size: 14px;
       color: var(--el-text-color-secondary);
     }
-    &.success .api-stat-value {
+    &.success .stat-value {
       color: var(--el-color-success);
     }
-    &.fail .api-stat-value {
+    &.fail .stat-value {
       color: var(--el-color-danger);
     }
   }
@@ -482,6 +428,15 @@ onUnmounted(() => {
   }
   .user-rank-card {
     margin-bottom: 16px;
+  }
+  .table-card {
+    .search-form {
+      margin-bottom: 12px;
+    }
+    .pagination {
+      margin-top: 16px;
+      justify-content: flex-end;
+    }
   }
 }
 </style>

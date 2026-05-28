@@ -20,11 +20,9 @@
   </el-select>
 </template>
 
-<script setup lang="ts">
-import { computed, onMounted, toRef, watch, type PropType } from 'vue'
+<script setup>
+import { computed, onMounted, toRef, watch } from 'vue'
 import { useDict } from '@/composables/useDict'
-
-type DictValueType = 'auto' | 'number' | 'string'
 
 const props = defineProps({
   modelValue: { type: [String, Number, Array, Boolean], default: undefined },
@@ -37,46 +35,22 @@ const props = defineProps({
   collapseTags: { type: Boolean, default: false },
   width: { type: String, default: '100%' },
   /** number | string | auto — 与表单字段类型对齐 */
-  valueType: { type: String as PropType<DictValueType>, default: 'auto' },
-  /** 加载后若当前值为空，自动选中 isDefault=1 的项 */
-  applyDefault: { type: Boolean, default: false },
-  /** 排除的键值（如创建表单不展示某些选项） */
-  excludeValues: { type: Array as PropType<Array<string | number>>, default: () => [] },
+  valueType: { type: String, default: 'auto' }
 })
 
 const emit = defineEmits(['update:modelValue'])
 
-const { options: rawOptions, loading, load } = useDict(toRef(props, 'dictType'), {
+const { options, loading, load } = useDict(toRef(props, 'dictType'), {
   valueType: props.valueType
-})
-
-const options = computed(() => {
-  if (!props.excludeValues?.length) return rawOptions.value
-  const excluded = new Set(props.excludeValues.map((v) => String(v)))
-  return rawOptions.value.filter((o) => !excluded.has(String(o.value)))
 })
 
 const selectStyle = computed(() => ({
   width: props.width === '100%' ? '100%' : props.width
 }))
 
-onMounted(async () => {
-  await load()
-  tryApplyDefault()
-})
+onMounted(() => load())
 watch(
   () => props.dictType,
-  async () => {
-    await load(true)
-    tryApplyDefault()
-  }
+  () => load(true)
 )
-
-function tryApplyDefault() {
-  if (!props.applyDefault) return
-  const empty = props.modelValue === undefined || props.modelValue === null || props.modelValue === ''
-  if (!empty) return
-  const def = options.value.find((o) => o.raw?.isDefault === 1)
-  if (def) emit('update:modelValue', def.value)
-}
 </script>

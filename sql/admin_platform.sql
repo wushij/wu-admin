@@ -1,12 +1,16 @@
 -- =============================================
--- Admin Platform 统一数据库初始化脚本
--- 数据库名: RBAC1
--- 包含: 用户、角色、菜单、部门、登录日志
+-- Admin Platform 统一数据库脚本（唯一入口）
+-- 数据库名: wu-admin
+--
+-- 【全新安装】执行本文件全文即可（建库、建表、初始数据）。
+-- 【已有库升级】若表已存在，可只执行文末「附录：已有库升级」段（可重复执行）。
+--
+-- 仅维护本文件；历史 add*.sql 已删除，升级内容见文末「附录」。
 -- =============================================
 
 -- 创建数据库
-CREATE DATABASE IF NOT EXISTS RBAC1 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-USE RBAC1;
+CREATE DATABASE IF NOT EXISTS `wu-admin` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+USE `wu-admin`;
 
 -- =============================================
 -- 1. 用户表
@@ -31,7 +35,8 @@ CREATE TABLE sys_user (
     deleted TINYINT DEFAULT 0 COMMENT '是否删除',
     UNIQUE KEY uk_username (username),
     INDEX idx_mobile (mobile),
-    INDEX idx_dept_id (dept_id)
+    INDEX idx_dept_id (dept_id),
+    INDEX idx_deleted_status (deleted, status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户表';
 
 -- =============================================
@@ -127,7 +132,8 @@ CREATE TABLE sys_user_post (
     user_id BIGINT NOT NULL COMMENT '用户ID',
     post_id BIGINT NOT NULL COMMENT '岗位ID',
     INDEX idx_user_id (user_id),
-    INDEX idx_post_id (post_id)
+    INDEX idx_post_id (post_id),
+    UNIQUE KEY uk_user_post (user_id, post_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户岗位关联表';
 
 -- =============================================
@@ -213,7 +219,8 @@ CREATE TABLE sys_dict_data (
     updater VARCHAR(64) DEFAULT '' COMMENT '更新者',
     deleted INT DEFAULT 0 COMMENT '删除标识',
     PRIMARY KEY (id),
-    KEY idx_dict_type (dict_type)
+    KEY idx_dict_type (dict_type),
+    KEY idx_dict_type_status_deleted (dict_type, status, deleted, sort)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='字典数据表';
 
 -- =============================================
@@ -238,7 +245,8 @@ CREATE TABLE sys_oper_log (
     PRIMARY KEY (id),
     INDEX idx_oper_time (oper_time),
     INDEX idx_oper_name (oper_name),
-    INDEX idx_title (title)
+    INDEX idx_title (title),
+    INDEX idx_oper_time_status (oper_time, status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='操作日志表';
 
 -- =============================================
@@ -428,6 +436,24 @@ CREATE TABLE sys_file_group (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='文件分组表';
 
 -- =============================================
+-- 系统配置分组表
+-- =============================================
+DROP TABLE IF EXISTS sys_config_group;
+CREATE TABLE sys_config_group (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键',
+    group_code VARCHAR(50) NOT NULL COMMENT '分组编码 login/register',
+    group_name VARCHAR(100) NOT NULL COMMENT '分组名称',
+    config_value TEXT NOT NULL COMMENT 'JSON 配置',
+    remark VARCHAR(255) DEFAULT NULL COMMENT '备注',
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    creator VARCHAR(64) DEFAULT '',
+    updater VARCHAR(64) DEFAULT '',
+    deleted TINYINT DEFAULT 0,
+    UNIQUE KEY uk_group_code (group_code)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='系统配置分组';
+
+-- =============================================
 -- 初始化数据
 -- =============================================
 
@@ -451,7 +477,7 @@ INSERT INTO sys_user (id, username, password, nickname, mobile, email, status, d
 -- 初始化角色
 INSERT INTO sys_role (id, name, code, sort, status, remark) VALUES
 (1, '超级管理员', 'super_admin', 1, 1, '超级管理员，拥有所有权限'),
-(2, '普通用户', 'user', 2, 1, '普通用户角色');
+(2, '普通用户', 'user', 2, 1, '仅部分功能');
 
 -- 初始化字典
 INSERT INTO sys_dict_type (id, dict_name, dict_type, status, remark) VALUES
@@ -460,13 +486,21 @@ INSERT INTO sys_dict_type (id, dict_name, dict_type, status, remark) VALUES
 (3, '是否', 'sys_yes_no', 1, '是或否');
 
 INSERT INTO sys_dict_data (dict_type, sort, dict_label, dict_value, list_class, is_default, status) VALUES
-('sys_normal_disable', 1, '正常', '1', 'success', 1, 1),
-('sys_normal_disable', 2, '停用', '0', 'danger', 0, 1),
+('sys_normal_disable', 1, '启用', '1', 'success', 1, 1),
+('sys_normal_disable', 2, '禁用', '0', 'danger', 0, 1),
 ('sys_user_sex', 1, '男', '1', 'primary', 0, 1),
 ('sys_user_sex', 2, '女', '2', 'danger', 0, 1),
 ('sys_user_sex', 3, '未知', '0', 'info', 1, 1),
 ('sys_yes_no', 1, '是', 'Y', 'success', 1, 1),
 ('sys_yes_no', 2, '否', 'N', 'info', 0, 1);
+
+INSERT INTO sys_config_group (group_code, group_name, config_value, remark) VALUES
+('site', '基础信息', '{"platformName":"Admin Platform","platformSubtitle":"统一运维 · 高效管控","loginWelcome":"Welcome","registerTitle":"Sign Up","copyright":""}', '平台展示名称与登录页文案'),
+('session', '会话配置', '{"tokenExpireHours":24}', 'JWT 与 Redis 会话有效期（小时）'),
+('file', '文件配置', '{"maxSizeMb":50,"allowedExtensions":"jpg,jpeg,png,gif,webp,bmp,svg,pdf,doc,docx,xls,xlsx,ppt,pptx,txt,md,json,xml,zip,rar,mp4,mp3,wav,avi,mov"}', '文件管理上传限制'),
+('rateLimit', '接口限流', '{"captchaPerIpMinute":40,"loginPerIpMinute":30,"registerPerIpMinute":10}', '认证接口按 IP 限流'),
+('login', '登录配置', '{"captchaEnabled":true,"captchaType":"image","rememberMe":true,"maxRetryCount":5,"lockTime":10}', '验证码类型 image=图片 slider=滑块'),
+('register', '注册配置', '{"enabled":true,"captchaEnabled":true,"defaultRoleCode":"user","needAudit":false,"minPasswordLength":6}', '开放注册、默认角色、是否审核');
 
 -- 初始化菜单
 INSERT INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, component, status) VALUES
@@ -475,13 +509,14 @@ INSERT INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, c
 -- 用户管理
 (2, '用户管理', 'system:user:list', 2, 1, 1, '/system/user', 'User', 'system/user/index', 1),
 -- 角色管理
-(3, '角色管理', 'system:role:list', 2, 2, 1, '/system/role', 'Key', 'system/role/index', 1),
+(3, '角色管理', 'system:role:list', 2, 2, 1, '/system/role', 'UserFilled', 'system/role/index', 1),
 -- 菜单管理
 (4, '菜单管理', 'system:menu:list', 2, 3, 1, '/system/menu', 'Menu', 'system/menu/index', 1),
 -- 组织管理（部门 + 岗位）
 (5, '组织管理', 'system:dept:list', 2, 4, 1, '/system/org', 'OfficeBuilding', 'system/org/index', 1),
 -- 字典管理
 (130, '字典管理', 'system:dict:list', 2, 5, 1, '/system/dict', 'Collection', 'system/dict/index', 1),
+(160, '系统配置', 'system:config:list', 2, 6, 1, '/system/config', 'Tools', 'system/config/index', 1),
 -- 业务中心目录
 (8, '业务中心', '', 1, 2, 0, '/business', 'Suitcase', '', 1),
 -- 审批单中心
@@ -519,6 +554,8 @@ INSERT INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, c
 (133, '字典修改', 'system:dict:update', 3, 3, 130, '', '', '', 1),
 (134, '字典删除', 'system:dict:delete', 3, 4, 130, '', '', '', 1),
 (135, '字典复制', 'system:dict:copy', 3, 5, 130, '', '', '', 1),
+(161, '配置查询', 'system:config:query', 3, 1, 160, '', '', '', 1),
+(162, '配置修改', 'system:config:update', 3, 2, 160, '', '', '', 1),
 -- 登录日志按钮
 (50, '日志查询', 'system:loginLog:query', 3, 1, 6, '', '', '', 1),
 (51, '日志删除', 'system:loginLog:delete', 3, 2, 6, '', '', '', 1),
@@ -553,6 +590,7 @@ INSERT INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, c
 -- 系统日志目录
 (120, '系统日志', '', 1, 5, 0, '/log', 'Notebook', '', 1),
 (121, '操作日志', 'system:operLog:list', 2, 1, 120, '/system/oper-log', 'EditPen', 'system/oper-log/index', 1),
+(126, '操作日志查询', 'system:operLog:query', 3, 1, 121, '', '', '', 1),
 (127, '操作日志删除', 'system:operLog:delete', 3, 2, 121, '', '', '', 1),
 (128, '操作日志清空', 'system:operLog:clear', 3, 3, 121, '', '', '', 1),
 -- 登录日志（隶属系统日志）
@@ -568,13 +606,13 @@ INSERT INTO sys_user_role (user_id, role_id) VALUES
 
 -- 初始化角色菜单关联 (超级管理员拥有所有菜单权限)
 INSERT INTO sys_role_menu (role_id, menu_id) VALUES
-(1, 1), (1, 2), (1, 3), (1, 4), (1, 5), (1, 130), (1, 7), (1, 8), (1, 9),
-(1, 6), (1, 120), (1, 121), (1, 127), (1, 128),
+(1, 1), (1, 2), (1, 3), (1, 4), (1, 5), (1, 130), (1, 160), (1, 7), (1, 8), (1, 9),
+(1, 6), (1, 120), (1, 121), (1, 126), (1, 127), (1, 128),
 (1, 10), (1, 11), (1, 12), (1, 13),
 (1, 20), (1, 21), (1, 22), (1, 23),
 (1, 30), (1, 31), (1, 32), (1, 33),
 (1, 40), (1, 41), (1, 42), (1, 43), (1, 44), (1, 45), (1, 46), (1, 47),
-(1, 131), (1, 132), (1, 133), (1, 134), (1, 135),
+(1, 131), (1, 132), (1, 133), (1, 134), (1, 135), (1, 161), (1, 162),
 (1, 50), (1, 51), (1, 52),
 (1, 60), (1, 61), (1, 62), (1, 63), (1, 64), (1, 65),
 (1, 70), (1, 71), (1, 72), (1, 73), (1, 74),
@@ -582,8 +620,135 @@ INSERT INTO sys_role_menu (role_id, menu_id) VALUES
 (1, 105), (1, 110), (1, 111), (1, 112), (1, 113),
 (1, 150), (1, 151);
 
--- 普通用户只有查询权限
+-- 普通用户默认权限（页面+查询按钮；侧栏父级由 getUserMenuList 自动补齐）
 INSERT INTO sys_role_menu (role_id, menu_id) VALUES
-(2, 1), (2, 2), (2, 3), (2, 4), (2, 5), (2, 7), (2, 8), (2, 9),
-(2, 6), (2, 120), (2, 121),
-(2, 10), (2, 20), (2, 30), (2, 40), (2, 50), (2, 60), (2, 70), (2, 71), (2, 72), (2, 73);
+(2, 2), (2, 10), (2, 3), (2, 20), (2, 4), (2, 30), (2, 5), (2, 40),
+(2, 130), (2, 131), (2, 160), (2, 161),
+(2, 8), (2, 7), (2, 60), (2, 61), (2, 62), (2, 63), (2, 64),
+(2, 9), (2, 70), (2, 71), (2, 73),
+(2, 101), (2, 102),
+(2, 105), (2, 110), (2, 111), (2, 112),
+(2, 121), (2, 126), (2, 6), (2, 50),
+(2, 151);
+
+-- =============================================
+-- 附录：已有库升级（可重复执行，全新安装执行亦无害）
+-- 仅执行本段即可，无需其它 sql 文件
+-- =============================================
+
+CREATE TABLE IF NOT EXISTS sys_config_group (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键',
+    group_code VARCHAR(50) NOT NULL COMMENT '分组编码',
+    group_name VARCHAR(100) NOT NULL COMMENT '分组名称',
+    config_value TEXT NOT NULL COMMENT 'JSON 配置',
+    remark VARCHAR(255) DEFAULT NULL COMMENT '备注',
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    creator VARCHAR(64) DEFAULT '',
+    updater VARCHAR(64) DEFAULT '',
+    deleted TINYINT DEFAULT 0,
+    UNIQUE KEY uk_group_code (group_code)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='系统配置分组';
+
+INSERT INTO sys_config_group (group_code, group_name, config_value, remark) VALUES
+('site', '基础信息', '{"platformName":"Admin Platform","platformSubtitle":"统一运维 · 高效管控","loginWelcome":"Welcome","registerTitle":"Sign Up","copyright":""}', '平台展示名称与登录页文案'),
+('session', '会话配置', '{"tokenExpireHours":24}', 'JWT 与 Redis 会话有效期（小时）'),
+('file', '文件配置', '{"maxSizeMb":50,"allowedExtensions":"jpg,jpeg,png,gif,webp,bmp,svg,pdf,doc,docx,xls,xlsx,ppt,pptx,txt,md,json,xml,zip,rar,mp4,mp3,wav,avi,mov"}', '文件管理上传限制'),
+('rateLimit', '接口限流', '{"captchaPerIpMinute":40,"loginPerIpMinute":30,"registerPerIpMinute":10}', '认证接口按 IP 限流'),
+('login', '登录配置', '{"captchaEnabled":true,"captchaType":"image","rememberMe":true,"maxRetryCount":5,"lockTime":10}', '验证码类型 image=图片 slider=滑块'),
+('register', '注册配置', '{"enabled":true,"captchaEnabled":true,"defaultRoleCode":"user","needAudit":false,"minPasswordLength":6}', '开放注册、默认角色、是否审核')
+ON DUPLICATE KEY UPDATE
+    group_name = VALUES(group_name),
+    config_value = VALUES(config_value),
+    remark = VALUES(remark);
+
+INSERT INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, component, status) VALUES
+(160, '系统配置', 'system:config:list', 2, 6, 1, '/system/config', 'Tools', 'system/config/index', 1),
+(161, '配置查询', 'system:config:query', 3, 1, 160, '', '', '', 1),
+(162, '配置修改', 'system:config:update', 3, 2, 160, '', '', '', 1)
+ON DUPLICATE KEY UPDATE
+    name = VALUES(name),
+    permission = VALUES(permission),
+    type = VALUES(type),
+    sort = VALUES(sort),
+    parent_id = VALUES(parent_id),
+    path = VALUES(path),
+    icon = VALUES(icon),
+    component = VALUES(component),
+    status = VALUES(status);
+
+INSERT IGNORE INTO sys_role_menu (role_id, menu_id) VALUES
+(1, 160), (1, 161), (1, 162);
+
+-- 菜单图标
+UPDATE sys_menu SET icon = 'UserFilled' WHERE id = 3 AND icon IN ('Key', 'key');
+UPDATE sys_menu SET icon = 'Document' WHERE id = 151 AND icon IS NOT NULL AND icon <> 'Document';
+
+-- 操作日志「查询」按钮（旧库可能缺失）
+INSERT INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, component, status) VALUES
+(126, '操作日志查询', 'system:operLog:query', 3, 1, 121, '', '', '', 1)
+ON DUPLICATE KEY UPDATE
+    name = VALUES(name),
+    permission = VALUES(permission),
+    type = VALUES(type),
+    sort = VALUES(sort),
+    parent_id = VALUES(parent_id),
+    status = VALUES(status);
+
+INSERT IGNORE INTO sys_role_menu (role_id, menu_id) VALUES (1, 126);
+
+-- 操作日志操作人员：历史误存 userId 时回填为 username
+UPDATE sys_oper_log o
+INNER JOIN sys_user u ON u.id = CAST(o.oper_name AS UNSIGNED) AND u.deleted = 0
+SET o.oper_name = u.username
+WHERE o.oper_name REGEXP '^[0-9]+$';
+
+-- 普通用户默认菜单与备注（执行后请普通用户重新登录）
+UPDATE sys_role SET remark = '仅部分功能' WHERE id = 2;
+
+DELETE FROM sys_role_menu WHERE role_id = 2;
+
+INSERT INTO sys_role_menu (role_id, menu_id) VALUES
+(2, 2), (2, 10), (2, 3), (2, 20), (2, 4), (2, 30), (2, 5), (2, 40),
+(2, 130), (2, 131), (2, 160), (2, 161),
+(2, 8), (2, 7), (2, 60), (2, 61), (2, 62), (2, 63), (2, 64),
+(2, 9), (2, 70), (2, 71), (2, 73),
+(2, 101), (2, 102),
+(2, 105), (2, 110), (2, 111), (2, 112),
+(2, 121), (2, 126), (2, 6), (2, 50),
+(2, 151);
+
+-- 可选：为历史「待审核」用户补建注册审批单（无则跳过）
+INSERT INTO sys_approval_form (form_no, form_type, title, content, status, applicant_user_id, approver_user_id, creator, updater)
+SELECT
+    CONCAT('RG', UNIX_TIMESTAMP(), LPAD(u.id, 4, '0')),
+    'REGISTER',
+    CONCAT('用户注册审核 - ', u.username),
+    CONCAT('{"bizType":"USER_REGISTER","userId":', u.id, ',"username":"', u.username, '","nickname":"', IFNULL(u.nickname, ''), '","mobile":"', IFNULL(u.mobile, ''), '"}'),
+    'SUBMITTED',
+    u.id,
+    (SELECT ur.user_id FROM sys_user_role ur
+     INNER JOIN sys_role r ON r.id = ur.role_id AND r.code = 'super_admin' AND r.deleted = 0
+     ORDER BY ur.user_id LIMIT 1),
+    'system',
+    'system'
+FROM sys_user u
+WHERE u.deleted = 0
+  AND u.status = 2
+  AND NOT EXISTS (
+    SELECT 1 FROM sys_approval_form f
+    WHERE f.deleted = 0
+      AND f.form_type = 'REGISTER'
+      AND f.applicant_user_id = u.id
+      AND f.status = 'SUBMITTED'
+  );
+
+-- 通用状态字典文案与业务页一致（启用/禁用）
+UPDATE sys_dict_data SET dict_label = '启用' WHERE dict_type = 'sys_normal_disable' AND dict_value = '1';
+UPDATE sys_dict_data SET dict_label = '禁用' WHERE dict_type = 'sys_normal_disable' AND dict_value = '0';
+
+-- ---------- 索引优化（已有库可重复执行；若报 Duplicate key name 表示索引已存在，可忽略） ----------
+ALTER TABLE sys_dict_data ADD INDEX idx_dict_type_status_deleted (dict_type, status, deleted, sort);
+ALTER TABLE sys_user ADD INDEX idx_deleted_status (deleted, status);
+ALTER TABLE sys_user_post ADD UNIQUE INDEX uk_user_post (user_id, post_id);
+ALTER TABLE sys_oper_log ADD INDEX idx_oper_time_status (oper_time, status);

@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none" role="img" aria-label="Admin Platform">
   <defs>
     <linearGradient id="logoBg" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#010710"/>
+      <stop stop-color="#111827"/>
       <stop offset="1" stop-color="#374151"/>
     </linearGradient>
   </defs>

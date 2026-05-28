@@ -5,45 +5,39 @@
 </template>
 
 <style>
-/* 全站仅 .main-content 滚动，避免 html 与内容区双滚动条及弹窗打开时抖动 */
-html,
-body,
-#app {
-  height: 100%;
-  margin: 0;
-  overflow: hidden;
+/* 修复对话框打开时页面抖动问题 */
+/* Element Plus对话框打开时会添加overflow: hidden到body，导致滚动条消失页面抖动 */
+/* 解决方案：让滚动条始终占位 */
+html {
+  overflow-y: scroll !important;
 }
 
+/* 覆盖Element Plus对话框锁定滚动的行为 */
 body.el-popup-parent--hidden {
-  overflow: hidden !important;
+  overflow-y: scroll !important;
   padding-right: 0 !important;
 }
 
-/* 弹窗打开时锁定主内容区，防止背景仍可滚动 */
-body.el-popup-parent--hidden .layout-container .main-content {
-  overflow: hidden !important;
-}
-
-/* 对话框内容过长时在弹窗内滚动 */
+/* 确保对话框内容区域滚动正常 */
 .el-dialog__body {
   max-height: calc(100vh - 200px);
   overflow-y: auto;
 }
 
-/* 全局主题变量默认值（石墨预设） */
+/* 防止遮罩层导致的抖动 */
+.el-overlay {
+  overflow-y: scroll !important;
+}
+
+/* 全局主题变量默认值 */
 :root {
-  --theme-primary: #010710;
-  --theme-primary-hover: #0f1a2e;
-  --theme-primary-active: #000000;
-  --theme-primary-muted: rgba(1, 7, 16, 0.08);
-  --theme-primary-muted-strong: rgba(1, 7, 16, 0.14);
-  --theme-logo-end: #000000;
-  --theme-primary-rgb: 1, 7, 16;
-  --theme-text-base: #1e293b;
-  --theme-text-secondary: #64748b;
-  --theme-border: #e2e8f0;
-  --theme-bg: #f3f5f8;
-  --theme-sidebar-bg: #ffffff;
+  --theme-primary: #111827;
+  --theme-primary-hover: #000000;
+  --theme-primary-active: #374151;
+  --theme-text-base: #1F2937;
+  --theme-text-secondary: #6B7280;
+  --theme-border: #E5E7EB;
+  --theme-bg: #f0f2f5;
   --admin-radius-sm: 6px;
   --admin-radius-md: 8px;
   --admin-radius-lg: 12px;
@@ -51,15 +45,10 @@ body.el-popup-parent--hidden .layout-container .main-content {
   --el-border-radius-small: 6px;
 }
 
+/* 使用主题变量的通用样式 */
 body {
-  color: var(--theme-text-base);
-  background-color: var(--theme-bg);
-}
-
-.theme-picker-popper {
-  border-radius: 12px !important;
-  box-shadow: 0 12px 40px rgba(15, 23, 42, 0.12) !important;
-  border: 1px solid var(--theme-border, #e2e8f0) !important;
+  color: var(--theme-text-base, #1F2937);
+  background-color: var(--theme-bg, #F9FAFB);
 }
 
 </style>

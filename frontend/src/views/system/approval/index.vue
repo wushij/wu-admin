@@ -1,47 +1,32 @@
 <template>
-  <div class="app-container module-page">
-    <el-card class="search-card module-hero-card" shadow="never">
-      <div class="module-hero-row">
-        <div class="module-hero-text">
-          <div class="module-hero-title">
-            <ModulePageIcon :icon="MODULE_PAGE_ICON.approval" />
-            <span>审批单中心</span>
-          </div>
-          <p class="module-hero-desc">提交、审批与归档各类业务审批单，支持多类型审批流程</p>
-        </div>
-        <div class="module-hero-stats">
-          <div class="stat-num">{{ total }}</div>
-          <div class="stat-label">审批单数</div>
-        </div>
-      </div>
-    </el-card>
-
-    <el-card class="search-card module-search-card" shadow="never">
-      <el-form :model="queryParams" inline class="module-search-form">
+  <div class="app-container">
+    <el-card class="search-card">
+      <el-form :model="queryParams" inline>
         <el-form-item label="标题">
           <el-input v-model="queryParams.title" placeholder="请输入审批标题" clearable />
         </el-form-item>
         <el-form-item label="类型">
-          <DictSelect
-            v-model="queryParams.formType"
-            :dict-type="DICT_TYPE.APPROVAL_FORM_TYPE"
-            value-type="string"
-            placeholder="请选择类型"
-            width="160px"
-          />
+          <el-select v-model="queryParams.formType" placeholder="请选择类型" clearable style="width: 160px">
+            <el-option label="通用" value="GENERAL" />
+            <el-option label="请假" value="LEAVE" />
+            <el-option label="采购" value="PURCHASE" />
+            <el-option label="报销" value="REIMBURSE" />
+            <el-option label="用印" value="SEAL" />
+            <el-option label="合同" value="CONTRACT" />
+            <el-option label="注册审核" value="REGISTER" />
+          </el-select>
         </el-form-item>
         <el-form-item label="状态">
-          <DictSelect
-            v-model="queryParams.status"
-            :dict-type="DICT_TYPE.APPROVAL_STATUS"
-            value-type="string"
-            placeholder="请选择状态"
-            width="160px"
-          />
+          <el-select v-model="queryParams.status" placeholder="请选择状态" clearable style="width: 160px">
+            <el-option label="待审批" value="SUBMITTED" />
+            <el-option label="已通过" value="APPROVED" />
+            <el-option label="已驳回" value="REJECTED" />
+            <el-option label="已归档" value="ARCHIVED" />
+          </el-select>
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" :icon="Search" @click="handleQuery">搜索</el-button>
-          <el-button :icon="Refresh" @click="resetQuery">重置</el-button>
+          <el-button type="primary" @click="handleQuery">搜索</el-button>
+          <el-button @click="resetQuery">重置</el-button>
         </el-form-item>
       </el-form>
     </el-card>
@@ -51,39 +36,28 @@
         <div class="card-header">
           <span>审批单列表</span>
           <div class="header-actions">
-            <ListExportButton module="approval" :query-params="queryParams" permission="system:approval:list" />
-            <RecycleCenterLink tab="approval" />
+            <el-button v-permission="'system:approval:delete'" @click="openRecycleDialog">回收站</el-button>
             <el-button type="primary" v-permission="'system:approval:create'" @click="handleCreate">提交审批单</el-button>
           </div>
         </div>
       </template>
-      <el-table
-        ref="tableRef"
-        :data="list"
-        border
-        stripe
-        v-loading="loading"
-        :header-cell-style="tableHeaderStyle"
-        :cell-style="tableCellStyle"
-      >
-        <el-table-column prop="formNo" label="单号" width="190" align="center" header-align="center" />
-        <el-table-column prop="title" label="标题" min-width="170" align="center" header-align="center" show-overflow-tooltip />
-        <el-table-column prop="formType" label="类型" width="110" align="center" header-align="center">
+      <el-table ref="tableRef" :data="list" border stripe v-loading="loading" :header-cell-style="{ textAlign: 'center' }" :cell-style="{ textAlign: 'center' }">
+        <el-table-column prop="formNo" label="单号" width="190" />
+        <el-table-column prop="title" label="标题" min-width="170" />
+        <el-table-column prop="formType" label="类型" width="110">
+          <template #default="{ row }">{{ formatType(row.formType) }}</template>
+        </el-table-column>
+        <el-table-column prop="status" label="状态" width="110">
           <template #default="{ row }">
-            <DictTag :value="row.formType" :dict-type="DICT_TYPE.APPROVAL_FORM_TYPE" />
+            <el-tag :type="statusTagType(row.status)">{{ formatStatus(row.status) }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="status" label="状态" width="110" align="center" header-align="center">
+        <el-table-column prop="applicantName" label="申请人" width="110" />
+        <el-table-column prop="approverName" label="审批人" width="110" />
+        <el-table-column prop="createTime" label="提交时间" width="170" />
+        <el-table-column label="操作" width="240" fixed="right">
           <template #default="{ row }">
-            <DictTag :value="row.status" :dict-type="DICT_TYPE.APPROVAL_STATUS" />
-          </template>
-        </el-table-column>
-        <el-table-column prop="applicantName" label="申请人" width="110" align="center" header-align="center" />
-        <el-table-column prop="approverName" label="审批人" width="110" align="center" header-align="center" />
-        <el-table-column prop="createTime" label="提交时间" width="170" align="center" header-align="center" />
-        <el-table-column label="操作" width="240" fixed="right" align="center" header-align="center">
-          <template #default="{ row }">
-            <div class="action-buttons">
+            <div class="action-cell">
               <el-button size="small" @click="openDetail(row.id)">详情</el-button>
               <el-dropdown v-if="canApproveRow(row) || canArchiveRow(row)" trigger="click">
                 <el-button size="small" type="primary">处理</el-button>
@@ -124,7 +98,6 @@
         :total="total"
         :page-sizes="[10, 20, 50, 100]"
         layout="total, sizes, prev, pager, next, jumper"
-        class="table-pagination"
         @size-change="getList"
         @current-change="getList"
       />
@@ -133,14 +106,14 @@
     <el-dialog v-model="formVisible" title="提交审批单" width="720px" :lock-scroll="false">
       <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
         <el-form-item label="审批类型" prop="formType">
-          <DictSelect
-            v-model="form.formType"
-            :dict-type="DICT_TYPE.APPROVAL_FORM_TYPE"
-            value-type="string"
-            apply-default
-            :exclude-values="['REGISTER']"
-            :clearable="false"
-          />
+          <el-select v-model="form.formType" style="width: 100%">
+            <el-option label="通用" value="GENERAL" />
+            <el-option label="请假" value="LEAVE" />
+            <el-option label="采购" value="PURCHASE" />
+            <el-option label="报销" value="REIMBURSE" />
+            <el-option label="用印" value="SEAL" />
+            <el-option label="合同" value="CONTRACT" />
+          </el-select>
         </el-form-item>
         <el-form-item label="标题" prop="title">
           <el-input v-model="form.title" />
@@ -168,19 +141,50 @@
       </template>
     </el-dialog>
 
+    <el-dialog v-model="recycleVisible" title="审批单回收站" width="920px" :lock-scroll="false">
+      <el-table :data="recycleList" border stripe v-loading="recycleLoading" :header-cell-style="{ textAlign: 'center' }" :cell-style="{ textAlign: 'center' }">
+        <el-table-column prop="formNo" label="单号" width="190" />
+        <el-table-column prop="title" label="标题" min-width="170" />
+        <el-table-column prop="formType" label="类型" width="110">
+          <template #default="{ row }">{{ formatType(row.formType) }}</template>
+        </el-table-column>
+        <el-table-column prop="status" label="状态" width="110">
+          <template #default="{ row }">
+            <el-tag :type="statusTagType(row.status)">{{ formatStatus(row.status) }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="applicantName" label="申请人" width="110" />
+        <el-table-column prop="approverName" label="审批人" width="110" />
+        <el-table-column prop="updateTime" label="删除时间" width="170" />
+        <el-table-column label="操作" width="170" fixed="right">
+          <template #default="{ row }">
+            <div class="action-cell">
+              <el-button size="small" type="success" @click="handleRestore(row)">恢复</el-button>
+              <el-button size="small" type="danger" @click="handlePermanentDelete(row)">清除</el-button>
+            </div>
+          </template>
+        </el-table-column>
+      </el-table>
+      <el-pagination
+        v-model:current-page="recycleQuery.pageNo"
+        v-model:page-size="recycleQuery.pageSize"
+        :total="recycleTotal"
+        :page-sizes="[10, 20, 50, 100]"
+        layout="total, sizes, prev, pager, next, jumper"
+        @size-change="getRecycleList"
+        @current-change="getRecycleList"
+      />
+    </el-dialog>
+
     <el-drawer v-model="detailVisible" title="审批单详情" size="45%" :lock-scroll="false">
       <el-descriptions :column="1" border v-if="current.id">
         <el-descriptions-item label="单号">{{ current.formNo }}</el-descriptions-item>
-        <el-descriptions-item label="类型">
-          <DictTag :value="current.formType" :dict-type="DICT_TYPE.APPROVAL_FORM_TYPE" />
-        </el-descriptions-item>
+        <el-descriptions-item label="类型">{{ formatType(current.formType) }}</el-descriptions-item>
         <el-descriptions-item label="标题">{{ current.title }}</el-descriptions-item>
-        <el-descriptions-item label="状态">
-          <DictTag :value="current.status" :dict-type="DICT_TYPE.APPROVAL_STATUS" />
-        </el-descriptions-item>
+        <el-descriptions-item label="状态">{{ formatStatus(current.status) }}</el-descriptions-item>
         <el-descriptions-item label="申请人">{{ current.applicantName || '-' }}</el-descriptions-item>
         <el-descriptions-item label="审批人">{{ current.approverName || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="审批意见">{{ String(current.resultRemark || '').trim() || '无' }}</el-descriptions-item>
+        <el-descriptions-item label="审批结果">{{ current.resultRemark || '-' }}</el-descriptions-item>
         <el-descriptions-item v-if="current.formType === 'REGISTER'" label="注册账号">
           {{ registerDetail.username || '-' }}
         </el-descriptions-item>
@@ -199,87 +203,51 @@
           <span v-if="item.remark">：{{ item.remark }}</span>
         </el-timeline-item>
       </el-timeline>
-      <template #footer>
-        <div v-if="current.id && (canApproveRow(current as ApprovalVO) || canArchiveRow(current as ApprovalVO))" class="detail-actions">
-          <el-button
-            v-if="canApproveRow(current as ApprovalVO)"
-            v-permission="'system:approval:approve'"
-            plain
-            class="detail-action-btn detail-action-btn--approve"
-            @click="openApproveDialog(current as ApprovalVO, 'APPROVE')"
-          >通过</el-button>
-          <el-button
-            v-if="canApproveRow(current as ApprovalVO)"
-            v-permission="'system:approval:approve'"
-            plain
-            type="danger"
-            class="detail-action-btn"
-            @click="openApproveDialog(current as ApprovalVO, 'REJECT')"
-          >驳回</el-button>
-          <el-button
-            v-if="canArchiveRow(current as ApprovalVO)"
-            v-permission="'system:approval:archive'"
-            plain
-            class="detail-action-btn detail-action-btn--approve"
-            @click="handleArchive(current as ApprovalVO)"
-          >归档</el-button>
-        </div>
-      </template>
     </el-drawer>
   </div>
 </template>
 
-<script setup lang="ts">
+<script setup>
 import { nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { Search, Refresh } from '@element-plus/icons-vue'
-import ModulePageIcon from '@/components/ModulePageIcon.vue'
-import { MODULE_PAGE_ICON } from '@/constants/module-page-icons'
-import { ElMessage, ElMessageBox, type FormInstance, type TableInstance } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { useUserStore } from '@/store/user'
+import { getUserList } from '@/api/system/user'
 import {
   approveApproval,
   archiveApproval,
   createApproval,
   deleteApproval,
+  deleteApprovalPermanent,
   getApproval,
-  getApprovalApproverOptions,
   getApprovalPage,
   getApprovalRecords,
-  type ApprovalApproverOptionVO,
-  type ApprovalVO,
-  type ApprovalRecordVO,
-  type ApprovalCreateDTO,
-  type ApprovalPageQuery,
+  getApprovalRecyclePage,
+  restoreApproval
 } from '@/api/system/approval'
-import DictSelect from '@/components/DictSelect.vue'
-import DictTag from '@/components/DictTag.vue'
-import ListExportButton from '@/components/ListExportButton.vue'
-import RecycleCenterLink from '@/components/RecycleCenterLink.vue'
-import { DICT_TYPE } from '@/constants/dict'
-import { getDictDefaultValue, preloadDicts } from '@/composables/useDict'
-
-const tableHeaderStyle = { textAlign: 'center' as const }
-const tableCellStyle = { textAlign: 'center' as const }
 
 const userStore = useUserStore()
 const route = useRoute()
 const loading = ref(false)
-const tableRef = ref<TableInstance | null>(null)
+const tableRef = ref(null)
 const total = ref(0)
-const list = ref<ApprovalVO[]>([])
-const userOptions = ref<ApprovalApproverOptionVO[]>([])
+const list = ref([])
+const userOptions = ref([])
 const formVisible = ref(false)
 const approveVisible = ref(false)
+const recycleVisible = ref(false)
+const recycleLoading = ref(false)
+const recycleList = ref([])
+const recycleTotal = ref(0)
 const detailVisible = ref(false)
-const formRef = ref<FormInstance | null>(null)
-const current = ref<Partial<import('@/api/system/approval').ApprovalVO>>({})
-const records = ref<ApprovalRecordVO[]>([])
+const formRef = ref(null)
+const current = ref({})
+const records = ref([])
 const approveAction = ref('APPROVE')
 const approveRemark = ref('')
-const approveTargetId = ref<number | null>(null)
+const approveTargetId = ref(null)
 
-const queryParams = reactive<ApprovalPageQuery>({
+const queryParams = reactive({
   pageNo: 1,
   pageSize: 10,
   title: '',
@@ -287,11 +255,16 @@ const queryParams = reactive<ApprovalPageQuery>({
   status: ''
 })
 
-const form = reactive<ApprovalCreateDTO>({
+const form = reactive({
   formType: 'GENERAL',
   title: '',
   approverUserId: null,
-  content: '',
+  content: ''
+})
+
+const recycleQuery = reactive({
+  pageNo: 1,
+  pageSize: 10
 })
 
 const rules = {
@@ -301,47 +274,66 @@ const rules = {
   content: [{ required: true, message: '请输入审批内容', trigger: 'blur' }]
 }
 
-interface RegisterDetailParsed {
-  userId?: number
-  username?: string
-  nickname?: string
-  mobile?: string
-}
+const registerDetail = ref({})
 
-const registerDetail = ref<RegisterDetailParsed>({})
-
-const ACTION_LABELS = {
-  SUBMIT: '提交审批',
-  APPROVE: '审批通过',
-  REJECT: '审批驳回',
-  ARCHIVE: '归档单据',
-} as const
-
-const parseRegisterContent = (content: string | undefined): RegisterDetailParsed => {
+const parseRegisterContent = (content) => {
   if (!content) return {}
   try {
-    const obj = JSON.parse(content) as RegisterDetailParsed
+    const obj = typeof content === 'string' ? JSON.parse(content) : content
     return {
       userId: obj.userId,
       username: obj.username,
       nickname: obj.nickname,
-      mobile: obj.mobile,
+      mobile: obj.mobile
     }
   } catch {
     return {}
   }
 }
 
-const hasPerm = (perm: string) => (userStore.userInfo?.permissions || []).includes(perm)
+const hasPerm = (perm) => (userStore.userInfo?.permissions || []).includes(perm)
 
-const actionText = (action: string | undefined) => {
-  if (action && action in ACTION_LABELS) {
-    return ACTION_LABELS[action as keyof typeof ACTION_LABELS]
+const formatType = (type) => {
+  const map = {
+    GENERAL: '通用',
+    LEAVE: '请假',
+    PURCHASE: '采购',
+    REIMBURSE: '报销',
+    SEAL: '用印',
+    CONTRACT: '合同',
+    REGISTER: '注册审核'
   }
-  return action || '-'
+  return map[type] || type || '-'
 }
 
-const canDeleteRow = (row: ApprovalVO) => row.formType !== 'REGISTER'
+const formatStatus = (status) => {
+  const map = {
+    SUBMITTED: '待审批',
+    APPROVED: '已通过',
+    REJECTED: '已驳回',
+    ARCHIVED: '已归档'
+  }
+  return map[status] || status || '-'
+}
+
+const statusTagType = (status) => {
+  if (status === 'SUBMITTED') return 'warning'
+  if (status === 'APPROVED') return 'success'
+  if (status === 'REJECTED') return 'danger'
+  return 'info'
+}
+
+const actionText = (action) => {
+  const map = {
+    SUBMIT: '提交审批',
+    APPROVE: '审批通过',
+    REJECT: '审批驳回',
+    ARCHIVE: '归档单据'
+  }
+  return map[action] || action
+}
+
+const canDeleteRow = (row) => row.formType !== 'REGISTER'
 
 const getList = async () => {
   loading.value = true
@@ -355,8 +347,8 @@ const getList = async () => {
 }
 
 const loadUsers = async () => {
-  const res = await getApprovalApproverOptions()
-  userOptions.value = res.data || []
+  const res = await getUserList()
+  userOptions.value = (res.data || []).filter(u => u.id !== userStore.userInfo?.userId)
 }
 
 const handleQuery = () => {
@@ -386,11 +378,28 @@ const applyRouteQuery = () => {
 }
 
 const handleCreate = () => {
-  form.formType = (getDictDefaultValue(DICT_TYPE.APPROVAL_FORM_TYPE) as string) || 'GENERAL'
+  form.formType = 'GENERAL'
   form.title = ''
   form.approverUserId = null
   form.content = ''
   formVisible.value = true
+}
+
+const getRecycleList = async () => {
+  recycleLoading.value = true
+  try {
+    const res = await getApprovalRecyclePage(recycleQuery)
+    recycleList.value = res.data.list || []
+    recycleTotal.value = res.data.total || 0
+  } finally {
+    recycleLoading.value = false
+  }
+}
+
+const openRecycleDialog = () => {
+  recycleVisible.value = true
+  recycleQuery.pageNo = 1
+  getRecycleList()
 }
 
 const submitForm = async () => {
@@ -404,7 +413,7 @@ const submitForm = async () => {
   })
 }
 
-const canApproveRow = (row: ApprovalVO) => {
+const canApproveRow = (row) => {
   if (row.status !== 'SUBMITTED') return false
   if (row.formType === 'REGISTER') {
     return hasPerm('system:approval:approve')
@@ -412,7 +421,7 @@ const canApproveRow = (row: ApprovalVO) => {
   return row.approverUserId === userStore.userInfo?.userId
 }
 
-const canArchiveRow = (row: ApprovalVO) => {
+const canArchiveRow = (row) => {
   if (row.status !== 'APPROVED' && row.status !== 'REJECTED') return false
   if (row.formType === 'REGISTER') {
     return hasPerm('system:approval:archive')
@@ -420,7 +429,7 @@ const canArchiveRow = (row: ApprovalVO) => {
   return row.applicantUserId === userStore.userInfo?.userId
 }
 
-const openApproveDialog = (row: ApprovalVO, action: string) => {
+const openApproveDialog = (row, action) => {
   approveTargetId.value = row.id
   approveAction.value = action
   approveRemark.value = ''
@@ -429,55 +438,61 @@ const openApproveDialog = (row: ApprovalVO, action: string) => {
 
 const submitApprove = async () => {
   if (!approveTargetId.value) return
-  const targetId = approveTargetId.value
   await approveApproval({
-    id: targetId,
+    id: approveTargetId.value,
     action: approveAction.value,
     remark: approveRemark.value
   })
   ElMessage.success('审批完成')
   approveVisible.value = false
-  await getList()
-  if (detailVisible.value && current.value.id === targetId) {
-    await openDetail(targetId)
-  }
+  getList()
 }
 
-const handleArchive = async (row: ApprovalVO) => {
+const handleArchive = async (row) => {
   await ElMessageBox.confirm(`确认归档审批单【${row.formNo}】吗？`, '提示', { type: 'warning' })
   await archiveApproval({ id: row.id, remark: '归档' })
   ElMessage.success('归档成功')
-  await getList()
-  if (detailVisible.value && current.value.id === row.id) {
-    await openDetail(row.id)
-  }
+  getList()
 }
 
-const handleDelete = async (row: ApprovalVO) => {
+const handleDelete = async (row) => {
   await ElMessageBox.confirm(`确认删除审批单【${row.formNo}】吗？删除后不可恢复。`, '提示', { type: 'warning' })
   await deleteApproval(row.id)
   ElMessage.success('删除成功')
-  const pageNo = queryParams.pageNo ?? 1
-  if (pageNo > 1 && list.value.length === 1) {
-    queryParams.pageNo = pageNo - 1
+  if (queryParams.pageNo > 1 && list.value.length === 1) {
+    queryParams.pageNo -= 1
   }
   getList()
 }
 
-const openDetail = async (id: number) => {
+const handleRestore = async (row) => {
+  await restoreApproval(row.id)
+  ElMessage.success('恢复成功')
+  getRecycleList()
+  getList()
+}
+
+const handlePermanentDelete = async (row) => {
+  await ElMessageBox.confirm(`确认彻底删除审批单【${row.formNo}】吗？该操作不可恢复。`, '警告', { type: 'warning' })
+  await deleteApprovalPermanent(row.id)
+  ElMessage.success('已彻底删除')
+  if (recycleQuery.pageNo > 1 && recycleList.value.length === 1) {
+    recycleQuery.pageNo -= 1
+  }
+  getRecycleList()
+}
+
+const openDetail = async (id) => {
   const [detailRes, recordRes] = await Promise.all([getApproval(id), getApprovalRecords(id)])
   current.value = detailRes.data || {}
   registerDetail.value = current.value.formType === 'REGISTER'
-    ? parseRegisterContent(
-        typeof current.value.content === 'string' ? current.value.content : undefined
-      )
+    ? parseRegisterContent(current.value.content)
     : {}
   records.value = recordRes.data || []
   detailVisible.value = true
 }
 
 onMounted(() => {
-  preloadDicts([DICT_TYPE.APPROVAL_FORM_TYPE, DICT_TYPE.APPROVAL_STATUS])
   applyRouteQuery()
   getList()
   loadUsers()
@@ -514,31 +529,33 @@ const relayoutTable = async () => {
 watch(formVisible, relayoutTable)
 watch(approveVisible, relayoutTable)
 watch(detailVisible, relayoutTable)
+watch(recycleVisible, relayoutTable)
 </script>
 
 <style scoped>
-.record-title {
-  margin: 16px 0 10px;
-  font-weight: 600;
+.app-container { padding: 0; }
+.search-card { margin-bottom: 20px; }
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
-.detail-actions {
+.header-actions {
+  display: flex;
+  gap: 10px;
+}
+.action-cell {
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 12px;
-  width: 100%;
+  gap: 8px;
 }
-.detail-action-btn {
-  min-width: 88px;
+.el-pagination {
+  margin-top: 20px;
+  justify-content: flex-end;
 }
-.detail-action-btn--approve {
-  --el-button-border-color: #303133;
-  --el-button-text-color: #303133;
-  --el-button-hover-border-color: #303133;
-  --el-button-hover-text-color: #303133;
-  --el-button-hover-bg-color: #f5f7fa;
-  --el-button-active-border-color: #303133;
-  --el-button-active-text-color: #303133;
-  --el-button-active-bg-color: #eef0f3;
+.record-title {
+  margin: 16px 0 10px;
+  font-weight: 600;
 }
 </style>

@@ -1,47 +1,29 @@
 <template>
-  <div class="app-container module-page">
-    <el-card class="search-card module-hero-card" shadow="never">
-      <div class="module-hero-row">
-        <div class="module-hero-text">
-          <div class="module-hero-title">
-            <ModulePageIcon :icon="MODULE_PAGE_ICON.ticket" />
-            <span>工单管理</span>
-          </div>
-          <p class="module-hero-desc">创建与跟踪工单，支持状态流转、评论与附件管理</p>
-        </div>
-        <div class="module-hero-stats">
-          <div class="stat-num">{{ total }}</div>
-          <div class="stat-label">工单总数</div>
-        </div>
-      </div>
-    </el-card>
-
-    <el-card class="search-card module-search-card" shadow="never">
-      <el-form :model="queryParams" inline class="module-search-form">
+  <div class="app-container">
+    <el-card class="search-card">
+      <el-form :model="queryParams" inline>
         <el-form-item label="标题">
           <el-input v-model="queryParams.title" placeholder="请输入工单标题" clearable />
         </el-form-item>
         <el-form-item label="状态">
-          <DictSelect
-            v-model="queryParams.status"
-            :dict-type="DICT_TYPE.TICKET_STATUS"
-            value-type="string"
-            placeholder="请选择状态"
-            width="160px"
-          />
+          <el-select v-model="queryParams.status" placeholder="请选择状态" clearable style="width: 160px">
+            <el-option label="待处理" value="OPEN" />
+            <el-option label="处理中" value="IN_PROGRESS" />
+            <el-option label="已解决" value="RESOLVED" />
+            <el-option label="已关闭" value="CLOSED" />
+          </el-select>
         </el-form-item>
         <el-form-item label="优先级">
-          <DictSelect
-            v-model="queryParams.priority"
-            :dict-type="DICT_TYPE.TICKET_PRIORITY"
-            value-type="string"
-            placeholder="请选择优先级"
-            width="160px"
-          />
+          <el-select v-model="queryParams.priority" placeholder="请选择优先级" clearable style="width: 160px">
+            <el-option label="低" value="LOW" />
+            <el-option label="中" value="MEDIUM" />
+            <el-option label="高" value="HIGH" />
+            <el-option label="紧急" value="URGENT" />
+          </el-select>
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" :icon="Search" @click="handleQuery">搜索</el-button>
-          <el-button :icon="Refresh" @click="resetQuery">重置</el-button>
+          <el-button type="primary" @click="handleQuery">搜索</el-button>
+          <el-button @click="resetQuery">重置</el-button>
         </el-form-item>
       </el-form>
     </el-card>
@@ -51,8 +33,7 @@
         <div class="card-header">
           <span>工单列表</span>
           <div class="header-actions">
-            <ListExportButton module="ticket" :query-params="queryParams" permission="system:ticket:list" />
-            <RecycleCenterLink tab="ticket" />
+            <el-button v-permission="'system:ticket:delete'" @click="openRecycleDialog">回收站</el-button>
             <el-button type="primary" v-permission="'system:ticket:create'" @click="handleCreate">新建工单</el-button>
           </div>
         </div>
@@ -63,43 +44,37 @@
         border
         stripe
         v-loading="loading"
-        :header-cell-style="tableHeaderStyle"
-        :cell-style="tableCellStyle"
+        :header-cell-style="{ textAlign: 'center' }"
+        :cell-style="{ textAlign: 'center' }"
       >
-        <el-table-column prop="ticketNo" label="编号" width="190" align="center" header-align="center" />
-        <el-table-column prop="title" label="标题" min-width="180" align="center" header-align="center" show-overflow-tooltip />
-        <el-table-column prop="priority" label="优先级" width="100" align="center" header-align="center">
+        <el-table-column prop="ticketNo" label="编号" width="190" />
+        <el-table-column prop="title" label="标题" min-width="180" />
+        <el-table-column prop="priority" label="优先级" width="100">
           <template #default="{ row }">
-            <DictTag :value="row.priority" :dict-type="DICT_TYPE.TICKET_PRIORITY" />
+            <el-tag :type="priorityTagType(row.priority)">{{ formatPriority(row.priority) }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="status" label="状态" width="120" align="center" header-align="center">
+        <el-table-column prop="status" label="状态" width="120">
           <template #default="{ row }">
-            <DictTag :value="row.status" :dict-type="DICT_TYPE.TICKET_STATUS" />
+            <el-tag :type="statusTagType(row.status)">{{ formatStatus(row.status) }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="creatorName" label="创建人" width="120" align="center" header-align="center" />
-        <el-table-column prop="assigneeName" label="处理人" width="120" align="center" header-align="center" />
-        <el-table-column prop="deadline" label="截止时间" width="180" align="center" header-align="center" />
-        <el-table-column prop="createTime" label="创建时间" width="180" align="center" header-align="center" />
-        <el-table-column label="操作" width="250" fixed="right" align="center" header-align="center">
+        <el-table-column prop="creatorName" label="创建人" width="120" />
+        <el-table-column prop="assigneeName" label="处理人" width="120" />
+        <el-table-column prop="deadline" label="截止时间" width="180" />
+        <el-table-column prop="createTime" label="创建时间" width="180" />
+        <el-table-column label="操作" width="250" fixed="right" align="right">
           <template #default="{ row }">
-            <div class="action-buttons">
+            <div class="action-cell">
               <el-button size="small" @click="handleDetail(row)">详情</el-button>
-              <el-dropdown
-                v-if="canTransitionRow(row)"
-                trigger="click"
-                teleported
-                @command="(command) => handleStatusCommand(command, row)"
-              >
+              <el-dropdown v-if="canTransitionRow(row)" trigger="click" @command="(command) => handleStatusCommand(command, row)">
                 <el-button size="small" type="primary">流转状态</el-button>
                 <template #dropdown>
                   <el-dropdown-menu>
-                    <el-dropdown-item
-                      v-for="opt in transitionOptions(row)"
-                      :key="String(opt.value)"
-                      :command="opt.value"
-                    >{{ opt.label }}</el-dropdown-item>
+                    <el-dropdown-item command="OPEN">待处理</el-dropdown-item>
+                    <el-dropdown-item command="IN_PROGRESS">处理中</el-dropdown-item>
+                    <el-dropdown-item command="RESOLVED">已解决</el-dropdown-item>
+                    <el-dropdown-item command="CLOSED">已关闭</el-dropdown-item>
                   </el-dropdown-menu>
                 </template>
               </el-dropdown>
@@ -114,7 +89,6 @@
         :total="total"
         :page-sizes="[10, 20, 50, 100]"
         layout="total, sizes, prev, pager, next, jumper"
-        class="table-pagination"
         @size-change="getList"
         @current-change="getList"
       />
@@ -129,13 +103,12 @@
           <el-input v-model="form.description" type="textarea" :rows="4" placeholder="请输入工单描述" />
         </el-form-item>
         <el-form-item label="优先级" prop="priority">
-          <DictSelect
-            v-model="form.priority"
-            :dict-type="DICT_TYPE.TICKET_PRIORITY"
-            value-type="string"
-            apply-default
-            :clearable="false"
-          />
+          <el-select v-model="form.priority" style="width: 100%">
+            <el-option label="低" value="LOW" />
+            <el-option label="中" value="MEDIUM" />
+            <el-option label="高" value="HIGH" />
+            <el-option label="紧急" value="URGENT" />
+          </el-select>
         </el-form-item>
         <el-form-item label="处理人" prop="assigneeUserId">
           <el-select v-model="form.assigneeUserId" clearable filterable style="width: 100%">
@@ -153,16 +126,49 @@
       </template>
     </el-dialog>
 
+    <el-dialog v-model="recycleVisible" title="工单回收站" width="920px" :lock-scroll="false">
+      <el-table :data="recycleList" border stripe v-loading="recycleLoading" :header-cell-style="{ textAlign: 'center' }" :cell-style="{ textAlign: 'center' }">
+        <el-table-column prop="ticketNo" label="编号" width="190" />
+        <el-table-column prop="title" label="标题" min-width="180" />
+        <el-table-column prop="priority" label="优先级" width="100">
+          <template #default="{ row }">
+            <el-tag :type="priorityTagType(row.priority)">{{ formatPriority(row.priority) }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="status" label="状态" width="120">
+          <template #default="{ row }">
+            <el-tag :type="statusTagType(row.status)">{{ formatStatus(row.status) }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="creatorName" label="创建人" width="110" />
+        <el-table-column prop="assigneeName" label="处理人" width="110" />
+        <el-table-column prop="updateTime" label="删除时间" width="180" />
+        <el-table-column label="操作" width="180" fixed="right">
+          <template #default="{ row }">
+            <div class="action-cell">
+              <el-button size="small" type="success" @click="handleRestore(row)">恢复</el-button>
+              <el-button size="small" type="danger" @click="handleDeletePermanent(row)">彻底删除</el-button>
+            </div>
+          </template>
+        </el-table-column>
+      </el-table>
+      <el-pagination
+        v-model:current-page="recycleQuery.pageNo"
+        v-model:page-size="recycleQuery.pageSize"
+        :total="recycleTotal"
+        :page-sizes="[10, 20, 50, 100]"
+        layout="total, sizes, prev, pager, next, jumper"
+        @size-change="getRecycleList"
+        @current-change="getRecycleList"
+      />
+    </el-dialog>
+
     <el-drawer v-model="detailVisible" title="工单详情" size="45%" :lock-scroll="false">
       <el-descriptions :column="1" border v-if="currentTicket.id">
         <el-descriptions-item label="编号">{{ currentTicket.ticketNo }}</el-descriptions-item>
         <el-descriptions-item label="标题">{{ currentTicket.title }}</el-descriptions-item>
-        <el-descriptions-item label="状态">
-          <DictTag :value="currentTicket.status" :dict-type="DICT_TYPE.TICKET_STATUS" />
-        </el-descriptions-item>
-        <el-descriptions-item label="优先级">
-          <DictTag :value="currentTicket.priority" :dict-type="DICT_TYPE.TICKET_PRIORITY" />
-        </el-descriptions-item>
+        <el-descriptions-item label="状态">{{ formatStatus(currentTicket.status) }}</el-descriptions-item>
+        <el-descriptions-item label="优先级">{{ formatPriority(currentTicket.priority) }}</el-descriptions-item>
         <el-descriptions-item label="描述">{{ currentTicket.description || '-' }}</el-descriptions-item>
       </el-descriptions>
       <div class="comment-header">评论记录</div>
@@ -189,63 +195,48 @@
   </div>
 </template>
 
-<script setup lang="ts">
+<script setup>
 import { nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { Search, Refresh } from '@element-plus/icons-vue'
-import ModulePageIcon from '@/components/ModulePageIcon.vue'
-import { MODULE_PAGE_ICON } from '@/constants/module-page-icons'
-import { ElMessage, ElMessageBox, type FormInstance, type TableInstance } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { useUserStore } from '@/store/user'
 import {
   createTicket,
   createTicketComment,
   deleteTicket,
+  deleteTicketPermanent,
   getTicket,
   getTicketAssigneeOptions,
   getTicketAttachments,
   getTicketComments,
   getTicketPage,
+  getRecycleTicketPage,
+  restoreTicket,
   transitionTicket,
   uploadTicketAttachment,
-  updateTicket,
-  type TicketVO,
-  type AssigneeOptionVO,
-  type TicketCommentVO,
-  type TicketAttachmentVO,
-  type TicketSaveDTO,
-  type TicketPageQuery,
+  updateTicket
 } from '@/api/system/ticket'
-import type { MenuTreeNode } from '@/types/api'
-import type { UploadFile } from 'element-plus'
-import DictSelect from '@/components/DictSelect.vue'
-import DictTag from '@/components/DictTag.vue'
-import ListExportButton from '@/components/ListExportButton.vue'
-import RecycleCenterLink from '@/components/RecycleCenterLink.vue'
-import { DICT_TYPE } from '@/constants/dict'
-import { useDict, getDictDefaultValue, preloadDicts } from '@/composables/useDict'
-
-const tableHeaderStyle = { textAlign: 'center' as const }
-const tableCellStyle = { textAlign: 'center' as const }
-
-const { options: statusOptions, load: loadStatusOptions } = useDict(DICT_TYPE.TICKET_STATUS, { valueType: 'string' })
 
 const loading = ref(false)
 const route = useRoute()
 const userStore = useUserStore()
 const total = ref(0)
-const ticketList = ref<TicketVO[]>([])
-const tableRef = ref<TableInstance | null>(null)
-const userOptions = ref<AssigneeOptionVO[]>([])
+const ticketList = ref([])
+const tableRef = ref(null)
+const userOptions = ref([])
 const formVisible = ref(false)
+const recycleVisible = ref(false)
+const recycleLoading = ref(false)
+const recycleList = ref([])
+const recycleTotal = ref(0)
 const detailVisible = ref(false)
-const formRef = ref<FormInstance | null>(null)
-const comments = ref<TicketCommentVO[]>([])
-const attachments = ref<TicketAttachmentVO[]>([])
+const formRef = ref(null)
+const comments = ref([])
+const attachments = ref([])
 const commentText = ref('')
-const currentTicket = ref<Partial<import('@/api/system/ticket').TicketVO>>({})
+const currentTicket = ref({})
 
-const queryParams = reactive<TicketPageQuery>({
+const queryParams = reactive({
   pageNo: 1,
   pageSize: 10,
   title: '',
@@ -253,21 +244,56 @@ const queryParams = reactive<TicketPageQuery>({
   priority: ''
 })
 
-const form = reactive<TicketSaveDTO>({
+const form = reactive({
   id: null,
   title: '',
   description: '',
   priority: 'MEDIUM',
   assigneeUserId: null,
-  deadline: null,
+  deadline: null
+})
+
+const recycleQuery = reactive({
+  pageNo: 1,
+  pageSize: 10
 })
 
 const rules = {
   title: [{ required: true, message: '请输入工单标题', trigger: 'blur' }]
 }
 
-const hasPermission = (permission: string) => {
-  const checkPermissionFromMenus = (menus: MenuTreeNode[] | undefined) => {
+const priorityTagType = (priority) => {
+  if (priority === 'URGENT') return 'danger'
+  if (priority === 'HIGH') return 'warning'
+  if (priority === 'LOW') return 'info'
+  return 'success'
+}
+
+const statusTagType = (status) => {
+  if (status === 'OPEN') return 'info'
+  if (status === 'IN_PROGRESS') return 'warning'
+  if (status === 'RESOLVED') return 'success'
+  return 'danger'
+}
+
+const formatPriority = (priority) => {
+  if (priority === 'LOW') return '低'
+  if (priority === 'MEDIUM') return '中'
+  if (priority === 'HIGH') return '高'
+  if (priority === 'URGENT') return '紧急'
+  return priority || '-'
+}
+
+const formatStatus = (status) => {
+  if (status === 'OPEN') return '待处理'
+  if (status === 'IN_PROGRESS') return '处理中'
+  if (status === 'RESOLVED') return '已解决'
+  if (status === 'CLOSED') return '已关闭'
+  return status || '-'
+}
+
+const hasPermission = (permission) => {
+  const checkPermissionFromMenus = (menus) => {
     if (!menus || !Array.isArray(menus)) return false
     for (const menu of menus) {
       if (menu.permission === permission) return true
@@ -278,15 +304,11 @@ const hasPermission = (permission: string) => {
   return checkPermissionFromMenus(userStore.menus)
 }
 
-const canTransitionRow = (row: TicketVO) => {
+const canTransitionRow = (row) => {
   if (hasPermission('system:ticket:transition')) return true
   const currentUserId = userStore.userInfo?.userId
   return !!currentUserId && row?.assigneeUserId === currentUserId
 }
-
-/** 可流转的目标状态（排除当前状态） */
-const transitionOptions = (row: TicketVO) =>
-  statusOptions.value.filter((opt) => String(opt.value) !== String(row.status))
 
 const getList = async () => {
   loading.value = true
@@ -324,18 +346,34 @@ const resetForm = () => {
   form.id = null
   form.title = ''
   form.description = ''
-  form.priority = (getDictDefaultValue(DICT_TYPE.TICKET_PRIORITY) as string) || 'MEDIUM'
+  form.priority = 'MEDIUM'
   form.assigneeUserId = null
   form.deadline = null
 }
 
-const handleCreate = async () => {
+const handleCreate = () => {
   resetForm()
-  await loadUsers()
   formVisible.value = true
 }
 
-const openTicketDetailById = async (ticketId: number) => {
+const getRecycleList = async () => {
+  recycleLoading.value = true
+  try {
+    const res = await getRecycleTicketPage(recycleQuery)
+    recycleList.value = res.data.list || []
+    recycleTotal.value = res.data.total || 0
+  } finally {
+    recycleLoading.value = false
+  }
+}
+
+const openRecycleDialog = () => {
+  recycleVisible.value = true
+  recycleQuery.pageNo = 1
+  getRecycleList()
+}
+
+const openTicketDetailById = async (ticketId) => {
   if (!ticketId) return
   const detailRes = await getTicket(ticketId)
   currentTicket.value = detailRes.data || {}
@@ -347,20 +385,19 @@ const openTicketDetailById = async (ticketId: number) => {
   detailVisible.value = true
 }
 
-const handleDetail = async (row: TicketVO) => {
-  if (row.id == null) return
+const handleDetail = async (row) => {
   await openTicketDetailById(row.id)
 }
 
-const handleUploadAttachment = async (uploadFile: UploadFile) => {
-  if (!currentTicket.value.id || !uploadFile.raw) return
+const handleUploadAttachment = async (uploadFile) => {
+  if (!currentTicket.value.id) return
   await uploadTicketAttachment(currentTicket.value.id, uploadFile.raw)
   ElMessage.success('附件上传成功')
   const attachmentRes = await getTicketAttachments(currentTicket.value.id)
   attachments.value = attachmentRes.data || []
 }
 
-const downloadAttachmentUrl = (id: number) => `/api/system/ticket/attachment/download/${id}`
+const downloadAttachmentUrl = (id) => `/api/system/ticket/attachment/download/${id}`
 
 const relayoutTable = async () => {
   await nextTick()
@@ -389,7 +426,7 @@ watch(
   { immediate: true }
 )
 
-const handleStatusCommand = async (status: string, row: TicketVO) => {
+const handleStatusCommand = async (status, row) => {
   await transitionTicket({ id: row.id, status })
   ElMessage.success('状态更新成功')
   getList()
@@ -398,15 +435,31 @@ const handleStatusCommand = async (status: string, row: TicketVO) => {
   }
 }
 
-const handleDelete = async (row: TicketVO) => {
+const handleDelete = async (row) => {
   await ElMessageBox.confirm(`确定删除工单【${row.ticketNo}】吗？删除后不可恢复。`, '提示', { type: 'warning' })
   await deleteTicket(row.id)
   ElMessage.success('删除成功')
-  const pageNo = queryParams.pageNo ?? 1
-  if (pageNo > 1 && ticketList.value.length === 1) {
-    queryParams.pageNo = pageNo - 1
+  if (queryParams.pageNo > 1 && ticketList.value.length === 1) {
+    queryParams.pageNo -= 1
   }
   getList()
+}
+
+const handleRestore = async (row) => {
+  await restoreTicket(row.id)
+  ElMessage.success('恢复成功')
+  getRecycleList()
+  getList()
+}
+
+const handleDeletePermanent = async (row) => {
+  await ElMessageBox.confirm(`确定彻底删除工单【${row.ticketNo}】吗？该操作不可恢复。`, '警告', { type: 'warning' })
+  await deleteTicketPermanent(row.id)
+  ElMessage.success('已彻底删除')
+  if (recycleQuery.pageNo > 1 && recycleList.value.length === 1) {
+    recycleQuery.pageNo -= 1
+  }
+  getRecycleList()
 }
 
 const submitForm = async () => {
@@ -430,28 +483,45 @@ const submitComment = async () => {
     ElMessage.warning('请输入评论内容')
     return
   }
-  const ticketId = currentTicket.value.id
-  if (ticketId == null) return
-  await createTicketComment({ ticketId, content: commentText.value })
+  await createTicketComment({ ticketId: currentTicket.value.id, content: commentText.value })
   ElMessage.success('评论成功')
   commentText.value = ''
-  const commentRes = await getTicketComments(ticketId)
+  const commentRes = await getTicketComments(currentTicket.value.id)
   comments.value = commentRes.data || []
 }
 
-onMounted(async () => {
+onMounted(() => {
   getList()
   loadUsers()
-  try {
-    await preloadDicts([DICT_TYPE.TICKET_STATUS, DICT_TYPE.TICKET_PRIORITY])
-  } catch (e) {
-    console.error('预加载工单字典失败', e)
-  }
-  await loadStatusOptions()
 })
 </script>
 
 <style scoped>
+.app-container {
+  padding: 0;
+}
+.search-card {
+  margin-bottom: 20px;
+}
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.header-actions {
+  display: flex;
+  gap: 10px;
+}
+.el-pagination {
+  margin-top: 20px;
+  justify-content: flex-end;
+}
+.action-cell {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+}
 .comment-header {
   margin: 18px 0 12px;
   font-weight: 600;

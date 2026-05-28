@@ -16,14 +16,14 @@
 
     /* Linting */
     "strict": true,
-    "noImplicitAny": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
 
-    /* Path Alias（TS 6+ 不再使用 baseUrl，前缀写在 paths 中） */
+    /* Path Alias */
+    "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["src/*"]
     },
 
     /* Types */
@@ -34,7 +34,6 @@
     "src/**/*.d.ts",
     "src/**/*.tsx",
     "src/**/*.vue",
-    "tests/**/*.ts",
     "env.d.ts"
   ],
   "references": [{ "path": "./tsconfig.node.json" }]

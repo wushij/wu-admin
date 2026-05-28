@@ -2,7 +2,7 @@
   <div class="api-doc-page">
     <div class="api-doc-toolbar">
       <div class="toolbar-title">
-        <el-icon :size="18"><Connection /></el-icon>
+        <el-icon :size="18"><Document /></el-icon>
         <span>接口文档</span>
         <el-tag size="small" type="info">Knife4j</el-tag>
       </div>
@@ -25,17 +25,17 @@
   </div>
 </template>
 
-<script setup lang="ts">
+<script setup>
 import { ref, onMounted } from 'vue'
-import { Connection, Refresh, TopRight } from '@element-plus/icons-vue'
+import { Document, Refresh, TopRight } from '@element-plus/icons-vue'
 
 /**
  * Knife4j 页面引用 /webjars、/swagger-ui 等同源根路径，
- * 开发环境由 Vite 代理到 backend:8080/api；生产由 nginx 转发
+ * 开发环境由 Vite 代理到 backend:8081/api；生产由 nginx 转发
  */
 const docUrl = '/doc.html'
 
-const iframeRef = ref<HTMLIFrameElement | null>(null)
+const iframeRef = ref(null)
 const loading = ref(true)
 const frameKey = ref(0)
 

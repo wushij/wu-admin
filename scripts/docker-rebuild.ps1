@@ -1,21 +1,23 @@
-# 在仓库根目录 admin/ 下执行：改代码后重建 Docker
+# 单体项目：重新打包后端并重建 Docker 容器
+# 用法：在项目根目录执行
+#   powershell -ExecutionPolicy Bypass -File scripts/docker-rebuild.ps1
+
 $ErrorActionPreference = "Stop"
-$Root = Split-Path -Parent $PSScriptRoot
-Set-Location $Root
+$root = Split-Path -Parent $PSScriptRoot
 
-Write-Host ">>> Maven: admin-backend"
-Set-Location "$Root\admin-backend"
-mvn clean package -DskipTests
-if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+Push-Location (Join-Path $root "backend")
+try {
+    mvn clean package -DskipTests
+    if ($LASTEXITCODE -ne 0) { throw "Maven 打包失败" }
+} finally {
+    Pop-Location
+}
 
-Write-Host ">>> Maven: admin-gateway"
-Set-Location "$Root\admin-gateway"
-mvn clean package -DskipTests
-if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+Push-Location $root
+try {
+    docker compose up -d --build
+} finally {
+    Pop-Location
+}
 
-Write-Host ">>> Docker Compose rebuild"
-Set-Location $Root
-docker compose down
-docker compose up -d --build
-
-Write-Host ">>> Done"
+Write-Host "完成。前端: http://localhost:3000  后端 API: http://localhost:8081/api"

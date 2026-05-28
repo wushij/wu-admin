@@ -3,8 +3,8 @@
 ## 📋 项目架构
 
 ```
-前端 (Nginx) → 网关 (Gateway) → 后端 (admin-backend) → MySQL + Redis
-   :3000          :8080           :8081        :3307   :6379
+前端 (Nginx) → 后端 (Spring Boot) → MySQL + Redis
+   :3000              :8081           :3307   :6379
 ```
 
 ### 服务端口说明
@@ -12,8 +12,7 @@
 | 服务 | 容器端口 | 外部端口 | 说明 |
 |------|----------|----------|------|
 | 前端 (Nginx) | 80 | 3000 | http://localhost:3000 |
-| 网关 (Gateway) | 8080 | 8080 | http://localhost:8080 |
-| admin-backend后端 | 8081 | 8081 | http://localhost:8081 |
+| 后端 (Spring Boot) | 8081 | 8081 | http://localhost:8081/api |
 | MySQL | 3306 | 3307 | 127.0.0.1:3307 |
 | Redis | 6379 | 6379 | 127.0.0.1:6379 |
 
@@ -33,8 +32,9 @@
 
 3. **Maven** (Java打包)
    - 版本: 3.6+
-   - JDK 8 (admin-backend后端)
-   - JDK 17 (网关)
+   - **JDK 17**（backend）
+   - **Spring Boot 3.5.13**（镜像内运行版本，与本地 `pom.xml` 一致）
+   - 接口文档依赖：**springdoc 2.8.9** + Knife4j 4.5（`knife4j.enable: false`），详见 [README.md](./README.md#接口文档toolapi-doc)
 
 ---
 
@@ -56,63 +56,56 @@ Containers proxy: Same as host proxy
 
 ### 2. 打包Java项目
 
-#### 打包admin-backend后端
+#### 打包后端
 
 ```bash
-cd E:\admin\admin-backend
+cd backend
 mvn clean package -DskipTests
 ```
 
-生成文件: `admin-backend/target/admin-backend.jar`
+生成文件: `backend/target/backend.jar`
 
-#### 打包网关
-
-```bash
-cd E:\admin\admin-gateway
-mvn clean package -DskipTests
-```
-
-生成文件: `admin-gateway/target/admin-gateway-1.0.0.jar`
+> Windows 一键重建：`powershell -ExecutionPolicy Bypass -File scripts/docker-rebuild.ps1`
 
 ### 3. 导入数据库 (首次部署)
 
 ```bash
-# 启动MySQL容器
-cd E:\admin
-docker-compose up -d mysql
+# 在项目根目录 admin-vue 下执行
+cd /path/to/admin-vue
+docker compose up -d mysql
 
 # 等待MySQL启动完成 (约10秒)
-docker-compose ps
+docker compose ps
 
 # 导入SQL数据
-docker exec admin-mysql mysql -uroot -proot -e "DROP DATABASE IF EXISTS RBAC1; CREATE DATABASE RBAC1 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+docker exec admin-mysql mysql -uroot -proot -e "DROP DATABASE IF EXISTS \`wu-admin\`; CREATE DATABASE \`wu-admin\` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 
-docker cp "E:\admin\sql\admin_platform.sql" admin-mysql:/tmp/init.sql
+docker cp "./sql/admin_platform.sql" admin-mysql:/tmp/init.sql
 
-docker exec admin-mysql mysql -uroot -proot --default-character-set=utf8mb4 -e "SET NAMES utf8mb4; SOURCE /tmp/init.sql;" RBAC1
+docker exec admin-mysql mysql -uroot -proot --default-character-set=utf8mb4 --database=wu-admin -e "SET NAMES utf8mb4; SOURCE /tmp/init.sql;"
 ```
 
 ### 4. 构建并启动所有服务
 
 ```bash
-cd E:\admin
-docker-compose up -d --build
+cd /path/to/admin-vue
+docker compose up -d --build
 ```
 
 ### 5. 验证部署
 
 ```bash
 # 查看所有服务状态
-docker-compose ps
+docker compose ps
 
 # 查看日志
-docker-compose logs -f
+docker compose logs -f
 
 # 测试前端
 curl http://localhost:3000
 
-# 测试网关
-curl http://localhost:8080/api/auth/config
+# 测试后端 API
+curl http://localhost:8081/api/auth/config
 ```
 
 ---
@@ -120,127 +113,39 @@ curl http://localhost:8080/api/auth/config
 ## 📁 项目结构
 
 ```
-admin/
-├── docker-compose.yml          # Docker编排配置
+admin-vue/
+├── docker-compose.yml          # Docker 编排配置
+├── scripts/
+│   └── docker-rebuild.ps1      # 重新打包并重建容器
 ├── sql/                        # 数据库初始化脚本
 │   └── admin_platform.sql
-├── admin-gateway/              # 网关服务
-│   ├── Dockerfile
-│   ├── pom.xml
-│   ├── src/
-│   └── target/                 # Maven打包产物
-│       └── admin-gateway-1.0.0.jar
-├── admin-frontend/             # 前端服务
-│   ├── Dockerfile              # 前端Docker配置
-│   ├── nginx.conf              # Nginx配置
-│   ├── .dockerignore
-│   ├── package.json
-│   ├── vite.config.ts
-│   └── src/
-├── admin-backend/              # 后端服务
+├── backend/                    # Spring Boot 后端
 │   ├── pom.xml
 │   ├── src/
 │   └── target/
-│       └── admin-backend.jar
-├── Dockerfile                  # 后端镜像（根目录）
-└── admin-gateway/Dockerfile    # 网关镜像
+│       └── backend.jar
+├── frontend/                   # Vue 3 前端
+│   ├── Dockerfile
+│   ├── nginx.conf
+│   ├── package.json
+│   ├── vite.config.ts
+│   └── src/
+└── Dockerfile                  # 后端镜像（根目录）
 ```
 
 ---
 
-## 🔧 Docker配置文件详解
+## 🔧 Docker 配置文件详解
 
 ### docker-compose.yml
 
-```yaml
-version: '3.8'
+单体架构包含 **MySQL、Redis、backend、frontend** 四个服务，详见项目根目录 `docker-compose.yml`。
 
-services:
-  # MySQL数据库
-  mysql:
-    image: mysql:8.0
-    container_name: admin-mysql
-    environment:
-      MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: RBAC1
-      TZ: Asia/Shanghai
-    ports:
-      - "3307:3306"  # 外部3307 → 容器3306
-    volumes:
-      - mysql-data:/var/lib/mysql
-    command: --default-authentication-plugin=mysql_native_password --character-set-server=utf8mb4
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+要点：
 
-  # Redis缓存
-  redis:
-    image: redis:7-alpine
-    container_name: admin-redis
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis-data:/data
-    command: redis-server --appendonly yes
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  # admin-backend后端服务 (Java 8)
-  admin-backend:
-    build:
-      context: .                             # 根目录 Dockerfile 构建后端
-      dockerfile: Dockerfile
-    container_name: admin-backend
-    environment:
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/RBAC1?...
-      SPRING_DATASOURCE_USERNAME: root
-      SPRING_DATASOURCE_PASSWORD: root
-      SPRING_REDIS_HOST: redis      # 使用服务名
-      SPRING_REDIS_PORT: 6379
-      SPRING_REDIS_DATABASE: 3
-    ports:
-      - "8081:8081"
-    depends_on:
-      mysql:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-
-  # 网关服务 (Java 17)
-  admin-gateway:
-    build:
-      context: ./admin-gateway
-      dockerfile: Dockerfile
-    container_name: admin-gateway
-    environment:
-      SPRING_DATA_REDIS_HOST: redis
-      SPRING_DATA_REDIS_PORT: 6379
-      SPRING_DATA_REDIS_DATABASE: 3
-    ports:
-      - "8080:8080"
-    depends_on:
-      - admin-backend
-
-  # 前端服务 (Nginx)
-  admin-frontend:
-    build:
-      context: ./admin-frontend
-      dockerfile: Dockerfile
-    container_name: admin-frontend
-    ports:
-      - "3000:80"    # 外部3000 → 容器80
-    depends_on:
-      - admin-gateway
-
-volumes:
-  mysql-data:
-  redis-data:
-```
+- 前端 Nginx 将 `/api/` 代理到 `http://backend:8081/api/`
+- 后端 `context-path=/api`，容器内外端口均为 **8081**
+- MySQL 外部端口 **3307**，Redis **6379**
 
 ### 前端 Dockerfile (多阶段构建)
 
@@ -265,34 +170,13 @@ CMD ["nginx", "-g", "daemon off;"]
 
 ### Nginx 配置
 
+生产环境见 `frontend/nginx.conf`，核心代理规则：
+
 ```nginx
-server {
-    listen 80;
-    server_name localhost;
-    root /usr/share/nginx/html;
-    index index.html;
-
-    # Vue Router history模式支持
-    location / {
-        try_files $uri $uri/ /index.html;
-    }
-
-    # API请求代理到网关
-    location /api/ {
-        proxy_pass http://admin-gateway:8080/api/;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-    }
-
-    # 静态资源缓存
-    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
-        expires 1y;
-        add_header Cache-Control "public, immutable";
-    }
-
-    # Gzip压缩
-    gzip on;
-    gzip_types text/plain text/css application/json application/javascript;
+location /api/ {
+    proxy_pass http://backend:8081/api/;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
 }
 ```
 
@@ -304,49 +188,49 @@ server {
 
 ```bash
 # 启动所有服务
-docker-compose up -d
+docker compose up -d
 
 # 启动指定服务
-docker-compose up -d mysql redis
+docker compose up -d mysql redis
 
 # 重新构建并启动
-docker-compose up -d --build
+docker compose up -d --build
 ```
 
 ### 停止服务
 
 ```bash
 # 停止所有服务
-docker-compose stop
+docker compose stop
 
 # 停止并删除容器
-docker-compose down
+docker compose down
 
 # 停止并删除容器+数据卷 (谨慎使用!)
-docker-compose down -v
+docker compose down -v
 ```
 
 ### 查看日志
 
 ```bash
 # 查看所有服务日志
-docker-compose logs -f
+docker compose logs -f
 
 # 查看指定服务日志
-docker-compose logs -f admin-backend
+docker compose logs -f backend
 
 # 查看最近100行日志
-docker-compose logs --tail=100 admin-gateway
+docker compose logs --tail=100 backend
 ```
 
 ### 重启服务
 
 ```bash
 # 重启所有服务
-docker-compose restart
+docker compose restart
 
 # 重启指定服务
-docker-compose restart admin-backend admin-gateway
+docker compose restart backend frontend
 ```
 
 ### 进入容器
@@ -356,20 +240,20 @@ docker-compose restart admin-backend admin-gateway
 docker exec -it admin-mysql bash
 
 # 进入MySQL命令行
-docker exec -it admin-mysql mysql -uroot -proot RBAC1
+docker exec -it admin-mysql mysql -uroot -proot --database=wu-admin
 
 # 进入Redis容器
 docker exec -it admin-redis redis-cli
 
 # 查看容器IP
-docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' admin-gateway
+docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' backend
 ```
 
 ### 查看状态
 
 ```bash
 # 查看所有容器状态
-docker-compose ps
+docker compose ps
 
 # 查看资源使用
 docker stats
@@ -416,22 +300,19 @@ ports:
 **解决**:
 ```bash
 # 重新导入时指定字符集
-docker exec admin-mysql mysql -uroot -proot --default-character-set=utf8mb4 RBAC1 < init.sql
+docker exec -i admin-mysql mysql -uroot -proot --default-character-set=utf8mb4 --database=wu-admin < init.sql
 ```
 
-### 4. 网关无法连接后端
+### 4. 前端无法访问后端 API
 
-**错误**: `Connection refused: localhost/127.0.0.1:8081`
+**错误**: `502 Bad Gateway` 或 API 请求超时
 
-**原因**: Docker容器内localhost指向自己,不是其他容器
+**原因**: Docker 容器内应使用服务名 `backend`，而非 `localhost`
 
-**解决**: 使用Docker服务名
-```yaml
-# 错误
-uri: http://localhost:8081
+**解决**: 确认 `frontend/nginx.conf` 中：
 
-# 正确
-uri: http://admin-backend:8081
+```nginx
+proxy_pass http://backend:8081/api/;
 ```
 
 ### 5. 前端构建失败
@@ -498,8 +379,8 @@ uri: http://admin-backend:8081
 
 5. **定期更新镜像**
    ```bash
-   docker-compose pull
-   docker-compose up -d
+   docker compose pull
+   docker compose up -d
    ```
 
 ---
@@ -545,10 +426,11 @@ command: >
 
 ## 📝 更新日志
 
-- 2026-04-13: 初始版本,完整的Docker部署方案
-  - 前端Docker化 (Nginx)
-  - 后端Docker化 (Java 8 + Java 17)
-  - MySQL + Redis容器化
+- 2026-05-23: 调整为单体前后端架构（`backend/` + `frontend/`），移除网关相关部署步骤
+- 2026-04-13: 初始 Docker 部署方案
+  - 前端 Docker 化 (Nginx)
+  - 后端 Docker 化 (Java 17)
+  - MySQL + Redis 容器化
   - 完整的代理配置说明
 
 ---
@@ -559,7 +441,7 @@ command: >
 1. Docker Desktop版本是否最新
 2. 代理配置是否正确
 3. 端口是否被占用
-4. 日志输出 (`docker-compose logs -f`)
+4. 日志输出 (`docker compose logs -f`)
 
 ---
 

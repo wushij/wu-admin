@@ -55,19 +55,11 @@
   </el-popover>
 </template>
 
-<script setup lang="ts">
-import { ref, computed, watch, type Component } from 'vue'
+<script setup>
+import { ref, computed, watch } from 'vue'
 import * as ElementPlusIconsVue from '@element-plus/icons-vue'
 import { Search } from '@element-plus/icons-vue'
 import { getIconLabel } from '@/utils/icon-labels'
-
-const iconModules = ElementPlusIconsVue as Record<string, Component>
-
-interface IconItem {
-  name: string
-  label: string
-  component: Component
-}
 
 const props = defineProps({
   modelValue: {
@@ -164,18 +156,18 @@ const ALL_ICON_NAMES = [
   'WarningFilled', 'Watch', 'Watermelon', 'WindPower', 'ZoomIn', 'ZoomOut'
 ]
 
-function toIconItems(names: string[]): IconItem[] {
+function toIconItems(names) {
   return names
-    .filter((name) => iconModules[name])
+    .filter((name) => ElementPlusIconsVue[name])
     .map((name) => ({
       name,
       label: getIconLabel(name),
-      component: iconModules[name]
+      component: ElementPlusIconsVue[name]
     }))
 }
 
 const fullIconCatalog = computed(() => {
-  const valid = ALL_ICON_NAMES.filter((name) => iconModules[name])
+  const valid = ALL_ICON_NAMES.filter((name) => ElementPlusIconsVue[name])
   const prioritySet = new Set(PRIORITY_ICON_NAMES)
   const priority = PRIORITY_ICON_NAMES.filter((name) => valid.includes(name))
   const rest = valid.filter((name) => !prioritySet.has(name)).sort()
@@ -196,7 +188,7 @@ const filteredIcons = computed(() => {
 
 const currentIconComponent = computed(() => {
   if (!props.modelValue) return null
-  return iconModules[props.modelValue] || null
+  return ElementPlusIconsVue[props.modelValue] || null
 })
 
 const displayValue = computed(() => {
@@ -210,7 +202,7 @@ watch(popoverVisible, (visible) => {
   }
 })
 
-const handleSelect = (name: string) => {
+const handleSelect = (name) => {
   emit('update:modelValue', name)
   emit('change', name)
   popoverVisible.value = false
