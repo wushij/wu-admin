@@ -69,7 +69,7 @@ export const ICON_CN_LABELS: Record<string, string> = {
   Timer: '计时',
   Stopwatch: '秒表',
   Monitor: '监控',
-  Odometer: '仪表盘',
+  Odometer: '工作台',
   DataAnalysis: '分析',
   DataBoard: '看板',
   DataLine: '折线',

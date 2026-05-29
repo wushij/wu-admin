@@ -3,9 +3,11 @@ package cn.rbac.server.modules.system.api.config;
 import cn.rbac.server.common.pojo.CommonResult;
 import cn.rbac.server.framework.log.annotation.Log;
 import cn.rbac.server.modules.system.dal.dataobject.config.SysConfigGroupDO;
+import cn.rbac.server.modules.system.pay.PayServiceFactory;
 import cn.rbac.server.modules.system.service.config.SysConfigGroupService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import lombok.Data;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
@@ -20,6 +22,9 @@ public class SysConfigGroupController {
 
     @Resource
     private SysConfigGroupService configGroupService;
+
+    @Resource
+    private PayServiceFactory payServiceFactory;
 
     @GetMapping("/list")
     @Operation(summary = "配置分组列表")
@@ -54,5 +59,29 @@ public class SysConfigGroupController {
         } catch (IllegalArgumentException e) {
             return CommonResult.error(400, e.getMessage());
         }
+    }
+
+    @Operation(summary = "创建测试支付订单")
+    @PostMapping("/test-payment")
+    @PreAuthorize("@ss.hasPermission('system:config:update')")
+    public CommonResult<Map<String, String>> testPayment(@RequestBody TestPaymentRequest request) {
+        if (request.getType() == null || request.getType().isBlank()) {
+            return CommonResult.error(400, "支付类型不能为空");
+        }
+        String type = request.getType().trim();
+        if (!payServiceFactory.isSupported(type)) {
+            return CommonResult.error(400, "不支持的支付类型: " + type);
+        }
+        try {
+            return CommonResult.success(payServiceFactory.createTestOrder(type));
+        } catch (Exception e) {
+            return CommonResult.error(500, e.getMessage());
+        }
+    }
+
+    @Data
+    public static class TestPaymentRequest {
+        /** wechat 或 alipay */
+        private String type;
     }
 }

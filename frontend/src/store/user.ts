@@ -79,6 +79,10 @@ export const useUserStore = defineStore('user', () => {
     }
   }
 
+  const patchUserInfo = (partial: Partial<UserInfo>) => {
+    userInfo.value = { ...userInfo.value, ...partial }
+  }
+
   return {
     token,
     userInfo,
@@ -87,6 +91,7 @@ export const useUserStore = defineStore('user', () => {
     getUserInfo,
     refreshUserStore,
     logout,
-    logoutAction
+    logoutAction,
+    patchUserInfo
   }
 })

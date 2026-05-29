@@ -78,7 +78,61 @@ export interface SecurityConfig {
   isConcurrent: boolean
 }
 
-export type ConfigGroupCode = 'site' | 'session' | 'file' | 'rateLimit' | 'login' | 'register' | 'security'
+export interface ThirdPartyOAuthConfig {
+  enabled: boolean
+  appId?: string
+  appSecret?: string
+  privateKey?: string
+  publicKey?: string
+  clientId?: string
+  clientSecret?: string
+}
+
+export interface ThirdPartyConfig {
+  wechat: Pick<ThirdPartyOAuthConfig, 'enabled' | 'appId' | 'appSecret'>
+  alipay: Pick<ThirdPartyOAuthConfig, 'enabled' | 'appId' | 'privateKey' | 'publicKey'>
+  github: Pick<ThirdPartyOAuthConfig, 'enabled' | 'clientId' | 'clientSecret'>
+  google: Pick<ThirdPartyOAuthConfig, 'enabled' | 'clientId' | 'clientSecret'> & {
+    redirectUri?: string
+  }
+}
+
+export interface WechatPayConfig {
+  enabled: boolean
+  mchId: string
+  appId: string
+  apiV3Key: string
+  privateKey: string
+  certSerialNo: string
+  notifyUrl: string
+}
+
+export interface AlipayPayConfig {
+  enabled: boolean
+  appId: string
+  privateKey: string
+  publicKey: string
+  signType: string
+  gatewayUrl: string
+  notifyUrl: string
+  returnUrl: string
+}
+
+export interface PaymentConfig {
+  wechatPay: WechatPayConfig
+  alipay: AlipayPayConfig
+}
+
+export type ConfigGroupCode =
+  | 'site'
+  | 'session'
+  | 'file'
+  | 'rateLimit'
+  | 'login'
+  | 'register'
+  | 'thirdParty'
+  | 'payment'
+  | 'security'
 
 export interface ConfigGroupMap {
   site: AdminSiteConfig
@@ -87,5 +141,17 @@ export interface ConfigGroupMap {
   rateLimit: RateLimitConfig
   login: LoginAdminConfig
   register: RegisterAdminConfig
+  thirdParty: ThirdPartyConfig
+  payment: PaymentConfig
   security: SecurityConfig
+}
+
+export interface PayOrderRecord {
+  orderNo: string
+  payType: string
+  status: string
+  transactionId?: string
+  amount?: string
+  createTime?: string
+  paidTime?: string
 }

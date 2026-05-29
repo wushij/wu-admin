@@ -20,6 +20,8 @@ public class SystemConfigHelper {
     public static final String GROUP_LOGIN = "login";
     public static final String GROUP_REGISTER = "register";
     public static final String GROUP_SECURITY = "security";
+    public static final String GROUP_THIRD_PARTY = "thirdParty";
+    public static final String GROUP_PAYMENT = "payment";
     public static final String CAPTCHA_TYPE_IMAGE = "image";
     public static final String CAPTCHA_TYPE_SLIDER = "slider";
     public static final String SLIDER_VERIFIED_CODE = "slider_verified";

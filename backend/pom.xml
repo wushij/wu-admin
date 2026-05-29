@@ -29,6 +29,9 @@
         <knife4j.version>4.5.0</knife4j.version>
         <springdoc.version>2.8.9</springdoc.version>
         <sa-token.version>1.39.0</sa-token.version>
+        <wechatpay-java.version>0.2.12</wechatpay-java.version>
+        <alipay-sdk.version>4.39.79.ALL</alipay-sdk.version>
+        <zxing.version>3.5.2</zxing.version>
     </properties>
 
     <dependencyManagement>
@@ -157,6 +160,29 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+        <!-- 微信支付 APIv3 -->
+        <dependency>
+            <groupId>com.github.wechatpay-apiv3</groupId>
+            <artifactId>wechatpay-java</artifactId>
+            <version>${wechatpay-java.version}</version>
+        </dependency>
+        <!-- 支付宝开放平台 SDK -->
+        <dependency>
+            <groupId>com.alipay.sdk</groupId>
+            <artifactId>alipay-sdk-java</artifactId>
+            <version>${alipay-sdk.version}</version>
+        </dependency>
+        <!-- 测试支付二维码 -->
+        <dependency>
+            <groupId>com.google.zxing</groupId>
+            <artifactId>core</artifactId>
+            <version>${zxing.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.google.zxing</groupId>
+            <artifactId>javase</artifactId>
+            <version>${zxing.version}</version>
         </dependency>
     </dependencies>
 
