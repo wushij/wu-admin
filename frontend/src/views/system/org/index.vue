@@ -158,7 +158,8 @@
           <el-tree-select
             v-model="deptForm.parentId"
             :data="deptTreeOptions"
-            :props="{ label: 'name', value: 'id', children: 'children' }"
+            node-key="id"
+            :props="{ label: 'name', children: 'children' }"
             check-strictly
             clearable
             placeholder="主目录（顶级）"
@@ -197,7 +198,8 @@
           <el-tree-select
             v-model="postForm.parentId"
             :data="postTreeOptions"
-            :props="{ label: 'postName', value: 'id', children: 'children' }"
+            node-key="id"
+            :props="{ label: 'postName', children: 'children' }"
             check-strictly
             clearable
             placeholder="顶级岗位"
@@ -249,7 +251,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -338,7 +340,10 @@ async function loadTree() {
 async function loadUsers() {
   userLoading.value = true
   try {
-    const params = { pageNo: userQuery.pageNo, pageSize: userQuery.pageSize }
+    const params: import('@/api/system/user').UserPageQuery = {
+      pageNo: userQuery.pageNo,
+      pageSize: userQuery.pageSize,
+    }
     if (selectedId.value) {
       if (activeTab.value === 'dept') params.deptId = selectedId.value
       else params.postId = selectedId.value
@@ -352,7 +357,7 @@ async function loadUsers() {
 }
 
 function goUserManage() {
-  const query = {}
+  const query: Record<string, string> = {}
   if (selectedId.value && activeTab.value === 'dept') {
     query.deptId = String(selectedId.value)
   }
@@ -389,7 +394,7 @@ async function onDeptDrop(dragging, drop, dropType) {
   } else {
     parentId = drop.data.parentId || 0
   }
-  await moveDept(id, parentId)
+  await moveDept(id, parentId, 0)
   ElMessage.success('移动成功')
   loadTree()
 }
@@ -458,10 +463,10 @@ function handleAddChild() {
 async function handleEditNode() {
   if (activeTab.value === 'dept') {
     const res = await getDept(selectedId.value)
-    openDeptForm(res.data)
+    openDeptForm(res.data, res.data?.parentId ?? 0)
   } else {
     const res = await getPost(selectedId.value)
-    openPostForm(res.data)
+    openPostForm(res.data, res.data?.parentId ?? 0)
   }
 }
 

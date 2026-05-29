@@ -57,7 +57,7 @@
           </div>
         </div>
 
-        <el-button class="add-group-btn" dashed block @click="openGroupDialog()">
+        <el-button class="add-group-btn" dashed block @click="openGroupDialog(undefined)">
           <el-icon><Plus /></el-icon>
           新增分组
         </el-button>
@@ -310,7 +310,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
@@ -466,11 +466,11 @@ async function loadFiles() {
   loading.value = true
   selectedIds.value = []
   try {
-    const params = {
+    const params: Record<string, unknown> = {
       pageNo: pageNo.value,
       pageSize: pageSize.value,
       fileCategory: activeType.value,
-      originalName: searchName.value || undefined
+      originalName: searchName.value || undefined,
     }
     if (activeGroupId.value === null) {
       params.ungrouped = true

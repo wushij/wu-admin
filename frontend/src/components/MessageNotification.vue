@@ -22,9 +22,7 @@
 
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
-import { ElMessageBox } from 'element-plus'
 import { Bell, ChatDotRound, Close } from '@element-plus/icons-vue'
-import { readAnnounce } from '@/api/message'
 import { useMessageStore } from '@/store/message'
 
 const router = useRouter()
@@ -37,28 +35,13 @@ function formatTime(timestamp: string | number) {
   return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
 }
 
-async function showNoticeDetail(title: string, content: string, announceId?: number) {
-  if (announceId) {
-    try {
-      await readAnnounce(announceId)
-      await messageStore.refreshSummary()
-      messageStore.announceListTick++
-    } catch {
-      /* 已读失败不阻断查看 */
-    }
-  }
-  await ElMessageBox.alert(content || '无内容', title || '系统通知', {
-    confirmButtonText: '知道了',
-  })
-}
-
 async function handleView() {
   const n = messageStore.currentNotification
   if (!n) return
   messageStore.closeNotification()
 
   if (n.type === 'notice') {
-    await showNoticeDetail(n.title, n.content, n.announceId)
+    await router.push('/message/notice')
     return
   }
 

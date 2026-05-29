@@ -5,28 +5,29 @@
 </template>
 
 <style>
-/* 修复对话框打开时页面抖动问题 */
-/* Element Plus对话框打开时会添加overflow: hidden到body，导致滚动条消失页面抖动 */
-/* 解决方案：让滚动条始终占位 */
-html {
-  overflow-y: scroll !important;
+/* 全站仅 .main-content 滚动，避免 html 与内容区双滚动条及弹窗打开时抖动 */
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
 }
 
-/* 覆盖Element Plus对话框锁定滚动的行为 */
 body.el-popup-parent--hidden {
-  overflow-y: scroll !important;
+  overflow: hidden !important;
   padding-right: 0 !important;
 }
 
-/* 确保对话框内容区域滚动正常 */
+/* 弹窗打开时锁定主内容区，防止背景仍可滚动 */
+body.el-popup-parent--hidden .layout-container .main-content {
+  overflow: hidden !important;
+}
+
+/* 对话框内容过长时在弹窗内滚动 */
 .el-dialog__body {
   max-height: calc(100vh - 200px);
   overflow-y: auto;
-}
-
-/* 防止遮罩层导致的抖动 */
-.el-overlay {
-  overflow-y: scroll !important;
 }
 
 /* 全局主题变量默认值 */

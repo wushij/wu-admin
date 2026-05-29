@@ -1,6 +1,6 @@
-import { get } from '@/utils/request'
+import request from '@/utils/request'
+import type { ApiResult } from '@/types/api'
 
-/** 工作台统计（与后端 DashboardStatsVO 对齐） */
 export interface DashboardStats {
   userCount?: number
   roleCount?: number
@@ -17,52 +17,25 @@ export interface DashboardStats {
   roleTrend?: number
   deptTrend?: number
   menuTrend?: number
-  userPendingCount?: number
-  userDisabledCount?: number
-  todayLoginSuccess?: number
-  todayLoginFail?: number
-  fileCount?: number
-  fileMaxSizeMb?: number
-  fileAllowedExtensions?: string
-  tokenExpireHours?: number
-  loginCaptchaEnabled?: boolean
-  loginCaptchaType?: string
-  loginRememberMe?: boolean
-  loginMaxRetryCount?: number
-  loginLockTimeMinutes?: number
-  registerEnabled?: boolean
-  registerNeedAudit?: boolean
-  ticketOpenCount?: number
-  ticketOverdueCount?: number
-  approvalPendingCount?: number
-  jobTotalCount?: number
-  jobRunningCount?: number
-  jobPausedCount?: number
-  chatUnreadCount?: number
-  configGroupCount?: number
+  [key: string]: unknown
 }
 
 export interface RecentLogin {
-  userId?: number
   username?: string
   nickname?: string
-  avatar?: string
   ipaddr?: string
-  loginLocation?: string
   loginTime?: string
-  browser?: string
-  os?: string
-  status?: number
+  [key: string]: unknown
 }
 
 export function getDashboardStats() {
-  return get<DashboardStats>('/dashboard/stats')
+  return request.get('/dashboard/stats') as Promise<ApiResult<DashboardStats>>
 }
 
 export function recordVisit() {
-  return get<unknown>('/dashboard/visit')
+  return request.get('/dashboard/visit') as Promise<ApiResult<unknown>>
 }
 
 export function getRecentLogins() {
-  return get<RecentLogin[]>('/dashboard/recent-logins')
+  return request.get('/dashboard/recent-logins') as Promise<ApiResult<RecentLogin[]>>
 }

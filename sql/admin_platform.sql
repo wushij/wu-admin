@@ -336,6 +336,134 @@ CREATE TABLE sys_notice (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='站内消息表';
 
 -- =============================================
+-- 11b. 消息中心（系统通知 + 即时聊天）
+-- 保留 sys_notice 为业务收件箱；sys_announce 为管理员发布的广播通知
+-- =============================================
+DROP TABLE IF EXISTS sys_chat_group_log;
+DROP TABLE IF EXISTS sys_chat_group_message;
+DROP TABLE IF EXISTS sys_chat_group_member;
+DROP TABLE IF EXISTS sys_chat_group;
+DROP TABLE IF EXISTS sys_user_blacklist;
+DROP TABLE IF EXISTS sys_chat_message;
+DROP TABLE IF EXISTS sys_announce_send_log;
+DROP TABLE IF EXISTS sys_user_announce;
+DROP TABLE IF EXISTS sys_announce;
+
+CREATE TABLE sys_announce (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键',
+    title VARCHAR(200) NOT NULL COMMENT '标题',
+    content TEXT COMMENT '内容',
+    notice_type TINYINT DEFAULT 1 COMMENT '1通知 2公告',
+    channels VARCHAR(200) DEFAULT '["station"]' COMMENT '推送渠道JSON',
+    target_type TINYINT DEFAULT 3 COMMENT '1指定用户 2按部门 3全部',
+    target_ids VARCHAR(500) DEFAULT NULL COMMENT '目标ID JSON数组',
+    status TINYINT DEFAULT 0 COMMENT '0草稿 1已发布',
+    create_by BIGINT DEFAULT NULL COMMENT '创建人ID',
+    create_name VARCHAR(50) DEFAULT NULL COMMENT '创建人昵称',
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    creator VARCHAR(64) DEFAULT '',
+    updater VARCHAR(64) DEFAULT '',
+    deleted TINYINT DEFAULT 0,
+    INDEX idx_status_time (status, create_time)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='系统通知/公告';
+
+CREATE TABLE sys_user_announce (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT NOT NULL COMMENT '接收用户',
+    announce_id BIGINT NOT NULL COMMENT '通知ID',
+    is_read TINYINT DEFAULT 0 COMMENT '0未读 1已读',
+    read_time DATETIME DEFAULT NULL,
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_user_announce (user_id, announce_id),
+    INDEX idx_user_read (user_id, is_read)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户通知已读';
+
+CREATE TABLE sys_announce_send_log (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    announce_id BIGINT NOT NULL,
+    channel VARCHAR(50) NOT NULL COMMENT 'station等',
+    status TINYINT DEFAULT 1 COMMENT '0失败 1成功',
+    target_count INT DEFAULT 0,
+    success_count INT DEFAULT 0,
+    error_msg VARCHAR(500) DEFAULT NULL,
+    send_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_announce_id (announce_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='通知推送日志';
+
+CREATE TABLE sys_chat_message (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    sender_id BIGINT NOT NULL,
+    sender_name VARCHAR(50) DEFAULT NULL,
+    sender_avatar VARCHAR(255) DEFAULT NULL,
+    receiver_id BIGINT NOT NULL,
+    content TEXT,
+    msg_type TINYINT DEFAULT 1 COMMENT '1文本 2图片',
+    is_read TINYINT DEFAULT 0,
+    send_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_sender (sender_id),
+    INDEX idx_receiver (receiver_id),
+    INDEX idx_pair_time (sender_id, receiver_id, send_time)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='私聊消息';
+
+CREATE TABLE sys_user_blacklist (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT NOT NULL COMMENT '拉黑方',
+    blocked_user_id BIGINT NOT NULL COMMENT '被拉黑用户',
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_user_blocked (user_id, blocked_user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='聊天黑名单';
+
+CREATE TABLE sys_chat_group (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    avatar VARCHAR(500) DEFAULT NULL,
+    owner_id BIGINT NOT NULL,
+    announcement VARCHAR(500) DEFAULT NULL,
+    max_members INT DEFAULT 200,
+    status TINYINT DEFAULT 1 COMMENT '0解散 1正常',
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_owner (owner_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='群聊';
+
+CREATE TABLE sys_chat_group_member (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    group_id BIGINT NOT NULL,
+    user_id BIGINT NOT NULL,
+    nickname VARCHAR(50) DEFAULT NULL,
+    role TINYINT DEFAULT 0 COMMENT '0成员 1管理员 2群主',
+    muted TINYINT DEFAULT 0,
+    join_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_group_user (group_id, user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='群成员';
+
+CREATE TABLE sys_chat_group_message (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    group_id BIGINT NOT NULL,
+    sender_id BIGINT NOT NULL,
+    sender_name VARCHAR(50) DEFAULT NULL,
+    sender_avatar VARCHAR(500) DEFAULT NULL,
+    content TEXT NOT NULL,
+    msg_type TINYINT DEFAULT 1,
+    send_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_group_time (group_id, send_time)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='群消息';
+
+CREATE TABLE sys_chat_group_log (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    group_id BIGINT NOT NULL COMMENT '群ID',
+    action_type VARCHAR(32) NOT NULL COMMENT '操作类型',
+    operator_id BIGINT NOT NULL COMMENT '操作人',
+    operator_name VARCHAR(50) DEFAULT NULL COMMENT '操作人昵称',
+    target_user_id BIGINT DEFAULT NULL COMMENT '目标用户',
+    target_user_name VARCHAR(50) DEFAULT NULL COMMENT '目标用户昵称',
+    detail VARCHAR(500) DEFAULT NULL COMMENT '补充说明',
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_group_time (group_id, create_time)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='群聊操作日志';
+
+-- =============================================
 -- 12. 审批单表
 -- =============================================
 DROP TABLE IF EXISTS sys_approval_form;
@@ -597,7 +725,17 @@ INSERT INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, c
 (6, '登录日志', 'system:loginLog:list', 2, 2, 120, '/system/login-log', 'Promotion', 'system/login-log/index', 1),
 -- 开发工具
 (150, '开发工具', '', 1, 6, 0, '/tool', 'Tools', '', 1),
-(151, '接口文档', 'tool:apiDoc:view', 2, 1, 150, '/tool/api-doc', 'Document', '/doc.html', 1);
+(151, '接口文档', 'tool:apiDoc:view', 2, 1, 150, '/tool/api-doc', 'Document', '/doc.html', 1),
+-- 消息中心
+(170, '消息中心', '', 1, 7, 0, '/message', 'Bell', '', 1),
+(171, '系统通知', 'system:announce:list', 2, 1, 170, '/message/notice', 'Notification', 'message/notice/index', 1),
+(172, '即时聊天', 'system:chat:list', 2, 2, 170, '/message/chat', 'ChatDotRound', 'message/chat/index', 1),
+(173, '通知查询', 'system:announce:query', 3, 1, 171, '', '', '', 1),
+(174, '通知新增', 'system:announce:create', 3, 2, 171, '', '', '', 1),
+(175, '通知修改', 'system:announce:update', 3, 3, 171, '', '', '', 1),
+(176, '通知删除', 'system:announce:delete', 3, 4, 171, '', '', '', 1),
+(177, '通知发布', 'system:announce:publish', 3, 5, 171, '', '', '', 1),
+(178, '聊天查询', 'system:chat:query', 3, 1, 172, '', '', '', 1);
 
 -- 初始化用户角色关联
 INSERT INTO sys_user_role (user_id, role_id) VALUES
@@ -618,7 +756,8 @@ INSERT INTO sys_role_menu (role_id, menu_id) VALUES
 (1, 70), (1, 71), (1, 72), (1, 73), (1, 74),
 (1, 100), (1, 101), (1, 102), (1, 103), (1, 104),
 (1, 105), (1, 110), (1, 111), (1, 112), (1, 113),
-(1, 150), (1, 151);
+(1, 150), (1, 151),
+(1, 170), (1, 171), (1, 172), (1, 173), (1, 174), (1, 175), (1, 176), (1, 177), (1, 178);
 
 -- 普通用户默认权限（页面+查询按钮；侧栏父级由 getUserMenuList 自动补齐）
 INSERT INTO sys_role_menu (role_id, menu_id) VALUES
@@ -629,7 +768,8 @@ INSERT INTO sys_role_menu (role_id, menu_id) VALUES
 (2, 101), (2, 102),
 (2, 105), (2, 110), (2, 111), (2, 112),
 (2, 121), (2, 126), (2, 6), (2, 50),
-(2, 151);
+(2, 151),
+(2, 170), (2, 172), (2, 178);
 
 -- =============================================
 -- 附录：已有库升级（可重复执行，全新安装执行亦无害）
@@ -697,6 +837,141 @@ ON DUPLICATE KEY UPDATE
 
 INSERT IGNORE INTO sys_role_menu (role_id, menu_id) VALUES (1, 126);
 
+-- 消息中心（已有库升级请执行 sql/add2.sql、sql/add3.sql，勿重复执行全量脚本）
+-- 以下段落与 message_center.sql 内容一致，供全量安装时一并创建
+CREATE TABLE IF NOT EXISTS sys_announce (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键',
+    title VARCHAR(200) NOT NULL COMMENT '标题',
+    content TEXT COMMENT '内容',
+    notice_type TINYINT DEFAULT 1 COMMENT '1通知 2公告',
+    channels VARCHAR(200) DEFAULT '["station"]' COMMENT '推送渠道JSON',
+    target_type TINYINT DEFAULT 3 COMMENT '1指定用户 2按部门 3全部',
+    target_ids VARCHAR(500) DEFAULT NULL COMMENT '目标ID JSON数组',
+    status TINYINT DEFAULT 0 COMMENT '0草稿 1已发布',
+    create_by BIGINT DEFAULT NULL COMMENT '创建人ID',
+    create_name VARCHAR(50) DEFAULT NULL COMMENT '创建人昵称',
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    creator VARCHAR(64) DEFAULT '',
+    updater VARCHAR(64) DEFAULT '',
+    deleted TINYINT DEFAULT 0,
+    INDEX idx_status_time (status, create_time)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='系统通知/公告';
+
+CREATE TABLE IF NOT EXISTS sys_user_announce (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT NOT NULL COMMENT '接收用户',
+    announce_id BIGINT NOT NULL COMMENT '通知ID',
+    is_read TINYINT DEFAULT 0 COMMENT '0未读 1已读',
+    read_time DATETIME DEFAULT NULL,
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_user_announce (user_id, announce_id),
+    INDEX idx_user_read (user_id, is_read)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户通知已读';
+
+CREATE TABLE IF NOT EXISTS sys_announce_send_log (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    announce_id BIGINT NOT NULL,
+    channel VARCHAR(50) NOT NULL COMMENT 'station等',
+    status TINYINT DEFAULT 1 COMMENT '0失败 1成功',
+    target_count INT DEFAULT 0,
+    success_count INT DEFAULT 0,
+    error_msg VARCHAR(500) DEFAULT NULL,
+    send_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_announce_id (announce_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='通知推送日志';
+
+CREATE TABLE IF NOT EXISTS sys_chat_message (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    sender_id BIGINT NOT NULL,
+    sender_name VARCHAR(50) DEFAULT NULL,
+    sender_avatar VARCHAR(255) DEFAULT NULL,
+    receiver_id BIGINT NOT NULL,
+    content TEXT,
+    msg_type TINYINT DEFAULT 1 COMMENT '1文本 2图片',
+    is_read TINYINT DEFAULT 0,
+    send_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_sender (sender_id),
+    INDEX idx_receiver (receiver_id),
+    INDEX idx_pair_time (sender_id, receiver_id, send_time)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='私聊消息';
+
+CREATE TABLE IF NOT EXISTS sys_user_blacklist (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT NOT NULL COMMENT '拉黑方',
+    blocked_user_id BIGINT NOT NULL COMMENT '被拉黑用户',
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_user_blocked (user_id, blocked_user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='聊天黑名单';
+
+CREATE TABLE IF NOT EXISTS sys_chat_group (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    avatar VARCHAR(500) DEFAULT NULL,
+    owner_id BIGINT NOT NULL,
+    announcement VARCHAR(500) DEFAULT NULL,
+    max_members INT DEFAULT 200,
+    status TINYINT DEFAULT 1 COMMENT '0解散 1正常',
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_owner (owner_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='群聊';
+
+CREATE TABLE IF NOT EXISTS sys_chat_group_member (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    group_id BIGINT NOT NULL,
+    user_id BIGINT NOT NULL,
+    nickname VARCHAR(50) DEFAULT NULL,
+    role TINYINT DEFAULT 0 COMMENT '0成员 1管理员 2群主',
+    muted TINYINT DEFAULT 0,
+    join_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_group_user (group_id, user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='群成员';
+
+CREATE TABLE IF NOT EXISTS sys_chat_group_message (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    group_id BIGINT NOT NULL,
+    sender_id BIGINT NOT NULL,
+    sender_name VARCHAR(50) DEFAULT NULL,
+    sender_avatar VARCHAR(500) DEFAULT NULL,
+    content TEXT NOT NULL,
+    msg_type TINYINT DEFAULT 1,
+    send_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_group_time (group_id, send_time)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='群消息';
+
+CREATE TABLE IF NOT EXISTS sys_chat_group_log (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    group_id BIGINT NOT NULL COMMENT '群ID',
+    action_type VARCHAR(32) NOT NULL COMMENT '操作类型',
+    operator_id BIGINT NOT NULL COMMENT '操作人',
+    operator_name VARCHAR(50) DEFAULT NULL COMMENT '操作人昵称',
+    target_user_id BIGINT DEFAULT NULL COMMENT '目标用户',
+    target_user_name VARCHAR(50) DEFAULT NULL COMMENT '目标用户昵称',
+    detail VARCHAR(500) DEFAULT NULL COMMENT '补充说明',
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_group_time (group_id, create_time)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='群聊操作日志';
+
+INSERT INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, component, status) VALUES
+(170, '消息中心', '', 1, 7, 0, '/message', 'Bell', '', 1),
+(171, '系统通知', 'system:announce:list', 2, 1, 170, '/message/notice', 'Notification', 'message/notice/index', 1),
+(172, '即时聊天', 'system:chat:list', 2, 2, 170, '/message/chat', 'ChatDotRound', 'message/chat/index', 1),
+(173, '通知查询', 'system:announce:query', 3, 1, 171, '', '', '', 1),
+(174, '通知新增', 'system:announce:create', 3, 2, 171, '', '', '', 1),
+(175, '通知修改', 'system:announce:update', 3, 3, 171, '', '', '', 1),
+(176, '通知删除', 'system:announce:delete', 3, 4, 171, '', '', '', 1),
+(177, '通知发布', 'system:announce:publish', 3, 5, 171, '', '', '', 1),
+(178, '聊天查询', 'system:chat:query', 3, 1, 172, '', '', '', 1)
+ON DUPLICATE KEY UPDATE
+    name = VALUES(name), permission = VALUES(permission), type = VALUES(type),
+    sort = VALUES(sort), parent_id = VALUES(parent_id), path = VALUES(path),
+    icon = VALUES(icon), component = VALUES(component), status = VALUES(status);
+
+INSERT IGNORE INTO sys_role_menu (role_id, menu_id) VALUES
+(1, 170), (1, 171), (1, 172), (1, 173), (1, 174), (1, 175), (1, 176), (1, 177), (1, 178),
+(2, 170), (2, 172), (2, 178);
+
 -- 操作日志操作人员：历史误存 userId 时回填为 username
 UPDATE sys_oper_log o
 INNER JOIN sys_user u ON u.id = CAST(o.oper_name AS UNSIGNED) AND u.deleted = 0
@@ -716,7 +991,8 @@ INSERT INTO sys_role_menu (role_id, menu_id) VALUES
 (2, 101), (2, 102),
 (2, 105), (2, 110), (2, 111), (2, 112),
 (2, 121), (2, 126), (2, 6), (2, 50),
-(2, 151);
+(2, 151),
+(2, 170), (2, 172), (2, 178);
 
 -- 可选：为历史「待审核」用户补建注册审批单（无则跳过）
 INSERT INTO sys_approval_form (form_no, form_type, title, content, status, applicant_user_id, approver_user_id, creator, updater)

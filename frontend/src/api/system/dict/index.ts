@@ -8,32 +8,10 @@ export interface DictTypeVO {
   status?: number
   remark?: string
   dataCount?: number
-  createTime?: string
-  updateTime?: string
+  [key: string]: unknown
 }
 
-export interface DictTypeSaveDTO {
-  id?: number
-  dictName: string
-  dictType: string
-  status?: number
-  remark?: string
-}
-
-export type DictDataSaveDTO = DictDataItem
-
-export interface DictTypeExportData {
-  dictType?: DictTypeVO
-  dictDataList?: DictDataItem[]
-}
-
-export interface DictTypePageQuery extends PageQuery {
-  dictName?: string
-  dictType?: string
-  status?: number | null
-}
-
-export function pageDictType(params: DictTypePageQuery) {
+export function pageDictType(params: PageQuery) {
   return get<PageResult<DictTypeVO>>('/system/dict-type/page', params)
 }
 
@@ -46,14 +24,14 @@ export function getDictType(id: number) {
 }
 
 export function exportDictType(id: number) {
-  return get<DictTypeExportData>(`/system/dict-type/${id}/export`)
+  return get<Record<string, unknown>>(`/system/dict-type/${id}/export`)
 }
 
-export function createDictType(data: DictTypeSaveDTO) {
+export function createDictType(data: Record<string, unknown>) {
   return post('/system/dict-type', data)
 }
 
-export function updateDictType(data: DictTypeSaveDTO) {
+export function updateDictType(data: Record<string, unknown>) {
   return put('/system/dict-type', data)
 }
 
@@ -63,18 +41,6 @@ export function deleteDictType(id: number) {
 
 export function copyDictType(id: number) {
   return post(`/system/dict-type/${id}/copy`)
-}
-
-export function getRecycleDictTypePage(params: { pageNo: number; pageSize: number; dictName?: string; dictType?: string }) {
-  return get<PageResult<DictTypeVO>>('/system/dict-type/recycle/page', params)
-}
-
-export function restoreDictType(id: number) {
-  return put('/system/dict-type/restore', null, { params: { id } })
-}
-
-export function deleteDictTypePermanent(id: number) {
-  return del('/system/dict-type/delete-permanent', { params: { id } })
 }
 
 export function listDictDataByType(dictType: string) {
@@ -94,31 +60,14 @@ export function refreshDictCache() {
   return post('/system/dict-data/refresh-cache')
 }
 
-export function createDictData(data: DictDataSaveDTO) {
+export function createDictData(data: Record<string, unknown>) {
   return post('/system/dict-data', data)
 }
 
-export function updateDictData(data: DictDataSaveDTO) {
+export function updateDictData(data: Record<string, unknown>) {
   return put('/system/dict-data', data)
 }
 
 export function deleteDictData(id: number) {
   return del(`/system/dict-data/${id}`)
-}
-
-export function getRecycleDictDataPage(params: {
-  pageNo: number
-  pageSize: number
-  dictType?: string
-  dictLabel?: string
-}) {
-  return get<PageResult<DictDataItem>>('/system/dict-data/recycle/page', params)
-}
-
-export function restoreDictData(id: number) {
-  return put('/system/dict-data/restore', null, { params: { id } })
-}
-
-export function deleteDictDataPermanent(id: number) {
-  return del('/system/dict-data/delete-permanent', { params: { id } })
 }

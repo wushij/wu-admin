@@ -1,6 +1,6 @@
 import axios from 'axios'
-import { get, post, put, del } from '@/utils/request'
-import type { PageQuery, PageResult } from '@/types/api'
+import request, { get, del, put } from '@/utils/request'
+import type { PageResult } from '@/types/api'
 
 const BLOCKED_EXTENSIONS = ['exe', 'bat', 'cmd', 'sh', 'ps1', 'msi', 'dll', 'com', 'scr']
 
@@ -17,6 +17,7 @@ export interface FileGroupVO {
   fileCount?: number
   createTime?: string
   updateTime?: string
+  [key: string]: unknown
 }
 
 export interface FileGroupListResult {
@@ -35,6 +36,7 @@ export interface FileRecord {
   fileSuffix?: string
   groupId?: number
   createTime?: string
+  [key: string]: unknown
 }
 
 /** 由接口 /system/file/upload-policy 加载，保存系统配置后立即更新 */
@@ -88,35 +90,23 @@ export function validateFileBeforeUpload(file?: File | null): string | null {
   return null
 }
 
-export function getFileGroupList(fileCategory?: string) {
-  return get<FileGroupListResult>('/system/file-group/list', fileCategory ? { fileCategory } : undefined)
+export function getFileGroupList() {
+  return get<FileGroupListResult>('/system/file-group/list')
 }
 
-export interface FileGroupSaveDTO {
-  id?: number
-  name: string
+export function createFileGroup(data: Record<string, unknown>) {
+  return request.post('/system/file-group', data)
 }
 
-export interface FilePageByGroupQuery extends PageQuery {
-  fileCategory?: string
-  originalName?: string
-  groupId?: number
-  ungrouped?: boolean
-}
-
-export function createFileGroup(data: FileGroupSaveDTO) {
-  return post('/system/file-group', data)
-}
-
-export function updateFileGroup(data: FileGroupSaveDTO) {
-  return put('/system/file-group', data)
+export function updateFileGroup(data: Record<string, unknown>) {
+  return request.put('/system/file-group', data)
 }
 
 export function deleteFileGroup(id: number) {
   return del(`/system/file-group/${id}`)
 }
 
-export function pageFileByGroup(params: FilePageByGroupQuery) {
+export function pageFileByGroup(params: Record<string, unknown>) {
   return get<PageResult<FileRecord>>('/system/file/page-by-group', params)
 }
 
@@ -126,7 +116,7 @@ export function uploadFile(file: File, groupId?: number | null) {
   if (groupId != null && groupId > 0) {
     formData.append('groupId', String(groupId))
   }
-  return post('/system/file/upload', formData, {
+  return request.post('/system/file/upload', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   })
 }
@@ -135,24 +125,12 @@ export function deleteFile(id: number) {
   return del(`/system/file/${id}`)
 }
 
-export function getRecycleFilePage(params: { pageNo: number; pageSize: number; originalName?: string }) {
-  return get<PageResult<FileRecord>>('/system/file/recycle/page', params)
-}
-
-export function restoreFile(id: number) {
-  return put('/system/file/restore', null, { params: { id } })
-}
-
-export function deleteFilePermanent(id: number) {
-  return del('/system/file/delete-permanent', { params: { id } })
-}
-
 export function deleteFileBatch(ids: number[]) {
-  return del('/system/file/batch', { data: ids })
+  return request.delete('/system/file/batch', { data: ids })
 }
 
 export function moveFiles(fileIds: number[], groupId: number) {
-  return post('/system/file/move', { fileIds, groupId })
+  return request.post('/system/file/move', { fileIds, groupId })
 }
 
 export function renameFile(id: number, newName: string) {
@@ -164,36 +142,35 @@ export function getFileText(id: number) {
 }
 
 /**
- * 同域资源 URL（img/video 等）依赖 httpOnly Cookie 鉴权，不再拼接 Token 查询参数。
+ * 为静态资源 URL 附加 Sa-Token（存于 localStorage token）。
+ * img 标签通过 ?Authorization= 传 token，后端 AuthorizationQueryFilter 会写入请求头。
  */
 export function withTokenQuery(url: string): string {
-  return url || ''
-}
-
-function normalizeFileApiUrl(url: string): string {
   if (!url) return ''
-  if (url.startsWith('http')) return url
-  if (url.startsWith('/api')) return url
-  return url.startsWith('/') ? `/api${url}` : `/api/${url}`
+  const token = localStorage.getItem('token')
+  if (!token || !url.startsWith('/api')) return url
+  const sep = url.includes('?') ? '&' : '?'
+  return `${url}${sep}Authorization=${encodeURIComponent(token)}`
 }
 
-/** 流式预览 URL（video/audio/img 直连，支持 Range，避免整文件 blob） */
-export function getStreamPreviewUrl(file?: FileRecord | null): string {
+/** @deprecated 使用 withTokenQuery */
+export const withAuthQuery = withTokenQuery
+
+/** 列表缩略图 / 视频封面 */
+export function fileDisplayUrl(file?: FileRecord | null): string {
   if (!file) return ''
   const type = file.fileType || ''
-  const direct = normalizeFileApiUrl(file.url || '')
-  if (direct && (type.startsWith('video/') || type.startsWith('audio/') || type.startsWith('image/'))) {
-    return withTokenQuery(direct)
+  if (file.id && (type.startsWith('image/') || type.startsWith('video/'))) {
+    return withTokenQuery(`/api/system/file/preview/${file.id}`)
   }
-  if (file.id) {
-    return getPreviewApiUrl(file.id)
+  let u = file.url || ''
+  if (u && !u.startsWith('http') && !u.startsWith('/api')) {
+    u = u.startsWith('/') ? `/api${u}` : `/api/${u}`
   }
-  return withTokenQuery(direct)
-}
-
-/** 列表缩略图 / 视频封面（优先 /files/ 直链流式加载） */
-export function fileDisplayUrl(file?: FileRecord | null): string {
-  return getStreamPreviewUrl(file)
+  if (!u && file.id) {
+    u = `/api/system/file/preview/${file.id}`
+  }
+  return withTokenQuery(u)
 }
 
 export function getPreviewApiUrl(id: number) {
@@ -206,8 +183,10 @@ export function getDownloadApiUrl(id: number) {
 
 /** 带鉴权下载/预览（blob，不走 JSON 拦截器） */
 export async function fetchFileBlob(path: string): Promise<Blob> {
+  const token = localStorage.getItem('token')
   const res = await axios.get(`/api${path}`, {
     responseType: 'blob',
+    headers: token ? { Authorization: token } : {},
     withCredentials: true,
   })
   return res.data

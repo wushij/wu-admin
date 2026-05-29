@@ -1,6 +1,8 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { login, getInfo, logout as logoutApi } from '@/api/system/auth'
+import type { LoginForm } from '@/types/api'
+import { useMessageStore } from '@/store/message'
 
 interface UserInfo {
   userId?: number
@@ -30,7 +32,7 @@ export const useUserStore = defineStore('user', () => {
   const userInfo = ref<UserInfo>({})
   const menus = ref<MenuItem[]>([])
 
-  const loginAction = async (loginForm: any) => {
+  const loginAction = async (loginForm: LoginForm) => {
     const res = await login(loginForm)
     token.value = res.data.token
     localStorage.setItem('token', res.data.token)
@@ -69,6 +71,11 @@ export const useUserStore = defineStore('user', () => {
   }
 
   const logout = () => {
+    try {
+      useMessageStore().destroyWebSocket()
+    } catch {
+      /* store 可能尚未初始化 */
+    }
     token.value = ''
     userInfo.value = {}
     menus.value = []

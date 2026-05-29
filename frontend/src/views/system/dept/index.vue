@@ -98,7 +98,8 @@
           <el-tree-select
             v-model="form.parentId"
             :data="deptOptions"
-            :props="{ label: 'name', value: 'id', children: 'children' }"
+            node-key="id"
+            :props="{ label: 'name', children: 'children' }"
             placeholder="请选择上级部门"
             check-strictly
             clearable
@@ -173,7 +174,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getDeptList, createDept, updateDept, deleteDept, updateDeptStatus, getRecycleDeptPage, restoreDept, deleteDeptPermanent } from '@/api/system/dept'
@@ -218,7 +219,7 @@ const rules = {
 const getList = async () => {
   loading.value = true
   try {
-    const res = await getDeptList(queryParams)
+    const res = await getDeptList()
     const allDepts = res.data || []
     deptList.value = allDepts
     deptOptions.value = [{ id: 0, name: '根部门', children: allDepts }]

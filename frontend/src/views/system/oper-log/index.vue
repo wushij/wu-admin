@@ -120,7 +120,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { pageOperLog, deleteOperLog, cleanOperLog } from '@/api/system/oper-log'
@@ -152,7 +152,7 @@ function businessTypeLabel(type) {
 }
 
 const detailVisible = ref(false)
-const detail = ref({})
+const detail = ref<Partial<import('@/api/system/oper-log').OperLogVO>>({})
 
 function formatJson(str) {
   if (!str) return ''

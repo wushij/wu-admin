@@ -10,21 +10,7 @@ export interface ApiResult<T = unknown> {
 export interface PageQuery {
   pageNo?: number
   pageSize?: number
-}
-
-/** 回收站分页（pageNo/pageSize 必填，便于列表翻页逻辑类型安全） */
-export interface RecyclePageQuery {
-  pageNo: number
-  pageSize: number
-}
-
-/** 实体公共时间字段（与后端 BaseEntity 一致） */
-export interface EntityTimestamps {
-  createTime?: string
-  updateTime?: string
-  creator?: string
-  updater?: string
-  deleted?: number
+  [key: string]: unknown
 }
 
 /** 分页列表响应 */
@@ -35,12 +21,8 @@ export interface PageResult<T> {
 
 /** 登录表单 */
 export interface LoginForm {
-  loginType?: 'account' | 'sms' | 'email'
-  username?: string
-  password?: string
-  phone?: string
-  email?: string
-  emailCode?: string
+  username: string
+  password: string
   uuid?: string
   code?: string
   rememberMe?: boolean
@@ -56,8 +38,9 @@ export interface RegisterForm {
   code?: string
 }
 
-/** 登录响应（Token 由后端写入 httpOnly Cookie，响应体不再返回） */
+/** 登录响应 */
 export interface LoginResult {
+  token: string
   userId: number
   username: string
   nickname?: string
@@ -97,8 +80,6 @@ export interface DictDataItem {
   listClass?: string
   status?: number
   sort?: number
-  isDefault?: number
-  remark?: string
 }
 
 /** 字典下拉选项 */

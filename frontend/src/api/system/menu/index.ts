@@ -1,5 +1,5 @@
-import { get, post, put, del } from '@/utils/request'
-import type { PageResult, RecyclePageQuery } from '@/types/api'
+import request from '@/utils/request'
+import type { ApiResult, PageQuery, PageResult } from '@/types/api'
 
 export interface MenuVO {
   id: number
@@ -12,70 +12,46 @@ export interface MenuVO {
   icon?: string
   component?: string
   status?: number
-  isFrame?: number
   children?: MenuVO[]
-  createTime?: string
-  updateTime?: string
+  [key: string]: unknown
 }
 
-export interface MenuListQuery {
-  name?: string
-  status?: number | null
-  type?: number | null
-}
-
-export type MenuRecycleQuery = RecyclePageQuery & Pick<MenuListQuery, 'name' | 'status'>
-
-export interface MenuSaveDTO {
-  id?: number | null
-  parentId?: number
-  name: string
-  type: number
-  path?: string
-  component?: string
-  permission?: string
-  sort?: number
-  icon?: string
-  status?: number
-  isFrame?: number
-}
-
-export function getMenuList(params?: MenuListQuery) {
-  return get<MenuVO[]>('/system/menu/list', params)
+export function getMenuList(params?: Record<string, unknown>) {
+  return request.get('/system/menu/list', { params }) as Promise<ApiResult<MenuVO[]>>
 }
 
 export function getMenuSimpleList() {
-  return get<MenuVO[]>('/system/menu/simple-list')
+  return request.get('/system/menu/simple-list') as Promise<ApiResult<MenuVO[]>>
 }
 
 export function getMenu(id: number) {
-  return get<MenuVO>('/system/menu/get', { id })
+  return request.get('/system/menu/get', { params: { id } }) as Promise<ApiResult<MenuVO>>
 }
 
-export function createMenu(data: MenuSaveDTO) {
-  return post('/system/menu/create', data)
+export function createMenu(data: Record<string, unknown>) {
+  return request.post('/system/menu/create', data)
 }
 
-export function updateMenu(data: MenuSaveDTO) {
-  return put('/system/menu/update', data)
+export function updateMenu(data: Record<string, unknown>) {
+  return request.put('/system/menu/update', data)
 }
 
 export function deleteMenu(id: number) {
-  return del('/system/menu/delete', { params: { id } })
+  return request.delete('/system/menu/delete', { params: { id } })
 }
 
 export function updateMenuStatus(id: number, status: number) {
-  return put('/system/menu/update-status', null, { params: { id, status } })
+  return request.put('/system/menu/update-status', null, { params: { id, status } })
 }
 
-export function getRecycleMenuPage(params: MenuRecycleQuery) {
-  return get<PageResult<MenuVO>>('/system/menu/recycle/page', params)
+export function getRecycleMenuPage(params: PageQuery) {
+  return request.get('/system/menu/recycle/page', { params }) as Promise<ApiResult<PageResult<MenuVO>>>
 }
 
 export function restoreMenu(id: number) {
-  return put('/system/menu/restore', null, { params: { id } })
+  return request.put('/system/menu/restore', null, { params: { id } })
 }
 
 export function deleteMenuPermanent(id: number) {
-  return del('/system/menu/delete-permanent', { params: { id } })
+  return request.delete('/system/menu/delete-permanent', { params: { id } })
 }

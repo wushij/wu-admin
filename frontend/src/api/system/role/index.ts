@@ -1,5 +1,5 @@
-import { get, post, put, del } from '@/utils/request'
-import type { PageQuery, PageResult, RecyclePageQuery } from '@/types/api'
+import request from '@/utils/request'
+import type { ApiResult, PageQuery, PageResult } from '@/types/api'
 
 export interface RoleVO {
   id: number
@@ -8,71 +8,53 @@ export interface RoleVO {
   status?: number
   sort?: number
   remark?: string
-  dataScope?: number
-  createTime?: string
-  updateTime?: string
+  [key: string]: unknown
 }
 
-export interface RoleListQuery {
-  name?: string
-  status?: number | null
-}
-
-export type RoleRecycleQuery = RecyclePageQuery & Pick<RoleListQuery, 'name' | 'status'>
-
-export interface RoleSaveDTO {
-  id?: number | null
-  name: string
-  code: string
-  sort?: number
-  status?: number
-  remark?: string
-}
-
-export function getRoleList(params?: RoleListQuery) {
-  return get<RoleVO[]>('/system/role/list', params)
+export function getRoleList(params?: Record<string, unknown>) {
+  return request.get('/system/role/list', { params }) as Promise<ApiResult<RoleVO[]>>
 }
 
 export function getRolePage(params: PageQuery) {
-  return get<PageResult<RoleVO>>('/system/role/page', params)
+  return request.get('/system/role/page', { params }) as Promise<ApiResult<PageResult<RoleVO>>>
 }
 
 export function getRole(id: number) {
-  return get<RoleVO>('/system/role/get', { id })
+  return request.get('/system/role/get', { params: { id } }) as Promise<ApiResult<RoleVO>>
 }
 
-export function createRole(data: RoleSaveDTO) {
-  return post('/system/role/create', data)
+export function createRole(data: Record<string, unknown>) {
+  return request.post('/system/role/create', data)
 }
 
-export function updateRole(data: RoleSaveDTO) {
-  return put('/system/role/update', data)
+export function updateRole(data: Record<string, unknown>) {
+  return request.put('/system/role/update', data)
 }
 
 export function deleteRole(id: number) {
-  return del('/system/role/delete', { params: { id } })
+  return request.delete('/system/role/delete', { params: { id } })
 }
 
 export function getRoleMenuIds(roleId: number) {
-  return get<number[]>('/system/role/get-menu-ids', { roleId })
+  return request.get('/system/role/get-menu-ids', { params: { roleId } }) as Promise<ApiResult<number[]>>
 }
 
 export function assignRoleMenu(data: { roleId: number; menuIds: number[] }) {
-  return post('/system/role/assign-menu', data)
+  return request.post('/system/role/assign-menu', data)
 }
 
 export function updateRoleStatus(id: number, status: number) {
-  return put('/system/role/update-status', null, { params: { id, status } })
+  return request.put('/system/role/update-status', null, { params: { id, status } })
 }
 
-export function getRecycleRolePage(params: RoleRecycleQuery) {
-  return get<PageResult<RoleVO>>('/system/role/recycle/page', params)
+export function getRecycleRolePage(params: PageQuery) {
+  return request.get('/system/role/recycle/page', { params }) as Promise<ApiResult<PageResult<RoleVO>>>
 }
 
 export function restoreRole(id: number) {
-  return put('/system/role/restore', null, { params: { id } })
+  return request.put('/system/role/restore', null, { params: { id } })
 }
 
 export function deleteRolePermanent(id: number) {
-  return del('/system/role/delete-permanent', { params: { id } })
+  return request.delete('/system/role/delete-permanent', { params: { id } })
 }

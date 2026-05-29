@@ -1,18 +1,7 @@
-import { get, post, put, del } from '@/utils/request'
-import type { AxiosRequestConfig } from 'axios'
+import request, { get } from '@/utils/request'
 import type { PageQuery, PageResult } from '@/types/api'
 import type { FileRecord } from '@/api/system/file/index'
-import type {
-  AnnounceMyVO,
-  AnnounceVO,
-  ChatGroup,
-  ChatGroupLogItem,
-  ChatMessage,
-  ChatUser,
-  GroupMember,
-} from '@/types/message'
-
-export type { AnnounceMyVO, AnnounceVO } from '@/types/message'
+import type { ChatGroup, ChatGroupLogItem, ChatMessage, ChatUser, GroupMember } from '@/types/message'
 
 export interface AnnounceSendLog {
   channel?: string
@@ -29,8 +18,7 @@ export interface MessageSummary {
   total?: number
 }
 
-/** 创建/更新公告请求体 */
-export interface AnnounceSaveDTO {
+export interface AnnouncePayload {
   id?: number | null
   title: string
   content: string
@@ -45,7 +33,6 @@ export interface ChatSendPayload {
   receiverId?: number
   content: string
   msgType?: number
-  mentionIds?: number[]
 }
 
 export interface CreateGroupPayload {
@@ -65,51 +52,39 @@ export function getMessageSummary() {
 }
 
 export function getAnnouncePage(params: MessagePageQuery) {
-  return get<PageResult<AnnounceVO>>('/system/announce/page', params)
+  return get<PageResult<AnnouncePayload & { id: number; createName?: string; createTime?: string }>>('/system/announce/page', params)
 }
 
 export function getMyAnnounce(params?: MessagePageQuery) {
-  return get<PageResult<AnnounceMyVO>>('/system/announce/my', params)
+  return get<PageResult<AnnouncePayload & { id: number; isRead?: number; createTime?: string }>>('/system/announce/my', params)
 }
 
 export function getAnnounceDetail(id: number) {
-  return get<AnnounceVO>(`/system/announce/${id}`)
+  return get<AnnouncePayload & { id: number }>(`/system/announce/${id}`)
 }
 
-export function createAnnounce(data: AnnounceSaveDTO) {
-  return post('/system/announce', data)
+export function createAnnounce(data: AnnouncePayload) {
+  return request.post('/system/announce', data)
 }
 
-export function updateAnnounce(data: AnnounceSaveDTO) {
-  return put('/system/announce', data)
+export function updateAnnounce(data: AnnouncePayload) {
+  return request.put('/system/announce', data)
 }
 
 export function deleteAnnounce(id: number) {
-  return del(`/system/announce/${id}`)
-}
-
-export function getRecycleAnnouncePage(params: { pageNo: number; pageSize: number; title?: string }) {
-  return get<PageResult<AnnounceVO>>('/system/announce/recycle/page', params)
-}
-
-export function restoreAnnounce(id: number) {
-  return put('/system/announce/restore', null, { params: { id } })
-}
-
-export function deleteAnnouncePermanent(id: number) {
-  return del('/system/announce/delete-permanent', { params: { id } })
+  return request.delete(`/system/announce/${id}`)
 }
 
 export function publishAnnounce(id: number) {
-  return post(`/system/announce/${id}/publish`)
+  return request.post(`/system/announce/${id}/publish`)
 }
 
 export function readAnnounce(id: number) {
-  return post(`/system/announce/${id}/read`)
+  return request.post(`/system/announce/${id}/read`)
 }
 
 export function readAllAnnounce() {
-  return post('/system/announce/read-all')
+  return request.post('/system/announce/read-all')
 }
 
 export function getAnnounceUnreadCount() {
@@ -121,39 +96,15 @@ export function getAnnounceSendLogs(id: number) {
 }
 
 export function sendChat(data: ChatSendPayload) {
-  return post<ChatMessage>('/system/chat/send', data)
+  return request.post('/system/chat/send', data)
 }
 
 export function uploadChatImage(file: File) {
   const formData = new FormData()
   formData.append('file', file)
-  return post<FileRecord>('/system/chat/upload/image', formData, {
+  return request.post<FileRecord>('/system/chat/upload/image', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   })
-}
-
-export function uploadChatFile(file: File) {
-  const formData = new FormData()
-  formData.append('file', file)
-  return post<FileRecord>('/system/chat/upload/file', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  })
-}
-
-export function canCreateChatGroup() {
-  return get<boolean>('/system/chat/can-create-group')
-}
-
-export function recallPrivateMessage(messageId: number) {
-  return post<ChatMessage>(`/system/chat/recall/${messageId}`)
-}
-
-export function recallGroupMessage(groupId: number, messageId: number) {
-  return post<ChatMessage>(`/system/chat/group/${groupId}/message/${messageId}/recall`)
-}
-
-export function sendTypingSignal(targetUserId: number) {
-  return post(`/system/chat/typing/${targetUserId}`)
 }
 
 export function getChatHistory(targetId: number, params?: MessagePageQuery) {
@@ -165,7 +116,7 @@ export function getChatUsers() {
 }
 
 export function readChat(senderId: number) {
-  return post(`/system/chat/read/${senderId}`)
+  return request.post(`/system/chat/read/${senderId}`)
 }
 
 export function getChatUnreadCount() {
@@ -177,27 +128,27 @@ export function isUserOnline(userId: number) {
 }
 
 export function clearChatHistory(targetId: number) {
-  return del(`/system/chat/clear/${targetId}`)
+  return request.delete(`/system/chat/clear/${targetId}`)
 }
 
 export function blockUser(targetId: number) {
-  return post(`/system/chat/block/${targetId}`)
+  return request.post(`/system/chat/block/${targetId}`)
 }
 
 export function unblockUser(targetId: number) {
-  return del(`/system/chat/block/${targetId}`)
+  return request.delete(`/system/chat/block/${targetId}`)
 }
 
 export function createChatGroup(data: CreateGroupPayload) {
-  return post<ChatGroup>('/system/chat/group/create', data)
+  return request.post('/system/chat/group/create', data)
 }
 
-export function getChatGroups(config: AxiosRequestConfig = {}) {
-  return get<ChatGroup[]>('/system/chat/group/list', undefined, config)
+export function getChatGroups() {
+  return get<ChatGroup[]>('/system/chat/group/list')
 }
 
 export function sendGroupMessage(groupId: number, data: ChatSendPayload) {
-  return post<ChatMessage>(`/system/chat/group/${groupId}/message`, data)
+  return request.post(`/system/chat/group/${groupId}/message`, data)
 }
 
 export function getGroupMessages(groupId: number, params?: MessagePageQuery) {
@@ -223,41 +174,33 @@ export interface UpdateGroupPayload {
 }
 
 export function updateChatGroup(data: UpdateGroupPayload) {
-  return put('/system/chat/group/update', data)
+  return request.put('/system/chat/group/update', data)
 }
 
 export function addGroupMembers(groupId: number, userIds: number[]) {
-  return post(`/system/chat/group/${groupId}/members`, { userIds })
+  return request.post(`/system/chat/group/${groupId}/members`, { userIds })
 }
 
 export function removeGroupMember(groupId: number, memberUserId: number) {
-  return del(`/system/chat/group/${groupId}/members/${memberUserId}`)
+  return request.delete(`/system/chat/group/${groupId}/members/${memberUserId}`)
 }
 
 export function setGroupAdmin(groupId: number, memberUserId: number, admin = true) {
-  return post(`/system/chat/group/${groupId}/admin/${memberUserId}`, null, { params: { admin } })
+  return request.post(`/system/chat/group/${groupId}/admin/${memberUserId}`, null, { params: { admin } })
 }
 
 export function setGroupMuted(groupId: number, memberUserId: number, muted = true) {
-  return post(`/system/chat/group/${groupId}/mute/${memberUserId}`, null, { params: { muted } })
+  return request.post(`/system/chat/group/${groupId}/mute/${memberUserId}`, null, { params: { muted } })
 }
 
 export function transferGroupOwner(groupId: number, newOwnerId: number) {
-  return post(`/system/chat/group/${groupId}/transfer/${newOwnerId}`)
-}
-
-export function markGroupAnnouncementRead(groupId: number) {
-  return post(`/system/chat/group/${groupId}/announcement/read`)
-}
-
-export function setGroupNotifyMuted(groupId: number, muted = true) {
-  return post(`/system/chat/group/${groupId}/notify-muted`, null, { params: { muted } })
+  return request.post(`/system/chat/group/${groupId}/transfer/${newOwnerId}`)
 }
 
 export function quitGroup(groupId: number) {
-  return post(`/system/chat/group/${groupId}/quit`)
+  return request.post(`/system/chat/group/${groupId}/quit`)
 }
 
 export function dissolveGroup(groupId: number) {
-  return del(`/system/chat/group/${groupId}`)
+  return request.delete(`/system/chat/group/${groupId}`)
 }

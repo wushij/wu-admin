@@ -1,26 +1,13 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { getMessageSummary } from '@/api/message'
-import { getMyNoticeList, type NoticeVO } from '@/api/system/notice'
+import { getMyNoticeList } from '@/api/system/notice'
 import {
   connectMessageWebSocket,
   disconnectMessageWebSocket,
   onMessageWebSocket,
   type WsPushMessage,
 } from '@/utils/messageWebSocket'
-import {
-  resolvePushTitle,
-  shouldNotifyChat,
-  shouldNotifyGroupChat,
-  shouldCountGroupUnread,
-  type ActiveChatTarget,
-} from '@/utils/message-push'
-import { getChatGroups } from '@/api/message'
-import type { ChatGroup } from '@/types/message'
-import { useUserStore } from '@/store/user'
-import { hasChatPerm } from '@/utils/hasMenuPerm'
-
-export type { ActiveChatTarget } from '@/utils/message-push'
 
 export interface PushNotification {
   id: number
@@ -30,10 +17,22 @@ export interface PushNotification {
   time: number | string
   senderId?: number
   groupId?: number
-  announceId?: number
 }
 
-export type InboxNoticeItem = NoticeVO
+export interface InboxNoticeItem {
+  id: number
+  title: string
+  content: string
+  readStatus?: number
+  bizType?: string
+  bizId?: number
+  createTime?: string
+}
+
+export interface ActiveChatTarget {
+  type: 'user' | 'group'
+  id: number
+}
 
 export const useMessageStore = defineStore('message', () => {
   const inboxCount = ref(0)
@@ -50,8 +49,6 @@ export const useMessageStore = defineStore('message', () => {
   const currentNotification = ref<PushNotification | null>(null)
   /** 当前正在查看的会话，用于抑制重复弹窗 */
   const activeChatTarget = ref<ActiveChatTarget | null>(null)
-  /** 群免打扰：仅 @ 我时提醒 */
-  const groupNotifyMutedById = ref<Record<number, boolean>>({})
   let offWs: (() => void) | null = null
   let notifyTimer: ReturnType<typeof setTimeout> | null = null
   /** 递增后通知 layout 重新拉取系统通知列表 */
@@ -65,31 +62,16 @@ export const useMessageStore = defineStore('message', () => {
     activeChatTarget.value = target
   }
 
-  function syncGroupNotifySettings(groups: ChatGroup[]) {
-    const map: Record<number, boolean> = { ...groupNotifyMutedById.value }
-    for (const g of groups) {
-      if (g.notifyMuted) map[g.id] = true
-      else delete map[g.id]
+  function shouldNotifyChat(msg: WsPushMessage): boolean {
+    const active = activeChatTarget.value
+    if (!active) return true
+    if (msg.type === 'groupChat' && active.type === 'group' && active.id === msg.groupId) {
+      return false
     }
-    groupNotifyMutedById.value = map
-  }
-
-  async function loadGroupNotifySettings() {
-    const userStore = useUserStore()
-    if (!hasChatPerm(userStore.userInfo.permissions, userStore.menus)) return
-    try {
-      const res = await getChatGroups({ silent403: true })
-      if (res.data) syncGroupNotifySettings(res.data)
-    } catch {
-      /* 无 IM 权限或接口不可用时不打扰用户 */
+    if (msg.type === 'chat' && active.type === 'user' && active.id === msg.senderId) {
+      return false
     }
-  }
-
-  function setGroupNotifyMutedLocal(groupId: number, muted: boolean) {
-    const next = { ...groupNotifyMutedById.value }
-    if (muted) next[groupId] = true
-    else delete next[groupId]
-    groupNotifyMutedById.value = next
+    return true
   }
 
   function incrementGroupUnread(groupId: number) {
@@ -125,15 +107,23 @@ export const useMessageStore = defineStore('message', () => {
   async function loadInbox() {
     try {
       const res = await getMyNoticeList()
-      inboxList.value = res.data || []
+      inboxList.value = (res.data || []) as InboxNoticeItem[]
     } catch (e) {
       console.error('loadInbox failed', e)
     }
   }
 
   function showPushNotification(msg: WsPushMessage) {
-    const type: PushNotification['type'] = msg.type === 'notice' ? 'notice' : 'chat'
-    const title = resolvePushTitle(msg)
+    let title = '新消息'
+    let type: PushNotification['type'] = 'chat'
+    if (msg.type === 'notice') {
+      type = 'notice'
+      title = msg.title || '系统通知'
+    } else if (msg.type === 'groupChat') {
+      title = msg.senderName ? `${msg.senderName}(群消息)` : '群消息'
+    } else {
+      title = msg.senderName || '新消息'
+    }
     const notification: PushNotification = {
       id: Date.now(),
       type,
@@ -142,7 +132,6 @@ export const useMessageStore = defineStore('message', () => {
       time: msg.time ?? Date.now(),
       senderId: msg.senderId,
       groupId: msg.groupId,
-      announceId: msg.announceId,
     }
     currentNotification.value = notification
     showNotification.value = true
@@ -159,19 +148,7 @@ export const useMessageStore = defineStore('message', () => {
     currentNotification.value = null
   }
 
-  /** 递增后通知聊天页处理撤回 WS */
-  const recallTick = ref(0)
-  const lastRecall = ref<WsPushMessage | null>(null)
-  /** 递增后通知聊天页同步群公告置顶 */
-  const groupAnnouncementTick = ref(0)
-  const lastGroupAnnouncement = ref<WsPushMessage | null>(null)
-
   function handleWsMessage(msg: WsPushMessage) {
-    if (msg.recall && (msg.messageId != null || msg.id != null)) {
-      lastRecall.value = msg
-      recallTick.value++
-      return
-    }
     if (msg.type === 'notice') {
       showPushNotification(msg)
       announceListTick.value++
@@ -179,40 +156,17 @@ export const useMessageStore = defineStore('message', () => {
       return
     }
     if (msg.type === 'chat') {
-      if (shouldNotifyChat(activeChatTarget.value, msg)) {
+      if (shouldNotifyChat(msg)) {
         showPushNotification(msg)
       }
       refreshSummary()
       return
     }
-    if (msg.type === 'groupAnnouncement' && msg.groupId != null) {
-      lastGroupAnnouncement.value = msg
-      groupAnnouncementTick.value++
-      const selfId = useUserStore().userInfo?.userId
-      const isSelf = selfId != null && Number(msg.senderId) === Number(selfId)
-      if (shouldNotifyChat(activeChatTarget.value, msg) && !isSelf) {
-        if (shouldCountGroupUnread(msg, groupNotifyMutedById.value)) {
-          incrementGroupUnread(msg.groupId)
-        }
-        if (shouldNotifyGroupChat(msg, groupNotifyMutedById.value)) {
-          showPushNotification(msg)
-        }
-      }
-      return
-    }
     if (msg.type === 'groupChat' && msg.groupId != null) {
-      if (shouldNotifyChat(activeChatTarget.value, msg)) {
-        if (shouldCountGroupUnread(msg, groupNotifyMutedById.value)) {
-          incrementGroupUnread(msg.groupId)
-        }
-        if (shouldNotifyGroupChat(msg, groupNotifyMutedById.value)) {
-          showPushNotification(msg)
-        }
+      if (shouldNotifyChat(msg)) {
+        incrementGroupUnread(msg.groupId)
+        showPushNotification(msg)
       }
-      return
-    }
-    if (msg.type === 'typing') {
-      return
     }
   }
 
@@ -220,7 +174,6 @@ export const useMessageStore = defineStore('message', () => {
     if (offWs) return
     connectMessageWebSocket()
     offWs = onMessageWebSocket(handleWsMessage)
-    loadGroupNotifySettings()
   }
 
   function destroyWebSocket() {
@@ -255,16 +208,9 @@ export const useMessageStore = defineStore('message', () => {
     closeNotification,
     showPushNotification,
     setActiveChatTarget,
-    syncGroupNotifySettings,
-    loadGroupNotifySettings,
-    setGroupNotifyMutedLocal,
     incrementGroupUnread,
     clearGroupUnread,
     getGroupUnread,
     handleWsMessage,
-    recallTick,
-    lastRecall,
-    groupAnnouncementTick,
-    lastGroupAnnouncement,
   }
 })

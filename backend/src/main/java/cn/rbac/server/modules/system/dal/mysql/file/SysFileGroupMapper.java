@@ -10,10 +10,11 @@ import java.util.List;
 @Mapper
 public interface SysFileGroupMapper extends BaseMapper<SysFileGroupDO> {
 
-    @Select("SELECT g.*, (SELECT COUNT(*) FROM sys_file f WHERE f.group_id = g.id) AS file_count "
+    @Select("SELECT g.*, (SELECT COUNT(*) FROM sys_file f WHERE f.group_id = g.id "
+            + "AND f.file_path NOT LIKE 'images/chat/%') AS file_count "
             + "FROM sys_file_group g ORDER BY g.sort ASC, g.id ASC")
     List<SysFileGroupDO> selectListWithFileCount();
 
-    @Select("SELECT COUNT(*) FROM sys_file WHERE group_id IS NULL")
+    @Select("SELECT COUNT(*) FROM sys_file WHERE group_id IS NULL AND file_path NOT LIKE 'images/chat/%'")
     Integer selectUngroupedFileCount();
 }

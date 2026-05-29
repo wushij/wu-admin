@@ -51,16 +51,16 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getOnlineUserList, forceLogoutOnlineUser } from '@/api/monitor/online'
+import { getOnlineUserList, forceLogoutOnlineUser, type OnlineUser } from '@/api/monitor/online'
 import { useUserStore } from '@/store/user'
 import router from '@/router'
 
 const userStore = useUserStore()
 const loading = ref(false)
-const tableData = ref([])
+const tableData = ref<OnlineUser[]>([])
 
 async function loadData() {
   loading.value = true
@@ -74,7 +74,7 @@ async function loadData() {
   }
 }
 
-function handleForceLogout(row) {
+function handleForceLogout(row: OnlineUser) {
   const isSelf = userStore.userInfo?.userId != null && row.userId === userStore.userInfo.userId
 
   ElMessageBox.confirm('确定要强制下线该用户吗？', '提示', {

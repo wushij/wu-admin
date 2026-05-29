@@ -31,6 +31,7 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:8080',
         changeOrigin: true,
+        ws: true,
       },
       // Knife4j 页面引用 /webjars、/swagger-ui 等同源根路径（后端 context-path=/api）
       '/doc.html': knife4jProxy((path) => `/api${path}`),

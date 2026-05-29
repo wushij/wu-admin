@@ -157,48 +157,88 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import type { ECharts } from 'echarts'
+import type { CallbackDataParams } from 'echarts/types/dist/shared'
 import { useUserStore } from '@/store/user'
 import { hasMenuPermission } from '@/directives/permission'
 import { getApiAccessPage, getApiAccessStatistics } from '@/api/monitor/api-access'
 
+interface TopUserRow {
+  userId: number
+  username?: string
+  count?: number
+}
+
+interface TopPathRow {
+  apiPath?: string
+  count?: number
+}
+
+interface DailyStatItem {
+  total?: number
+  success?: number
+  fail?: number
+}
+
+interface ApiAccessStats {
+  totalCount: number
+  successCount: number
+  failCount: number
+  dailyStats: Record<string, DailyStatItem>
+  topPaths: TopPathRow[]
+  topUsers: TopUserRow[]
+  methodCount: Record<string, number>
+}
+
+interface ApiAccessLogRow {
+  id?: number
+  userId?: number
+  username?: string
+  apiPath?: string
+  method?: string
+  success?: number
+  createTime?: string
+  [key: string]: unknown
+}
+
 const userStore = useUserStore()
 const canQuery = computed(() => hasMenuPermission(userStore.menus, 'monitor:apiAccess:query'))
 
-const stats = reactive({
+const stats = reactive<ApiAccessStats>({
   totalCount: 0,
   successCount: 0,
   failCount: 0,
   dailyStats: {},
   topPaths: [],
   topUsers: [],
-  methodCount: {}
+  methodCount: {},
 })
 
-const methodChartRef = ref(null)
-const pathChartRef = ref(null)
-const lineChartRef = ref(null)
-let methodChart = null
-let pathChart = null
-let lineChart = null
-let echartsModule = null
+const methodChartRef = ref<HTMLElement | null>(null)
+const pathChartRef = ref<HTMLElement | null>(null)
+const lineChartRef = ref<HTMLElement | null>(null)
+let methodChart: ECharts | null = null
+let pathChart: ECharts | null = null
+let lineChart: ECharts | null = null
+let echartsModule: typeof import('echarts') | null = null
 
 const queryParams = reactive({
   pageNo: 1,
   pageSize: 20,
-  userId: null,
+  userId: null as number | null,
   apiPath: '',
-  method: null,
-  success: null
+  method: null as string | null,
+  success: null as number | null,
 })
-const dateRange = ref(null)
-const tableData = ref([])
+const dateRange = ref<[string, string] | null>(null)
+const tableData = ref<ApiAccessLogRow[]>([])
 const loading = ref(false)
 const total = ref(0)
 
 /** 本地日期 YYYY-MM-DD（避免 toISOString 用 UTC 导致「今天」偏差一天） */
-function formatLocalDate(d) {
+function formatLocalDate(d: Date) {
   const y = d.getFullYear()
   const m = String(d.getMonth() + 1).padStart(2, '0')
   const day = String(d.getDate()).padStart(2, '0')
@@ -212,14 +252,14 @@ const startDate = computed(() => {
 })
 const endDate = computed(() => formatLocalDate(new Date()))
 
-function parseLocalDate(str) {
+function parseLocalDate(str: string) {
   const [y, m, d] = str.split('-').map(Number)
   return new Date(y, m - 1, d)
 }
 
 /** 近 7 天完整日期轴（含无访问的 0） */
 function buildDailyDateKeys() {
-  const keys = []
+  const keys: string[] = []
   let cur = parseLocalDate(startDate.value)
   const end = parseLocalDate(endDate.value)
   while (cur <= end) {
@@ -229,7 +269,7 @@ function buildDailyDateKeys() {
   return keys
 }
 
-function displayUser(row) {
+function displayUser(row: TopUserRow) {
   return row?.username || '-'
 }
 
@@ -246,7 +286,7 @@ async function loadStatistics() {
       startDate: startDate.value,
       endDate: endDate.value
     })
-    const data = res.data || {}
+    const data = (res.data || {}) as Partial<ApiAccessStats>
     stats.totalCount = data.totalCount ?? 0
     stats.successCount = data.successCount ?? 0
     stats.failCount = data.failCount ?? 0
@@ -284,10 +324,11 @@ async function updateCharts() {
     pathChart.setOption({
       tooltip: {
         trigger: 'axis',
-        formatter(params) {
-          const idx = params[0]?.dataIndex
-          const full = paths[idx]?.apiPath ?? params[0]?.name
-          return `${full}<br/>次数: ${params[0]?.value ?? 0}`
+        formatter(params: CallbackDataParams | CallbackDataParams[]) {
+          const list = Array.isArray(params) ? params : [params]
+          const idx = list[0]?.dataIndex
+          const full = paths[idx as number]?.apiPath ?? list[0]?.name
+          return `${full}<br/>次数: ${list[0]?.value ?? 0}`
         }
       },
       grid: { left: 50, right: 24, bottom: 88, top: 24 },
@@ -324,13 +365,13 @@ async function updateCharts() {
 async function loadPage() {
   loading.value = true
   try {
-    const params = {
+    const params: Record<string, unknown> = {
       pageNo: queryParams.pageNo,
       pageSize: queryParams.pageSize,
       userId: queryParams.userId ?? undefined,
       apiPath: queryParams.apiPath || undefined,
       method: queryParams.method || undefined,
-      success: queryParams.success ?? undefined
+      success: queryParams.success ?? undefined,
     }
     if (dateRange.value?.length === 2) {
       params.startTime = dateRange.value[0]
@@ -367,7 +408,7 @@ function handleResize() {
   lineChart?.resize()
 }
 
-let statsTimer = null
+let statsTimer: ReturnType<typeof setInterval> | null = null
 
 onMounted(() => {
   if (!canQuery.value) return
