@@ -154,6 +154,15 @@ public class SystemConfigHelper {
         return isCaptchaEnabled();
     }
 
+    public String getRegisterCaptchaType() {
+        JSONObject reg = getGroupJson(GROUP_REGISTER);
+        if (reg.containsKey("captchaType")) {
+            String type = reg.getStr("captchaType", CAPTCHA_TYPE_IMAGE);
+            return StrUtil.isBlank(type) ? CAPTCHA_TYPE_IMAGE : type;
+        }
+        return getCaptchaType();
+    }
+
     public String getRegisterDefaultRoleCode() {
         String code = getGroupJson(GROUP_REGISTER).getStr("defaultRoleCode", "user");
         return StrUtil.isBlank(code) ? "user" : code.trim();
@@ -191,6 +200,7 @@ public class SystemConfigHelper {
         Map<String, Object> register = new HashMap<>();
         register.put("enabled", isRegisterEnabled());
         register.put("captchaEnabled", isRegisterCaptchaEnabled());
+        register.put("captchaType", getRegisterCaptchaType());
         register.put("defaultRoleCode", getRegisterDefaultRoleCode());
         register.put("needAudit", isRegisterNeedAudit());
         register.put("minPasswordLength", getRegisterMinPasswordLength());

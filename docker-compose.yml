@@ -54,7 +54,7 @@ services:
       APP_API_DOCS_SERVER_URL: http://localhost:3000/api
       TZ: Asia/Shanghai
     ports:
-      - "8081:8081"
+      - "8080:8080"
     depends_on:
       mysql:
         condition: service_healthy

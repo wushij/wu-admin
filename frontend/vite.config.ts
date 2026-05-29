@@ -2,10 +2,10 @@ import { defineConfig, type ProxyOptions } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import { resolve } from 'path'
 
-// 开发环境：/api 与 Knife4j 资源代理到本地 backend（8081，context-path=/api）
+// 开发环境：/api 与 Knife4j 资源代理到本地 backend（8080，context-path=/api）
 function knife4jProxy(rewrite?: ProxyOptions['rewrite']): ProxyOptions {
   return {
-    target: 'http://127.0.0.1:8081',
+    target: 'http://127.0.0.1:8080',
     changeOrigin: true,
     rewrite,
     configure: (proxy) => {
@@ -20,8 +20,8 @@ export default defineConfig({
   plugins: [vue()],
   resolve: {
     alias: {
-      '@': resolve(__dirname, 'src')
-    }
+      '@': resolve(__dirname, 'src'),
+    },
   },
   server: {
     host: true,
@@ -29,7 +29,7 @@ export default defineConfig({
     proxy: {
       // 所有 /api 请求代理到 Spring Boot 后端
       '/api': {
-        target: 'http://localhost:8081',
+        target: 'http://localhost:8080',
         changeOrigin: true,
       },
       // Knife4j 页面引用 /webjars、/swagger-ui 等同源根路径（后端 context-path=/api）
