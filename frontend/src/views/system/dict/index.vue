@@ -24,7 +24,7 @@
       </el-form>
       <p class="dict-hint">
         左侧选择字典类型，右侧维护选项；业务表单通过
-        <code>DictSelect</code> / <code>DictTag</code> 引用类型编码（如 <code>sys_normal_disable</code>），修改后请点击「刷新缓存」。
+        <code>DictSelect</code> / <code>DictTag</code> 引用类型编码。保存后已自动同步本地缓存，其他已打开页面请刷新。
       </p>
     </el-card>
 
@@ -291,7 +291,7 @@ import {
   deleteDictData,
   refreshDictCache
 } from '@/api/system/dict'
-import { clearDictCache, preloadDicts, listClassToTagType } from '@/composables/useDict'
+import { clearDictCache, preloadDicts, reloadDictTypes, listClassToTagType } from '@/composables/useDict'
 import { DICT_TYPE, COMMON_DICT_TYPES } from '@/constants/dict'
 
 const loading = ref(false)
@@ -442,6 +442,11 @@ function handleEditType(row: DictTypeVO) {
   typeDialogVisible.value = true
 }
 
+async function afterDictChanged(...types: (string | undefined)[]) {
+  const merged = [...new Set([...types.filter((t): t is string => Boolean(t)), ...COMMON_DICT_TYPES])]
+  await reloadDictTypes(merged)
+}
+
 async function submitType() {
   await typeFormRef.value?.validate()
   typeSubmitting.value = true
@@ -454,9 +459,9 @@ async function submitType() {
       ElMessage.success('创建成功')
     }
     clearDictCache(typeForm.dictType)
-    COMMON_DICT_TYPES.forEach((t) => clearDictCache(t))
     typeDialogVisible.value = false
     await loadTypes()
+    await afterDictChanged(typeForm.dictType)
   } finally {
     typeSubmitting.value = false
   }
@@ -470,10 +475,10 @@ async function handleDeleteType(row: DictTypeVO) {
     { type: 'warning' }
   )
   await deleteDictType(row.id)
-  clearDictCache(row.dictType)
   if (selectedType.value?.id === row.id) selectedType.value = null
   ElMessage.success('删除成功')
-  loadTypes()
+  await loadTypes()
+  await afterDictChanged(row.dictType)
 }
 
 async function handleCopyType() {
@@ -483,16 +488,16 @@ async function handleCopyType() {
   })
   await copyDictType(selectedType.value.id)
   ElMessage.success('复制成功')
-  clearDictCache()
   await loadTypes()
+  await afterDictChanged()
 }
 
 async function handleRefreshCache() {
   await refreshDictCache()
   clearDictCache()
   await preloadDicts(COMMON_DICT_TYPES)
-  if (selectedType.value) clearDictCache(selectedType.value.dictType)
-  ElMessage.success('字典缓存已刷新（含服务端 Redis）')
+  if (selectedType.value) await reloadDictTypes([selectedType.value.dictType])
+  ElMessage.success('服务端与本地字典缓存已刷新')
 }
 
 async function loadDictData() {
@@ -550,10 +555,10 @@ async function submitData() {
       await createDictData({ ...dataForm })
       ElMessage.success('创建成功')
     }
-    clearDictCache(dataForm.dictType)
     dataFormVisible.value = false
     await loadDictData()
     await loadTypes()
+    await afterDictChanged(dataForm.dictType)
   } finally {
     dataSubmitting.value = false
   }
@@ -563,10 +568,10 @@ async function handleDeleteData(row: DictDataItem) {
   if (row.id == null) return
   await ElMessageBox.confirm(`确定要删除字典数据「${row.dictLabel}」吗？`, '提示', { type: 'warning' })
   await deleteDictData(row.id)
-  clearDictCache(row.dictType)
   ElMessage.success('删除成功')
   await loadDictData()
   await loadTypes()
+  await afterDictChanged(row.dictType)
 }
 
 onMounted(async () => {

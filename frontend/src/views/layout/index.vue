@@ -344,6 +344,14 @@ const userMenus = computed<MenuNode[]>(() => {
   }
   cleanChildren(rootMenus)
 
+  const sortMenus = (items: MenuNode[]) => {
+    items.sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0) || a.id - b.id)
+    items.forEach((menu) => {
+      if (menu.children?.length) sortMenus(menu.children)
+    })
+  }
+  sortMenus(rootMenus)
+
   return rootMenus
 })
 

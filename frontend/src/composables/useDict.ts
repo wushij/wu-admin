@@ -100,6 +100,13 @@ export function getDictLabel(dictType: string, value: unknown): string {
   return hit ? hit.label : String(value)
 }
 
+/** 读取字典项 isDefault=1 的键值 */
+export function getDictDefaultValue(dictType: string): string | number | undefined {
+  const list = cache.get(dictType) || []
+  const hit = list.find(o => o.raw?.isDefault === 1)
+  return hit?.value as string | number | undefined
+}
+
 export function getDictListClass(dictType: string, value: unknown): string {
   const list = cache.get(dictType) || []
   const hit = list.find(o => String(o.value) === String(value))
@@ -128,6 +135,14 @@ export function clearDictCache(dictType?: string) {
   } else {
     cache.clear()
   }
+}
+
+/** 重新拉取指定字典（清本地缓存后从服务端加载） */
+export async function reloadDictTypes(dictTypes: string[]) {
+  const types = [...new Set(dictTypes.filter(Boolean))]
+  if (!types.length) return
+  types.forEach((t) => clearDictCache(t))
+  await preloadDicts(types)
 }
 
 export const dictCache: Ref<Map<string, DictOption[]>> = shallowRef(cache)

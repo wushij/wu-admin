@@ -207,7 +207,11 @@ public class PermissionServiceImpl implements PermissionService {
             return new ArrayList<>();
         }
         menuIds = expandMenuClosure(menuIds);
-        return listMenusByIds(menuIds);
+        List<MenuDO> menus = listMenusByIds(menuIds);
+        menus.sort(Comparator
+                .comparing(MenuDO::getSort, Comparator.nullsLast(Integer::compareTo))
+                .thenComparing(MenuDO::getId, Comparator.nullsLast(Long::compareTo)));
+        return menus;
     }
 
     /**

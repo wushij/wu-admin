@@ -5,7 +5,7 @@
 -- 【全新安装】执行本文件全文即可（建库、建表、初始数据）。
 -- 【已有库升级】若表已存在，可只执行文末「附录：已有库升级」段（可重复执行）。
 --
--- 已有库增量：add1.sql～add3.sql（业务/消息）、add4.sql（索引）、add5.sql（安全配置）、add6.sql（组织示例数据）、add7.sql（第三方/支付）、add8.sql（Google 配置）、add9.sql（组织树分级）；
+-- 已有库增量：add1.sql～add3.sql（业务/消息）、add4.sql（索引）、add5.sql（安全配置）、add6.sql（组织示例数据）、add7.sql（第三方/支付）、add8.sql（Google 配置）、add9.sql（组织树分级）、add10.sql（一级菜单排序）、add11.sql（定时任务）；
 -- 或执行文末「附录：已有库升级」段（配置/菜单/消息表/组织数据等，可重复执行）。
 -- =============================================
 
@@ -249,6 +249,45 @@ CREATE TABLE sys_oper_log (
     INDEX idx_title (title),
     INDEX idx_oper_time_status (oper_time, status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='操作日志表';
+
+-- =============================================
+-- 7b. 定时任务
+-- =============================================
+DROP TABLE IF EXISTS sys_job_log;
+DROP TABLE IF EXISTS sys_job;
+CREATE TABLE sys_job (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
+    job_name VARCHAR(64) NOT NULL COMMENT '任务名称',
+    job_group VARCHAR(64) DEFAULT 'DEFAULT' COMMENT '任务组名',
+    invoke_target VARCHAR(500) NOT NULL COMMENT '调用目标字符串',
+    cron_expression VARCHAR(255) DEFAULT NULL COMMENT 'cron执行表达式',
+    misfire_policy TINYINT DEFAULT 3 COMMENT '计划执行错误策略(1-立即执行 2-执行一次 3-放弃执行)',
+    concurrent TINYINT DEFAULT 1 COMMENT '是否并发执行(0-允许 1-禁止)',
+    status TINYINT DEFAULT 0 COMMENT '状态(0-暂停 1-正常)',
+    remark VARCHAR(500) DEFAULT NULL COMMENT '备注',
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    creator VARCHAR(64) DEFAULT '' COMMENT '创建者',
+    updater VARCHAR(64) DEFAULT '' COMMENT '更新者',
+    deleted TINYINT DEFAULT 0 COMMENT '是否删除',
+    INDEX idx_job_group (job_group),
+    INDEX idx_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='定时任务表';
+
+CREATE TABLE sys_job_log (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
+    job_name VARCHAR(64) NOT NULL COMMENT '任务名称',
+    job_group VARCHAR(64) DEFAULT NULL COMMENT '任务组名',
+    invoke_target VARCHAR(500) DEFAULT NULL COMMENT '调用目标字符串',
+    job_message VARCHAR(500) DEFAULT NULL COMMENT '日志信息',
+    status TINYINT DEFAULT 0 COMMENT '执行状态(0-正常 1-失败)',
+    exception_info VARCHAR(2000) DEFAULT NULL COMMENT '异常信息',
+    start_time DATETIME DEFAULT NULL COMMENT '开始时间',
+    stop_time DATETIME DEFAULT NULL COMMENT '停止时间',
+    INDEX idx_job_name (job_name),
+    INDEX idx_start_time (start_time),
+    INDEX idx_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='定时任务日志表';
 
 -- =============================================
 -- 8. 工单表
@@ -649,7 +688,11 @@ INSERT INTO sys_role (id, name, code, sort, status, remark) VALUES
 INSERT INTO sys_dict_type (id, dict_name, dict_type, status, remark) VALUES
 (1, '系统状态', 'sys_normal_disable', 1, '通用启用停用'),
 (2, '用户性别', 'sys_user_sex', 1, '用户性别'),
-(3, '是否', 'sys_yes_no', 1, '是或否');
+(3, '是否', 'sys_yes_no', 1, '是或否'),
+(4, '工单状态', 'sys_ticket_status', 1, '工单流转状态'),
+(5, '工单优先级', 'sys_ticket_priority', 1, '工单优先级'),
+(6, '审批类型', 'sys_approval_form_type', 1, '审批单业务类型'),
+(7, '审批状态', 'sys_approval_status', 1, '审批单流转状态');
 
 INSERT INTO sys_dict_data (dict_type, sort, dict_label, dict_value, list_class, is_default, status) VALUES
 ('sys_normal_disable', 1, '启用', '1', 'success', 1, 1),
@@ -658,7 +701,26 @@ INSERT INTO sys_dict_data (dict_type, sort, dict_label, dict_value, list_class, 
 ('sys_user_sex', 2, '女', '2', 'danger', 0, 1),
 ('sys_user_sex', 3, '未知', '0', 'info', 1, 1),
 ('sys_yes_no', 1, '是', 'Y', 'success', 1, 1),
-('sys_yes_no', 2, '否', 'N', 'info', 0, 1);
+('sys_yes_no', 2, '否', 'N', 'info', 0, 1),
+('sys_ticket_status', 1, '待处理', 'OPEN', 'info', 1, 1),
+('sys_ticket_status', 2, '处理中', 'IN_PROGRESS', 'warning', 0, 1),
+('sys_ticket_status', 3, '已解决', 'RESOLVED', 'success', 0, 1),
+('sys_ticket_status', 4, '已关闭', 'CLOSED', 'danger', 0, 1),
+('sys_ticket_priority', 1, '低', 'LOW', 'info', 0, 1),
+('sys_ticket_priority', 2, '中', 'MEDIUM', 'success', 1, 1),
+('sys_ticket_priority', 3, '高', 'HIGH', 'warning', 0, 1),
+('sys_ticket_priority', 4, '紧急', 'URGENT', 'danger', 0, 1),
+('sys_approval_form_type', 1, '通用', 'GENERAL', 'info', 1, 1),
+('sys_approval_form_type', 2, '请假', 'LEAVE', 'primary', 0, 1),
+('sys_approval_form_type', 3, '采购', 'PURCHASE', 'warning', 0, 1),
+('sys_approval_form_type', 4, '报销', 'REIMBURSE', 'success', 0, 1),
+('sys_approval_form_type', 5, '用印', 'SEAL', 'danger', 0, 1),
+('sys_approval_form_type', 6, '合同', 'CONTRACT', 'info', 0, 1),
+('sys_approval_form_type', 7, '注册审核', 'REGISTER', 'warning', 0, 1),
+('sys_approval_status', 1, '待审批', 'SUBMITTED', 'warning', 1, 1),
+('sys_approval_status', 2, '已通过', 'APPROVED', 'success', 0, 1),
+('sys_approval_status', 3, '已驳回', 'REJECTED', 'danger', 0, 1),
+('sys_approval_status', 4, '已归档', 'ARCHIVED', 'info', 0, 1);
 
 INSERT INTO sys_config_group (group_code, group_name, config_value, remark) VALUES
 ('site', '基础信息', '{"platformName":"Admin Platform","platformSubtitle":"统一运维 · 高效管控","loginWelcome":"Welcome","registerTitle":"Sign Up","copyright":""}', '平台展示名称与登录页文案'),
@@ -743,7 +805,7 @@ INSERT INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, c
 (73, '审批单归档', 'system:approval:archive', 3, 4, 9, '', '', '', 1),
 (74, '审批单删除', 'system:approval:delete', 3, 5, 9, '', '', '', 1),
 -- 文件管理目录（与系统管理、系统监控同级）
-(105, '文件管理', '', 1, 4, 0, '/file', 'Folder', '', 1),
+(105, '文件管理', '', 1, 5, 0, '/file', 'Folder', '', 1),
 (110, '文件列表', 'sys:file:list', 2, 1, 105, '/system/file', 'Document', 'system/file/index', 1),
 (111, '文件查询', 'sys:file:query', 3, 1, 110, '', '', '', 1),
 (112, '文件上传', 'sys:file:upload', 3, 2, 110, '', '', '', 1),
@@ -756,8 +818,14 @@ INSERT INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, c
 -- 在线用户
 (103, '在线用户', 'monitor:online:list', 2, 2, 100, '/monitor/online', 'User', 'monitor/online/index', 1),
 (104, '在线用户强退', 'monitor:online:forceLogout', 3, 1, 103, '', '', '', 1),
+-- 定时任务
+(180, '定时任务', 'monitor:job:list', 2, 3, 100, '/monitor/job', 'Timer', 'monitor/job/index', 1),
+(181, '任务查询', 'monitor:job:query', 3, 1, 180, '', '', '', 1),
+(182, '任务新增', 'monitor:job:add', 3, 2, 180, '', '', '', 1),
+(183, '任务编辑', 'monitor:job:edit', 3, 3, 180, '', '', '', 1),
+(184, '任务删除', 'monitor:job:delete', 3, 4, 180, '', '', '', 1),
 -- 系统日志目录
-(120, '系统日志', '', 1, 5, 0, '/log', 'Notebook', '', 1),
+(120, '系统日志', '', 1, 4, 0, '/log', 'Notebook', '', 1),
 (121, '操作日志', 'system:operLog:list', 2, 1, 120, '/system/oper-log', 'EditPen', 'system/oper-log/index', 1),
 (126, '操作日志查询', 'system:operLog:query', 3, 1, 121, '', '', '', 1),
 (127, '操作日志删除', 'system:operLog:delete', 3, 2, 121, '', '', '', 1),
@@ -765,10 +833,10 @@ INSERT INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, c
 -- 登录日志（隶属系统日志）
 (6, '登录日志', 'system:loginLog:list', 2, 2, 120, '/system/login-log', 'Promotion', 'system/login-log/index', 1),
 -- 开发工具
-(150, '开发工具', '', 1, 6, 0, '/tool', 'Tools', '', 1),
+(150, '开发工具', '', 1, 7, 0, '/tool', 'Tools', '', 1),
 (151, '接口文档', 'tool:apiDoc:view', 2, 1, 150, '/tool/api-doc', 'Document', '/doc.html', 1),
 -- 消息中心
-(170, '消息中心', '', 1, 7, 0, '/message', 'Bell', '', 1),
+(170, '消息中心', '', 1, 6, 0, '/message', 'Bell', '', 1),
 (171, '系统通知', 'system:announce:list', 2, 1, 170, '/message/notice', 'Notification', 'message/notice/index', 1),
 (172, '即时聊天', 'system:chat:list', 2, 2, 170, '/message/chat', 'ChatDotRound', 'message/chat/index', 1),
 (173, '通知查询', 'system:announce:query', 3, 1, 171, '', '', '', 1),
@@ -777,6 +845,15 @@ INSERT INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, c
 (176, '通知删除', 'system:announce:delete', 3, 4, 171, '', '', '', 1),
 (177, '通知发布', 'system:announce:publish', 3, 5, 171, '', '', '', 1),
 (178, '聊天查询', 'system:chat:query', 3, 1, 172, '', '', '', 1);
+
+-- 初始化定时任务（默认暂停，可在「系统监控-定时任务」启用）
+INSERT INTO sys_job (id, job_name, job_group, invoke_target, cron_expression, misfire_policy, concurrent, status, remark) VALUES
+(1, '过期日志归档清理', 'SYSTEM', 'systemJobTask.purgeExpiredLogs', '0 30 2 * * ?', 3, 1, 0, '清理超保留期的操作/登录/API访问日志'),
+(2, '私聊消息清理', 'SYSTEM', 'systemJobTask.purgeOldChatMessages', '0 0 3 * * ?', 3, 1, 0, '清理超过 180 天的私聊记录'),
+(3, '群聊消息清理', 'SYSTEM', 'systemJobTask.purgeOldGroupChatMessages', '0 10 3 * * ?', 3, 1, 0, '清理超过 180 天的群聊记录'),
+(4, '调度日志清理', 'SYSTEM', 'systemJobTask.purgeExpiredJobLogs', '0 0 4 ? * SUN', 3, 1, 0, '清理 30 天前的 Quartz 调度执行日志'),
+(5, '已读通知清理', 'SYSTEM', 'systemJobTask.purgeReadNotices', '0 15 3 * * ?', 3, 1, 0, '清理已读且超过 90 天的站内通知'),
+(6, '工单回收站清理', 'SYSTEM', 'systemJobTask.purgeTicketRecycleBin', '0 30 3 * * ?', 3, 1, 0, '彻底删除回收站中超过 30 天的工单');
 
 -- 初始化用户角色关联
 INSERT INTO sys_user_role (user_id, role_id) VALUES
@@ -795,7 +872,7 @@ INSERT INTO sys_role_menu (role_id, menu_id) VALUES
 (1, 50), (1, 51), (1, 52),
 (1, 60), (1, 61), (1, 62), (1, 63), (1, 64), (1, 65),
 (1, 70), (1, 71), (1, 72), (1, 73), (1, 74),
-(1, 100), (1, 101), (1, 102), (1, 103), (1, 104),
+(1, 100), (1, 101), (1, 102), (1, 103), (1, 104), (1, 180), (1, 181), (1, 182), (1, 183), (1, 184),
 (1, 105), (1, 110), (1, 111), (1, 112), (1, 113),
 (1, 150), (1, 151),
 (1, 170), (1, 171), (1, 172), (1, 173), (1, 174), (1, 175), (1, 176), (1, 177), (1, 178);
@@ -1010,7 +1087,7 @@ CREATE TABLE IF NOT EXISTS sys_chat_group_log (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='群聊操作日志';
 
 INSERT INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, component, status) VALUES
-(170, '消息中心', '', 1, 7, 0, '/message', 'Bell', '', 1),
+(170, '消息中心', '', 1, 6, 0, '/message', 'Bell', '', 1),
 (171, '系统通知', 'system:announce:list', 2, 1, 170, '/message/notice', 'Notification', 'message/notice/index', 1),
 (172, '即时聊天', 'system:chat:list', 2, 2, 170, '/message/chat', 'ChatDotRound', 'message/chat/index', 1),
 (173, '通知查询', 'system:announce:query', 3, 1, 171, '', '', '', 1),

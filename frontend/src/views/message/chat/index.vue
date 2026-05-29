@@ -41,7 +41,12 @@
               @click="selectUser(user)"
             >
               <div class="avatar-wrap">
-                <el-avatar :size="36">{{ (user.nickname || user.username || 'U').charAt(0) }}</el-avatar>
+                <el-avatar
+                  :size="36"
+                  :src="contactAvatar(user)"
+                >
+                  {{ avatarFallback(user.nickname || user.username) }}
+                </el-avatar>
                 <span v-if="onlineMap[user.id] && !user.isBlocked" class="online-dot" />
               </div>
               <div class="contact-info">
@@ -87,7 +92,9 @@
         <div class="chat-main">
           <template v-if="selectedUser && !selectedGroup">
             <div class="chat-header">
-              <el-avatar :size="40">{{ (selectedUser.nickname || 'U').charAt(0) }}</el-avatar>
+              <el-avatar :size="40" :src="contactAvatar(selectedUser)">
+                {{ avatarFallback(selectedUser.nickname || selectedUser.username) }}
+              </el-avatar>
               <div class="header-info">
                 <div class="header-name">{{ selectedUser.nickname || selectedUser.username }}</div>
                 <div class="header-status">
@@ -127,7 +134,9 @@
             </div>
             <div ref="messageListRef" class="message-list" v-loading="loadingHistory">
               <div v-for="msg in messages" :key="msg.id" :data-msg-id="msg.id" class="message-item" :class="{ self: msg.senderId === currentUserId }">
-                <el-avatar :size="32">{{ (msg.senderName || 'U').charAt(0) }}</el-avatar>
+                <el-avatar :size="32" :src="messageAvatar(msg)">
+                  {{ avatarFallback(msg.senderName) }}
+                </el-avatar>
                 <div class="message-body">
                   <div v-if="msg.msgType === 2" class="msg-image" @click="openImagePreview(msg.content)">
                     <img :src="msg.content" alt="图片" />
@@ -140,14 +149,7 @@
             </div>
             <div class="chat-input">
               <div class="input-toolbar">
-                <el-popover placement="top-start" :width="260" trigger="click" popper-class="emoji-popover">
-                  <template #reference>
-                    <el-button link class="toolbar-btn"><el-icon><Sunny /></el-icon></el-button>
-                  </template>
-                  <div class="emoji-grid">
-                    <span v-for="e in emojis" :key="e" class="emoji" @click="inputContent += e">{{ e }}</span>
-                  </div>
-                </el-popover>
+                <EmojiPicker @pick="(e) => (inputContent += e)" />
                 <el-upload :show-file-list="false" accept="image/*" :http-request="handleUploadImage">
                   <el-button link class="toolbar-btn"><el-icon><Picture /></el-icon></el-button>
                 </el-upload>
@@ -201,7 +203,9 @@
               <template v-for="msg in groupMessages" :key="msg.id">
                 <div v-if="msg.msgType === 4" class="system-msg">{{ msg.content }}</div>
                 <div v-else class="message-item" :data-msg-id="msg.id" :class="{ self: msg.senderId === currentUserId }">
-                  <el-avatar :size="32">{{ (msg.senderName || 'U').charAt(0) }}</el-avatar>
+                  <el-avatar :size="32" :src="messageAvatar(msg)">
+                  {{ avatarFallback(msg.senderName) }}
+                </el-avatar>
                   <div class="message-body">
                     <div v-if="msg.senderId !== currentUserId" class="sender-name">{{ msg.senderName }}</div>
                     <div v-if="msg.msgType === 2" class="msg-image" @click="openImagePreview(msg.content)">
@@ -216,14 +220,7 @@
             </div>
             <div class="chat-input">
               <div class="input-toolbar">
-                <el-popover placement="top-start" :width="260" trigger="click" popper-class="emoji-popover">
-                  <template #reference>
-                    <el-button link class="toolbar-btn"><el-icon><Sunny /></el-icon></el-button>
-                  </template>
-                  <div class="emoji-grid">
-                    <span v-for="e in emojis" :key="e" class="emoji" @click="groupInput += e">{{ e }}</span>
-                  </div>
-                </el-popover>
+                <EmojiPicker @pick="(e) => (groupInput += e)" />
                 <el-upload :show-file-list="false" accept="image/*" :http-request="handleUploadGroupImage">
                   <el-button link class="toolbar-btn"><el-icon><Picture /></el-icon></el-button>
                 </el-upload>
@@ -357,12 +354,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
+import { ref, computed, onMounted, onActivated, onUnmounted, nextTick, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
-  Search, Plus, MoreFilled, FullScreen, Sunny, Picture, Setting,
+  Search, Plus, MoreFilled, FullScreen, Picture, Setting,
 } from '@element-plus/icons-vue'
+import EmojiPicker from '@/components/EmojiPicker.vue'
 import {
   sendChat, getChatHistory, getChatUsers, readChat,
   clearChatHistory, blockUser, unblockUser,
@@ -376,11 +374,31 @@ import { useUserStore } from '@/store/user'
 import { useMessageStore } from '@/store/message'
 import { onMessageWebSocket } from '@/utils/messageWebSocket'
 import type { ChatUser, ChatGroup, ChatMessage, GroupMember, ChatGroupLogItem } from '@/types/message'
+import { avatarFallback, buildUserAvatarMap, resolveChatAvatar } from '@/utils/chat-avatar'
 
 const route = useRoute()
 const userStore = useUserStore()
 const messageStore = useMessageStore()
 const currentUserId = computed(() => userStore.userInfo?.userId)
+
+const userAvatarMap = computed(() => {
+  const entries: Array<{ userId: number; avatar?: string | null }> = []
+  if (currentUserId.value) {
+    entries.push({ userId: currentUserId.value, avatar: userStore.userInfo.avatar })
+  }
+  users.value.forEach((u) => entries.push({ userId: u.id, avatar: u.avatar }))
+  groupMembers.value.forEach((m) => entries.push({ userId: m.userId, avatar: m.avatar }))
+  return buildUserAvatarMap(entries)
+})
+
+function contactAvatar(user?: Pick<ChatUser, 'id' | 'avatar' | 'nickname' | 'username'> | null) {
+  if (!user) return undefined
+  return resolveChatAvatar(user.id, userAvatarMap.value, user.avatar)
+}
+
+function messageAvatar(msg: ChatMessage) {
+  return resolveChatAvatar(msg.senderId, userAvatarMap.value, msg.senderAvatar)
+}
 
 const chatMode = ref('private')
 const searchKeyword = ref('')
@@ -416,11 +434,6 @@ const editGroupName = ref('')
 const editGroupAnnouncement = ref('')
 const addMemberIds = ref<number[]>([])
 let offWs: (() => void) | null = null
-
-const emojis = [
-  '😊', '😂', '🥰', '😎', '🤔', '👍', '🎉', '❤️', '😢', '😡', '🤗', '😱', '🥳', '😴', '🤝',
-  '😀', '😁', '😅', '🤣', '😇', '🙂', '🙃', '😉', '😍', '🥺', '😭', '😤', '👏', '🙏', '💪', '🔥',
-]
 
 const filteredUsers = computed(() => {
   const kw = searchKeyword.value.trim()
@@ -863,6 +876,7 @@ function setupWs() {
           id: Date.now(),
           senderId,
           senderName: data.senderName,
+          senderAvatar: data.senderAvatar,
           content: data.content,
           msgType: data.msgType || 1,
           sendTime: new Date().toISOString(),
@@ -880,6 +894,7 @@ function setupWs() {
           groupId,
           senderId: data.senderId,
           senderName: data.senderName,
+          senderAvatar: data.senderAvatar,
           content: data.content,
           msgType: data.msgType || 1,
           sendTime: new Date().toISOString(),
@@ -895,6 +910,10 @@ onMounted(async () => {
   await loadGroups()
   setupWs()
   await applyRouteQuery()
+})
+
+onActivated(() => {
+  loadUsers()
 })
 
 watch(
@@ -1235,25 +1254,6 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
 }
-
-.emoji-grid {
-  display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  gap: 6px;
-  max-height: 220px;
-  overflow-x: hidden;
-  overflow-y: auto;
-  padding: 4px;
-}
-
-.emoji {
-  font-size: 20px;
-  cursor: pointer;
-  text-align: center;
-  padding: 4px;
-  border-radius: 4px;
-}
-.emoji:hover { background: #f0f0f0; }
 
 .group-btns {
   display: flex;
