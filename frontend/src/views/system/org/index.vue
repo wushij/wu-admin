@@ -20,7 +20,7 @@
         <el-tree
           v-if="activeTab === 'dept'"
           ref="deptTreeRef"
-          :data="deptTree"
+          :data="deptDisplayTree"
           node-key="id"
           :props="{ label: 'name', children: 'children' }"
           :filter-node-method="filterTreeNode"
@@ -60,7 +60,7 @@
           plain
           @click="handleAddRoot"
         >
-          {{ activeTab === 'dept' ? '新增顶级部门' : '新增顶级岗位' }}
+          {{ activeTab === 'dept' ? '新增一级部门' : '新增顶级岗位' }}
         </el-button>
       </el-card>
 
@@ -281,13 +281,16 @@ import {
 } from '@/api/system/post'
 
 import { unwrapOrgTreeNode } from '@/types/org'
+import { displayOrgTree, resolveDeptRootParentId } from '@/utils/org-tree'
 
 const router = useRouter()
 const activeTab = ref('dept')
 const treeSearch = ref('')
 const deptTreeRef = ref<InstanceType<typeof ElTree> | null>(null)
 const postTreeRef = ref<InstanceType<typeof ElTree> | null>(null)
-const deptTree = ref<DeptVO[]>([])
+/** 部门完整树（含隐藏的本部根） */
+const deptTreeRaw = ref<DeptVO[]>([])
+const deptDisplayTree = computed(() => displayOrgTree(deptTreeRaw.value))
 const postTree = ref<PostVO[]>([])
 
 const selectedId = ref<number | null>(null)
@@ -337,7 +340,7 @@ function filterPostTreeNode(value: string, data: unknown) {
 async function loadTree() {
   if (activeTab.value === 'dept') {
     const res = await getDeptTree()
-    deptTree.value = res.data || []
+    deptTreeRaw.value = res.data || []
   } else {
     const res = await getPostTree()
     postTree.value = res.data || []
@@ -455,7 +458,7 @@ const deptForm = reactive<DeptSaveDTO>({
   status: 1,
 })
 const deptRules = { name: [{ required: true, message: '请输入部门名称', trigger: 'blur' }] }
-const deptTreeOptions = computed(() => [{ id: 0, name: '主目录', children: deptTree.value }])
+const deptTreeOptions = computed(() => [{ id: 0, name: '主目录', children: deptTreeRaw.value }])
 
 // ---------- 岗位表单 ----------
 const postDialogVisible = ref(false)
@@ -478,8 +481,11 @@ const postRules = {
 const postTreeOptions = computed(() => [{ id: 0, postName: '顶级', children: postTree.value }])
 
 function handleAddRoot() {
-  if (activeTab.value === 'dept') openDeptForm(null, 0)
-  else openPostForm(null, 0)
+  if (activeTab.value === 'dept') {
+    openDeptForm(null, resolveDeptRootParentId(deptTreeRaw.value))
+  } else {
+    openPostForm(null, 0)
+  }
 }
 
 function handleAddChild() {

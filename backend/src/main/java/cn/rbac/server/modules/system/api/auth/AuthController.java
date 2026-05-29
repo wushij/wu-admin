@@ -30,6 +30,7 @@ import org.redisson.api.RAtomicLong;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.annotation.Resource;
@@ -130,20 +131,20 @@ public class AuthController {
 
         String rlMsg = rateLimitByIp(clientIp, "login", systemConfigHelper.getLoginPerIpMinute());
         if (rlMsg != null) {
-            recordLoginLog(username, 1, rlMsg, request);
+            recordLoginLog(null, username, 1, rlMsg, request);
             return CommonResult.error(429, rlMsg);
         }
 
         String lockMessage = checkLoginLock(username, clientIp);
         if (lockMessage != null) {
-            recordLoginLog(username, 1, lockMessage, request);
+            recordLoginLog(null, username, 1, lockMessage, request);
             return CommonResult.error(429, lockMessage);
         }
 
         String captchaErr = validateLoginCaptcha(reqVO.getUuid(), reqVO.getCode());
         if (captchaErr != null) {
             handleLoginFailure(username, clientIp);
-            recordLoginLog(username, 1, captchaErr, request);
+            recordLoginLog(null, username, 1, captchaErr, request);
             return CommonResult.error(400, captchaErr);
         }
         
@@ -154,19 +155,19 @@ public class AuthController {
         );
         if (user == null) {
             handleLoginFailure(username, clientIp);
-            recordLoginLog(username, 1, "用户不存在", request);
+            recordLoginLog(null, username, 1, "用户不存在", request);
             return CommonResult.error(401, "用户不存在");
         }
         // 校验密码
         if (!passwordEncoder.matches(reqVO.getPassword(), user.getPassword())) {
             handleLoginFailure(username, clientIp);
-            recordLoginLog(username, 1, "密码错误", request);
+            recordLoginLog(user.getId(), username, 1, "密码错误", request);
             return CommonResult.error(401, "密码错误");
         }
 
         String statusErr = checkUserLoginStatus(user);
         if (statusErr != null) {
-            recordLoginLog(username, 1, statusErr, request);
+            recordLoginLog(user.getId(), username, 1, statusErr, request);
             return CommonResult.error(403, statusErr);
         }
 
@@ -178,7 +179,7 @@ public class AuthController {
         onlineUserService.recordLoginSession(user.getId(), user.getUsername(), user.getNickname(), request);
 
         // 记录登录成功日志
-        recordLoginLog(username, 0, "登录成功", request);
+        recordLoginLog(user.getId(), username, 0, "登录成功", request);
         
         Map<String, Object> result = new HashMap<>();
         result.put("token", token);
@@ -189,10 +190,20 @@ public class AuthController {
     }
     
     /**
-     * 记录登录日志
+     * 记录登录日志（写入 userId，供个人中心按用户查询）
      */
-    private void recordLoginLog(String username, Integer status, String msg, HttpServletRequest request) {
+    private void recordLoginLog(Long userId, String username, Integer status, String msg, HttpServletRequest request) {
         LoginLogDO log = new LoginLogDO();
+        if (userId == null && StringUtils.hasText(username)) {
+            UserDO u = userMapper.selectOne(
+                    new LambdaQueryWrapper<UserDO>()
+                            .eq(UserDO::getUsername, username)
+                            .select(UserDO::getId));
+            if (u != null) {
+                userId = u.getId();
+            }
+        }
+        log.setUserId(userId);
         log.setUsername(username);
         log.setStatus(status);
         log.setMsg(msg);

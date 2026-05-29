@@ -5,7 +5,7 @@
 -- 【全新安装】执行本文件全文即可（建库、建表、初始数据）。
 -- 【已有库升级】若表已存在，可只执行文末「附录：已有库升级」段（可重复执行）。
 --
--- 已有库增量：add1.sql～add3.sql（业务/消息）、add4.sql（索引）、add5.sql（安全配置）、add6.sql（组织示例数据）；
+-- 已有库增量：add1.sql～add3.sql（业务/消息）、add4.sql（索引）、add5.sql（安全配置）、add6.sql（组织示例数据）、add7.sql（第三方/支付）、add8.sql（Google 配置）、add9.sql（组织树分级）；
 -- 或执行文末「附录：已有库升级」段（配置/菜单/消息表/组织数据等，可重复执行）。
 -- =============================================
 
@@ -593,42 +593,52 @@ CREATE TABLE sys_config_group (
 -- 初始化数据
 -- =============================================
 
--- 初始化部门
+-- 初始化部门（id=1 为本部虚拟根，界面隐藏；二级为各中心）
 INSERT INTO sys_dept (id, name, parent_id, ancestors, sort, status, leader_name) VALUES
-(1, '总公司', 0, '0', 0, 1, '管理员'),
-(2, '研发部', 1, '0,1', 1, 1, '张三'),
-(3, '市场部', 1, '0,1', 2, 1, '李四'),
-(4, '财务部', 1, '0,1', 3, 1, '王五'),
-(5, '实训部', 1, '0,1', 4, 1, NULL),
-(6, '人事部', 1, '0,1', 5, 1, NULL),
-(7, '运维部', 1, '0,1', 6, 1, NULL),
-(8, '产品部', 1, '0,1', 7, 1, NULL),
-(9, '客服部', 1, '0,1', 8, 1, NULL),
-(10, '前端组', 2, '0,1,2', 1, 1, NULL),
-(11, '后端组', 2, '0,1,2', 2, 1, NULL);
+(1, '本部', 0, '0', 0, 1, '管理员'),
+(2, '技术中心', 1, '0,1', 1, 1, NULL),
+(3, '业务中心', 1, '0,1', 2, 1, NULL),
+(4, '职能中心', 1, '0,1', 3, 1, NULL),
+(5, '运营中心', 1, '0,1', 4, 1, NULL),
+(6, '研发部', 2, '0,1,2', 1, 1, '张三'),
+(7, '运维部', 2, '0,1,2', 2, 1, NULL),
+(8, '产品部', 2, '0,1,2', 3, 1, NULL),
+(9, '市场部', 3, '0,1,3', 1, 1, '李四'),
+(10, '财务部', 4, '0,1,4', 1, 1, '王五'),
+(11, '人事部', 4, '0,1,4', 2, 1, NULL),
+(12, '实训部', 5, '0,1,5', 1, 1, NULL),
+(13, '客服部', 5, '0,1,5', 2, 1, NULL),
+(14, '前端组', 6, '0,1,2,6', 1, 1, NULL),
+(15, '后端组', 6, '0,1,2,6', 2, 1, NULL);
 
 INSERT INTO sys_post (id, parent_id, post_code, post_name, sort, status, remark) VALUES
-(1, 0, 'ceo', '总经理', 0, 1, '顶级岗位'),
-(2, 0, 'dev', '研发工程师', 1, 1, ''),
-(3, 2, 'dev_lead', '研发组长', 0, 1, '隶属研发工程师'),
-(4, 0, 'qa', '测试', 2, 1, ''),
-(5, 4, 'qa_lead', '测试组长', 0, 1, '隶属测试'),
-(6, 0, 'market_spec', '市场专员', 3, 1, ''),
-(7, 0, 'finance_mgr', '财务主管', 4, 1, ''),
-(8, 0, 'train_lecturer', '实训讲师', 5, 1, ''),
-(9, 0, 'hr_spec', '人事专员', 6, 1, ''),
-(10, 0, 'ops_eng', '运维工程师', 7, 1, ''),
-(11, 0, 'product_mgr', '产品经理', 8, 1, ''),
-(12, 2, 'fe_dev', '前端开发', 1, 1, '隶属研发工程师'),
-(13, 2, 'be_dev', '后端开发', 2, 1, '隶属研发工程师');
+(1, 0, 'chairman', '董事长', 0, 1, '岗位体系根'),
+(2, 1, 'ceo', '总经理', 1, 1, ''),
+(3, 2, 'cto', '技术总监', 1, 1, ''),
+(4, 2, 'dev_exec', '开发工程师', 2, 1, ''),
+(5, 2, 'biz_line', '业务体系', 3, 1, '岗位分类'),
+(6, 2, 'func_line', '职能体系', 4, 1, '岗位分类'),
+(7, 2, 'ops_line', '运营体系', 5, 1, '岗位分类'),
+(8, 3, 'dev', '研发工程师', 1, 1, ''),
+(9, 8, 'dev_lead', '研发组长', 0, 1, ''),
+(10, 8, 'fe_dev', '前端开发', 1, 1, ''),
+(11, 8, 'be_dev', '后端开发', 2, 1, ''),
+(12, 3, 'qa', '测试', 2, 1, ''),
+(13, 12, 'qa_lead', '测试组长', 0, 1, ''),
+(14, 3, 'product_mgr', '产品经理', 3, 1, ''),
+(15, 3, 'ops_eng', '运维工程师', 4, 1, ''),
+(16, 5, 'market_spec', '市场专员', 1, 1, ''),
+(17, 6, 'finance_mgr', '财务主管', 1, 1, ''),
+(18, 6, 'hr_spec', '人事专员', 2, 1, ''),
+(19, 7, 'train_lecturer', '实训讲师', 1, 1, '');
 
-ALTER TABLE sys_dept AUTO_INCREMENT = 12;
-ALTER TABLE sys_post AUTO_INCREMENT = 14;
+ALTER TABLE sys_dept AUTO_INCREMENT = 16;
+ALTER TABLE sys_post AUTO_INCREMENT = 20;
 
 -- 初始化用户 (密码为 admin123，BCrypt加密)
 INSERT INTO sys_user (id, username, password, nickname, mobile, email, status, dept_id) VALUES
 (1, 'admin', '$2a$10$7JB720yubVSZvUI0rEqK/.VqGOZTH.ulu33dHOiBE8ByOhJIrdAu2', '管理员', '13800138000', 'admin@admin.cn', 1, 1),
-(2, 'zhangsan', '$2a$10$7JB720yubVSZvUI0rEqK/.VqGOZTH.ulu33dHOiBE8ByOhJIrdAu2', '张三', '13800138001', 'zhangsan@admin.cn', 1, 2);
+(2, 'zhangsan', '$2a$10$7JB720yubVSZvUI0rEqK/.VqGOZTH.ulu33dHOiBE8ByOhJIrdAu2', '张三', '13800138001', 'zhangsan@admin.cn', 1, 6);
 
 -- 初始化角色
 INSERT INTO sys_role (id, name, code, sort, status, remark) VALUES
@@ -657,6 +667,8 @@ INSERT INTO sys_config_group (group_code, group_name, config_value, remark) VALU
 ('rateLimit', '接口限流', '{"captchaPerIpMinute":40,"loginPerIpMinute":30,"registerPerIpMinute":10}', '认证接口按 IP 限流'),
 ('login', '登录配置', '{"captchaEnabled":true,"captchaType":"image","rememberMe":true,"maxRetryCount":5,"lockTime":10}', '验证码类型 image=图片 slider=滑块'),
 ('register', '注册配置', '{"enabled":true,"captchaEnabled":true,"captchaType":"image","defaultRoleCode":"user","needAudit":false,"minPasswordLength":6}', '开放注册、验证码类型、默认角色、是否审核'),
+('thirdParty', '第三方配置', '{"wechat":{"enabled":false,"appId":"","appSecret":""},"alipay":{"enabled":false,"appId":"","privateKey":"","publicKey":""},"github":{"enabled":false,"clientId":"","clientSecret":""},"google":{"enabled":false,"clientId":"","clientSecret":"","redirectUri":""}}', '微信/支付宝/GitHub/Google 第三方登录'),
+('payment', '支付配置', '{"wechatPay":{"enabled":false,"mchId":"","appId":"","apiV3Key":"","privateKey":"","certSerialNo":"","notifyUrl":""},"alipay":{"enabled":false,"appId":"","privateKey":"","publicKey":"","signType":"RSA2","gatewayUrl":"https://openapi.alipay.com/gateway.do","notifyUrl":"","returnUrl":""}}', '微信/支付宝支付与测试下单'),
 ('security', '安全配置', '{"disableDevtool":false,"isConcurrent":false}', '前端安全与会话：禁止调试、禁止多端同时在线');
 
 -- 初始化菜单
@@ -830,6 +842,18 @@ INSERT INTO sys_config_group (group_code, group_name, config_value, remark) VALU
 ON DUPLICATE KEY UPDATE
     group_name = VALUES(group_name),
     config_value = VALUES(config_value),
+    remark = VALUES(remark);
+
+-- 第三方配置 + 支付配置（已有库可单独执行 sql/add7.sql，与下文一致）
+INSERT INTO sys_config_group (group_code, group_name, config_value, remark) VALUES
+('thirdParty', '第三方配置',
+ '{"wechat":{"enabled":false,"appId":"","appSecret":""},"alipay":{"enabled":false,"appId":"","privateKey":"","publicKey":""},"github":{"enabled":false,"clientId":"","clientSecret":""},"google":{"enabled":false,"clientId":"","clientSecret":"","redirectUri":""}}',
+ '微信/支付宝/GitHub/Google 第三方登录密钥'),
+('payment', '支付配置',
+ '{"wechatPay":{"enabled":false,"mchId":"","appId":"","apiV3Key":"","privateKey":"","certSerialNo":"","notifyUrl":""},"alipay":{"enabled":false,"appId":"","privateKey":"","publicKey":"","signType":"RSA2","gatewayUrl":"https://openapi.alipay.com/gateway.do","notifyUrl":"","returnUrl":""}}',
+ '微信/支付宝支付与测试下单')
+ON DUPLICATE KEY UPDATE
+    group_name = VALUES(group_name),
     remark = VALUES(remark);
 
 INSERT INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, component, status) VALUES
@@ -1062,94 +1086,8 @@ WHERE u.deleted = 0
 UPDATE sys_dict_data SET dict_label = '启用' WHERE dict_type = 'sys_normal_disable' AND dict_value = '1';
 UPDATE sys_dict_data SET dict_label = '禁用' WHERE dict_type = 'sys_normal_disable' AND dict_value = '0';
 
--- ---------- 组织示例数据（已有库可单独执行 sql/add6.sql，与下文一致） ----------
-INSERT INTO sys_dept (name, parent_id, ancestors, sort, status, leader_name)
-SELECT '实训部', 1, '0,1', 4, 1, NULL FROM DUAL
-WHERE EXISTS (SELECT 1 FROM sys_dept WHERE id = 1 AND deleted = 0)
-  AND NOT EXISTS (SELECT 1 FROM sys_dept WHERE name = '实训部' AND parent_id = 1 AND deleted = 0);
-
-INSERT INTO sys_dept (name, parent_id, ancestors, sort, status, leader_name)
-SELECT '人事部', 1, '0,1', 5, 1, NULL FROM DUAL
-WHERE EXISTS (SELECT 1 FROM sys_dept WHERE id = 1 AND deleted = 0)
-  AND NOT EXISTS (SELECT 1 FROM sys_dept WHERE name = '人事部' AND parent_id = 1 AND deleted = 0);
-
-INSERT INTO sys_dept (name, parent_id, ancestors, sort, status, leader_name)
-SELECT '运维部', 1, '0,1', 6, 1, NULL FROM DUAL
-WHERE EXISTS (SELECT 1 FROM sys_dept WHERE id = 1 AND deleted = 0)
-  AND NOT EXISTS (SELECT 1 FROM sys_dept WHERE name = '运维部' AND parent_id = 1 AND deleted = 0);
-
-INSERT INTO sys_dept (name, parent_id, ancestors, sort, status, leader_name)
-SELECT '产品部', 1, '0,1', 7, 1, NULL FROM DUAL
-WHERE EXISTS (SELECT 1 FROM sys_dept WHERE id = 1 AND deleted = 0)
-  AND NOT EXISTS (SELECT 1 FROM sys_dept WHERE name = '产品部' AND parent_id = 1 AND deleted = 0);
-
-INSERT INTO sys_dept (name, parent_id, ancestors, sort, status, leader_name)
-SELECT '客服部', 1, '0,1', 8, 1, NULL FROM DUAL
-WHERE EXISTS (SELECT 1 FROM sys_dept WHERE id = 1 AND deleted = 0)
-  AND NOT EXISTS (SELECT 1 FROM sys_dept WHERE name = '客服部' AND parent_id = 1 AND deleted = 0);
-
-INSERT INTO sys_dept (name, parent_id, ancestors, sort, status, leader_name)
-SELECT '前端组', d.id, CONCAT(d.ancestors, ',', d.id), 1, 1, NULL
-FROM sys_dept d
-WHERE d.name = '研发部' AND d.parent_id = 1 AND d.deleted = 0
-  AND NOT EXISTS (SELECT 1 FROM sys_dept c WHERE c.name = '前端组' AND c.parent_id = d.id AND c.deleted = 0)
-LIMIT 1;
-
-INSERT INTO sys_dept (name, parent_id, ancestors, sort, status, leader_name)
-SELECT '后端组', d.id, CONCAT(d.ancestors, ',', d.id), 2, 1, NULL
-FROM sys_dept d
-WHERE d.name = '研发部' AND d.parent_id = 1 AND d.deleted = 0
-  AND NOT EXISTS (SELECT 1 FROM sys_dept c WHERE c.name = '后端组' AND c.parent_id = d.id AND c.deleted = 0)
-LIMIT 1;
-
-INSERT INTO sys_post (parent_id, post_code, post_name, sort, status, remark)
-SELECT 0, 'qa', '测试', 2, 1, '' FROM DUAL
-WHERE NOT EXISTS (SELECT 1 FROM sys_post WHERE post_code = 'qa' AND deleted = 0);
-
-INSERT INTO sys_post (parent_id, post_code, post_name, sort, status, remark)
-SELECT p.id, 'qa_lead', '测试组长', 0, 1, '隶属测试'
-FROM sys_post p
-WHERE p.post_code = 'qa' AND p.deleted = 0
-  AND NOT EXISTS (SELECT 1 FROM sys_post WHERE post_code = 'qa_lead' AND deleted = 0)
-LIMIT 1;
-
-INSERT INTO sys_post (parent_id, post_code, post_name, sort, status, remark)
-SELECT 0, 'market_spec', '市场专员', 3, 1, '' FROM DUAL
-WHERE NOT EXISTS (SELECT 1 FROM sys_post WHERE post_code = 'market_spec' AND deleted = 0);
-
-INSERT INTO sys_post (parent_id, post_code, post_name, sort, status, remark)
-SELECT 0, 'finance_mgr', '财务主管', 4, 1, '' FROM DUAL
-WHERE NOT EXISTS (SELECT 1 FROM sys_post WHERE post_code = 'finance_mgr' AND deleted = 0);
-
-INSERT INTO sys_post (parent_id, post_code, post_name, sort, status, remark)
-SELECT 0, 'train_lecturer', '实训讲师', 5, 1, '' FROM DUAL
-WHERE NOT EXISTS (SELECT 1 FROM sys_post WHERE post_code = 'train_lecturer' AND deleted = 0);
-
-INSERT INTO sys_post (parent_id, post_code, post_name, sort, status, remark)
-SELECT 0, 'hr_spec', '人事专员', 6, 1, '' FROM DUAL
-WHERE NOT EXISTS (SELECT 1 FROM sys_post WHERE post_code = 'hr_spec' AND deleted = 0);
-
-INSERT INTO sys_post (parent_id, post_code, post_name, sort, status, remark)
-SELECT 0, 'ops_eng', '运维工程师', 7, 1, '' FROM DUAL
-WHERE NOT EXISTS (SELECT 1 FROM sys_post WHERE post_code = 'ops_eng' AND deleted = 0);
-
-INSERT INTO sys_post (parent_id, post_code, post_name, sort, status, remark)
-SELECT 0, 'product_mgr', '产品经理', 8, 1, '' FROM DUAL
-WHERE NOT EXISTS (SELECT 1 FROM sys_post WHERE post_code = 'product_mgr' AND deleted = 0);
-
-INSERT INTO sys_post (parent_id, post_code, post_name, sort, status, remark)
-SELECT p.id, 'fe_dev', '前端开发', 0, 1, '隶属研发工程师'
-FROM sys_post p
-WHERE p.post_code = 'dev' AND p.deleted = 0
-  AND NOT EXISTS (SELECT 1 FROM sys_post WHERE post_code = 'fe_dev' AND deleted = 0)
-LIMIT 1;
-
-INSERT INTO sys_post (parent_id, post_code, post_name, sort, status, remark)
-SELECT p.id, 'be_dev', '后端开发', 1, 1, '隶属研发工程师'
-FROM sys_post p
-WHERE p.post_code = 'dev' AND p.deleted = 0
-  AND NOT EXISTS (SELECT 1 FROM sys_post WHERE post_code = 'be_dev' AND deleted = 0)
-LIMIT 1;
+-- ---------- 组织示例/分级（已有库：sql/add6.sql 补数据，sql/add9.sql 扁平树改分级） ----------
+-- 详见 add6.sql、add9.sql，此处不重复冗长 INSERT
 
 -- 已有 security 分组但缺少 isConcurrent 时补默认 false（与 add5.sql 一致）
 UPDATE sys_config_group

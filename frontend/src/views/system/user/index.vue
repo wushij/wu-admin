@@ -318,6 +318,7 @@ import {
 } from '@/api/system/user'
 import { getRoleList, type RoleVO } from '@/api/system/role'
 import { getDeptTree, type DeptVO } from '@/api/system/dept'
+import { displayOrgTree } from '@/utils/org-tree'
 import { getPostList, type PostVO } from '@/api/system/post'
 
 const route = useRoute()
@@ -599,7 +600,7 @@ const submitForm = async () => {
 
 const loadDeptTree = async () => {
   const res = await getDeptTree()
-  deptOptions.value = res.data || []
+  deptOptions.value = displayOrgTree(res.data || [])
   deptSelectOptions.value = res.data || []
 }
 

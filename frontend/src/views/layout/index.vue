@@ -22,7 +22,9 @@
           @select="handleMenuSelect"
         >
           <el-menu-item index="/dashboard" class="menu-item-dashboard">
-            <el-icon><component :is="ElementPlusIconsVue.HomeFilled" /></el-icon>
+            <span class="dashboard-menu-icon">
+              <el-icon><component :is="ElementPlusIconsVue.Odometer" /></el-icon>
+            </span>
             <template #title>
               <span>工作台</span>
             </template>
@@ -75,7 +77,10 @@
             <component :is="isCollapse ? ElementPlusIconsVue.Expand : ElementPlusIconsVue.Fold" />
           </el-icon>
           <el-breadcrumb separator="/">
-            <el-breadcrumb-item :to="{ path: '/' }">首页</el-breadcrumb-item>
+            <el-breadcrumb-item :to="{ path: '/dashboard' }">工作台</el-breadcrumb-item>
+            <el-breadcrumb-item v-if="currentPageTitle && currentPageTitle !== '工作台'">
+              {{ currentPageTitle }}
+            </el-breadcrumb-item>
           </el-breadcrumb>
         </div>
         <div class="header-right">
@@ -183,7 +188,9 @@
 
           <el-dropdown @command="handleCommand">
             <span class="user-info">
-              <el-avatar :size="32" :icon="ElementPlusIconsVue.UserFilled" />
+              <el-avatar :size="32" :src="headerAvatarSrc" class="header-avatar">
+                <el-icon v-if="!headerAvatarSrc"><component :is="ElementPlusIconsVue.UserFilled" /></el-icon>
+              </el-avatar>
               <span class="username">{{ userStore.userInfo.nickname || '管理员' }}</span>
               <el-icon><component :is="ElementPlusIconsVue.ArrowDown" /></el-icon>
             </span>
@@ -238,6 +245,10 @@ const messageStore = useMessageStore()
 
 const isCollapse = ref(false)
 const activeMenu = computed(() => route.path)
+const currentPageTitle = computed(() => {
+  const title = route.meta?.title
+  return typeof title === 'string' ? title : ''
+})
 const messageTab = ref('inbox')
 const inboxList = ref<InboxNoticeItem[]>([])
 const announceList = ref<AnnounceMyVO[]>([])
@@ -403,11 +414,18 @@ const toggleCollapse = () => {
 }
 
 const handleCommand = async (command: string) => {
-  if (command === 'logout') {
+  if (command === 'profile') {
+    router.push('/profile')
+  } else if (command === 'logout') {
     await userStore.logoutAction()
     router.push('/login')
   }
 }
+
+const headerAvatarSrc = computed(() => {
+  const url = userStore.userInfo.avatar
+  return url || undefined
+})
 
 const loadAnnounceList = async () => {
   try {
@@ -839,6 +857,34 @@ onUnmounted(() => {
   height: 48px;
   line-height: 48px;
   font-weight: 600;
+}
+
+:deep(.el-menu-item-dashboard .dashboard-menu-icon) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin-right: 8px;
+  border-radius: 8px;
+  background: linear-gradient(
+    135deg,
+    var(--theme-primary, #111827) 0%,
+    var(--theme-primary-hover, #374151) 100%
+  );
+  color: #fff;
+  vertical-align: middle;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+:deep(.el-menu-item-dashboard:hover .dashboard-menu-icon) {
+  transform: scale(1.05);
+  box-shadow: 0 2px 8px rgba(17, 24, 39, 0.2);
+}
+
+:deep(.el-menu-item-dashboard.is-active .dashboard-menu-icon) {
+  background: rgba(255, 255, 255, 0.2);
+  box-shadow: none;
 }
 
 :deep(.el-sub-menu__title:hover),
