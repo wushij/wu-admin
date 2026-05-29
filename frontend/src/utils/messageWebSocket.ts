@@ -7,6 +7,7 @@ export interface WsPushMessage {
   time?: number | string
   senderId?: number
   senderName?: string
+  senderAvatar?: string
   groupId?: number
   msgType?: number
 }

@@ -10,6 +10,9 @@ import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 import org.apache.ibatis.annotations.Delete;
 
+import java.time.LocalDateTime;
+import java.util.List;
+
 @Mapper
 public interface TicketMapper extends BaseMapper<TicketDO> {
 
@@ -39,4 +42,7 @@ public interface TicketMapper extends BaseMapper<TicketDO> {
 
     @Delete("DELETE FROM sys_ticket WHERE id = #{id} AND deleted = 1")
     int deletePhysicalById(@Param("id") Long id);
+
+    @Select("SELECT id FROM sys_ticket WHERE deleted = 1 AND update_time < #{cutoff} LIMIT 500")
+    List<Long> selectExpiredRecycleIds(@Param("cutoff") LocalDateTime cutoff);
 }

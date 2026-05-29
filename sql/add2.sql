@@ -113,7 +113,7 @@ CREATE TABLE IF NOT EXISTS sys_chat_group_message (
 
 -- ========== 菜单与权限（170-178）==========
 INSERT INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, component, status) VALUES
-(170, '消息中心', '', 1, 7, 0, '/message', 'Bell', '', 1),
+(170, '消息中心', '', 1, 6, 0, '/message', 'Bell', '', 1),
 (171, '系统通知', 'system:announce:list', 2, 1, 170, '/message/notice', 'Notification', 'message/notice/index', 1),
 (172, '即时聊天', 'system:chat:list', 2, 2, 170, '/message/chat', 'ChatDotRound', 'message/chat/index', 1),
 (173, '通知查询', 'system:announce:query', 3, 1, 171, '', '', '', 1),

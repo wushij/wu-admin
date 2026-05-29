@@ -114,6 +114,12 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '在线用户', icon: 'User', permission: 'monitor:online:list' }
       },
       {
+        path: 'monitor/job',
+        name: 'MonitorJob',
+        component: () => import('@/views/monitor/job/index.vue'),
+        meta: { title: '定时任务', icon: 'Timer', permission: 'monitor:job:list' }
+      },
+      {
         path: 'tool/api-doc',
         name: 'ToolApiDoc',
         component: () => import('@/views/tool/api-doc/index.vue'),

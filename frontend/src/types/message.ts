@@ -3,6 +3,7 @@ export interface ChatUser {
   id: number
   username?: string
   nickname?: string
+  avatar?: string
   online?: boolean
   isBlocked?: boolean
   unreadCount?: number
@@ -27,6 +28,7 @@ export interface ChatMessage {
   id: number
   senderId?: number
   senderName?: string
+  senderAvatar?: string
   receiverId?: number
   groupId?: number
   content?: string
@@ -41,6 +43,7 @@ export interface GroupMember {
   nickname?: string
   userNickname?: string
   username?: string
+  avatar?: string
   role?: number
   muted?: boolean
 }
