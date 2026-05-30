@@ -38,6 +38,12 @@ export interface ChangePasswordDTO {
   confirmPassword: string
 }
 
+export interface ProfilePasswordSmsResetDTO {
+  smsCode: string
+  newPassword: string
+  confirmPassword: string
+}
+
 export interface ProfileLoginLogQuery extends PageQuery {}
 
 export type ProfileLoginLogPage = PageResult<LoginLogVO>

@@ -121,12 +121,6 @@
             
             <!-- 短信登录 -->
             <template v-if="loginMode === 'sms'">
-              <div class="sms-login-intro">
-                <el-icon class="sms-login-intro__icon"><Message /></el-icon>
-                <p class="sms-login-intro__text">
-                  请使用个人中心<strong>已绑定</strong>的手机号收取验证码
-                </p>
-              </div>
               <el-form-item prop="phone" class="form-item sms-form-item">
                 <el-input
                   v-model="formData.phone"
@@ -239,7 +233,7 @@
 import { ref, reactive, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
-import { User, Lock, Key, Iphone, Message } from '@element-plus/icons-vue'
+import { User, Lock, Key, Iphone } from '@element-plus/icons-vue'
 import { useUserStore } from '@/store/user'
 import { getCaptcha, getConfig, sendSmsCode } from '@/api/system/auth'
 import type { LoginForm } from '@/types/api'
@@ -922,36 +916,6 @@ onUnmounted(() => {
 }
 
 /* 短信登录 */
-.sms-login-intro {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px 14px;
-  margin-bottom: 20px;
-  border-radius: 10px;
-  background: rgba(64, 158, 255, 0.12);
-  border: 1px solid rgba(121, 187, 255, 0.28);
-  animation: fadeInUp 0.5s ease both;
-}
-
-.sms-login-intro__icon {
-  flex-shrink: 0;
-  font-size: 18px;
-  color: #79bbff;
-}
-
-.sms-login-intro__text {
-  margin: 0;
-  font-size: 13px;
-  line-height: 1.5;
-  color: rgba(255, 255, 255, 0.88);
-}
-
-.sms-login-intro__text strong {
-  color: #a0cfff;
-  font-weight: 600;
-}
-
 .sms-form-item {
   animation: fadeInUp 0.5s ease both;
 }

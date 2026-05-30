@@ -64,7 +64,12 @@ service.interceptors.response.use(
     if (isApiSuccessCode(code)) {
       return res  // 返回完整响应对象，前端用 res.data 访问数据
     } else if (code === 401) {
-      // 未授权，跳转登录
+      const cfg = response.config as InternalAxiosRequestConfig
+      if (isAuthPublicUrl(cfg.url)) {
+        ElMessage.error(msg || message || '认证失败')
+        return Promise.reject(new Error(msg || message || '认证失败'))
+      }
+      // 已登录态 token 失效
       ElMessage.error('登录已过期，请重新登录')
       localStorage.removeItem('token')
       router.push('/login')
@@ -86,9 +91,14 @@ service.interceptors.response.use(
     if (error.response) {
       const { status, data } = error.response
       if (status === 401) {
-        ElMessage.error('登录已过期，请重新登录')
-        localStorage.removeItem('token')
-        router.push('/login')
+        const cfg = error.config as InternalAxiosRequestConfig
+        if (isAuthPublicUrl(cfg?.url)) {
+          ElMessage.error(data?.msg || data?.message || '认证失败')
+        } else {
+          ElMessage.error('登录已过期，请重新登录')
+          localStorage.removeItem('token')
+          router.push('/login')
+        }
       } else if (status === 403) {
         const cfg = error.config as InternalAxiosRequestConfig & { silent403?: boolean }
         if (!cfg?.silent403) {
