@@ -356,9 +356,6 @@ async function loadConfig() {
       smsLoginEnabled.value = config.login.smsLoginEnabled === true
       rememberMeEnabled.value = config.login.rememberMe !== false
       smsEnabled.value = config.login.smsEnabled !== false
-      if (smsLoginEnabled.value && !captchaEnabled.value) {
-        loginMode.value = 'sms'
-      }
     }
     if (config.register) {
       registerEnabled.value = config.register.enabled !== false
