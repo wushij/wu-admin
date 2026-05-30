@@ -174,12 +174,12 @@ public class AuthController {
         if (user == null) {
             handleLoginFailure(username, clientIp);
             recordLoginLog(null, username, 1, "用户不存在", request);
-            return CommonResult.error(401, "用户不存在");
+            return CommonResult.error(400, "账号或密码错误");
         }
         if (!passwordEncoder.matches(reqVO.getPassword(), user.getPassword())) {
             handleLoginFailure(username, clientIp);
             recordLoginLog(user.getId(), username, 1, "密码错误", request);
-            return CommonResult.error(401, "密码错误");
+            return CommonResult.error(400, "账号或密码错误");
         }
 
         String statusErr = checkUserLoginStatus(user);
@@ -230,7 +230,7 @@ public class AuthController {
         if (user == null) {
             handleLoginFailure(username, clientIp);
             recordLoginLog(null, username, 1, "该手机号未绑定任何账号", request);
-            return CommonResult.error(401, "该手机号未绑定任何账号");
+            return CommonResult.error(400, "该手机号未绑定任何账号");
         }
 
         String statusErr = checkUserLoginStatus(user);

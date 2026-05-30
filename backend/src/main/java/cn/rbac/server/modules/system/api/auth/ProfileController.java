@@ -17,6 +17,8 @@ import cn.rbac.server.modules.system.dal.mysql.permission.RoleMapper;
 import cn.rbac.server.modules.system.dal.mysql.post.PostMapper;
 import cn.rbac.server.modules.system.dal.mysql.user.UserMapper;
 import cn.rbac.server.modules.system.dal.mysql.user.UserPostMapper;
+import cn.rbac.server.common.util.ClientIpUtils;
+import cn.rbac.server.modules.system.service.auth.ProfileSmsPasswordService;
 import cn.rbac.server.modules.system.service.config.SystemConfigHelper;
 import cn.rbac.server.modules.system.service.permission.PermissionService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
@@ -30,6 +32,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import jakarta.annotation.Resource;
+import jakarta.servlet.http.HttpServletRequest;
 import java.io.IOException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -64,6 +67,8 @@ public class ProfileController {
     private LocalFileStorage localFileStorage;
     @Resource
     private SystemConfigHelper systemConfigHelper;
+    @Resource
+    private ProfileSmsPasswordService profileSmsPasswordService;
 
     @Operation(summary = "获取当前用户资料")
     @GetMapping
@@ -153,6 +158,43 @@ public class ProfileController {
         }
 
         user.setPassword(passwordEncoder.encode(reqVO.getNewPassword()));
+        userMapper.updateById(user);
+        return CommonResult.success(true);
+    }
+
+    @Operation(summary = "发送重置密码短信验证码（须先完成滑块验证）")
+    @PostMapping("/password/sms-code")
+    public CommonResult<Boolean> sendPasswordResetSmsCode(
+            @RequestBody ProfilePasswordSmsCodeReqVO reqVO,
+            HttpServletRequest request) {
+        StpUtil.checkLogin();
+        Long userId = StpUtil.getLoginIdAsLong();
+        UserDO user = userMapper.selectById(userId);
+        if (user == null) {
+            return CommonResult.error(404, "用户不存在");
+        }
+        String err = profileSmsPasswordService.sendResetCode(user, ClientIpUtils.resolve(request), reqVO.getCode());
+        if (err != null) {
+            return CommonResult.error(400, err);
+        }
+        return CommonResult.success(true);
+    }
+
+    @Operation(summary = "短信验证重置当前用户密码")
+    @Log(title = "个人中心", businessType = Log.BusinessType.UPDATE, isSaveRequestData = false, isSaveResponseData = false)
+    @PutMapping("/password/sms-reset")
+    public CommonResult<Boolean> resetPasswordBySms(@RequestBody ProfilePasswordSmsResetReqVO reqVO) {
+        StpUtil.checkLogin();
+        Long userId = StpUtil.getLoginIdAsLong();
+        UserDO user = userMapper.selectById(userId);
+        if (user == null) {
+            return CommonResult.error(404, "用户不存在");
+        }
+        String err = profileSmsPasswordService.resetPasswordBySms(
+                user, reqVO.getSmsCode(), reqVO.getNewPassword(), reqVO.getConfirmPassword());
+        if (err != null) {
+            return CommonResult.error(400, err);
+        }
         userMapper.updateById(user);
         return CommonResult.success(true);
     }
@@ -282,6 +324,19 @@ public class ProfileController {
     @Data
     public static class ChangePasswordReqVO {
         private String oldPassword;
+        private String newPassword;
+        private String confirmPassword;
+    }
+
+    @Data
+    public static class ProfilePasswordSmsCodeReqVO {
+        /** 滑块验证通过时传 slider_verified */
+        private String code;
+    }
+
+    @Data
+    public static class ProfilePasswordSmsResetReqVO {
+        private String smsCode;
         private String newPassword;
         private String confirmPassword;
     }

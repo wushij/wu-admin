@@ -61,7 +61,7 @@
 
     <!-- 主内容区 -->
     <el-row :gutter="24" class="profile-main">
-      <el-col :xs="24" :lg="16" class="profile-col-left">
+      <el-col :xs="24" :lg="18" class="profile-col-left">
         <el-card class="content-card" shadow="never">
           <el-tabs v-model="activeTab" class="profile-tabs">
             <!-- 基本资料 -->
@@ -107,58 +107,141 @@
 
             <!-- 安全设置 -->
             <el-tab-pane label="安全设置" name="security">
-              <div class="tab-intro">
+              <div class="tab-intro tab-intro--security">
                 <el-icon><Lock /></el-icon>
                 <span>定期更换密码可提升账号安全性，密码长度不少于 {{ minPwdLen }} 位。</span>
               </div>
-              <el-form
-                ref="pwdFormRef"
-                :model="pwdForm"
-                :rules="pwdRules"
-                label-width="100px"
-                class="pwd-form"
-                @submit.prevent
-              >
-                <el-form-item label="当前密码" prop="oldPassword">
-                  <el-input
-                    v-model="pwdForm.oldPassword"
-                    type="password"
-                    placeholder="请输入当前密码"
-                    show-password
-                    autocomplete="current-password"
-                  />
-                </el-form-item>
-                <el-form-item label="新密码" prop="newPassword">
-                  <el-input
-                    v-model="pwdForm.newPassword"
-                    type="password"
-                    placeholder="请输入新密码"
-                    show-password
-                    autocomplete="new-password"
-                  />
-                  <div v-if="pwdForm.newPassword" class="pwd-strength">
-                    <div class="pwd-strength-bar">
-                      <div class="pwd-strength-fill" :class="pwdStrength.level" :style="{ width: pwdStrength.percent + '%' }" />
-                    </div>
-                    <span class="pwd-strength-text" :class="pwdStrength.level">{{ pwdStrength.label }}</span>
+
+              <div v-if="securityMode === 'password'" class="security-form-card">
+                <el-form
+                  ref="pwdFormRef"
+                  :model="pwdForm"
+                  :rules="pwdRules"
+                  label-position="top"
+                  class="pwd-form pwd-form--modern"
+                  @submit.prevent
+                >
+                  <el-form-item prop="oldPassword" class="pwd-field">
+                    <template #label>
+                      <div class="pwd-field-label-row">
+                        <span class="pwd-field-label">当前密码</span>
+                        <button
+                          v-if="canUseSmsReset"
+                          type="button"
+                          class="pwd-forgot-btn"
+                          @click="openSmsResetMode"
+                        >
+                          忘记密码
+                        </button>
+                        <span v-else-if="!hasBoundMobile" class="pwd-forgot-hint">重置密码需先绑定手机号</span>
+                      </div>
+                    </template>
+                    <el-input
+                      v-model="pwdForm.oldPassword"
+                      type="password"
+                      placeholder="请输入当前密码"
+                      show-password
+                      autocomplete="current-password"
+                    />
+                  </el-form-item>
+                  <el-form-item label="新密码" prop="newPassword" class="pwd-field">
+                    <el-input
+                      v-model="pwdForm.newPassword"
+                      type="password"
+                      placeholder="请输入新密码"
+                      show-password
+                      autocomplete="new-password"
+                    />
+                  </el-form-item>
+                  <el-form-item label="确认新密码" prop="confirmPassword" class="pwd-field">
+                    <el-input
+                      v-model="pwdForm.confirmPassword"
+                      type="password"
+                      placeholder="请再次输入新密码"
+                      show-password
+                      autocomplete="new-password"
+                    />
+                  </el-form-item>
+                  <div class="pwd-form-actions">
+                    <el-button type="primary" :loading="savingPwd" @click="handleChangePassword">
+                      修改密码
+                    </el-button>
+                    <el-button @click="resetPwdForm">清空</el-button>
                   </div>
-                </el-form-item>
-                <el-form-item label="确认新密码" prop="confirmPassword">
-                  <el-input
-                    v-model="pwdForm.confirmPassword"
-                    type="password"
-                    placeholder="请再次输入新密码"
-                    show-password
-                    autocomplete="new-password"
-                  />
-                </el-form-item>
-                <el-form-item>
-                  <el-button type="primary" :loading="savingPwd" @click="handleChangePassword">
-                    修改密码
-                  </el-button>
-                  <el-button @click="resetPwdForm">清空</el-button>
-                </el-form-item>
-              </el-form>
+                </el-form>
+              </div>
+
+              <div v-else class="security-form-card security-form-card--sms">
+                <div class="sms-form-header">
+                  <button type="button" class="sms-back-btn" @click="closeSmsResetMode">
+                    <el-icon><ArrowLeft /></el-icon>
+                    返回
+                  </button>
+                  <span class="sms-form-header__title">短信验证重置</span>
+                </div>
+                <div class="sms-reset-banner">
+                  <div class="sms-reset-banner__icon">
+                    <el-icon><Iphone /></el-icon>
+                  </div>
+                  <div class="sms-reset-banner__body">
+                    <p class="sms-reset-banner__label">验证码将发送至</p>
+                    <p class="sms-reset-banner__phone">{{ maskedMobile }}</p>
+                  </div>
+                </div>
+                <el-form
+                  ref="smsPwdFormRef"
+                  :model="smsPwdForm"
+                  :rules="smsPwdRules"
+                  label-position="top"
+                  class="pwd-form pwd-form--modern"
+                  @submit.prevent
+                >
+                  <el-form-item label="短信验证码" prop="smsCode" class="pwd-field">
+                    <div class="sms-code-row">
+                      <el-input
+                        v-model="smsPwdForm.smsCode"
+                        placeholder="请输入 6 位验证码"
+                        maxlength="6"
+                        autocomplete="off"
+                      />
+                      <el-button
+                        type="primary"
+                        plain
+                        class="sms-send-btn"
+                        :disabled="smsCountdown > 0 || sendingSmsCode || !canUseSmsReset"
+                        :loading="sendingSmsCode"
+                        @click="handleSendResetSmsCode"
+                      >
+                        {{ smsCountdown > 0 ? `${smsCountdown}s` : '获取验证码' }}
+                      </el-button>
+                    </div>
+                  </el-form-item>
+                  <el-form-item label="新密码" prop="newPassword" class="pwd-field">
+                    <el-input
+                      v-model="smsPwdForm.newPassword"
+                      type="password"
+                      placeholder="请输入新密码"
+                      show-password
+                      autocomplete="new-password"
+                    />
+                  </el-form-item>
+                  <el-form-item label="确认新密码" prop="confirmPassword" class="pwd-field">
+                    <el-input
+                      v-model="smsPwdForm.confirmPassword"
+                      type="password"
+                      placeholder="请再次输入新密码"
+                      show-password
+                      autocomplete="new-password"
+                    />
+                  </el-form-item>
+                  <div class="pwd-form-actions">
+                    <el-button type="primary" :loading="savingSmsPwd" @click="handleSmsResetPassword">
+                      确认重置
+                    </el-button>
+                    <el-button @click="resetSmsPwdForm">清空</el-button>
+                  </div>
+                </el-form>
+              </div>
             </el-tab-pane>
 
             <!-- 登录记录 -->
@@ -205,7 +288,7 @@
       </el-col>
 
       <!-- 右侧信息面板 -->
-      <el-col :xs="24" :lg="8" class="profile-col-right">
+      <el-col :xs="24" :lg="6" class="profile-col-right">
         <el-card class="side-card account-card" shadow="never">
           <template #header>
             <div class="side-card-header">
@@ -252,19 +335,24 @@
         </el-card>
       </el-col>
     </el-row>
+
+    <SliderCaptcha v-model:show="showSliderModal" @success="onSliderSuccess" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import {
-  User, Lock, Clock, Camera, Postcard, InfoFilled,
+  User, Lock, Clock, Camera, Postcard, InfoFilled, Iphone, ArrowLeft,
 } from '@element-plus/icons-vue'
 import { useUserStore } from '@/store/user'
 import {
   getProfile, updateProfile, changePassword, uploadAvatar, getMyLoginLogs,
+  sendProfilePasswordSmsCode, resetPasswordBySms,
 } from '@/api/system/profile'
+import { getConfig } from '@/api/system/auth'
+import SliderCaptcha from '@/components/SliderCaptcha.vue'
 import type { UserProfile } from '@/types/profile'
 import type { LoginLogVO } from '@/api/system/login-log'
 
@@ -278,6 +366,15 @@ const savingPwd = ref(false)
 const avatarInputRef = ref<HTMLInputElement>()
 const infoFormRef = ref<FormInstance>()
 const pwdFormRef = ref<FormInstance>()
+const smsPwdFormRef = ref<FormInstance>()
+
+const securityMode = ref<'password' | 'sms'>('password')
+const smsEnabled = ref(false)
+const showSliderModal = ref(false)
+const sendingSmsCode = ref(false)
+const savingSmsPwd = ref(false)
+const smsCountdown = ref(0)
+let smsTimer: ReturnType<typeof setInterval> | null = null
 
 const infoForm = reactive({
   nickname: '',
@@ -287,6 +384,12 @@ const infoForm = reactive({
 
 const pwdForm = reactive({
   oldPassword: '',
+  newPassword: '',
+  confirmPassword: '',
+})
+
+const smsPwdForm = reactive({
+  smsCode: '',
   newPassword: '',
   confirmPassword: '',
 })
@@ -340,19 +443,19 @@ const lastLoginDisplay = computed(() => {
   return formatTime(profile.value.lastLoginTime, true)
 })
 
-const pwdStrength = computed(() => {
-  const pwd = pwdForm.newPassword
-  if (!pwd) return { level: 'weak', label: '', percent: 0 }
-  let score = 0
-  if (pwd.length >= minPwdLen.value) score++
-  if (pwd.length >= minPwdLen.value + 4) score++
-  if (/[A-Z]/.test(pwd) && /[a-z]/.test(pwd)) score++
-  if (/\d/.test(pwd)) score++
-  if (/[^A-Za-z0-9]/.test(pwd)) score++
-  if (score <= 2) return { level: 'weak', label: '弱', percent: 33 }
-  if (score <= 3) return { level: 'medium', label: '中', percent: 66 }
-  return { level: 'strong', label: '强', percent: 100 }
+const maskedMobile = computed(() => {
+  const m = (profile.value.mobile || '').trim()
+  if (!/^1[3-9]\d{9}$/.test(m)) return '未绑定手机号'
+  return `${m.slice(0, 3)} **** ${m.slice(-4)}`
 })
+
+const hasBoundMobile = computed(() =>
+  /^1[3-9]\d{9}$/.test((profile.value.mobile || '').trim()),
+)
+
+const canUseSmsReset = computed(
+  () => smsEnabled.value && hasBoundMobile.value,
+)
 
 const infoRules: FormRules = {
   nickname: [
@@ -387,6 +490,122 @@ const pwdRules = computed<FormRules>(() => ({
     },
   ],
 }))
+
+const smsPwdRules = computed<FormRules>(() => ({
+  smsCode: [
+    { required: true, message: '请输入短信验证码', trigger: 'blur' },
+    { pattern: /^\d{4,6}$/, message: '请输入正确的验证码', trigger: 'blur' },
+  ],
+  newPassword: [
+    { required: true, message: '请输入新密码', trigger: 'blur' },
+    { min: minPwdLen.value, message: `密码长度不能少于 ${minPwdLen.value} 位`, trigger: 'blur' },
+  ],
+  confirmPassword: [
+    { required: true, message: '请确认新密码', trigger: 'blur' },
+    {
+      validator: (_rule, value, callback) => {
+        if (value !== smsPwdForm.newPassword) {
+          callback(new Error('两次输入的密码不一致'))
+        } else {
+          callback()
+        }
+      },
+      trigger: 'blur',
+    },
+  ],
+}))
+
+function startSmsCountdown(seconds = 60) {
+  if (smsTimer) {
+    clearInterval(smsTimer)
+    smsTimer = null
+  }
+  smsCountdown.value = seconds
+  smsTimer = setInterval(() => {
+    if (smsCountdown.value <= 1) {
+      smsCountdown.value = 0
+      if (smsTimer) {
+        clearInterval(smsTimer)
+        smsTimer = null
+      }
+    } else {
+      smsCountdown.value -= 1
+    }
+  }, 1000)
+}
+
+async function loadSmsConfig() {
+  try {
+    const res = await getConfig()
+    smsEnabled.value = res.data?.login?.smsEnabled === true
+  } catch {
+    smsEnabled.value = false
+  }
+}
+
+function openSmsResetMode() {
+  if (!smsEnabled.value) {
+    ElMessage.warning('短信功能未启用，请联系管理员')
+    return
+  }
+  if (!hasBoundMobile.value) {
+    ElMessage.warning('请先在「基本资料」中绑定手机号')
+    activeTab.value = 'info'
+    return
+  }
+  securityMode.value = 'sms'
+  resetSmsPwdForm()
+}
+
+function closeSmsResetMode() {
+  securityMode.value = 'password'
+  resetSmsPwdForm()
+}
+
+function resetSmsPwdForm() {
+  smsPwdForm.smsCode = ''
+  smsPwdForm.newPassword = ''
+  smsPwdForm.confirmPassword = ''
+  smsPwdFormRef.value?.clearValidate()
+}
+
+function handleSendResetSmsCode() {
+  if (!canUseSmsReset.value || sendingSmsCode.value || smsCountdown.value > 0) return
+  showSliderModal.value = true
+}
+
+async function onSliderSuccess() {
+  sendingSmsCode.value = true
+  try {
+    await sendProfilePasswordSmsCode('slider_verified')
+    ElMessage.success('验证码已发送')
+    startSmsCountdown()
+  } catch {
+    // 错误提示由 request 拦截器统一弹出，避免重复
+  } finally {
+    sendingSmsCode.value = false
+  }
+}
+
+async function handleSmsResetPassword() {
+  const valid = await smsPwdFormRef.value?.validate().catch(() => false)
+  if (!valid) return
+  savingSmsPwd.value = true
+  try {
+    await resetPasswordBySms({
+      smsCode: smsPwdForm.smsCode.trim(),
+      newPassword: smsPwdForm.newPassword,
+      confirmPassword: smsPwdForm.confirmPassword,
+    })
+    ElMessage.success('密码已重置，请使用新密码登录')
+    resetSmsPwdForm()
+    securityMode.value = 'password'
+  } catch {
+    // 错误提示由 request 拦截器统一弹出，避免重复
+  } finally {
+    savingSmsPwd.value = false
+  }
+}
 
 function formatTime(time?: string, short = false) {
   if (!time) return '—'
@@ -510,9 +729,16 @@ watch(activeTab, (tab) => {
 })
 
 onMounted(async () => {
-  await loadProfile()
+  await Promise.all([loadProfile(), loadSmsConfig()])
   if (activeTab.value === 'logs') {
     await loadLoginLogs()
+  }
+})
+
+onUnmounted(() => {
+  if (smsTimer) {
+    clearInterval(smsTimer)
+    smsTimer = null
   }
 })
 </script>
@@ -525,9 +751,9 @@ onMounted(async () => {
 /* 顶部横幅 */
 .profile-hero {
   position: relative;
-  border-radius: 16px;
+  border-radius: 14px;
   overflow: hidden;
-  margin-bottom: 24px;
+  margin-bottom: 20px;
   background: linear-gradient(135deg, var(--theme-primary, #111827) 0%, #374151 100%);
   color: #fff;
 }
@@ -546,8 +772,8 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 32px;
-  padding: 32px 36px;
+  gap: 24px;
+  padding: 28px 32px;
   flex-wrap: wrap;
 }
 
@@ -564,9 +790,11 @@ onMounted(async () => {
 }
 
 .hero-avatar {
+  width: 80px !important;
+  height: 80px !important;
   border: 3px solid rgba(255, 255, 255, 0.35);
   background: rgba(255, 255, 255, 0.15);
-  font-size: 32px;
+  font-size: 28px;
   font-weight: 600;
 }
 
@@ -669,9 +897,9 @@ onMounted(async () => {
 
 .content-card,
 .side-card {
-  border-radius: 12px;
+  border-radius: 10px;
   border: 1px solid var(--theme-border, #e5e7eb);
-  margin-bottom: 20px;
+  margin-bottom: 16px;
 }
 
 @media (min-width: 992px) {
@@ -697,18 +925,14 @@ onMounted(async () => {
   .profile-tabs :deep(.el-tabs__content) {
     flex: 1;
   }
-
-  .profile-col-right .tips-card {
-    margin-bottom: 0;
-  }
 }
 
 .content-card :deep(.el-card__body) {
-  padding: 8px 24px 24px;
+  padding: 12px 24px 24px;
 }
 
 .profile-tabs :deep(.el-tabs__header) {
-  margin-bottom: 20px;
+  margin-bottom: 16px;
 }
 
 .profile-tabs :deep(.el-tabs__item) {
@@ -720,11 +944,11 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 12px 16px;
-  margin-bottom: 24px;
+  padding: 10px 14px;
+  margin-bottom: 20px;
   background: var(--theme-bg, #f9fafb);
   border-radius: 8px;
-  font-size: 13px;
+  font-size: 12.5px;
   color: var(--theme-text-secondary, #6b7280);
   line-height: 1.5;
 }
@@ -736,42 +960,225 @@ onMounted(async () => {
 
 .info-form,
 .pwd-form {
-  max-width: 520px;
+  max-width: 680px;
 }
 
-.pwd-strength {
+.info-form :deep(.el-form-item) {
+  margin-bottom: 18px;
+}
+
+.info-form :deep(.el-form-item__label) {
+  font-size: 13.5px;
+  font-weight: 500;
+  color: #374151;
+}
+
+.tab-intro--security {
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border: 1px solid #e2e8f0;
+  color: #475569;
+}
+
+.security-form-card {
+  max-width: 600px;
+  padding: 28px 32px 24px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  box-shadow: 0 4px 24px rgba(15, 23, 42, 0.06);
+}
+
+.pwd-form--modern {
+  max-width: none;
+}
+
+.pwd-form--modern :deep(.el-form-item) {
+  margin-bottom: 22px;
+}
+
+.pwd-form--modern :deep(.el-form-item__label) {
+  display: flex !important;
+  align-items: center;
+  width: 100% !important;
+  padding: 0;
+  margin-bottom: 8px;
+  line-height: 1.4;
+  font-size: 14px;
+  font-weight: 500;
+  color: #374151;
+}
+
+.pwd-form--modern :deep(.el-form-item__label::before) {
+  flex-shrink: 0;
+  margin-right: 4px;
+}
+
+.pwd-form--modern :deep(.el-input__wrapper) {
+  border-radius: 8px;
+  padding: 4px 12px;
+  box-shadow: 0 0 0 1px #d1d5db inset;
+  transition: box-shadow 0.2s;
+}
+
+.pwd-form--modern :deep(.el-input__wrapper:hover) {
+  box-shadow: 0 0 0 1px #9ca3af inset;
+}
+
+.pwd-form--modern :deep(.el-input__wrapper.is-focus) {
+  box-shadow: 0 0 0 2px var(--theme-primary, #111827) inset;
+}
+
+.pwd-field-label-row {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-top: 8px;
-}
-
-.pwd-strength-bar {
+  justify-content: space-between;
   flex: 1;
-  height: 4px;
-  background: #e5e7eb;
-  border-radius: 2px;
-  overflow: hidden;
+  min-width: 0;
+  padding-right: 0;
 }
 
-.pwd-strength-fill {
-  height: 100%;
-  border-radius: 2px;
-  transition: width 0.3s, background 0.3s;
+.pwd-field-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #374151;
 }
 
-.pwd-strength-fill.weak { background: #ef4444; }
-.pwd-strength-fill.medium { background: #f59e0b; }
-.pwd-strength-fill.strong { background: #10b981; }
+.pwd-forgot-btn {
+  padding: 0;
+  border: none;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--theme-primary, #111827);
+  cursor: pointer;
+  line-height: 1.4;
+}
 
-.pwd-strength-text {
+.pwd-forgot-btn:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  opacity: 0.85;
+}
+
+.pwd-forgot-hint {
   font-size: 12px;
-  min-width: 16px;
+  font-weight: 400;
+  color: #94a3b8;
+  line-height: 1.4;
+  white-space: nowrap;
 }
 
-.pwd-strength-text.weak { color: #ef4444; }
-.pwd-strength-text.medium { color: #f59e0b; }
-.pwd-strength-text.strong { color: #10b981; }
+.pwd-form-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 4px;
+  padding-top: 20px;
+  border-top: 1px solid #f3f4f6;
+}
+
+.pwd-form-actions .el-button--primary {
+  min-width: 108px;
+}
+
+/* 短信重置 */
+.security-form-card--sms {
+  max-width: 600px;
+}
+
+.sms-form-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.sms-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 10px;
+  margin-left: -10px;
+  border: none;
+  border-radius: 8px;
+  background: #f3f4f6;
+  font-size: 13px;
+  font-weight: 500;
+  color: #374151;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+
+.sms-back-btn:hover {
+  background: #e5e7eb;
+  color: #111827;
+}
+
+.sms-back-btn .el-icon {
+  font-size: 14px;
+}
+
+.sms-form-header__title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.sms-reset-banner {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 24px;
+  padding: 16px 18px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #eff6ff 0%, #f0f9ff 100%);
+  border: 1px solid #bfdbfe;
+}
+
+.sms-reset-banner__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  background: #fff;
+  color: #2563eb;
+  font-size: 22px;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.12);
+}
+
+.sms-reset-banner__label {
+  margin: 0 0 4px;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.sms-reset-banner__phone {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: #0f172a;
+}
+
+.sms-code-row {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+}
+
+.sms-code-row .el-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.sms-send-btn {
+  flex-shrink: 0;
+  min-width: 108px;
+}
 
 .logs-table {
   border-radius: 8px;
@@ -784,13 +1191,35 @@ onMounted(async () => {
 }
 
 /* 右侧面板 */
+.side-card {
+  margin-bottom: 16px;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.side-card :deep(.el-card__header) {
+  padding: 14px 16px;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.side-card :deep(.el-card__body) {
+  padding: 12px 16px;
+}
+
+@media (min-width: 992px) {
+  .profile-col-right .tips-card {
+    margin-bottom: 0;
+  }
+}
+
 .side-card-header {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   font-weight: 600;
-  font-size: 15px;
+  font-size: 14px;
   color: var(--theme-text-base, #1f2937);
+  padding-bottom: 2px;
 }
 
 .meta-list {
@@ -803,10 +1232,10 @@ onMounted(async () => {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  gap: 12px;
-  padding: 12px 0;
-  border-bottom: 1px solid #f3f4f6;
-  font-size: 14px;
+  gap: 8px;
+  padding: 10px 0;
+  border-bottom: 1px dashed #e5e7eb;
+  font-size: 13px;
 }
 
 .meta-list li:last-child {
@@ -816,6 +1245,7 @@ onMounted(async () => {
 .meta-label {
   color: var(--theme-text-secondary, #6b7280);
   flex-shrink: 0;
+  font-weight: 500;
 }
 
 .meta-value {
@@ -826,10 +1256,10 @@ onMounted(async () => {
 
 .tips-list {
   margin: 0;
-  padding: 0 0 0 18px;
-  font-size: 13px;
+  padding: 0 0 0 16px;
+  font-size: 12.5px;
   color: var(--theme-text-secondary, #6b7280);
-  line-height: 1.8;
+  line-height: 1.7;
 }
 
 .tips-list li + li {
