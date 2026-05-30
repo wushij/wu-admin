@@ -105,6 +105,13 @@
               <el-switch v-model="draft.login.smsLoginEnabled" :disabled="!canEdit" />
             </el-form-item>
             <el-form-item
+              v-if="draft.login.smsLoginEnabled"
+              label="发送前滑块验证"
+            >
+              <el-switch v-model="draft.login.smsLoginSliderCaptchaEnabled" :disabled="!canEdit" />
+              <span class="unit">获取短信验证码前需完成滑块验证</span>
+            </el-form-item>
+            <el-form-item
               v-if="draft.login.smsLoginEnabled && !draft.sms.enabled"
               label=" "
             >
@@ -930,6 +937,7 @@ const DEFAULTS = {
     captchaEnabled: true,
     captchaType: 'image',
     smsLoginEnabled: false,
+    smsLoginSliderCaptchaEnabled: false,
     rememberMe: true,
     maxRetryCount: 5,
     lockTime: 10
@@ -1012,7 +1020,11 @@ const draft = reactive(cloneConfig(DEFAULTS) as ConfigState)
 function normalizePayload<K extends ConfigGroupCode>(code: K, payload: ConfigGroupMap[K]): ConfigGroupMap[K] {
   if (code === 'login') {
     const login = payload as ConfigGroupMap['login']
-    return (login.captchaEnabled ? login : { ...login, captchaType: 'image' }) as ConfigGroupMap[K]
+    let result = login.captchaEnabled ? login : { ...login, captchaType: 'image' }
+    if (!result.smsLoginEnabled) {
+      result = { ...result, smsLoginSliderCaptchaEnabled: false }
+    }
+    return result as ConfigGroupMap[K]
   }
   if (code === 'register') {
     const register = payload as ConfigGroupMap['register']
@@ -1068,6 +1080,9 @@ function applyGroupFromServer<K extends ConfigGroupCode>(code: K, serverJson: Pa
     }
     if (login.smsLoginEnabled === undefined) {
       login.smsLoginEnabled = false
+    }
+    if (login.smsLoginSliderCaptchaEnabled === undefined) {
+      login.smsLoginSliderCaptchaEnabled = false
     }
   }
   if (code === 'sms') {

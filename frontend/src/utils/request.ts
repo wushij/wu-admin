@@ -14,6 +14,21 @@ function showForbiddenOnce(message: string) {
   ElMessage.error(message)
 }
 
+/** 公开认证接口不携带管理员 token，避免干扰注册/登录 */
+const AUTH_PUBLIC_SUFFIXES = [
+  '/auth/login',
+  '/auth/register',
+  '/auth/captcha',
+  '/auth/config',
+  '/auth/sms-code',
+]
+
+function isAuthPublicUrl(url?: string): boolean {
+  if (!url) return false
+  const path = url.split('?')[0]
+  return AUTH_PUBLIC_SUFFIXES.some((suffix) => path === suffix || path.endsWith(suffix))
+}
+
 // 创建axios实例
 const service: AxiosInstance = axios.create({
   baseURL: '/api', // 统一通过 /api 访问后端
@@ -28,7 +43,7 @@ service.interceptors.request.use(
   (config) => {
     // 从localStorage获取token
     const token = localStorage.getItem('token')
-    if (token) {
+    if (token && !isAuthPublicUrl(config.url)) {
       config.headers['Authorization'] = token
     }
     return config
