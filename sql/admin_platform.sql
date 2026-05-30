@@ -5,7 +5,8 @@
 -- 【全新安装】执行本文件全文即可（建库、建表、初始数据）。
 -- 【已有库升级】若表已存在，可只执行文末「附录：已有库升级」段（可重复执行）。
 --
--- 仅维护本文件；历史 add*.sql 已删除，升级内容见文末「附录」。
+-- 已有库增量：add1.sql～add3.sql（业务/消息）、add4.sql（索引）、add5.sql（安全配置）、add6.sql（组织示例数据）、add7.sql（第三方/支付）、add8.sql（Google 配置）、add9.sql（组织树分级）、add10.sql（一级菜单排序）、add11.sql（定时任务）；
+-- 或执行文末「附录：已有库升级」段（配置/菜单/消息表/组织数据等，可重复执行）。
 -- =============================================
 
 -- 创建数据库
@@ -250,6 +251,45 @@ CREATE TABLE sys_oper_log (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='操作日志表';
 
 -- =============================================
+-- 7b. 定时任务
+-- =============================================
+DROP TABLE IF EXISTS sys_job_log;
+DROP TABLE IF EXISTS sys_job;
+CREATE TABLE sys_job (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
+    job_name VARCHAR(64) NOT NULL COMMENT '任务名称',
+    job_group VARCHAR(64) DEFAULT 'DEFAULT' COMMENT '任务组名',
+    invoke_target VARCHAR(500) NOT NULL COMMENT '调用目标字符串',
+    cron_expression VARCHAR(255) DEFAULT NULL COMMENT 'cron执行表达式',
+    misfire_policy TINYINT DEFAULT 3 COMMENT '计划执行错误策略(1-立即执行 2-执行一次 3-放弃执行)',
+    concurrent TINYINT DEFAULT 1 COMMENT '是否并发执行(0-允许 1-禁止)',
+    status TINYINT DEFAULT 0 COMMENT '状态(0-暂停 1-正常)',
+    remark VARCHAR(500) DEFAULT NULL COMMENT '备注',
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    creator VARCHAR(64) DEFAULT '' COMMENT '创建者',
+    updater VARCHAR(64) DEFAULT '' COMMENT '更新者',
+    deleted TINYINT DEFAULT 0 COMMENT '是否删除',
+    INDEX idx_job_group (job_group),
+    INDEX idx_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='定时任务表';
+
+CREATE TABLE sys_job_log (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
+    job_name VARCHAR(64) NOT NULL COMMENT '任务名称',
+    job_group VARCHAR(64) DEFAULT NULL COMMENT '任务组名',
+    invoke_target VARCHAR(500) DEFAULT NULL COMMENT '调用目标字符串',
+    job_message VARCHAR(500) DEFAULT NULL COMMENT '日志信息',
+    status TINYINT DEFAULT 0 COMMENT '执行状态(0-正常 1-失败)',
+    exception_info VARCHAR(2000) DEFAULT NULL COMMENT '异常信息',
+    start_time DATETIME DEFAULT NULL COMMENT '开始时间',
+    stop_time DATETIME DEFAULT NULL COMMENT '停止时间',
+    INDEX idx_job_name (job_name),
+    INDEX idx_start_time (start_time),
+    INDEX idx_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='定时任务日志表';
+
+-- =============================================
 -- 8. 工单表
 -- =============================================
 DROP TABLE IF EXISTS sys_ticket;
@@ -273,7 +313,8 @@ CREATE TABLE sys_ticket (
     INDEX idx_status (status),
     INDEX idx_priority (priority),
     INDEX idx_creator_user_id (creator_user_id),
-    INDEX idx_assignee_user_id (assignee_user_id)
+    INDEX idx_assignee_user_id (assignee_user_id),
+    INDEX idx_deleted_status_time (deleted, status, create_time)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='工单表';
 
 -- =============================================
@@ -332,6 +373,7 @@ CREATE TABLE sys_notice (
     updater VARCHAR(64) DEFAULT '' COMMENT '更新者',
     deleted TINYINT DEFAULT 0 COMMENT '是否删除',
     INDEX idx_user_read_status (user_id, read_status),
+    INDEX idx_user_read_deleted (user_id, read_status, deleted),
     INDEX idx_biz (biz_type, biz_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='站内消息表';
 
@@ -403,6 +445,7 @@ CREATE TABLE sys_chat_message (
     send_time DATETIME DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_sender (sender_id),
     INDEX idx_receiver (receiver_id),
+    INDEX idx_receiver_unread (receiver_id, is_read, sender_id),
     INDEX idx_pair_time (sender_id, receiver_id, send_time)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='私聊消息';
 
@@ -435,7 +478,8 @@ CREATE TABLE sys_chat_group_member (
     role TINYINT DEFAULT 0 COMMENT '0成员 1管理员 2群主',
     muted TINYINT DEFAULT 0,
     join_time DATETIME DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE KEY uk_group_user (group_id, user_id)
+    UNIQUE KEY uk_group_user (group_id, user_id),
+    INDEX idx_user_id (user_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='群成员';
 
 CREATE TABLE sys_chat_group_message (
@@ -485,7 +529,8 @@ CREATE TABLE sys_approval_form (
     UNIQUE KEY uk_form_no (form_no),
     INDEX idx_status (status),
     INDEX idx_applicant_user_id (applicant_user_id),
-    INDEX idx_approver_user_id (approver_user_id)
+    INDEX idx_approver_user_id (approver_user_id),
+    INDEX idx_type_applicant_status (form_type, applicant_user_id, status, deleted)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='审批单表';
 
 -- =============================================
@@ -524,6 +569,7 @@ CREATE TABLE sys_api_access_log (
     user_id BIGINT NULL DEFAULT NULL COMMENT '用户ID(未登录为空)',
     PRIMARY KEY (id),
     INDEX idx_start_time (start_time),
+    INDEX idx_start_time_success (start_time, success),
     INDEX idx_api_path (api_path(100)),
     INDEX idx_user_id (user_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='API访问统计日志';
@@ -549,7 +595,8 @@ CREATE TABLE sys_file (
     create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     PRIMARY KEY (id),
     INDEX idx_group_id (group_id),
-    INDEX idx_create_time (create_time)
+    INDEX idx_create_time (create_time),
+    INDEX idx_group_time (group_id, create_time)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='文件记录表';
 
 DROP TABLE IF EXISTS sys_file_group;
@@ -585,22 +632,52 @@ CREATE TABLE sys_config_group (
 -- 初始化数据
 -- =============================================
 
--- 初始化部门
+-- 初始化部门（id=1 为本部虚拟根，界面隐藏；二级为各中心）
 INSERT INTO sys_dept (id, name, parent_id, ancestors, sort, status, leader_name) VALUES
-(1, '总公司', 0, '0', 0, 1, '管理员'),
-(2, '研发部', 1, '0,1', 1, 1, '张三'),
-(3, '市场部', 1, '0,1', 2, 1, '李四'),
-(4, '财务部', 1, '0,1', 3, 1, '王五');
+(1, '本部', 0, '0', 0, 1, '管理员'),
+(2, '技术中心', 1, '0,1', 1, 1, NULL),
+(3, '业务中心', 1, '0,1', 2, 1, NULL),
+(4, '职能中心', 1, '0,1', 3, 1, NULL),
+(5, '运营中心', 1, '0,1', 4, 1, NULL),
+(6, '研发部', 2, '0,1,2', 1, 1, '张三'),
+(7, '运维部', 2, '0,1,2', 2, 1, NULL),
+(8, '产品部', 2, '0,1,2', 3, 1, NULL),
+(9, '市场部', 3, '0,1,3', 1, 1, '李四'),
+(10, '财务部', 4, '0,1,4', 1, 1, '王五'),
+(11, '人事部', 4, '0,1,4', 2, 1, NULL),
+(12, '实训部', 5, '0,1,5', 1, 1, NULL),
+(13, '客服部', 5, '0,1,5', 2, 1, NULL),
+(14, '前端组', 6, '0,1,2,6', 1, 1, NULL),
+(15, '后端组', 6, '0,1,2,6', 2, 1, NULL);
 
 INSERT INTO sys_post (id, parent_id, post_code, post_name, sort, status, remark) VALUES
-(1, 0, 'ceo', '总经理', 0, 1, '顶级岗位'),
-(2, 0, 'dev', '研发工程师', 1, 1, ''),
-(3, 2, 'dev_lead', '研发组长', 0, 1, '隶属研发工程师');
+(1, 0, 'chairman', '董事长', 0, 1, '岗位体系根'),
+(2, 1, 'ceo', '总经理', 1, 1, ''),
+(3, 2, 'cto', '技术总监', 1, 1, ''),
+(4, 2, 'dev_exec', '开发工程师', 2, 1, ''),
+(5, 2, 'biz_line', '业务体系', 3, 1, '岗位分类'),
+(6, 2, 'func_line', '职能体系', 4, 1, '岗位分类'),
+(7, 2, 'ops_line', '运营体系', 5, 1, '岗位分类'),
+(8, 3, 'dev', '研发工程师', 1, 1, ''),
+(9, 8, 'dev_lead', '研发组长', 0, 1, ''),
+(10, 8, 'fe_dev', '前端开发', 1, 1, ''),
+(11, 8, 'be_dev', '后端开发', 2, 1, ''),
+(12, 3, 'qa', '测试', 2, 1, ''),
+(13, 12, 'qa_lead', '测试组长', 0, 1, ''),
+(14, 3, 'product_mgr', '产品经理', 3, 1, ''),
+(15, 3, 'ops_eng', '运维工程师', 4, 1, ''),
+(16, 5, 'market_spec', '市场专员', 1, 1, ''),
+(17, 6, 'finance_mgr', '财务主管', 1, 1, ''),
+(18, 6, 'hr_spec', '人事专员', 2, 1, ''),
+(19, 7, 'train_lecturer', '实训讲师', 1, 1, '');
+
+ALTER TABLE sys_dept AUTO_INCREMENT = 16;
+ALTER TABLE sys_post AUTO_INCREMENT = 20;
 
 -- 初始化用户 (密码为 admin123，BCrypt加密)
 INSERT INTO sys_user (id, username, password, nickname, mobile, email, status, dept_id) VALUES
 (1, 'admin', '$2a$10$7JB720yubVSZvUI0rEqK/.VqGOZTH.ulu33dHOiBE8ByOhJIrdAu2', '管理员', '13800138000', 'admin@admin.cn', 1, 1),
-(2, 'zhangsan', '$2a$10$7JB720yubVSZvUI0rEqK/.VqGOZTH.ulu33dHOiBE8ByOhJIrdAu2', '张三', '13800138001', 'zhangsan@admin.cn', 1, 2);
+(2, 'zhangsan', '$2a$10$7JB720yubVSZvUI0rEqK/.VqGOZTH.ulu33dHOiBE8ByOhJIrdAu2', '张三', '13800138001', 'zhangsan@admin.cn', 1, 6);
 
 -- 初始化角色
 INSERT INTO sys_role (id, name, code, sort, status, remark) VALUES
@@ -611,7 +688,11 @@ INSERT INTO sys_role (id, name, code, sort, status, remark) VALUES
 INSERT INTO sys_dict_type (id, dict_name, dict_type, status, remark) VALUES
 (1, '系统状态', 'sys_normal_disable', 1, '通用启用停用'),
 (2, '用户性别', 'sys_user_sex', 1, '用户性别'),
-(3, '是否', 'sys_yes_no', 1, '是或否');
+(3, '是否', 'sys_yes_no', 1, '是或否'),
+(4, '工单状态', 'sys_ticket_status', 1, '工单流转状态'),
+(5, '工单优先级', 'sys_ticket_priority', 1, '工单优先级'),
+(6, '审批类型', 'sys_approval_form_type', 1, '审批单业务类型'),
+(7, '审批状态', 'sys_approval_status', 1, '审批单流转状态');
 
 INSERT INTO sys_dict_data (dict_type, sort, dict_label, dict_value, list_class, is_default, status) VALUES
 ('sys_normal_disable', 1, '启用', '1', 'success', 1, 1),
@@ -620,7 +701,26 @@ INSERT INTO sys_dict_data (dict_type, sort, dict_label, dict_value, list_class, 
 ('sys_user_sex', 2, '女', '2', 'danger', 0, 1),
 ('sys_user_sex', 3, '未知', '0', 'info', 1, 1),
 ('sys_yes_no', 1, '是', 'Y', 'success', 1, 1),
-('sys_yes_no', 2, '否', 'N', 'info', 0, 1);
+('sys_yes_no', 2, '否', 'N', 'info', 0, 1),
+('sys_ticket_status', 1, '待处理', 'OPEN', 'info', 1, 1),
+('sys_ticket_status', 2, '处理中', 'IN_PROGRESS', 'warning', 0, 1),
+('sys_ticket_status', 3, '已解决', 'RESOLVED', 'success', 0, 1),
+('sys_ticket_status', 4, '已关闭', 'CLOSED', 'danger', 0, 1),
+('sys_ticket_priority', 1, '低', 'LOW', 'info', 0, 1),
+('sys_ticket_priority', 2, '中', 'MEDIUM', 'success', 1, 1),
+('sys_ticket_priority', 3, '高', 'HIGH', 'warning', 0, 1),
+('sys_ticket_priority', 4, '紧急', 'URGENT', 'danger', 0, 1),
+('sys_approval_form_type', 1, '通用', 'GENERAL', 'info', 1, 1),
+('sys_approval_form_type', 2, '请假', 'LEAVE', 'primary', 0, 1),
+('sys_approval_form_type', 3, '采购', 'PURCHASE', 'warning', 0, 1),
+('sys_approval_form_type', 4, '报销', 'REIMBURSE', 'success', 0, 1),
+('sys_approval_form_type', 5, '用印', 'SEAL', 'danger', 0, 1),
+('sys_approval_form_type', 6, '合同', 'CONTRACT', 'info', 0, 1),
+('sys_approval_form_type', 7, '注册审核', 'REGISTER', 'warning', 0, 1),
+('sys_approval_status', 1, '待审批', 'SUBMITTED', 'warning', 1, 1),
+('sys_approval_status', 2, '已通过', 'APPROVED', 'success', 0, 1),
+('sys_approval_status', 3, '已驳回', 'REJECTED', 'danger', 0, 1),
+('sys_approval_status', 4, '已归档', 'ARCHIVED', 'info', 0, 1);
 
 INSERT INTO sys_config_group (group_code, group_name, config_value, remark) VALUES
 ('site', '基础信息', '{"platformName":"Admin Platform","platformSubtitle":"统一运维 · 高效管控","loginWelcome":"Welcome","registerTitle":"Sign Up","copyright":""}', '平台展示名称与登录页文案'),
@@ -628,7 +728,10 @@ INSERT INTO sys_config_group (group_code, group_name, config_value, remark) VALU
 ('file', '文件配置', '{"maxSizeMb":50,"allowedExtensions":"jpg,jpeg,png,gif,webp,bmp,svg,pdf,doc,docx,xls,xlsx,ppt,pptx,txt,md,json,xml,zip,rar,mp4,mp3,wav,avi,mov"}', '文件管理上传限制'),
 ('rateLimit', '接口限流', '{"captchaPerIpMinute":40,"loginPerIpMinute":30,"registerPerIpMinute":10}', '认证接口按 IP 限流'),
 ('login', '登录配置', '{"captchaEnabled":true,"captchaType":"image","rememberMe":true,"maxRetryCount":5,"lockTime":10}', '验证码类型 image=图片 slider=滑块'),
-('register', '注册配置', '{"enabled":true,"captchaEnabled":true,"captchaType":"image","defaultRoleCode":"user","needAudit":false,"minPasswordLength":6}', '开放注册、验证码类型、默认角色、是否审核');
+('register', '注册配置', '{"enabled":true,"captchaEnabled":true,"captchaType":"image","defaultRoleCode":"user","needAudit":false,"minPasswordLength":6}', '开放注册、验证码类型、默认角色、是否审核'),
+('thirdParty', '第三方配置', '{"wechat":{"enabled":false,"appId":"","appSecret":""},"alipay":{"enabled":false,"appId":"","privateKey":"","publicKey":""},"github":{"enabled":false,"clientId":"","clientSecret":""},"google":{"enabled":false,"clientId":"","clientSecret":"","redirectUri":""}}', '微信/支付宝/GitHub/Google 第三方登录'),
+('payment', '支付配置', '{"wechatPay":{"enabled":false,"mchId":"","appId":"","apiV3Key":"","privateKey":"","certSerialNo":"","notifyUrl":""},"alipay":{"enabled":false,"appId":"","privateKey":"","publicKey":"","signType":"RSA2","gatewayUrl":"https://openapi.alipay.com/gateway.do","notifyUrl":"","returnUrl":""}}', '微信/支付宝支付与测试下单'),
+('security', '安全配置', '{"disableDevtool":false,"isConcurrent":false}', '前端安全与会话：禁止调试、禁止多端同时在线');
 
 -- 初始化菜单
 INSERT INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, component, status) VALUES
@@ -702,7 +805,7 @@ INSERT INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, c
 (73, '审批单归档', 'system:approval:archive', 3, 4, 9, '', '', '', 1),
 (74, '审批单删除', 'system:approval:delete', 3, 5, 9, '', '', '', 1),
 -- 文件管理目录（与系统管理、系统监控同级）
-(105, '文件管理', '', 1, 4, 0, '/file', 'Folder', '', 1),
+(105, '文件管理', '', 1, 5, 0, '/file', 'Folder', '', 1),
 (110, '文件列表', 'sys:file:list', 2, 1, 105, '/system/file', 'Document', 'system/file/index', 1),
 (111, '文件查询', 'sys:file:query', 3, 1, 110, '', '', '', 1),
 (112, '文件上传', 'sys:file:upload', 3, 2, 110, '', '', '', 1),
@@ -715,8 +818,14 @@ INSERT INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, c
 -- 在线用户
 (103, '在线用户', 'monitor:online:list', 2, 2, 100, '/monitor/online', 'User', 'monitor/online/index', 1),
 (104, '在线用户强退', 'monitor:online:forceLogout', 3, 1, 103, '', '', '', 1),
+-- 定时任务
+(180, '定时任务', 'monitor:job:list', 2, 3, 100, '/monitor/job', 'Timer', 'monitor/job/index', 1),
+(181, '任务查询', 'monitor:job:query', 3, 1, 180, '', '', '', 1),
+(182, '任务新增', 'monitor:job:add', 3, 2, 180, '', '', '', 1),
+(183, '任务编辑', 'monitor:job:edit', 3, 3, 180, '', '', '', 1),
+(184, '任务删除', 'monitor:job:delete', 3, 4, 180, '', '', '', 1),
 -- 系统日志目录
-(120, '系统日志', '', 1, 5, 0, '/log', 'Notebook', '', 1),
+(120, '系统日志', '', 1, 4, 0, '/log', 'Notebook', '', 1),
 (121, '操作日志', 'system:operLog:list', 2, 1, 120, '/system/oper-log', 'EditPen', 'system/oper-log/index', 1),
 (126, '操作日志查询', 'system:operLog:query', 3, 1, 121, '', '', '', 1),
 (127, '操作日志删除', 'system:operLog:delete', 3, 2, 121, '', '', '', 1),
@@ -724,10 +833,10 @@ INSERT INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, c
 -- 登录日志（隶属系统日志）
 (6, '登录日志', 'system:loginLog:list', 2, 2, 120, '/system/login-log', 'Promotion', 'system/login-log/index', 1),
 -- 开发工具
-(150, '开发工具', '', 1, 6, 0, '/tool', 'Tools', '', 1),
+(150, '开发工具', '', 1, 7, 0, '/tool', 'Tools', '', 1),
 (151, '接口文档', 'tool:apiDoc:view', 2, 1, 150, '/tool/api-doc', 'Document', '/doc.html', 1),
 -- 消息中心
-(170, '消息中心', '', 1, 7, 0, '/message', 'Bell', '', 1),
+(170, '消息中心', '', 1, 6, 0, '/message', 'Bell', '', 1),
 (171, '系统通知', 'system:announce:list', 2, 1, 170, '/message/notice', 'Notification', 'message/notice/index', 1),
 (172, '即时聊天', 'system:chat:list', 2, 2, 170, '/message/chat', 'ChatDotRound', 'message/chat/index', 1),
 (173, '通知查询', 'system:announce:query', 3, 1, 171, '', '', '', 1),
@@ -736,6 +845,15 @@ INSERT INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, c
 (176, '通知删除', 'system:announce:delete', 3, 4, 171, '', '', '', 1),
 (177, '通知发布', 'system:announce:publish', 3, 5, 171, '', '', '', 1),
 (178, '聊天查询', 'system:chat:query', 3, 1, 172, '', '', '', 1);
+
+-- 初始化定时任务（默认暂停，可在「系统监控-定时任务」启用）
+INSERT INTO sys_job (id, job_name, job_group, invoke_target, cron_expression, misfire_policy, concurrent, status, remark) VALUES
+(1, '过期日志归档清理', 'SYSTEM', 'systemJobTask.purgeExpiredLogs', '0 30 2 * * ?', 3, 1, 0, '清理超保留期的操作/登录/API访问日志'),
+(2, '私聊消息清理', 'SYSTEM', 'systemJobTask.purgeOldChatMessages', '0 0 3 * * ?', 3, 1, 0, '清理超过 180 天的私聊记录'),
+(3, '群聊消息清理', 'SYSTEM', 'systemJobTask.purgeOldGroupChatMessages', '0 10 3 * * ?', 3, 1, 0, '清理超过 180 天的群聊记录'),
+(4, '调度日志清理', 'SYSTEM', 'systemJobTask.purgeExpiredJobLogs', '0 0 4 ? * SUN', 3, 1, 0, '清理 30 天前的 Quartz 调度执行日志'),
+(5, '已读通知清理', 'SYSTEM', 'systemJobTask.purgeReadNotices', '0 15 3 * * ?', 3, 1, 0, '清理已读且超过 90 天的站内通知'),
+(6, '工单回收站清理', 'SYSTEM', 'systemJobTask.purgeTicketRecycleBin', '0 30 3 * * ?', 3, 1, 0, '彻底删除回收站中超过 30 天的工单');
 
 -- 初始化用户角色关联
 INSERT INTO sys_user_role (user_id, role_id) VALUES
@@ -754,7 +872,7 @@ INSERT INTO sys_role_menu (role_id, menu_id) VALUES
 (1, 50), (1, 51), (1, 52),
 (1, 60), (1, 61), (1, 62), (1, 63), (1, 64), (1, 65),
 (1, 70), (1, 71), (1, 72), (1, 73), (1, 74),
-(1, 100), (1, 101), (1, 102), (1, 103), (1, 104),
+(1, 100), (1, 101), (1, 102), (1, 103), (1, 104), (1, 180), (1, 181), (1, 182), (1, 183), (1, 184),
 (1, 105), (1, 110), (1, 111), (1, 112), (1, 113),
 (1, 150), (1, 151),
 (1, 170), (1, 171), (1, 172), (1, 173), (1, 174), (1, 175), (1, 176), (1, 177), (1, 178);
@@ -796,10 +914,23 @@ INSERT INTO sys_config_group (group_code, group_name, config_value, remark) VALU
 ('file', '文件配置', '{"maxSizeMb":50,"allowedExtensions":"jpg,jpeg,png,gif,webp,bmp,svg,pdf,doc,docx,xls,xlsx,ppt,pptx,txt,md,json,xml,zip,rar,mp4,mp3,wav,avi,mov"}', '文件管理上传限制'),
 ('rateLimit', '接口限流', '{"captchaPerIpMinute":40,"loginPerIpMinute":30,"registerPerIpMinute":10}', '认证接口按 IP 限流'),
 ('login', '登录配置', '{"captchaEnabled":true,"captchaType":"image","rememberMe":true,"maxRetryCount":5,"lockTime":10}', '验证码类型 image=图片 slider=滑块'),
-('register', '注册配置', '{"enabled":true,"captchaEnabled":true,"captchaType":"image","defaultRoleCode":"user","needAudit":false,"minPasswordLength":6}', '开放注册、验证码类型、默认角色、是否审核')
+('register', '注册配置', '{"enabled":true,"captchaEnabled":true,"captchaType":"image","defaultRoleCode":"user","needAudit":false,"minPasswordLength":6}', '开放注册、验证码类型、默认角色、是否审核'),
+('security', '安全配置', '{"disableDevtool":false,"isConcurrent":false}', '前端安全与会话：禁止调试、禁止多端同时在线')
 ON DUPLICATE KEY UPDATE
     group_name = VALUES(group_name),
     config_value = VALUES(config_value),
+    remark = VALUES(remark);
+
+-- 第三方配置 + 支付配置（已有库可单独执行 sql/add7.sql，与下文一致）
+INSERT INTO sys_config_group (group_code, group_name, config_value, remark) VALUES
+('thirdParty', '第三方配置',
+ '{"wechat":{"enabled":false,"appId":"","appSecret":""},"alipay":{"enabled":false,"appId":"","privateKey":"","publicKey":""},"github":{"enabled":false,"clientId":"","clientSecret":""},"google":{"enabled":false,"clientId":"","clientSecret":"","redirectUri":""}}',
+ '微信/支付宝/GitHub/Google 第三方登录密钥'),
+('payment', '支付配置',
+ '{"wechatPay":{"enabled":false,"mchId":"","appId":"","apiV3Key":"","privateKey":"","certSerialNo":"","notifyUrl":""},"alipay":{"enabled":false,"appId":"","privateKey":"","publicKey":"","signType":"RSA2","gatewayUrl":"https://openapi.alipay.com/gateway.do","notifyUrl":"","returnUrl":""}}',
+ '微信/支付宝支付与测试下单')
+ON DUPLICATE KEY UPDATE
+    group_name = VALUES(group_name),
     remark = VALUES(remark);
 
 INSERT INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, component, status) VALUES
@@ -893,6 +1024,7 @@ CREATE TABLE IF NOT EXISTS sys_chat_message (
     send_time DATETIME DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_sender (sender_id),
     INDEX idx_receiver (receiver_id),
+    INDEX idx_receiver_unread (receiver_id, is_read, sender_id),
     INDEX idx_pair_time (sender_id, receiver_id, send_time)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='私聊消息';
 
@@ -925,7 +1057,8 @@ CREATE TABLE IF NOT EXISTS sys_chat_group_member (
     role TINYINT DEFAULT 0 COMMENT '0成员 1管理员 2群主',
     muted TINYINT DEFAULT 0,
     join_time DATETIME DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE KEY uk_group_user (group_id, user_id)
+    UNIQUE KEY uk_group_user (group_id, user_id),
+    INDEX idx_user_id (user_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='群成员';
 
 CREATE TABLE IF NOT EXISTS sys_chat_group_message (
@@ -954,7 +1087,7 @@ CREATE TABLE IF NOT EXISTS sys_chat_group_log (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='群聊操作日志';
 
 INSERT INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, component, status) VALUES
-(170, '消息中心', '', 1, 7, 0, '/message', 'Bell', '', 1),
+(170, '消息中心', '', 1, 6, 0, '/message', 'Bell', '', 1),
 (171, '系统通知', 'system:announce:list', 2, 1, 170, '/message/notice', 'Notification', 'message/notice/index', 1),
 (172, '即时聊天', 'system:chat:list', 2, 2, 170, '/message/chat', 'ChatDotRound', 'message/chat/index', 1),
 (173, '通知查询', 'system:announce:query', 3, 1, 171, '', '', '', 1),
@@ -994,7 +1127,15 @@ INSERT INTO sys_role_menu (role_id, menu_id) VALUES
 (2, 151),
 (2, 170), (2, 172), (2, 178);
 
--- 可选：为历史「待审核」用户补建注册审批单（无则跳过）
+-- 可选：为历史「待审核」用户补建注册审批单（无则跳过；审批人只查一次）
+SET @register_approver_id := (
+    SELECT ur.user_id
+    FROM sys_user_role ur
+    INNER JOIN sys_role r ON r.id = ur.role_id AND r.code = 'super_admin' AND r.deleted = 0
+    ORDER BY ur.user_id
+    LIMIT 1
+);
+
 INSERT INTO sys_approval_form (form_no, form_type, title, content, status, applicant_user_id, approver_user_id, creator, updater)
 SELECT
     CONCAT('RG', UNIX_TIMESTAMP(), LPAD(u.id, 4, '0')),
@@ -1003,14 +1144,13 @@ SELECT
     CONCAT('{"bizType":"USER_REGISTER","userId":', u.id, ',"username":"', u.username, '","nickname":"', IFNULL(u.nickname, ''), '","mobile":"', IFNULL(u.mobile, ''), '"}'),
     'SUBMITTED',
     u.id,
-    (SELECT ur.user_id FROM sys_user_role ur
-     INNER JOIN sys_role r ON r.id = ur.role_id AND r.code = 'super_admin' AND r.deleted = 0
-     ORDER BY ur.user_id LIMIT 1),
+    @register_approver_id,
     'system',
     'system'
 FROM sys_user u
 WHERE u.deleted = 0
   AND u.status = 2
+  AND @register_approver_id IS NOT NULL
   AND NOT EXISTS (
     SELECT 1 FROM sys_approval_form f
     WHERE f.deleted = 0
@@ -1023,8 +1163,13 @@ WHERE u.deleted = 0
 UPDATE sys_dict_data SET dict_label = '启用' WHERE dict_type = 'sys_normal_disable' AND dict_value = '1';
 UPDATE sys_dict_data SET dict_label = '禁用' WHERE dict_type = 'sys_normal_disable' AND dict_value = '0';
 
--- ---------- 索引优化（已有库可重复执行；若报 Duplicate key name 表示索引已存在，可忽略） ----------
-ALTER TABLE sys_dict_data ADD INDEX idx_dict_type_status_deleted (dict_type, status, deleted, sort);
-ALTER TABLE sys_user ADD INDEX idx_deleted_status (deleted, status);
-ALTER TABLE sys_user_post ADD UNIQUE INDEX uk_user_post (user_id, post_id);
-ALTER TABLE sys_oper_log ADD INDEX idx_oper_time_status (oper_time, status);
+-- ---------- 组织示例/分级（已有库：sql/add6.sql 补数据，sql/add9.sql 扁平树改分级） ----------
+-- 详见 add6.sql、add9.sql，此处不重复冗长 INSERT
+
+-- 已有 security 分组但缺少 isConcurrent 时补默认 false（与 add5.sql 一致）
+UPDATE sys_config_group
+SET config_value = JSON_SET(config_value, '$.isConcurrent', CAST(false AS JSON))
+WHERE group_code = 'security'
+  AND JSON_EXTRACT(config_value, '$.isConcurrent') IS NULL;
+
+-- ---------- 性能索引（已有库请单独执行 sql/add4.sql，勿重复执行下方 ALTER） ----------

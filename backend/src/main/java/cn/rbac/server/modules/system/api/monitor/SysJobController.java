@@ -1,0 +1,143 @@
+package cn.rbac.server.modules.system.api.monitor;
+
+import cn.rbac.server.common.pojo.CommonResult;
+import cn.rbac.server.common.pojo.PageResult;
+import cn.rbac.server.modules.system.api.monitor.vo.JobTemplateVO;
+import cn.rbac.server.modules.system.api.monitor.vo.SysJobVO;
+import cn.rbac.server.modules.system.dal.dataobject.job.SysJobDO;
+import cn.rbac.server.modules.system.dal.dataobject.job.SysJobLogDO;
+import cn.rbac.server.modules.system.service.job.SysJobLogService;
+import cn.rbac.server.modules.system.service.job.SysJobService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.annotation.Resource;
+import lombok.Data;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.Map;
+
+@Tag(name = "定时任务")
+@RestController
+@RequestMapping("/monitor/job")
+public class SysJobController {
+
+    @Resource
+    private SysJobService jobService;
+    @Resource
+    private SysJobLogService jobLogService;
+
+    @GetMapping("/overview")
+    @PreAuthorize("@ss.hasPermission('monitor:job:list')")
+    @Operation(summary = "任务与调度总览")
+    public CommonResult<Map<String, Object>> overview() {
+        return CommonResult.success(jobService.overview());
+    }
+
+    @GetMapping("/templates")
+    @PreAuthorize("@ss.hasPermission('monitor:job:list')")
+    @Operation(summary = "内置任务模板")
+    public CommonResult<List<JobTemplateVO>> templates() {
+        return CommonResult.success(jobService.templates());
+    }
+
+    @GetMapping("/checkCron")
+    @PreAuthorize("@ss.hasPermission('monitor:job:list')")
+    @Operation(summary = "校验 Cron 并预览下次执行时间")
+    public CommonResult<Map<String, Object>> checkCron(@RequestParam String cronExpression) {
+        return CommonResult.success(jobService.checkCron(cronExpression));
+    }
+
+    @GetMapping("/page")
+    @PreAuthorize("@ss.hasPermission('monitor:job:list')")
+    @Operation(summary = "分页查询定时任务")
+    public CommonResult<PageResult<SysJobVO>> page(
+            @RequestParam(defaultValue = "1") Integer pageNo,
+            @RequestParam(defaultValue = "10") Integer pageSize,
+            @RequestParam(required = false) String jobName,
+            @RequestParam(required = false) String jobGroup,
+            @RequestParam(required = false) Integer status) {
+        return CommonResult.success(jobService.pageVo(pageNo, pageSize, jobName, jobGroup, status));
+    }
+
+    @GetMapping("/{id}")
+    @PreAuthorize("@ss.hasPermission('monitor:job:list')")
+    @Operation(summary = "任务详情")
+    public CommonResult<SysJobDO> detail(@PathVariable Long id) {
+        return CommonResult.success(jobService.getById(id));
+    }
+
+    @PostMapping
+    @PreAuthorize("@ss.hasPermission('monitor:job:add')")
+    @Operation(summary = "新增任务")
+    public CommonResult<Boolean> create(@RequestBody SysJobDO job) {
+        jobService.create(job);
+        return CommonResult.success(true);
+    }
+
+    @PutMapping
+    @PreAuthorize("@ss.hasPermission('monitor:job:edit')")
+    @Operation(summary = "更新任务")
+    public CommonResult<Boolean> update(@RequestBody SysJobDO job) {
+        jobService.update(job);
+        return CommonResult.success(true);
+    }
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("@ss.hasPermission('monitor:job:delete')")
+    @Operation(summary = "删除任务")
+    public CommonResult<Boolean> delete(@PathVariable Long id) {
+        jobService.delete(id);
+        return CommonResult.success(true);
+    }
+
+    @PutMapping("/changeStatus")
+    @PreAuthorize("@ss.hasPermission('monitor:job:edit')")
+    @Operation(summary = "修改任务状态")
+    public CommonResult<Boolean> changeStatus(@RequestBody StatusRequest request) {
+        jobService.changeStatus(request.getId(), request.getStatus());
+        return CommonResult.success(true);
+    }
+
+    @PostMapping("/run/{id}")
+    @PreAuthorize("@ss.hasPermission('monitor:job:edit')")
+    @Operation(summary = "立即执行")
+    public CommonResult<Boolean> run(@PathVariable Long id) {
+        jobService.run(id);
+        return CommonResult.success(true);
+    }
+
+    @GetMapping("/log/statistics")
+    @PreAuthorize("@ss.hasPermission('monitor:job:list')")
+    @Operation(summary = "调度统计")
+    public CommonResult<Map<String, Object>> logStatistics() {
+        return CommonResult.success(jobLogService.statistics());
+    }
+
+    @GetMapping("/log/page")
+    @PreAuthorize("@ss.hasPermission('monitor:job:list')")
+    @Operation(summary = "调度日志分页")
+    public CommonResult<PageResult<SysJobLogDO>> logPage(
+            @RequestParam(defaultValue = "1") Integer pageNo,
+            @RequestParam(defaultValue = "10") Integer pageSize,
+            @RequestParam(required = false) String jobName,
+            @RequestParam(required = false) String jobGroup,
+            @RequestParam(required = false) Integer status) {
+        return CommonResult.success(jobLogService.page(pageNo, pageSize, jobName, jobGroup, status));
+    }
+
+    @DeleteMapping("/log/clean")
+    @PreAuthorize("@ss.hasPermission('monitor:job:delete')")
+    @Operation(summary = "清空调度日志")
+    public CommonResult<Boolean> cleanLog() {
+        jobLogService.clean();
+        return CommonResult.success(true);
+    }
+
+    @Data
+    public static class StatusRequest {
+        private Long id;
+        private Integer status;
+    }
+}

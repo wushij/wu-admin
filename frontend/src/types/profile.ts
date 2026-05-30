@@ -27,29 +27,13 @@ export interface UserProfile {
 
 export interface ProfileUpdateDTO {
   nickname?: string
+  mobile?: string
   email?: string
   avatar?: string
 }
 
-export interface ProfileMobileBindSmsCodeDTO {
-  mobile: string
-  uuid: string
-  code: string
-}
-
-export interface ProfileMobileBindDTO {
-  mobile: string
-  smsCode: string
-}
-
 export interface ChangePasswordDTO {
   oldPassword: string
-  newPassword: string
-  confirmPassword: string
-}
-
-export interface ProfilePasswordSmsResetDTO {
-  smsCode: string
   newPassword: string
   confirmPassword: string
 }

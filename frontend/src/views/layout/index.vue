@@ -18,10 +18,13 @@
           class="sidebar-menu"
           :collapse="isCollapse"
           :collapse-transition="true"
+          router
           @select="handleMenuSelect"
         >
           <el-menu-item index="/dashboard" class="menu-item-dashboard">
-            <el-icon><component :is="ElementPlusIconsVue.HomeFilled" /></el-icon>
+            <span class="dashboard-menu-icon">
+              <el-icon><component :is="ElementPlusIconsVue.Odometer" /></el-icon>
+            </span>
             <template #title>
               <span>工作台</span>
             </template>
@@ -34,6 +37,7 @@
               :index="String(menu.id)"
               class="menu-group"
               @open="handleSubMenuOpen(menu)"
+              @close="handleSubMenuClose(menu)"
             >
               <template #title>
                 <el-icon :class="{ 'is-spin-once': isSystemMenu(menu) && menuIconSpinKey === SYSTEM_MENU_ID }">
@@ -73,7 +77,10 @@
             <component :is="isCollapse ? ElementPlusIconsVue.Expand : ElementPlusIconsVue.Fold" />
           </el-icon>
           <el-breadcrumb separator="/">
-            <el-breadcrumb-item :to="{ path: '/' }">首页</el-breadcrumb-item>
+            <el-breadcrumb-item :to="{ path: '/dashboard' }">工作台</el-breadcrumb-item>
+            <el-breadcrumb-item v-if="currentPageTitle && currentPageTitle !== '工作台'">
+              {{ currentPageTitle }}
+            </el-breadcrumb-item>
           </el-breadcrumb>
         </div>
         <div class="header-right">
@@ -181,7 +188,9 @@
 
           <el-dropdown @command="handleCommand">
             <span class="user-info">
-              <el-avatar :size="32" :icon="ElementPlusIconsVue.UserFilled" />
+              <el-avatar :size="32" :src="headerAvatarSrc" class="header-avatar">
+                <el-icon v-if="!headerAvatarSrc"><component :is="ElementPlusIconsVue.UserFilled" /></el-icon>
+              </el-avatar>
               <span class="username">{{ userStore.userInfo.nickname || '管理员' }}</span>
               <el-icon><component :is="ElementPlusIconsVue.ArrowDown" /></el-icon>
             </span>
@@ -236,12 +245,17 @@ const messageStore = useMessageStore()
 
 const isCollapse = ref(false)
 const activeMenu = computed(() => route.path)
+const currentPageTitle = computed(() => {
+  const title = route.meta?.title
+  return typeof title === 'string' ? title : ''
+})
 const messageTab = ref('inbox')
 const inboxList = ref<InboxNoticeItem[]>([])
 const announceList = ref<AnnounceMyVO[]>([])
 /** 仅「系统管理」一级菜单点击时图标转一圈 */
 const SYSTEM_MENU_ID = '1'
 const menuIconSpinKey = ref('')
+let menuIconSpinTimer: number | null = null
 const MENU_ICON_SPIN_MS = 520
 
 const isSystemMenu = (menu: MenuNode) =>
@@ -330,6 +344,14 @@ const userMenus = computed<MenuNode[]>(() => {
   }
   cleanChildren(rootMenus)
 
+  const sortMenus = (items: MenuNode[]) => {
+    items.sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0) || a.id - b.id)
+    items.forEach((menu) => {
+      if (menu.children?.length) sortMenus(menu.children)
+    })
+  }
+  sortMenus(rootMenus)
+
   return rootMenus
 })
 
@@ -357,15 +379,29 @@ function findTopMenuSpinKey(index: string) {
 }
 
 function triggerSystemMenuIconSpin() {
-  menuIconSpinKey.value = SYSTEM_MENU_ID
-  window.setTimeout(() => {
-    if (menuIconSpinKey.value === SYSTEM_MENU_ID) {
-      menuIconSpinKey.value = ''
-    }
-  }, MENU_ICON_SPIN_MS)
+  if (menuIconSpinTimer) {
+    window.clearTimeout(menuIconSpinTimer)
+    menuIconSpinTimer = null
+  }
+  menuIconSpinKey.value = ''
+  requestAnimationFrame(() => {
+    menuIconSpinKey.value = SYSTEM_MENU_ID
+    menuIconSpinTimer = window.setTimeout(() => {
+      if (menuIconSpinKey.value === SYSTEM_MENU_ID) {
+        menuIconSpinKey.value = ''
+      }
+      menuIconSpinTimer = null
+    }, MENU_ICON_SPIN_MS)
+  })
 }
 
 function handleSubMenuOpen(menu: MenuNode) {
+  if (isSystemMenu(menu)) {
+    triggerSystemMenuIconSpin()
+  }
+}
+
+function handleSubMenuClose(menu: MenuNode) {
   if (isSystemMenu(menu)) {
     triggerSystemMenuIconSpin()
   }
@@ -378,10 +414,6 @@ function handleMenuSelect(index: string) {
   const key = String(index)
   if (key.startsWith('external:')) {
     window.open(key.slice('external:'.length), '_blank')
-    return
-  }
-  if (key.startsWith('/')) {
-    router.push(key)
   }
 }
 
@@ -390,11 +422,18 @@ const toggleCollapse = () => {
 }
 
 const handleCommand = async (command: string) => {
-  if (command === 'logout') {
+  if (command === 'profile') {
+    router.push('/profile')
+  } else if (command === 'logout') {
     await userStore.logoutAction()
     router.push('/login')
   }
 }
+
+const headerAvatarSrc = computed(() => {
+  const url = userStore.userInfo.avatar
+  return url || undefined
+})
 
 const loadAnnounceList = async () => {
   try {
@@ -480,6 +519,10 @@ watch(messageTab, (tab) => {
 })
 
 onUnmounted(() => {
+  if (menuIconSpinTimer) {
+    window.clearTimeout(menuIconSpinTimer)
+    menuIconSpinTimer = null
+  }
   messageStore.destroyWebSocket()
 })
 </script>
@@ -822,6 +865,34 @@ onUnmounted(() => {
   height: 48px;
   line-height: 48px;
   font-weight: 600;
+}
+
+:deep(.el-menu-item-dashboard .dashboard-menu-icon) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin-right: 8px;
+  border-radius: 8px;
+  background: linear-gradient(
+    135deg,
+    var(--theme-primary, #111827) 0%,
+    var(--theme-primary-hover, #374151) 100%
+  );
+  color: #fff;
+  vertical-align: middle;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+:deep(.el-menu-item-dashboard:hover .dashboard-menu-icon) {
+  transform: scale(1.05);
+  box-shadow: 0 2px 8px rgba(17, 24, 39, 0.2);
+}
+
+:deep(.el-menu-item-dashboard.is-active .dashboard-menu-icon) {
+  background: rgba(255, 255, 255, 0.2);
+  box-shadow: none;
 }
 
 :deep(.el-sub-menu__title:hover),

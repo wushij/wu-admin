@@ -9,7 +9,6 @@ import cn.rbac.server.modules.system.dal.mysql.operlog.OperLogMapper;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import jakarta.annotation.Resource;
@@ -38,8 +37,7 @@ public class LogRetentionTask {
     @Resource
     private ApiAccessLogMapper apiAccessLogMapper;
 
-    /** 每天凌晨 2:30 执行 */
-    @Scheduled(cron = "${app.log.retention.cron:0 30 2 * * ?}")
+    /** 由 Quartz 定时任务 systemJobTask.purgeExpiredLogs 调用；也可在管理端手动执行 */
     public void purgeExpiredLogs() {
         purgeOperLogs();
         purgeLoginLogs();

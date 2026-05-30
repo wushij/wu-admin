@@ -1,6 +1,6 @@
 # Admin Platform
 
-基于 **Vue 3 + Spring Boot** 的企业级后台管理系统，提供用户权限、组织岗位、业务工单、系统监控、日志审计、文件与字典、**分组系统配置**、**注册审核**等能力，支持 Docker 一键部署与本地开发调试。
+基于 **Vue 3 + Spring Boot** 的企业级后台管理系统，提供**工作台**、用户权限、组织岗位、业务工单与审批、系统监控、日志审计、文件与字典、**分组系统配置**（含第三方/支付）、**个人中心**、**注册审核**等能力，支持本地开发调试与自建部署。
 
 ---
 
@@ -8,20 +8,23 @@
 
 | 模块 | 说明 |
 |------|------|
-| **系统管理** | 用户、角色、菜单、组织管理、字典管理、**系统配置** |
-| **组织管理** | 部门体系 + 岗位体系；左树右表、拖拽调整部门、岗位成员、部门回收站 |
-| **用户管理** | 部门、岗位多选、角色单选、回收站；支持**待审核 / 已驳回**状态 |
-| **菜单管理** | 树形表格；目录/菜单/按钮联动；图标网格选择器；外链新窗口打开 |
-| **系统配置** | 六分组 Tab：基础信息、会话令牌、文件存储、接口限流、登录认证、注册认证 |
+| **工作台** | 首页统计（用户/角色/部门/文件等）、待办提醒（待审用户、工单、审批）、12 项快捷入口、最近登录；`/dashboard/*` |
+| **系统管理** | 用户、角色、菜单、组织、字典（含**类型复制**）、**系统配置**；用户支持**待审核 / 已驳回** |
+| **组织管理** | 部门 + 岗位；左树右表、拖拽调整、岗位成员、部门回收站 |
+| **菜单管理** | 树形表格；目录/菜单/按钮联动；图标选择器；外链新窗口 / iframe 内嵌 |
+| **系统配置** | 九分组 Tab：基础信息、会话、文件、限流、登录/注册认证、**第三方配置**、**支付配置**、安全配置；支付支持**测试订单**与异步回调 |
+| **个人中心** | 顶栏入口 `/profile`：资料编辑、头像上传、自助改密、我的登录记录 |
+| **回收站** | 用户、角色、菜单、部门、工单、审批单逻辑删除，支持恢复与彻底删除 |
 | **开发工具** | 内嵌 Knife4j 接口文档（`doc.html`） |
-| **系统日志** | 操作日志（AOP）、登录日志 |
-| **系统监控** | API 访问统计、在线用户与强退 |
-| **文件管理** | 分组、上传、预览；大小与扩展名受**系统配置**约束 |
-| **业务中心** | 工单管理、审批单中心（含**注册审核单** `REGISTER`） |
-| **消息中心** | 系统通知（公告发布）、即时聊天（私聊/群聊）、WebSocket 实时推送 |
-| **认证安全** | 图片/滑块验证码、登录/注册限流、Sa-Token 会话（Redis db=1） |
+| **系统日志** | 操作日志（AOP，含详情）；登录日志（IP 归属地、浏览器解析） |
+| **系统监控** | API 访问统计（ECharts 图表 + 日志列表）、在线用户与强退 |
+| **文件管理** | 分组 CRUD、按类型筛选；图片/PDF/Office 预览；大小与扩展名受**系统配置**约束 |
+| **业务中心** | **工单**：优先级、截止/超时、评论附件、指派与全员通知（非超管仅看本人相关）；**审批**：请假/采购/报销/用印/合同/通用 + `REGISTER` 注册审核，支持归档 |
+| **消息中心** | **业务消息**（`sys_notice`，工单/审批触达）、系统通知（全员/用户/部门定向、发送日志）、即时聊天（私聊/群聊）、WebSocket |
+| **认证安全** | 图片/滑块验证码、登录失败锁定（用户+IP）、记住我、登录/注册限流；Sa-Token 会话（Redis db=1） |
+| **界面体验** | 主题色切换；登录/注册页 Three.js 地球 + 粒子背景；顶栏消息铃铛三 Tab |
 
-菜单与权限由数据库 `sys_menu` 动态加载；超级管理员默认拥有全部功能。修改菜单或角色后需**重新登录**侧栏才会更新。
+侧栏菜单由 `sys_menu` 按角色动态渲染（超级管理员默认全部）；页面路由在 `frontend/src/router` **静态注册**，新增菜单时需保证 `path` 与路由一致。修改菜单或角色后需**重新登录**刷新侧栏。
 
 ---
 
@@ -37,14 +40,38 @@
 | `rateLimit` | 接口限流 | 验证码/登录/注册 每分钟每 IP 次数（0=不限） | 认证接口防刷 |
 | `login` | 登录认证 | 验证码开关、类型（`image`/`slider`）、记住我、重试锁定 | 登录流程 |
 | `register` | 注册认证 | 开放注册、验证码、默认角色、**需审核**、密码最小长度 | 注册流程 |
+| `thirdParty` | 第三方配置 | 微信 / 支付宝 / GitHub / **Google** 登录密钥（AppID、Client ID/Secret、重定向 URI 等） | 第三方 OAuth 接入（配置存储，按业务启用） |
+| `payment` | 支付配置 | 微信 Native、支付宝当面付；商户密钥、`notifyUrl`；**生成测试订单**（0.01 元） | 测试下单与支付回调 |
+| `security` | 安全配置 | `disableDevtool`（禁止 F12 等前端调试）、`isConcurrent`（false=禁止多端同时在线，新登录踢旧会话） | 前端调试需**刷新页面**；会话策略**保存后对新登录立即生效** |
 
-**公开接口**（无需登录）：`GET /api/auth/config`，返回 `site`、`login`、`register` 等前端登录/注册页所需配置。
+**公开接口**（无需登录）：`GET /api/auth/config`，返回 `site`、`login`、`register`、`security`（仅 `disableDevtool`）等前端所需配置。
 
 **管理接口**（需权限 `system:config:list` / `system:config:update`）：
 
 - `GET /api/system/config-group/list`
 - `GET /api/system/config-group/{groupCode}`
 - `PUT /api/system/config-group/{groupCode}`，body：`{ "configValue": "{...json...}" }`
+- `POST /api/system/config-group/test-payment`，body：`{ "type": "wechat" | "alipay" }`（需 `system:config:update`，**须先保存支付配置**）
+
+**支付回调与查单**（回调无需登录，已在 Security 白名单 `/pay/notify/**`）：
+
+| 接口 | 说明 |
+|------|------|
+| `POST /api/pay/notify/wechat` | 微信 V3 异步通知，响应 `{"code":"SUCCESS","message":"成功"}` |
+| `POST /api/pay/notify/alipay` | 支付宝异步通知，响应纯文本 `success` / `failure` |
+| `GET /api/pay/order/{orderNo}` | 测试订单状态轮询（`PENDING` / `PAID`，需 `system:config:list`） |
+
+`notifyUrl` 须配置为公网 HTTPS，例如 `https://域名/api/pay/notify/wechat`。本地联调可用内网穿透。
+
+**个人中心**（登录即可，无需额外菜单权限）：
+
+| 接口 | 说明 |
+|------|------|
+| `GET /api/auth/profile` | 当前用户资料（部门、角色、岗位、最近登录等） |
+| `PUT /api/auth/profile` | 更新昵称、手机、邮箱 |
+| `PUT /api/auth/profile/password` | 自助改密 |
+| `POST /api/auth/profile/avatar` | 上传头像（最大 2MB） |
+| `GET /api/auth/profile/login-logs` | 我的登录记录分页 |
 
 `application.yml` 中 `sa-token.timeout`、`auth.security.*`、`file.storage.*` 为**缺省兜底**；库中有对应分组时以库为准（`session.tokenExpireHours` 在登录时写入 Sa-Token 超时）。
 
@@ -137,7 +164,7 @@ frontend/src/
 
 ### 数据库
 
-全量安装：`sql/admin_platform.sql` 已含消息中心表（§11b）及 `sys_chat_group_log`。
+全量安装：`sql/admin_platform.sql` 已含消息中心表（§11b）、`sys_chat_group_log` 及组织管理示例部门/岗位数据。
 
 **已有库增量**（按顺序执行，均可重复执行、无 DROP）：
 
@@ -146,6 +173,12 @@ frontend/src/
 | `sql/add1.sql` | 注册验证码类型、系统配置补全等 |
 | `sql/add2.sql` | **消息中心**（通知/聊天/群聊表 + 菜单 170–178） |
 | `sql/add3.sql` | **群聊操作日志**表 `sys_chat_group_log` |
+| `sql/add4.sql` | **性能索引**（聊天/审批/工单/文件/API 日志等，已有库单独执行） |
+| `sql/add5.sql` | **安全配置**分组 `security`（`disableDevtool`、`isConcurrent`） |
+| `sql/add6.sql` | **组织示例数据**（部门、岗位增量，可重复执行） |
+| `sql/add9.sql` | **组织树分级**（技术中心/业务中心等二级分类 + 岗位层级，去掉「总公司」展示） |
+| `sql/add7.sql` | **第三方配置** + **支付配置**分组（`thirdParty`、`payment`） |
+| `sql/add8.sql` | 已有 `thirdParty` 分组补全 **Google** 字段（不覆盖其它密钥） |
 
 ```bash
 mysql -u root -p wu-admin < sql/add2.sql
@@ -186,9 +219,9 @@ mysql -u root -p wu-admin < sql/add3.sql
 | 层级 | 技术 |
 |------|------|
 | 前端 | Vue 3、TypeScript、Vite、Element Plus、Pinia、Axios、ECharts、Three.js |
-| 后端 | Spring Boot 3.5、Spring Security 6、Sa-Token、MyBatis-Plus 3.5、Druid、Knife4j 4.5、Springdoc 2.8 |
-| 数据 | MySQL 8、Redis 7 |
-| 部署 | Docker Compose、Nginx |
+| 后端 | Spring Boot 3.5、Spring Security 6、Sa-Token、MyBatis-Plus 3.5、Druid、Knife4j 4.5、Springdoc 2.8、微信支付/支付宝 SDK、ZXing |
+| 数据 | MySQL 8、Redis 7、Redisson（限流/锁/缓存队列等） |
+| 部署 | 静态资源 + 反向代理（如 Nginx） |
 
 **JDK 17**。核心版本见下表：
 
@@ -209,7 +242,7 @@ mysql -u root -p wu-admin < sql/add3.sql
    ▼
 ┌─────────────────┐     /api/*      ┌──────────────────┐
 │    frontend     │ ──────────────► │     backend      │
-│  Vite / Nginx   │   /doc.html*    │  Spring Boot     │
+│  前端静态资源   │   /doc.html*    │  Spring Boot     │
 │  :3000          │ ──────────────► │  :8080           │
 └─────────────────┘                 └────────┬─────────┘
                                              │
@@ -229,7 +262,7 @@ mysql -u root -p wu-admin < sql/add3.sql
 ## 目录结构
 
 ```
-admin-vue/
+wu-admin/
 ├── backend/                    # Spring Boot 后端
 │   ├── pom.xml
 │   ├── src/main/java/cn/rbac/server/
@@ -241,7 +274,7 @@ admin-vue/
 ├── frontend/                   # Vue 3 + TypeScript 前端
 │   ├── src/
 │   │   ├── api/                # 接口封装（system、message、monitor 等，均为 .ts）
-│   │   ├── views/              # 页面（system、message、monitor、login 等）
+│   │   ├── views/              # 页面（system、message、monitor、profile、login 等）
 │   │   ├── components/         # 公共组件（DictSelect、SliderCaptcha、MessageNotification、earth/Earth3D 等）
 │   │   ├── router/             # 路由与守卫
 │   │   ├── store/              # Pinia（user、message 等）
@@ -249,18 +282,19 @@ admin-vue/
 │   │   ├── utils/              # request、主题、菜单、WebSocket 工具
 │   │   └── directives/         # v-permission 等指令
 │   ├── tsconfig.json
-│   ├── vite.config.ts          # 开发代理 /api → backend:8080
-│   ├── nginx.conf              # 生产静态资源与 API 反代
-│   └── Dockerfile
+│   └── vite.config.ts          # 开发代理 /api → localhost:8080
 ├── sql/
-│   ├── admin_platform.sql      # 全量安装 + 文末「附录」升级段
+│   ├── admin_platform.sql      # 全量安装 + 文末「附录」升级段（含组织示例数据）
 │   ├── add1.sql                # 已有库增量（配置/注册等）
 │   ├── add2.sql                # 已有库增量（消息中心）
-│   └── add3.sql                # 已有库增量（群聊操作日志）
+│   ├── add3.sql                # 已有库增量（群聊操作日志）
+│   ├── add4.sql                # 已有库增量（性能索引）
+│   ├── add5.sql                # 已有库增量（前端安全配置）
+│   ├── add6.sql                # 已有库增量（部门/岗位示例数据）
+│   ├── add7.sql                # 已有库增量（第三方/支付配置）
+│   ├── add8.sql                # 已有库增量（thirdParty 补 Google）
+│   └── add9.sql                # 已有库增量（组织树分级）
 ├── data/                       # 本地上传目录（git 忽略，对应 file.storage.local-path）
-├── Dockerfile                  # 后端镜像（根目录）
-├── docker-compose.yml          # MySQL + Redis + backend + frontend
-├── DOCKER_DEPLOY.md
 └── README.md
 ```
 
@@ -286,7 +320,8 @@ cn.rbac.server/
 │   ├── mybatis/、redis/、storage/
 └── modules/
     └── system/                       # 系统域业务
-        ├── api/                      # REST Controller
+        ├── api/                      # REST Controller（含 pay、auth/profile）
+        ├── pay/                      # 微信/支付宝测试下单与回调
         ├── service/、dal/
         └── framework/                # 对本项目 framework SPI 的实现
             ├── config/               # SystemConfigProvider
@@ -314,41 +349,12 @@ cn.rbac.server/
 | Springdoc / Knife4j | 2.8.9 / 4.5.0（见上文接口文档说明） |
 | MySQL | 8.0 |
 | Redis | 7.x |
-| Docker Desktop | 可选 |
 
 ---
 
 ## 快速开始
 
-### 方式一：Docker Compose（推荐）
-
-```powershell
-cd admin-vue
-docker compose up -d --build
-```
-
-首次启动会执行 `sql/admin_platform.sql`（`docker-entrypoint-initdb.d` 仅对**空数据卷**生效）。
-
-| 服务 | 地址 |
-|------|------|
-| 前端 | http://localhost:3000 |
-| 后端 API | http://localhost:8080/api |
-| MySQL | `127.0.0.1:3307`，库 `wu-admin`，`root`/`root` |
-| Redis | `127.0.0.1:6379`，database `1` |
-
-详见 [DOCKER_DEPLOY.md](./DOCKER_DEPLOY.md)。
-
-改 Java/前端代码后重建 Docker：
-
-```powershell
-docker compose up -d --build
-```
-
----
-
-### 方式二：本地开发
-
-#### 1. 初始化数据库
+### 1. 初始化数据库
 
 ```bash
 mysql -u root -p < sql/admin_platform.sql
@@ -356,18 +362,18 @@ mysql -u root -p < sql/admin_platform.sql
 
 > 全量脚本含 `DROP TABLE`，仅用于新库。已有旧库按下方「数据库脚本」顺序执行增量。
 
-#### 2. 启动 Redis
+### 2. 启动 Redis
 
 `127.0.0.1:6379`，database **1**。
 
-#### 3. 启动后端（8080）
+### 3. 启动后端（8080）
 
 ```powershell
 cd backend
 mvn spring-boot:run -DskipTests
 ```
 
-#### 4. 启动前端（3000）
+### 4. 启动前端（3000）
 
 ```powershell
 cd frontend
@@ -414,7 +420,7 @@ npm run dev
 ### 前端
 
 - 开发：`frontend/vite.config.ts`（`/api` 代理到 `localhost:8080`）
-- 生产：`npm run build` + `frontend/nginx.conf`
+- 生产：`npm run build` 后将 `dist` 部署到 Web 服务器，并将 `/api` 反代到后端 `8080`（context-path 为 `/api`）
 
 ---
 
@@ -422,8 +428,9 @@ npm run dev
 
 | 前缀 | 说明 |
 |------|------|
-| `/api/auth/**` | 登录、注册、验证码、`config`（公开配置） |
-| `/api/system/**` | 用户、角色、菜单、组织、字典、**config-group**、审批、工单、**announce/chat** 等 |
+| `/api/auth/**` | 登录、注册、验证码、`config`（公开配置）、**profile**（个人中心） |
+| `/api/system/**` | 用户、角色、菜单、组织、字典、**config-group**（含 test-payment）、审批、工单、**announce/chat** 等 |
+| `/api/pay/**` | 支付回调（`/notify/*` 公开）、测试订单查单 |
 | `/api/files/**` | 文件上传与访问 |
 | `/api/monitor/**` | API 访问、在线用户 |
 | `/api/dashboard/**` | 工作台统计（含配置摘要、待审核用户数） |
@@ -432,7 +439,7 @@ npm run dev
 
 ## 数据库脚本
 
-维护 **`sql/admin_platform.sql`**（全量）及增量脚本 **`add1.sql` / `add2.sql` / `add3.sql`**。
+维护 **`sql/admin_platform.sql`**（全量）及增量脚本 **`add1.sql` ~ `add9.sql`**。
 
 | 场景 | 做法 |
 |------|------|
@@ -440,9 +447,14 @@ npm run dev
 | **已有库升级（配置/注册等）** | `mysql -u root -p wu-admin < sql/add1.sql` |
 | **已有库升级消息中心** | `mysql -u root -p wu-admin < sql/add2.sql` |
 | **已有库升级群聊日志** | `mysql -u root -p wu-admin < sql/add3.sql` |
-| **仅补索引** | 执行 `add1.sql` 末尾 `ALTER TABLE`，或全文 `admin_platform.sql` 附录索引段 |
+| **已有库补性能索引** | `mysql -u root -p wu-admin < sql/add4.sql`（可重复执行，索引已存在可忽略报错） |
+| **已有库补安全配置** | `mysql -u root -p wu-admin < sql/add5.sql` |
+| **已有库补组织示例** | `mysql -u root -p wu-admin < sql/add6.sql`（部门/岗位，按名称与编码判重） |
+| **已有库组织改分级树** | `mysql -u root -p wu-admin < sql/add9.sql`（扁平部门/岗位归入中心与岗位体系） |
+| **已有库补第三方/支付配置** | `mysql -u root -p wu-admin < sql/add7.sql`（或执行全量脚本文末「附录」同段） |
+| **已有库补 Google 登录配置项** | `mysql -u root -p wu-admin < sql/add8.sql`（仅当 `thirdParty` 中尚无 `google` 节点时写入） |
 
-增量脚本均 **无 DROP**，可重复执行。执行涉及菜单的升级后请 **重新登录**。
+增量脚本均 **无 DROP**，可重复执行。`add7.sql` 对已存在的分组仅更新名称与备注，**不覆盖**已有 `config_value`。执行涉及菜单的升级后请 **重新登录**。
 
 ---
 
@@ -541,6 +553,18 @@ A：确认 WebSocket 已连接（登录后自动初始化）；在顶栏铃铛�
 **Q：聊天图片出现在文件管理里？**  
 A：升级后新图片走 `/system/chat/upload/image`，存储于 `images/chat/` 且文件列表已排除；历史旧数据可手动删除。
 
+**Q：开启「禁止前端调试」无效？**  
+A：在 **系统配置 → 安全配置** 保存后需 **整页刷新**；已有库需先执行 `sql/add5.sql` 插入 `security` 分组。此为浏览器端限制，无法替代后端鉴权。
+
+**Q：系统配置没有「第三方配置 / 支付配置」Tab？**  
+A：对已有库执行 `sql/add7.sql`，或执行 `admin_platform.sql` 文末「附录」中第三方/支付配置段；**重启后端**并刷新页面。
+
+**Q：测试支付下单失败或支付后状态不更新？**  
+A：① 先在支付配置 Tab **保存全部**再点「生成测试订单」；② 检查商户密钥是否完整；③ `notifyUrl` 须公网 HTTPS 可达（本地可用 ngrok）；④ 支付成功后弹窗会每 2 秒轮询 `GET /api/pay/order/{orderNo}`。
+
+**Q：个人中心登录记录为空？**  
+A：历史登录日志可能未写 `userId`，升级后重新登录即可；个人中心会同时按 `userId` 与 `username` 匹配历史记录。
+
 **Q：Git 仓库？**  
 A：https://github.com/wushij/wu-admin
 
@@ -548,7 +572,6 @@ A：https://github.com/wushij/wu-admin
 
 ## 相关文档
 
-- [Docker 部署指南](./DOCKER_DEPLOY.md)
 - [GitHub 上传与推送](./GitHub上传与推送全流程.md)
 
 ---

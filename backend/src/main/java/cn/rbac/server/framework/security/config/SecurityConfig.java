@@ -77,6 +77,7 @@ public class SecurityConfig {
                     antMatcher("/swagger-ui.html")
                 ).permitAll()
                 .requestMatchers(HttpMethod.GET, "/files/**").permitAll()
+                .requestMatchers("/pay/notify/**").permitAll()
                 .anyRequest().authenticated()
             )
             .headers(headers -> headers.frameOptions(HeadersConfigurer.FrameOptionsConfig::disable))

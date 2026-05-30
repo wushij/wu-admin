@@ -69,6 +69,7 @@ public class ChatService {
         payload.put("id", msg.getId());
         payload.put("senderId", msg.getSenderId());
         payload.put("senderName", msg.getSenderName());
+        payload.put("senderAvatar", msg.getSenderAvatar());
         payload.put("content", msg.getContent());
         payload.put("msgType", msg.getMsgType());
         webSocketHandler.sendChatPayload(receiverId, payload);
@@ -258,6 +259,7 @@ public class ChatService {
         payload.put("groupId", groupId);
         payload.put("senderId", senderId);
         payload.put("senderName", msg.getSenderName());
+        payload.put("senderAvatar", msg.getSenderAvatar());
         payload.put("content", content);
         payload.put("msgType", msg.getMsgType());
         for (ChatGroupMemberDO m : members) {

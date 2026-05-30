@@ -14,6 +14,12 @@ app:
       oper-log-days: 90
       login-log-days: 90
       api-access-log-days: 30
+  job:
+    log-retention-days: 30
+    notice-read-retention-days: 90
+    ticket-recycle-retention-days: 30
+    chat-message-retention-days: 180
+    group-chat-message-retention-days: 180
 
 spring:
   application:

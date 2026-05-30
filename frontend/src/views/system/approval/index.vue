@@ -6,23 +6,22 @@
           <el-input v-model="queryParams.title" placeholder="请输入审批标题" clearable />
         </el-form-item>
         <el-form-item label="类型">
-          <el-select v-model="queryParams.formType" placeholder="请选择类型" clearable style="width: 160px">
-            <el-option label="通用" value="GENERAL" />
-            <el-option label="请假" value="LEAVE" />
-            <el-option label="采购" value="PURCHASE" />
-            <el-option label="报销" value="REIMBURSE" />
-            <el-option label="用印" value="SEAL" />
-            <el-option label="合同" value="CONTRACT" />
-            <el-option label="注册审核" value="REGISTER" />
-          </el-select>
+          <DictSelect
+            v-model="queryParams.formType"
+            :dict-type="DICT_TYPE.APPROVAL_FORM_TYPE"
+            value-type="string"
+            placeholder="请选择类型"
+            width="160px"
+          />
         </el-form-item>
         <el-form-item label="状态">
-          <el-select v-model="queryParams.status" placeholder="请选择状态" clearable style="width: 160px">
-            <el-option label="待审批" value="SUBMITTED" />
-            <el-option label="已通过" value="APPROVED" />
-            <el-option label="已驳回" value="REJECTED" />
-            <el-option label="已归档" value="ARCHIVED" />
-          </el-select>
+          <DictSelect
+            v-model="queryParams.status"
+            :dict-type="DICT_TYPE.APPROVAL_STATUS"
+            value-type="string"
+            placeholder="请选择状态"
+            width="160px"
+          />
         </el-form-item>
         <el-form-item>
           <el-button type="primary" @click="handleQuery">搜索</el-button>
@@ -45,11 +44,13 @@
         <el-table-column prop="formNo" label="单号" width="190" />
         <el-table-column prop="title" label="标题" min-width="170" />
         <el-table-column prop="formType" label="类型" width="110">
-          <template #default="{ row }">{{ formatType(row.formType) }}</template>
+          <template #default="{ row }">
+            <DictTag :value="row.formType" :dict-type="DICT_TYPE.APPROVAL_FORM_TYPE" />
+          </template>
         </el-table-column>
         <el-table-column prop="status" label="状态" width="110">
           <template #default="{ row }">
-            <el-tag :type="statusTagType(row.status)">{{ formatStatus(row.status) }}</el-tag>
+            <DictTag :value="row.status" :dict-type="DICT_TYPE.APPROVAL_STATUS" />
           </template>
         </el-table-column>
         <el-table-column prop="applicantName" label="申请人" width="110" />
@@ -106,14 +107,14 @@
     <el-dialog v-model="formVisible" title="提交审批单" width="720px" :lock-scroll="false">
       <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
         <el-form-item label="审批类型" prop="formType">
-          <el-select v-model="form.formType" style="width: 100%">
-            <el-option label="通用" value="GENERAL" />
-            <el-option label="请假" value="LEAVE" />
-            <el-option label="采购" value="PURCHASE" />
-            <el-option label="报销" value="REIMBURSE" />
-            <el-option label="用印" value="SEAL" />
-            <el-option label="合同" value="CONTRACT" />
-          </el-select>
+          <DictSelect
+            v-model="form.formType"
+            :dict-type="DICT_TYPE.APPROVAL_FORM_TYPE"
+            value-type="string"
+            apply-default
+            :exclude-values="['REGISTER']"
+            :clearable="false"
+          />
         </el-form-item>
         <el-form-item label="标题" prop="title">
           <el-input v-model="form.title" />
@@ -146,11 +147,13 @@
         <el-table-column prop="formNo" label="单号" width="190" />
         <el-table-column prop="title" label="标题" min-width="170" />
         <el-table-column prop="formType" label="类型" width="110">
-          <template #default="{ row }">{{ formatType(row.formType) }}</template>
+          <template #default="{ row }">
+            <DictTag :value="row.formType" :dict-type="DICT_TYPE.APPROVAL_FORM_TYPE" />
+          </template>
         </el-table-column>
         <el-table-column prop="status" label="状态" width="110">
           <template #default="{ row }">
-            <el-tag :type="statusTagType(row.status)">{{ formatStatus(row.status) }}</el-tag>
+            <DictTag :value="row.status" :dict-type="DICT_TYPE.APPROVAL_STATUS" />
           </template>
         </el-table-column>
         <el-table-column prop="applicantName" label="申请人" width="110" />
@@ -179,9 +182,13 @@
     <el-drawer v-model="detailVisible" title="审批单详情" size="45%" :lock-scroll="false">
       <el-descriptions :column="1" border v-if="current.id">
         <el-descriptions-item label="单号">{{ current.formNo }}</el-descriptions-item>
-        <el-descriptions-item label="类型">{{ formatType(current.formType) }}</el-descriptions-item>
+        <el-descriptions-item label="类型">
+          <DictTag :value="current.formType" :dict-type="DICT_TYPE.APPROVAL_FORM_TYPE" />
+        </el-descriptions-item>
         <el-descriptions-item label="标题">{{ current.title }}</el-descriptions-item>
-        <el-descriptions-item label="状态">{{ formatStatus(current.status) }}</el-descriptions-item>
+        <el-descriptions-item label="状态">
+          <DictTag :value="current.status" :dict-type="DICT_TYPE.APPROVAL_STATUS" />
+        </el-descriptions-item>
         <el-descriptions-item label="申请人">{{ current.applicantName || '-' }}</el-descriptions-item>
         <el-descriptions-item label="审批人">{{ current.approverName || '-' }}</el-descriptions-item>
         <el-descriptions-item label="审批意见">{{ String(current.resultRemark || '').trim() || '无' }}</el-descriptions-item>
@@ -230,6 +237,10 @@ import {
   type ApprovalPageQuery,
 } from '@/api/system/approval'
 import type { RecyclePageQuery } from '@/types/api'
+import DictSelect from '@/components/DictSelect.vue'
+import DictTag from '@/components/DictTag.vue'
+import { DICT_TYPE } from '@/constants/dict'
+import { getDictDefaultValue, preloadDicts } from '@/composables/useDict'
 
 const userStore = useUserStore()
 const route = useRoute()
@@ -288,23 +299,6 @@ interface RegisterDetailParsed {
 
 const registerDetail = ref<RegisterDetailParsed>({})
 
-const FORM_TYPE_LABELS = {
-  GENERAL: '通用',
-  LEAVE: '请假',
-  PURCHASE: '采购',
-  REIMBURSE: '报销',
-  SEAL: '用印',
-  CONTRACT: '合同',
-  REGISTER: '注册审核',
-} as const
-
-const STATUS_LABELS = {
-  SUBMITTED: '待审批',
-  APPROVED: '已通过',
-  REJECTED: '已驳回',
-  ARCHIVED: '已归档',
-} as const
-
 const ACTION_LABELS = {
   SUBMIT: '提交审批',
   APPROVE: '审批通过',
@@ -328,27 +322,6 @@ const parseRegisterContent = (content: string | undefined): RegisterDetailParsed
 }
 
 const hasPerm = (perm: string) => (userStore.userInfo?.permissions || []).includes(perm)
-
-const formatType = (type: string | undefined) => {
-  if (type && type in FORM_TYPE_LABELS) {
-    return FORM_TYPE_LABELS[type as keyof typeof FORM_TYPE_LABELS]
-  }
-  return type || '-'
-}
-
-const formatStatus = (status: string | undefined) => {
-  if (status && status in STATUS_LABELS) {
-    return STATUS_LABELS[status as keyof typeof STATUS_LABELS]
-  }
-  return status || '-'
-}
-
-const statusTagType = (status: string | undefined) => {
-  if (status === 'SUBMITTED') return 'warning'
-  if (status === 'APPROVED') return 'success'
-  if (status === 'REJECTED') return 'danger'
-  return 'info'
-}
 
 const actionText = (action: string | undefined) => {
   if (action && action in ACTION_LABELS) {
@@ -402,7 +375,7 @@ const applyRouteQuery = () => {
 }
 
 const handleCreate = () => {
-  form.formType = 'GENERAL'
+  form.formType = (getDictDefaultValue(DICT_TYPE.APPROVAL_FORM_TYPE) as string) || 'GENERAL'
   form.title = ''
   form.approverUserId = null
   form.content = ''
@@ -520,6 +493,7 @@ const openDetail = async (id: number) => {
 }
 
 onMounted(() => {
+  preloadDicts([DICT_TYPE.APPROVAL_FORM_TYPE, DICT_TYPE.APPROVAL_STATUS])
   applyRouteQuery()
   getList()
   loadUsers()

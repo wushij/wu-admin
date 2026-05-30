@@ -55,8 +55,6 @@ export interface SysJobLog {
   exceptionInfo?: string
   startTime?: string
   stopTime?: string
-  durationMs?: number
-  updateTime?: string
 }
 
 export interface JobPageQuery extends PageQuery {
@@ -95,39 +93,4 @@ export const runJob = (id: number) => post<boolean>(`/monitor/job/run/${id}`)
 export const getJobLogPage = (params: JobLogPageQuery) =>
   get<PageResult<SysJobLog>>('/monitor/job/log/page', params)
 
-export const cleanJobLogs = (params?: { jobName?: string; jobGroup?: string }) =>
-  del<boolean>('/monitor/job/log/clean', { params })
-
-export function getRecycleJobPage(params: {
-  pageNo: number
-  pageSize: number
-  jobName?: string
-  jobGroup?: string
-}) {
-  return get<PageResult<SysJob>>('/monitor/job/recycle/page', params)
-}
-
-export function restoreJob(id: number) {
-  return put<boolean>('/monitor/job/restore', null, { params: { id } })
-}
-
-export function deleteJobPermanent(id: number) {
-  return del<boolean>('/monitor/job/delete-permanent', { params: { id } })
-}
-
-export function getRecycleJobLogPage(params: {
-  pageNo: number
-  pageSize: number
-  jobName?: string
-  jobGroup?: string
-}) {
-  return get<PageResult<SysJobLog>>('/monitor/job/log/recycle/page', params)
-}
-
-export function restoreJobLog(id: number) {
-  return put<boolean>('/monitor/job/log/restore', null, { params: { id } })
-}
-
-export function deleteJobLogPermanent(id: number) {
-  return del<boolean>('/monitor/job/log/delete-permanent', { params: { id } })
-}
+export const cleanJobLogs = () => del<boolean>('/monitor/job/log/clean')

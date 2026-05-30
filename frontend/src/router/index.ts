@@ -23,7 +23,13 @@ const routes: RouteRecordRaw[] = [
         path: 'dashboard',
         name: 'Dashboard',
         component: () => import('@/views/dashboard/index.vue'),
-        meta: { title: '仪表盘', icon: 'dashboard' }
+        meta: { title: '工作台', icon: 'dashboard' }
+      },
+      {
+        path: 'profile',
+        name: 'Profile',
+        component: () => import('@/views/profile/index.vue'),
+        meta: { title: '个人中心', icon: 'User' }
       },
       {
         path: 'system/user',
@@ -106,6 +112,12 @@ const routes: RouteRecordRaw[] = [
         name: 'MonitorOnline',
         component: () => import('@/views/monitor/online/index.vue'),
         meta: { title: '在线用户', icon: 'User', permission: 'monitor:online:list' }
+      },
+      {
+        path: 'monitor/job',
+        name: 'MonitorJob',
+        component: () => import('@/views/monitor/job/index.vue'),
+        meta: { title: '定时任务', icon: 'Timer', permission: 'monitor:job:list' }
       },
       {
         path: 'tool/api-doc',

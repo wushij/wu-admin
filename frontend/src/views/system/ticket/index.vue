@@ -6,20 +6,22 @@
           <el-input v-model="queryParams.title" placeholder="请输入工单标题" clearable />
         </el-form-item>
         <el-form-item label="状态">
-          <el-select v-model="queryParams.status" placeholder="请选择状态" clearable style="width: 160px">
-            <el-option label="待处理" value="OPEN" />
-            <el-option label="处理中" value="IN_PROGRESS" />
-            <el-option label="已解决" value="RESOLVED" />
-            <el-option label="已关闭" value="CLOSED" />
-          </el-select>
+          <DictSelect
+            v-model="queryParams.status"
+            :dict-type="DICT_TYPE.TICKET_STATUS"
+            value-type="string"
+            placeholder="请选择状态"
+            width="160px"
+          />
         </el-form-item>
         <el-form-item label="优先级">
-          <el-select v-model="queryParams.priority" placeholder="请选择优先级" clearable style="width: 160px">
-            <el-option label="低" value="LOW" />
-            <el-option label="中" value="MEDIUM" />
-            <el-option label="高" value="HIGH" />
-            <el-option label="紧急" value="URGENT" />
-          </el-select>
+          <DictSelect
+            v-model="queryParams.priority"
+            :dict-type="DICT_TYPE.TICKET_PRIORITY"
+            value-type="string"
+            placeholder="请选择优先级"
+            width="160px"
+          />
         </el-form-item>
         <el-form-item>
           <el-button type="primary" @click="handleQuery">搜索</el-button>
@@ -51,12 +53,12 @@
         <el-table-column prop="title" label="标题" min-width="180" />
         <el-table-column prop="priority" label="优先级" width="100">
           <template #default="{ row }">
-            <el-tag :type="priorityTagType(row.priority)">{{ formatPriority(row.priority) }}</el-tag>
+            <DictTag :value="row.priority" :dict-type="DICT_TYPE.TICKET_PRIORITY" />
           </template>
         </el-table-column>
         <el-table-column prop="status" label="状态" width="120">
           <template #default="{ row }">
-            <el-tag :type="statusTagType(row.status)">{{ formatStatus(row.status) }}</el-tag>
+            <DictTag :value="row.status" :dict-type="DICT_TYPE.TICKET_STATUS" />
           </template>
         </el-table-column>
         <el-table-column prop="creatorName" label="创建人" width="120" />
@@ -71,10 +73,11 @@
                 <el-button size="small" type="primary">流转状态</el-button>
                 <template #dropdown>
                   <el-dropdown-menu>
-                    <el-dropdown-item command="OPEN">待处理</el-dropdown-item>
-                    <el-dropdown-item command="IN_PROGRESS">处理中</el-dropdown-item>
-                    <el-dropdown-item command="RESOLVED">已解决</el-dropdown-item>
-                    <el-dropdown-item command="CLOSED">已关闭</el-dropdown-item>
+                    <el-dropdown-item
+                      v-for="opt in statusOptions"
+                      :key="String(opt.value)"
+                      :command="opt.value"
+                    >{{ opt.label }}</el-dropdown-item>
                   </el-dropdown-menu>
                 </template>
               </el-dropdown>
@@ -103,12 +106,13 @@
           <el-input v-model="form.description" type="textarea" :rows="4" placeholder="请输入工单描述" />
         </el-form-item>
         <el-form-item label="优先级" prop="priority">
-          <el-select v-model="form.priority" style="width: 100%">
-            <el-option label="低" value="LOW" />
-            <el-option label="中" value="MEDIUM" />
-            <el-option label="高" value="HIGH" />
-            <el-option label="紧急" value="URGENT" />
-          </el-select>
+          <DictSelect
+            v-model="form.priority"
+            :dict-type="DICT_TYPE.TICKET_PRIORITY"
+            value-type="string"
+            apply-default
+            :clearable="false"
+          />
         </el-form-item>
         <el-form-item label="处理人" prop="assigneeUserId">
           <el-select v-model="form.assigneeUserId" clearable filterable style="width: 100%">
@@ -132,12 +136,12 @@
         <el-table-column prop="title" label="标题" min-width="180" />
         <el-table-column prop="priority" label="优先级" width="100">
           <template #default="{ row }">
-            <el-tag :type="priorityTagType(row.priority)">{{ formatPriority(row.priority) }}</el-tag>
+            <DictTag :value="row.priority" :dict-type="DICT_TYPE.TICKET_PRIORITY" />
           </template>
         </el-table-column>
         <el-table-column prop="status" label="状态" width="120">
           <template #default="{ row }">
-            <el-tag :type="statusTagType(row.status)">{{ formatStatus(row.status) }}</el-tag>
+            <DictTag :value="row.status" :dict-type="DICT_TYPE.TICKET_STATUS" />
           </template>
         </el-table-column>
         <el-table-column prop="creatorName" label="创建人" width="110" />
@@ -167,8 +171,12 @@
       <el-descriptions :column="1" border v-if="currentTicket.id">
         <el-descriptions-item label="编号">{{ currentTicket.ticketNo }}</el-descriptions-item>
         <el-descriptions-item label="标题">{{ currentTicket.title }}</el-descriptions-item>
-        <el-descriptions-item label="状态">{{ formatStatus(currentTicket.status) }}</el-descriptions-item>
-        <el-descriptions-item label="优先级">{{ formatPriority(currentTicket.priority) }}</el-descriptions-item>
+        <el-descriptions-item label="状态">
+          <DictTag :value="currentTicket.status" :dict-type="DICT_TYPE.TICKET_STATUS" />
+        </el-descriptions-item>
+        <el-descriptions-item label="优先级">
+          <DictTag :value="currentTicket.priority" :dict-type="DICT_TYPE.TICKET_PRIORITY" />
+        </el-descriptions-item>
         <el-descriptions-item label="描述">{{ currentTicket.description || '-' }}</el-descriptions-item>
       </el-descriptions>
       <div class="comment-header">评论记录</div>
@@ -224,6 +232,12 @@ import {
 } from '@/api/system/ticket'
 import type { RecyclePageQuery, MenuTreeNode } from '@/types/api'
 import type { UploadFile } from 'element-plus'
+import DictSelect from '@/components/DictSelect.vue'
+import DictTag from '@/components/DictTag.vue'
+import { DICT_TYPE } from '@/constants/dict'
+import { useDict, getDictDefaultValue, preloadDicts } from '@/composables/useDict'
+
+const { options: statusOptions } = useDict(DICT_TYPE.TICKET_STATUS, { valueType: 'string' })
 
 const loading = ref(false)
 const route = useRoute()
@@ -268,36 +282,6 @@ const recycleQuery = reactive<RecyclePageQuery>({
 
 const rules = {
   title: [{ required: true, message: '请输入工单标题', trigger: 'blur' }]
-}
-
-const priorityTagType = (priority: string | undefined) => {
-  if (priority === 'URGENT') return 'danger'
-  if (priority === 'HIGH') return 'warning'
-  if (priority === 'LOW') return 'info'
-  return 'success'
-}
-
-const statusTagType = (status: string | undefined) => {
-  if (status === 'OPEN') return 'info'
-  if (status === 'IN_PROGRESS') return 'warning'
-  if (status === 'RESOLVED') return 'success'
-  return 'danger'
-}
-
-const formatPriority = (priority: string | undefined) => {
-  if (priority === 'LOW') return '低'
-  if (priority === 'MEDIUM') return '中'
-  if (priority === 'HIGH') return '高'
-  if (priority === 'URGENT') return '紧急'
-  return priority || '-'
-}
-
-const formatStatus = (status: string | undefined) => {
-  if (status === 'OPEN') return '待处理'
-  if (status === 'IN_PROGRESS') return '处理中'
-  if (status === 'RESOLVED') return '已解决'
-  if (status === 'CLOSED') return '已关闭'
-  return status || '-'
 }
 
 const hasPermission = (permission: string) => {
@@ -354,7 +338,7 @@ const resetForm = () => {
   form.id = null
   form.title = ''
   form.description = ''
-  form.priority = 'MEDIUM'
+  form.priority = (getDictDefaultValue(DICT_TYPE.TICKET_PRIORITY) as string) || 'MEDIUM'
   form.assigneeUserId = null
   form.deadline = null
 }
@@ -503,6 +487,7 @@ const submitComment = async () => {
 }
 
 onMounted(() => {
+  preloadDicts([DICT_TYPE.TICKET_STATUS, DICT_TYPE.TICKET_PRIORITY])
   getList()
   loadUsers()
 })
