@@ -172,12 +172,15 @@ frontend/src/
 
 ### 数据库
 
-全量安装与已有库升级均使用 **`sql/admin_platform.sql`**（唯一数据库脚本）：
+全量安装与已有库升级：
 
-| 场景 | 做法 |
-|------|------|
-| **全新安装** | 执行全文：`mysql -u root -p < sql/admin_platform.sql`（含 DROP，仅用于空库） |
-| **已有库升级** | 仅执行文末 **「附录：已有库升级」** 段（可重复执行、无 DROP；补缺失项，不覆盖自定义角色菜单与已改定时任务） |
+| 场景 | 脚本 | 命令 |
+|------|------|------|
+| **全新安装（空库）** | `sql/admin_platform.sql` | `mysql -u root -p < sql/admin_platform.sql`（空库自动放行） |
+| **极旧库首次升级** | `admin_platform.sql` **附录段**（约 910 行起） | 补全缺表/菜单/索引，可重复执行 |
+| **发版增量** | **`sql/add1.sql`** 等 | `mysql -u root -p wu-admin < sql/add1.sql`（仅本版新增项） |
+
+> 切勿对生产库直接跑 `admin_platform.sql` 全文（Part A 含 DROP，默认会被熔断拦截）。
 
 正文已含：消息中心表（§11b）、`sys_chat_group_log`、分级组织示例、定时任务、短信配置与 `sys_sms_log`、性能索引（含清理任务相关时间索引）。升级后涉及菜单变更时请 **重新登录**；WebSocket 与新接口需 **重启后端**。
 
@@ -285,7 +288,8 @@ wu-admin/
 │   ├── tsconfig.json
 │   └── vite.config.ts          # 开发代理 /api → localhost:8080
 ├── sql/
-│   └── admin_platform.sql      # 唯一数据库脚本（全量安装 + 文末「附录：已有库升级」）
+│   ├── admin_platform.sql      # 全量安装 + 文末附录（旧库首次补丁）
+│   └── add1.sql                # 增量补丁 #1（仅本版新增，可重复执行）
 ├── data/                       # 本地上传目录（git 忽略，对应 file.storage.local-path）
 └── README.md
 ```
@@ -349,10 +353,17 @@ cn.rbac.server/
 ### 1. 初始化数据库
 
 ```bash
+```bash
+# 空库全新安装（直接执行即可）
 mysql -u root -p < sql/admin_platform.sql
+
+# 已有库发版增量（仅本版新增项）
+mysql -u root -p wu-admin < sql/add1.sql
+
+# 极旧库首次补全（缺表/菜单时，执行 admin_platform.sql 附录段，约 910 行起）
 ```
 
-> 全量脚本含 `DROP TABLE`，**仅用于新库**。已有旧库勿执行正文建表段，只执行文末「附录：已有库升级」。
+> 空库可直接跑全文；**已有表的旧库**跑全文会被熔断拦截。旧库请用附录或 `add1.sql`；强制重装须 `SET @WU_ADMIN_ALLOW_DROP=1`。
 
 ### 2. 启动 Redis
 
@@ -431,21 +442,22 @@ npm run dev
 
 ## 数据库脚本
 
-仅维护 **`sql/admin_platform.sql`**：
+维护 **`sql/admin_platform.sql`**（全量 + 附录）与 **`sql/add1.sql`** 等增量补丁：
 
 | 场景 | 做法 |
 |------|------|
-| **全新安装** | `mysql -u root -p < sql/admin_platform.sql` |
-| **已有库升级** | 在客户端中选中并执行文件末尾 **「附录：已有库升级」** 段（约第 915 行起） |
+| **全新安装** | 空库直接 `mysql -u root -p < sql/admin_platform.sql` |
+| **极旧库首次升级** | 执行 `admin_platform.sql` 文末 **附录**（约 910 行起） |
+| **发版增量** | `mysql -u root -p wu-admin < sql/add1.sql`（仅含该版本新增 SQL） |
 
-附录可重复执行，用于补全：配置分组、消息中心、定时任务、短信、组织树迁移、字典、性能索引等。执行涉及菜单的升级后请 **重新登录**。
+`add1.sql` 体量应保持在几十行量级；全量补丁逻辑在 `admin_platform.sql` 附录。后续版本新增 `add2.sql` …
 
-**附录行为说明（可重复执行、尽量非破坏性）：**
+**附录 / 增量行为（可重复执行、尽量非破坏性）：**
 
 | 项 | 行为 |
 |----|------|
 | 字典数据 | `(dict_type, dict_value)` 唯一索引（**不含 deleted**）；附录先去重（保留 **id 较小** 的一条）再加索引，随后 upsert。内置字典无影响；若未来字典支持软删后同 value 再建，需调整索引或应用层约束 |
-| 菜单（160–162、170–178、180–184 等） | `ON DUPLICATE KEY UPDATE` 会按脚本 **覆盖 name/path/component 等**；在线改过菜单字段的库重复跑附录可能被盖回 |
+| 菜单（160–162、170–178、180–184 等） | 默认 `INSERT IGNORE`，**不覆盖**已存在行的 name/path/icon；需强制同步时 `SET @WU_ADMIN_SYNC_MENU=1` |
 | 普通用户（role_id=2） | 仅 `INSERT IGNORE` 补缺失菜单，**不会 DELETE 清空**已自定义权限 |
 | 内置定时任务 id 1～6 | 仅 `INSERT IGNORE` 首次插入，**不会覆盖**管理员已改的 cron / status |
 | 旧版任务迁移 | 仅当 `invoke_target` 仍为 `refreshDictCache` / `refreshConfigCache` 时才改写 |
@@ -525,7 +537,7 @@ cd backend && mvn clean package -DskipTests
 A：确认已导入 `admin_platform.sql` 或为角色分配菜单，然后重新登录。
 
 **Q：系统配置页报错或只有 login/register？**  
-A：对已有库执行 `admin_platform.sql` 文末「附录：已有库升级」段，补全 site/session/file/rateLimit 等分组。
+A：对已有库：极旧库先跑 **admin_platform.sql 附录**（补全 site/session/file/rateLimit 等）；已跑过附录则按需执行 `add1.sql` 增量。
 
 **Q：注册后无法登录？**  
 A：若开启「注册需审核」，需管理员在审批单中心通过；登录提示「账号待审核」属正常。
@@ -540,7 +552,7 @@ A：已配置 OpenAPI 默认服务 `http://localhost:3000/api`；重启后端与
 A：在 **系统配置 → 文件存储** 调整；单文件上限不得超过 500MB。
 
 **Q：消息中心菜单不显示或聊天 403？**  
-A：对已有库执行 `admin_platform.sql` 文末「附录：已有库升级」段，重启后端后 **重新登录**。普通用户需角色分配菜单 170/172；只读权限用户访问 `:list` 接口时会映射为 `:query`。
+A：对已有库：极旧库先跑 **admin_platform.sql 附录**；发版增量跑 `sql/add1.sql`，重启后端后 **重新登录**。普通用户需角色分配菜单 170/172；只读权限用户访问 `:list` 接口时会映射为 `:query`。
 
 **Q：顶栏有通知角标但列表为空？**  
 A：确认 WebSocket 已连接（登录后自动初始化）；在顶栏铃铛打开「系统通知」Tab 会拉取列表。管理员发布通知需 `system:announce:publish`。
@@ -549,10 +561,10 @@ A：确认 WebSocket 已连接（登录后自动初始化）；在顶栏铃铛�
 A：升级后新图片走 `/system/chat/upload/image`，存储于 `images/chat/` 且文件列表已排除；历史旧数据可手动删除。
 
 **Q：开启「禁止前端调试」无效？**  
-A：在 **系统配置 → 安全配置** 保存后需 **整页刷新**；已有库需先执行 `admin_platform.sql` 附录补全 `security` 分组。此为浏览器端限制，无法替代后端鉴权。
+A：在 **系统配置 → 安全配置** 保存后需 **整页刷新**；缺 `security` 分组时先跑 **admin_platform.sql 附录**。此为浏览器端限制，无法替代后端鉴权。
 
 **Q：系统配置没有「第三方配置 / 支付配置 / 短信配置」Tab？**  
-A：对已有库执行 `admin_platform.sql` 文末「附录：已有库升级」段；**重启后端**并刷新页面。
+A：对已有库：极旧库先跑 **admin_platform.sql 附录**；发版增量跑 `sql/add1.sql`；**重启后端**并刷新页面。
 
 **Q：登录页没有「短信登录」？**  
 A：在 **系统配置 → 登录认证** 开启「短信登录」，并在 **短信配置** 中启用短信；保存后刷新登录页。短信 Tab 仅支持已在个人中心绑定的手机号。
