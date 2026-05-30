@@ -456,6 +456,7 @@ const greetingMessage = computed(() => {
 
 const captchaTypeLabel = (type: string | undefined) => {
   if (type === 'slider') return '滑块'
+  if (type === 'sms') return '短信'
   if (type === 'image') return '图形'
   return type || '-'
 }

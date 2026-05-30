@@ -18,6 +18,8 @@ import cn.rbac.server.modules.system.service.approval.RegisterApprovalService;
 import cn.rbac.server.modules.system.service.config.SystemConfigHelper;
 import cn.rbac.server.modules.system.service.monitor.OnlineUserService;
 import cn.rbac.server.modules.system.service.permission.PermissionService;
+import cn.rbac.server.modules.system.sms.AliyunDypnsSmsVerifyService;
+import cn.rbac.server.modules.system.sms.SmsServiceFactory;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -36,6 +38,7 @@ import org.springframework.web.bind.annotation.*;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
 import java.io.InputStream;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -69,9 +72,17 @@ public class AuthController {
     private SystemConfigHelper systemConfigHelper;
     @Resource
     private RegisterApprovalService registerApprovalService;
+    @Resource
+    private SmsServiceFactory smsServiceFactory;
+    @Resource
+    private AliyunDypnsSmsVerifyService aliyunDypnsSmsVerifyService;
 
     
     private static final String CAPTCHA_KEY = "captcha:";
+    private static final String SMS_CODE_KEY = "sms:login:";
+    private static final String SMS_LIMIT_KEY = "sms:limit:";
+    private static final String SMS_DAILY_PHONE_KEY = "sms:daily:phone:";
+    private static final String SMS_DAILY_IP_KEY = "sms:daily:ip:";
     private static final String ONLINE_USER_KEY = "dashboard:online:user:";
     private static final String LOGIN_FAIL_USER_KEY = "auth:login:fail:user:";
     private static final String LOGIN_FAIL_IP_KEY = "auth:login:fail:ip:";
@@ -126,6 +137,13 @@ public class AuthController {
     @Operation(summary = "登录")
     @PostMapping("/login")
     public CommonResult<Map<String, Object>> login(@RequestBody LoginReqVO reqVO, HttpServletRequest request) {
+        if (SystemConfigHelper.LOGIN_TYPE_SMS.equalsIgnoreCase(reqVO.getLoginType())) {
+            return loginBySms(reqVO, request);
+        }
+        return loginByAccount(reqVO, request);
+    }
+
+    private CommonResult<Map<String, Object>> loginByAccount(LoginReqVO reqVO, HttpServletRequest request) {
         String username = reqVO.getUsername() == null ? "" : reqVO.getUsername().trim();
         String clientIp = getClientIp(request);
 
@@ -141,14 +159,13 @@ public class AuthController {
             return CommonResult.error(429, lockMessage);
         }
 
-        String captchaErr = validateLoginCaptcha(reqVO.getUuid(), reqVO.getCode());
+        String captchaErr = validateLoginCaptcha(reqVO);
         if (captchaErr != null) {
             handleLoginFailure(username, clientIp);
             recordLoginLog(null, username, 1, captchaErr, request);
             return CommonResult.error(400, captchaErr);
         }
-        
-        // 查询用户
+
         UserDO user = userMapper.selectOne(
             new LambdaQueryWrapper<UserDO>()
                 .eq(UserDO::getUsername, username)
@@ -158,7 +175,6 @@ public class AuthController {
             recordLoginLog(null, username, 1, "用户不存在", request);
             return CommonResult.error(401, "用户不存在");
         }
-        // 校验密码
         if (!passwordEncoder.matches(reqVO.getPassword(), user.getPassword())) {
             handleLoginFailure(username, clientIp);
             recordLoginLog(user.getId(), username, 1, "密码错误", request);
@@ -171,16 +187,71 @@ public class AuthController {
             return CommonResult.error(403, statusErr);
         }
 
+        return completeLogin(user, request);
+    }
+
+    private CommonResult<Map<String, Object>> loginBySms(LoginReqVO reqVO, HttpServletRequest request) {
+        if (!systemConfigHelper.isSmsLoginEnabled()) {
+            return CommonResult.error(400, "当前未启用短信登录");
+        }
+        if (!systemConfigHelper.isSmsEnabled()) {
+            return CommonResult.error(400, "短信功能未启用");
+        }
+
+        String phone = reqVO.getPhone() == null ? "" : reqVO.getPhone().trim();
+        if (!phone.matches("^1[3-9]\\d{9}$")) {
+            return CommonResult.error(400, "请输入正确的手机号");
+        }
+
+        UserDO user = findUserByMobile(phone);
+        String username = user != null ? user.getUsername() : phone;
+        String clientIp = getClientIp(request);
+
+        String rlMsg = rateLimitByIp(clientIp, "login", systemConfigHelper.getLoginPerIpMinute());
+        if (rlMsg != null) {
+            recordLoginLog(null, username, 1, rlMsg, request);
+            return CommonResult.error(429, rlMsg);
+        }
+
+        String lockMessage = checkLoginLock(username, clientIp);
+        if (lockMessage != null) {
+            recordLoginLog(null, username, 1, lockMessage, request);
+            return CommonResult.error(429, lockMessage);
+        }
+
+        String captchaErr = validateSmsLoginCaptcha(reqVO);
+        if (captchaErr != null) {
+            handleLoginFailure(username, clientIp);
+            recordLoginLog(null, username, 1, captchaErr, request);
+            return CommonResult.error(400, captchaErr);
+        }
+
+        if (user == null) {
+            handleLoginFailure(username, clientIp);
+            recordLoginLog(null, username, 1, "该手机号未绑定任何账号", request);
+            return CommonResult.error(401, "该手机号未绑定任何账号");
+        }
+
+        String statusErr = checkUserLoginStatus(user);
+        if (statusErr != null) {
+            recordLoginLog(user.getId(), username, 1, statusErr, request);
+            return CommonResult.error(403, statusErr);
+        }
+
+        return completeLogin(user, request);
+    }
+
+    private CommonResult<Map<String, Object>> completeLogin(UserDO user, HttpServletRequest request) {
+        String username = user.getUsername();
+        String clientIp = getClientIp(request);
         clearLoginFailure(username, clientIp);
 
         String token = tokenService.createToken(user.getId(), user.getUsername());
         StpUtil.getSession().set(TokenService.SESSION_NICKNAME, user.getNickname());
 
         onlineUserService.recordLoginSession(user.getId(), user.getUsername(), user.getNickname(), request);
-
-        // 记录登录成功日志
         recordLoginLog(user.getId(), username, 0, "登录成功", request);
-        
+
         Map<String, Object> result = new HashMap<>();
         result.put("token", token);
         result.put("userId", user.getId());
@@ -228,19 +299,65 @@ public class AuthController {
      *
      * @return 超限时的提示文案；null 表示放行
      */
-    private String validateLoginCaptcha(String uuid, String code) {
+    private String validateLoginCaptcha(LoginReqVO reqVO) {
         if (!systemConfigHelper.isCaptchaEnabled()) {
             return null;
         }
         String captchaType = systemConfigHelper.getCaptchaType();
-        String captchaInput = code == null ? "" : code.trim();
+        String captchaInput = reqVO.getCode() == null ? "" : reqVO.getCode().trim();
+        if (SystemConfigHelper.CAPTCHA_TYPE_SMS.equals(captchaType)) {
+            return null;
+        }
         if (SystemConfigHelper.CAPTCHA_TYPE_SLIDER.equals(captchaType)) {
             if (!SystemConfigHelper.SLIDER_VERIFIED_CODE.equals(captchaInput)) {
                 return "请完成滑块验证";
             }
             return null;
         }
-        return validateImageCaptcha(uuid, captchaInput);
+        return validateImageCaptcha(reqVO.getUuid(), captchaInput);
+    }
+
+    private String validateSmsLoginCaptcha(LoginReqVO reqVO) {
+        if (!systemConfigHelper.isSmsEnabled()) {
+            return "短信功能未启用";
+        }
+        String phone = reqVO.getPhone() == null ? "" : reqVO.getPhone().trim();
+        String captchaInput = reqVO.getCode() == null ? "" : reqVO.getCode().trim();
+        if (!phone.matches("^1[3-9]\\d{9}$")) {
+            return "请输入正确的手机号";
+        }
+        if (captchaInput.isEmpty()) {
+            return "请输入短信验证码";
+        }
+        if (findUserByMobile(phone) == null) {
+            return "该手机号未绑定任何账号";
+        }
+        RBucket<String> bucket = redissonClient.getBucket(SMS_CODE_KEY + phone);
+        String cached = bucket.get();
+        if (cached != null && cached.equalsIgnoreCase(captchaInput)) {
+            bucket.delete();
+            return null;
+        }
+        // 模板使用 ##code## 时走阿里云云端核验；自定义 code 以 Redis 为准
+        if (systemConfigHelper.isAliyunAuthSmsProvider()) {
+            boolean pass = aliyunDypnsSmsVerifyService.verifyCode(phone, captchaInput);
+            if (pass) {
+                bucket.delete();
+                return null;
+            }
+        }
+        return "短信验证码错误或已过期";
+    }
+
+    private UserDO findUserByMobile(String phone) {
+        if (!StringUtils.hasText(phone)) {
+            return null;
+        }
+        return userMapper.selectOne(
+                new LambdaQueryWrapper<UserDO>()
+                        .eq(UserDO::getMobile, phone.trim())
+                        .select(UserDO::getId, UserDO::getUsername, UserDO::getNickname,
+                                UserDO::getPassword, UserDO::getMobile, UserDO::getStatus));
     }
 
     private String validateRegisterCaptcha(String uuid, String code) {
@@ -456,6 +573,117 @@ public class AuthController {
         }
         return CommonResult.success(true);
     }
+
+    @Operation(summary = "发送登录短信验证码")
+    @PostMapping("/sms-code")
+    public CommonResult<Boolean> sendSmsCode(@RequestBody SmsCodeReqVO reqVO, HttpServletRequest request) {
+        if (!systemConfigHelper.isSmsEnabled()) {
+            return CommonResult.error(400, "短信功能未启用");
+        }
+        if (!systemConfigHelper.isSmsLoginEnabled()) {
+            return CommonResult.error(400, "当前未启用短信验证码登录");
+        }
+        String phone = reqVO.getPhone() == null ? "" : reqVO.getPhone().trim();
+        if (!phone.matches("^1[3-9]\\d{9}$")) {
+            return CommonResult.error(400, "请输入正确的手机号");
+        }
+        String clientIp = getClientIp(request);
+        String rateErr = checkSmsSendRateLimit(phone, clientIp);
+        if (rateErr != null) {
+            return CommonResult.error(429, rateErr);
+        }
+        if (findUserByMobile(phone) == null) {
+            return CommonResult.error(400, "该手机号未绑定任何账号");
+        }
+        String code = String.valueOf((int) ((Math.random() * 9 + 1) * 100000));
+        boolean success = smsServiceFactory.sendCode(phone, code);
+        if (!success) {
+            return CommonResult.error(500, "短信发送失败，请稍后重试");
+        }
+        redissonClient.getBucket(SMS_CODE_KEY + phone).set(code, 5, TimeUnit.MINUTES);
+        recordSmsSendOnSuccess(phone, clientIp);
+        return CommonResult.success(true);
+    }
+
+    /** 短信发送前：IP/手机号 分钟级与每日限额 */
+    private String checkSmsSendRateLimit(String phone, String clientIp) {
+        String rlMsg = rateLimitByIp(clientIp, "sms-code", systemConfigHelper.getSmsPerIpMinute());
+        if (rlMsg != null) {
+            return rlMsg;
+        }
+        int ipDailyMax = systemConfigHelper.getSmsPerIpDaily();
+        if (ipDailyMax > 0 && getDailyCount(SMS_DAILY_IP_KEY + clientIp) >= ipDailyMax) {
+            return "当前 IP 今日短信发送次数已达上限，请明天再试";
+        }
+        int intervalSec = systemConfigHelper.getSmsSendIntervalSeconds();
+        if (redissonClient.getBucket(SMS_LIMIT_KEY + phone).isExists()) {
+            return "发送太频繁，请 " + intervalSec + " 秒后再试";
+        }
+        int phoneDailyMax = systemConfigHelper.getSmsPerPhoneDaily();
+        if (phoneDailyMax > 0 && getDailyCount(SMS_DAILY_PHONE_KEY + phone) >= phoneDailyMax) {
+            return "该手机号今日发送次数已达上限，请明天再试";
+        }
+        return null;
+    }
+
+    private void recordSmsSendOnSuccess(String phone, String clientIp) {
+        int intervalSec = systemConfigHelper.getSmsSendIntervalSeconds();
+        redissonClient.getBucket(SMS_LIMIT_KEY + phone).set("1", intervalSec, TimeUnit.SECONDS);
+        incrementDailyCount(SMS_DAILY_PHONE_KEY + phone);
+        incrementDailyCount(SMS_DAILY_IP_KEY + clientIp);
+    }
+
+    private long getDailyCount(String prefixKey) {
+        return redissonClient.getAtomicLong(dailyKey(prefixKey)).get();
+    }
+
+    private void incrementDailyCount(String prefixKey) {
+        int max = prefixKey.startsWith(SMS_DAILY_PHONE_KEY)
+                ? systemConfigHelper.getSmsPerPhoneDaily()
+                : systemConfigHelper.getSmsPerIpDaily();
+        if (max <= 0) {
+            return;
+        }
+        RAtomicLong counter = redissonClient.getAtomicLong(dailyKey(prefixKey));
+        long n = counter.incrementAndGet();
+        if (n == 1) {
+            counter.expire(25, TimeUnit.HOURS);
+        }
+    }
+
+    private String dailyKey(String prefixKey) {
+        return prefixKey + LocalDate.now();
+    }
+
+    @Operation(summary = "核验短信验证码（阿里云短信认证）")
+    @PostMapping("/sms-code/verify")
+    public CommonResult<Boolean> verifySmsCode(@RequestBody SmsCodeVerifyReqVO reqVO) {
+        if (!systemConfigHelper.isSmsEnabled()) {
+            return CommonResult.error(400, "短信功能未启用");
+        }
+        String phone = reqVO.getPhone() == null ? "" : reqVO.getPhone().trim();
+        String code = reqVO.getCode() == null ? "" : reqVO.getCode().trim();
+        if (!phone.matches("^1[3-9]\\d{9}$")) {
+            return CommonResult.error(400, "请输入正确的手机号");
+        }
+        if (code.isBlank()) {
+            return CommonResult.error(400, "请输入验证码");
+        }
+        if (systemConfigHelper.isAliyunAuthSmsProvider()) {
+            boolean pass = aliyunDypnsSmsVerifyService.verifyCode(phone, code);
+            if (!pass) {
+                return CommonResult.error(400, "验证码错误或已过期");
+            }
+            redissonClient.getBucket(SMS_CODE_KEY + phone).delete();
+            return CommonResult.success(true);
+        }
+        String cached = redissonClient.<String>getBucket(SMS_CODE_KEY + phone).get();
+        if (cached == null || !cached.equalsIgnoreCase(code)) {
+            return CommonResult.error(400, "验证码错误或已过期");
+        }
+        redissonClient.getBucket(SMS_CODE_KEY + phone).delete();
+        return CommonResult.success(true);
+    }
     
     @Operation(summary = "注册")
     @PostMapping("/register")
@@ -522,8 +750,11 @@ public class AuthController {
     
     @Data
     public static class LoginReqVO {
+        /** account | sms */
+        private String loginType;
         private String username;
         private String password;
+        private String phone;
         private String uuid;
         private String code;
     }
@@ -534,6 +765,17 @@ public class AuthController {
         private String password;
         private String nickname;
         private String uuid;
+        private String code;
+    }
+
+    @Data
+    public static class SmsCodeReqVO {
+        private String phone;
+    }
+
+    @Data
+    public static class SmsCodeVerifyReqVO {
+        private String phone;
         private String code;
     }
 }

@@ -10,7 +10,9 @@ export interface SiteConfig {
 export interface LoginConfig {
   captchaEnabled?: boolean
   captchaType?: string
+  smsLoginEnabled?: boolean
   rememberMe?: boolean
+  smsEnabled?: boolean
 }
 
 export interface RegisterConfig {
@@ -53,11 +55,16 @@ export interface RateLimitConfig {
   captchaPerIpMinute: number
   loginPerIpMinute: number
   registerPerIpMinute: number
+  smsPerIpMinute: number
+  smsSendIntervalSeconds: number
+  smsPerPhoneDaily: number
+  smsPerIpDaily: number
 }
 
 export interface LoginAdminConfig {
   captchaEnabled: boolean
   captchaType: string
+  smsLoginEnabled: boolean
   rememberMe: boolean
   maxRetryCount: number
   lockTime: number
@@ -123,6 +130,38 @@ export interface PaymentConfig {
   alipay: AlipayPayConfig
 }
 
+export interface SmsConfig {
+  enabled: boolean
+  provider: 'aliyunAuth' | 'tencent'
+  accessKeyId: string
+  accessKeySecret: string
+  signName: string
+  tencentAppId: string
+  templateVerifyCode: string
+  templateModifyPhone: string
+  templateResetPassword: string
+  templateBindPhone: string
+  templateVerifyBindPhone: string
+  /** 阿里云短信认证 CheckSmsVerifyCode 方案名，可留空 */
+  schemeName: string
+  /** 验证码有效期（分钟），用于短信认证模板 min 参数 */
+  codeExpireMinutes: number
+}
+
+export interface SmsLogRecord {
+  id: number
+  phone: string
+  content: string
+  smsType: string
+  templateId: string
+  provider: string
+  status: number
+  resultMsg: string
+  bizId: string
+  sendTime: string
+  createTime: string
+}
+
 export type ConfigGroupCode =
   | 'site'
   | 'session'
@@ -132,6 +171,7 @@ export type ConfigGroupCode =
   | 'register'
   | 'thirdParty'
   | 'payment'
+  | 'sms'
   | 'security'
 
 export interface ConfigGroupMap {
@@ -143,6 +183,7 @@ export interface ConfigGroupMap {
   register: RegisterAdminConfig
   thirdParty: ThirdPartyConfig
   payment: PaymentConfig
+  sms: SmsConfig
   security: SecurityConfig
 }
 

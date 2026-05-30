@@ -32,6 +32,9 @@
         <wechatpay-java.version>0.2.12</wechatpay-java.version>
         <alipay-sdk.version>4.39.79.ALL</alipay-sdk.version>
         <zxing.version>3.5.2</zxing.version>
+        <aliyun-sms.version>3.0.0</aliyun-sms.version>
+        <aliyun-dypns.version>2.0.0</aliyun-dypns.version>
+        <tencent-sms.version>3.1.754</tencent-sms.version>
     </properties>
 
     <dependencyManagement>
@@ -187,6 +190,24 @@
             <groupId>com.google.zxing</groupId>
             <artifactId>javase</artifactId>
             <version>${zxing.version}</version>
+        </dependency>
+        <!-- 阿里云短信 SDK -->
+        <dependency>
+            <groupId>com.aliyun</groupId>
+            <artifactId>dysmsapi20170525</artifactId>
+            <version>${aliyun-sms.version}</version>
+        </dependency>
+        <!-- 阿里云号码认证 / 短信认证 SDK（SendSmsVerifyCode） -->
+        <dependency>
+            <groupId>com.aliyun</groupId>
+            <artifactId>dypnsapi20170525</artifactId>
+            <version>${aliyun-dypns.version}</version>
+        </dependency>
+        <!-- 腾讯云短信 SDK -->
+        <dependency>
+            <groupId>com.tencentcloudapi</groupId>
+            <artifactId>tencentcloud-sdk-java-sms</artifactId>
+            <version>${tencent-sms.version}</version>
         </dependency>
     </dependencies>
 

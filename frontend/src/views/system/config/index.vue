@@ -57,7 +57,7 @@
         </el-tab-pane>
 
         <el-tab-pane label="接口限流" name="rateLimit">
-          <el-form :model="draft.rateLimit" label-width="140px" class="config-form">
+          <el-form :model="draft.rateLimit" label-width="180px" class="config-form">
             <el-form-item label="验证码(次/分钟/IP)">
               <el-input-number v-model="draft.rateLimit.captchaPerIpMinute" :min="0" :max="200" :disabled="!canEdit" />
             </el-form-item>
@@ -66,6 +66,26 @@
             </el-form-item>
             <el-form-item label="注册(次/分钟/IP)">
               <el-input-number v-model="draft.rateLimit.registerPerIpMinute" :min="0" :max="200" :disabled="!canEdit" />
+            </el-form-item>
+            <el-divider content-position="left">短信发送防刷</el-divider>
+            <el-form-item label="短信(次/分钟/IP)">
+              <el-input-number v-model="draft.rateLimit.smsPerIpMinute" :min="0" :max="200" :disabled="!canEdit" />
+            </el-form-item>
+            <el-form-item label="同号发送间隔(秒)">
+              <el-input-number
+                v-model="draft.rateLimit.smsSendIntervalSeconds"
+                :min="30"
+                :max="300"
+                :disabled="!canEdit"
+              />
+            </el-form-item>
+            <el-form-item label="同号每日上限(次)">
+              <el-input-number v-model="draft.rateLimit.smsPerPhoneDaily" :min="0" :max="500" :disabled="!canEdit" />
+              <span class="unit">0 表示不限制</span>
+            </el-form-item>
+            <el-form-item label="同 IP 每日上限(次)">
+              <el-input-number v-model="draft.rateLimit.smsPerIpDaily" :min="0" :max="500" :disabled="!canEdit" />
+              <span class="unit">0 表示不限制</span>
             </el-form-item>
           </el-form>
         </el-tab-pane>
@@ -80,6 +100,20 @@
                 <el-radio label="image">图片</el-radio>
                 <el-radio label="slider">滑块</el-radio>
               </el-radio-group>
+            </el-form-item>
+            <el-form-item label="短信验证码登录">
+              <el-switch v-model="draft.login.smsLoginEnabled" :disabled="!canEdit" />
+            </el-form-item>
+            <el-form-item
+              v-if="draft.login.smsLoginEnabled && !draft.sms.enabled"
+              label=" "
+            >
+              <el-alert
+                type="warning"
+                :closable="false"
+                show-icon
+                title="请先在「短信配置」中开启短信功能，否则无法保存"
+              />
             </el-form-item>
             <el-form-item label="记住我">
               <el-switch v-model="draft.login.rememberMe" :disabled="!canEdit" />
@@ -431,6 +465,191 @@
           </el-alert>
         </el-tab-pane>
 
+        <el-tab-pane label="短信配置" name="sms">
+          <div class="sms-config-layout">
+            <div class="sms-config-left">
+              <el-card shadow="never" class="sms-section-card">
+                <template #header>
+                  <span class="sms-card-title">基础配置</span>
+                </template>
+                <el-form
+                  :model="draft.sms"
+                  label-width="130px"
+                  class="config-form sms-form"
+                  autocomplete="off"
+                  @submit.prevent
+                >
+                  <el-form-item label="启用短信">
+                    <el-switch v-model="draft.sms.enabled" :disabled="!canEdit" />
+                    <span class="unit">开启后业务侧可发送验证码短信</span>
+                  </el-form-item>
+                  <el-form-item label="短信服务商">
+                    <el-select v-model="draft.sms.provider" style="width: 100%" :disabled="!canEdit">
+                      <el-option label="阿里云" value="aliyunAuth" />
+                      <el-option label="腾讯云" value="tencent" />
+                    </el-select>
+                  </el-form-item>
+                  <el-form-item label="AccessKeyId">
+                    <el-input
+                      v-model="draft.sms.accessKeyId"
+                      name="sms-access-key-id"
+                      autocomplete="off"
+                      placeholder="阿里云 AccessKeyId / 腾讯云 SecretId"
+                      :disabled="!canEdit"
+                    />
+                  </el-form-item>
+                  <el-form-item label="AccessKeySecret">
+                    <el-input
+                      v-model="draft.sms.accessKeySecret"
+                      name="sms-access-key-secret"
+                      type="password"
+                      show-password
+                      autocomplete="new-password"
+                      placeholder="阿里云 AccessKeySecret / 腾讯云 SecretKey"
+                      :disabled="!canEdit"
+                    />
+                  </el-form-item>
+                  <el-form-item label="签名">
+                    <el-input
+                      v-model="draft.sms.signName"
+                      name="sms-sign-name"
+                      autocomplete="off"
+                      placeholder="控制台已审核的短信签名"
+                      :disabled="!canEdit"
+                    />
+                  </el-form-item>
+                  <el-form-item v-if="draft.sms.provider === 'tencent'" label="腾讯云 AppId">
+                    <el-input
+                      v-model="draft.sms.tencentAppId"
+                      name="sms-tencent-app-id"
+                      autocomplete="off"
+                      placeholder="SmsSdkAppId"
+                      :disabled="!canEdit"
+                    />
+                  </el-form-item>
+                  <el-form-item v-if="draft.sms.provider === 'aliyunAuth'" label="验证码有效期">
+                    <el-input-number v-model="draft.sms.codeExpireMinutes" :min="1" :max="30" :disabled="!canEdit" />
+                    <span class="unit">分钟</span>
+                  </el-form-item>
+                </el-form>
+              </el-card>
+
+              <el-card shadow="never" class="sms-section-card">
+                <template #header>
+                  <span class="sms-card-title">模板配置</span>
+                </template>
+                <el-form
+                  :model="draft.sms"
+                  label-width="148px"
+                  class="config-form sms-form"
+                  autocomplete="off"
+                  @submit.prevent
+                >
+                  <template v-if="draft.sms.provider === 'aliyunAuth'">
+                    <el-form-item label="登录/注册模板">
+                      <el-input v-model="draft.sms.templateVerifyCode" placeholder="100001" :disabled="!canEdit" />
+                    </el-form-item>
+                    <el-form-item label="修改绑定手机号">
+                      <el-input v-model="draft.sms.templateModifyPhone" placeholder="100002" :disabled="!canEdit" />
+                    </el-form-item>
+                    <el-form-item label="重置密码模板">
+                      <el-input v-model="draft.sms.templateResetPassword" placeholder="100003" :disabled="!canEdit" />
+                    </el-form-item>
+                    <el-form-item label="绑定新手机号">
+                      <el-input v-model="draft.sms.templateBindPhone" placeholder="100004" :disabled="!canEdit" />
+                    </el-form-item>
+                    <el-form-item label="验证绑定手机号">
+                      <el-input v-model="draft.sms.templateVerifyBindPhone" placeholder="100005" :disabled="!canEdit" />
+                    </el-form-item>
+                  </template>
+                  <template v-else>
+                    <el-form-item label="验证码模板 ID">
+                      <el-input
+                        v-model="draft.sms.templateVerifyCode"
+                        placeholder="如 SMS_123456789"
+                        :disabled="!canEdit"
+                      />
+                    </el-form-item>
+                    <el-form-item label="重置密码模板 ID">
+                      <el-input
+                        v-model="draft.sms.templateResetPassword"
+                        placeholder="如 SMS_123456790"
+                        :disabled="!canEdit"
+                      />
+                    </el-form-item>
+                  </template>
+                </el-form>
+              </el-card>
+            </div>
+
+            <div class="sms-config-right">
+              <el-card shadow="never" class="sms-section-card">
+                <template #header>
+                  <span class="sms-card-title">测试发送</span>
+                </template>
+                <el-form label-width="72px" class="sms-test-form" autocomplete="off" @submit.prevent>
+                  <el-form-item v-if="draft.sms.provider === 'aliyunAuth'" label="模板">
+                    <el-select v-model="testSmsTemplate" style="width: 100%" :disabled="!canEdit">
+                      <el-option label="100001 登录/注册" value="100001" />
+                      <el-option label="100002 修改绑定手机号" value="100002" />
+                      <el-option label="100003 重置密码" value="100003" />
+                      <el-option label="100004 绑定新手机号" value="100004" />
+                      <el-option label="100005 验证绑定手机号" value="100005" />
+                    </el-select>
+                  </el-form-item>
+                  <el-form-item label="手机号">
+                    <div class="sms-test-row">
+                      <el-input
+                        v-model="testSmsPhone"
+                        name="sms-test-phone"
+                        autocomplete="off"
+                        readonly
+                        placeholder="请输入 11 位手机号"
+                        maxlength="11"
+                        @focus="($event.target as HTMLInputElement).removeAttribute('readonly')"
+                      />
+                      <el-button type="primary" :loading="smsTesting" :disabled="!canEdit" @click="handleTestSms">
+                        发送
+                      </el-button>
+                    </div>
+                  </el-form-item>
+                </el-form>
+                <el-alert
+                  type="info"
+                  :closable="false"
+                  show-icon
+                  title="将发送一条随机 6 位验证码到该手机，用于测试短信配置是否正确。密钥未配置时会在服务端控制台打印。"
+                />
+              </el-card>
+
+              <el-card shadow="never" class="sms-section-card">
+                <template #header>
+                  <div class="sms-log-header">
+                    <span class="sms-card-title">发送记录</span>
+                    <el-button link type="primary" @click="handleShowAllSmsLogs">查看全部</el-button>
+                  </div>
+                </template>
+                <el-table v-if="recentSmsLogs.length" :data="recentSmsLogs" size="small" stripe>
+                  <el-table-column prop="phone" label="手机号" width="118" />
+                  <el-table-column prop="content" label="验证码" width="88" />
+                  <el-table-column label="状态" width="72">
+                    <template #default="{ row }">
+                      <el-tag :type="smsStatusTagType(row.status)" size="small">
+                        {{ smsStatusText(row.status) }}
+                      </el-tag>
+                    </template>
+                  </el-table-column>
+                  <el-table-column prop="createTime" label="时间" min-width="150" show-overflow-tooltip />
+                </el-table>
+                <el-empty v-else description="暂无发送记录" :image-size="64" />
+              </el-card>
+            </div>
+          </div>
+          <el-alert type="info" :closable="false" show-icon class="sms-tip-alert">
+            填写密钥与模板后请点击页底「保存全部」；保存后再使用测试发送验证配置是否正确。
+          </el-alert>
+        </el-tab-pane>
+
         <el-tab-pane label="安全配置" name="security">
           <el-form :model="draft.security" label-width="140px" class="config-form">
             <el-divider content-position="left">前端安全</el-divider>
@@ -482,6 +701,46 @@
         </div>
       </div>
     </el-dialog>
+
+    <!-- 短信记录弹窗 -->
+    <el-dialog v-model="showSmsLogsModal" title="短信发送记录" width="860px" :lock-scroll="false" @opened="loadSmsLogs">
+      <div class="sms-logs-toolbar">
+        <el-input v-model="smsLogsSearch.phone" placeholder="手机号" clearable style="width: 180px" @keyup.enter="handleSearchSmsLogs" />
+        <el-select v-model="smsLogsSearch.status" placeholder="发送状态" clearable style="width: 120px">
+          <el-option label="成功" :value="1" />
+          <el-option label="失败" :value="2" />
+          <el-option label="发送中" :value="0" />
+        </el-select>
+        <el-button type="primary" @click="handleSearchSmsLogs">搜索</el-button>
+        <el-button @click="handleResetSmsLogsSearch">重置</el-button>
+      </div>
+      <el-table v-loading="smsLogsLoading" :data="smsLogsData" size="small" stripe max-height="420">
+        <el-table-column prop="phone" label="手机号" width="120" />
+        <el-table-column prop="content" label="验证码" width="90" />
+        <el-table-column prop="provider" label="服务商" width="88" />
+        <el-table-column label="状态" width="80">
+          <template #default="{ row }">
+            <el-tag :type="smsStatusTagType(row.status)" size="small">
+              {{ smsStatusText(row.status) }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="resultMsg" label="结果信息" min-width="140" show-overflow-tooltip />
+        <el-table-column prop="createTime" label="发送时间" width="168" />
+      </el-table>
+      <div class="sms-logs-pagination">
+        <el-pagination
+          v-model:current-page="smsLogsPagination.page"
+          v-model:page-size="smsLogsPagination.size"
+          :total="smsLogsPagination.total"
+          :page-sizes="[10, 20, 50]"
+          layout="total, sizes, prev, pager, next"
+          background
+          @current-change="loadSmsLogs"
+          @size-change="handleSmsLogsSizeChange"
+        />
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -489,10 +748,10 @@
 import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue'
 import { onBeforeRouteLeave } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getConfigGroup, updateConfigGroup, testPayment, getPayOrderStatus } from '@/api/system/config'
+import { getConfigGroup, updateConfigGroup, testPayment, getPayOrderStatus, testSms, getRecentSmsLogs, getSmsLogs } from '@/api/system/config'
 import { getRoleList } from '@/api/system/role'
 import { getErrorMessage } from '@/utils/axiosError'
-import type { ConfigGroupCode, ConfigGroupMap } from '@/types/config'
+import type { ConfigGroupCode, ConfigGroupMap, SmsLogRecord } from '@/types/config'
 
 import { useUserStore } from '@/store/user'
 import { useSiteStore } from '@/store/site'
@@ -512,7 +771,7 @@ const roleOptions = ref<RoleOption[]>([])
 const platformMaxFileMb = 500
 
 const GROUP_CODES = [
-  'site', 'session', 'file', 'rateLimit', 'login', 'register', 'thirdParty', 'payment', 'security',
+  'site', 'session', 'file', 'rateLimit', 'login', 'register', 'thirdParty', 'payment', 'sms', 'security',
 ] as const satisfies readonly ConfigGroupCode[]
 
 const defaultWechatNotifyUrl = computed(() => `${window.location.origin}/api/pay/notify/wechat`)
@@ -529,6 +788,120 @@ const paymentResult = ref({
   payUrl: '',
 })
 let payPollTimer: ReturnType<typeof setInterval> | null = null
+
+const smsTesting = ref(false)
+const testSmsPhone = ref('')
+const testSmsTemplate = ref('100001')
+const recentSmsLogs = ref<SmsLogRecord[]>([])
+const showSmsLogsModal = ref(false)
+const smsLogsLoading = ref(false)
+const smsLogsData = ref<SmsLogRecord[]>([])
+const smsLogsPagination = reactive({
+  page: 1,
+  size: 10,
+  total: 0,
+})
+const smsLogsSearch = reactive({
+  phone: '',
+  status: null as number | null,
+})
+
+function smsStatusText(status: number) {
+  if (status === 1) return '成功'
+  if (status === 2) return '失败'
+  return '发送中'
+}
+
+function smsStatusTagType(status: number): 'success' | 'danger' | 'warning' {
+  if (status === 1) return 'success'
+  if (status === 2) return 'danger'
+  return 'warning'
+}
+
+async function loadRecentSmsLogs() {
+  try {
+    const res = await getRecentSmsLogs(5)
+    recentSmsLogs.value = res.data || []
+  } catch {
+    recentSmsLogs.value = []
+  }
+}
+
+async function handleTestSms() {
+  if (isDirty.value) {
+    ElMessage.warning('请先保存短信配置，再发送测试短信')
+    return
+  }
+  if (!testSmsPhone.value) {
+    ElMessage.warning('请输入手机号')
+    return
+  }
+  if (!/^1[3-9]\d{9}$/.test(testSmsPhone.value)) {
+    ElMessage.warning('请输入正确的手机号格式')
+    return
+  }
+  smsTesting.value = true
+  try {
+    const templateCode = draft.sms.provider === 'aliyunAuth' ? testSmsTemplate.value : undefined
+    await testSms(testSmsPhone.value, templateCode)
+    ElMessage.success('测试短信发送成功')
+    await loadRecentSmsLogs()
+  } catch {
+    // 错误提示由 axios 拦截器统一弹出，避免重复 toast
+    await loadRecentSmsLogs()
+  } finally {
+    smsTesting.value = false
+  }
+}
+
+function handleShowAllSmsLogs() {
+  showSmsLogsModal.value = true
+  smsLogsPagination.page = 1
+}
+
+async function loadSmsLogs() {
+  smsLogsLoading.value = true
+  try {
+    const res = await getSmsLogs({
+      page: smsLogsPagination.page,
+      size: smsLogsPagination.size,
+      phone: smsLogsSearch.phone || undefined,
+      status: smsLogsSearch.status,
+    })
+    smsLogsData.value = res.data?.list || []
+    smsLogsPagination.total = res.data?.total || 0
+  } catch (e) {
+    ElMessage.error(getErrorMessage(e) || '加载短信记录失败')
+  } finally {
+    smsLogsLoading.value = false
+  }
+}
+
+function handleSearchSmsLogs() {
+  smsLogsPagination.page = 1
+  loadSmsLogs()
+}
+
+function handleResetSmsLogsSearch() {
+  smsLogsSearch.phone = ''
+  smsLogsSearch.status = null
+  smsLogsPagination.page = 1
+  loadSmsLogs()
+}
+
+function handleSmsLogsSizeChange() {
+  smsLogsPagination.page = 1
+  loadSmsLogs()
+}
+
+watch(activeTab, (tab) => {
+  if (tab === 'sms') {
+    loadRecentSmsLogs()
+    if (draft.sms.provider === 'aliyunAuth' && draft.sms.templateVerifyCode) {
+      testSmsTemplate.value = draft.sms.templateVerifyCode
+    }
+  }
+})
 
 const DEFAULTS = {
   site: {
@@ -547,11 +920,16 @@ const DEFAULTS = {
   rateLimit: {
     captchaPerIpMinute: 40,
     loginPerIpMinute: 30,
-    registerPerIpMinute: 10
+    registerPerIpMinute: 10,
+    smsPerIpMinute: 5,
+    smsSendIntervalSeconds: 60,
+    smsPerPhoneDaily: 10,
+    smsPerIpDaily: 30,
   },
   login: {
     captchaEnabled: true,
     captchaType: 'image',
+    smsLoginEnabled: false,
     rememberMe: true,
     maxRetryCount: 5,
     lockTime: 10
@@ -594,7 +972,22 @@ const DEFAULTS = {
   security: {
     disableDevtool: false,
     isConcurrent: false
-  }
+  },
+  sms: {
+    enabled: false,
+    provider: 'aliyunAuth',
+    accessKeyId: '',
+    accessKeySecret: '',
+    signName: '',
+    tencentAppId: '',
+    templateVerifyCode: '100001',
+    templateModifyPhone: '100002',
+    templateResetPassword: '100003',
+    templateBindPhone: '100004',
+    templateVerifyBindPhone: '100005',
+    schemeName: '',
+    codeExpireMinutes: 5,
+  },
 } satisfies ConfigGroupMap
 
 type ConfigState = ConfigGroupMap
@@ -660,6 +1053,39 @@ function parseJson(str: string | undefined): unknown {
 
 function applyGroupFromServer<K extends ConfigGroupCode>(code: K, serverJson: Partial<ConfigGroupMap[K]>) {
   const merged = { ...DEFAULTS[code], ...serverJson }
+  if (code === 'rateLimit') {
+    const rl = merged as ConfigGroupMap['rateLimit']
+    if (rl.smsPerIpMinute === undefined) rl.smsPerIpMinute = 5
+    if (rl.smsSendIntervalSeconds === undefined) rl.smsSendIntervalSeconds = 60
+    if (rl.smsPerPhoneDaily === undefined) rl.smsPerPhoneDaily = 10
+    if (rl.smsPerIpDaily === undefined) rl.smsPerIpDaily = 30
+  }
+  if (code === 'login') {
+    const login = merged as ConfigGroupMap['login']
+    if (login.captchaType === 'sms') {
+      login.smsLoginEnabled = true
+      login.captchaType = 'image'
+    }
+    if (login.smsLoginEnabled === undefined) {
+      login.smsLoginEnabled = false
+    }
+  }
+  if (code === 'sms') {
+    const sms = merged as ConfigGroupMap['sms']
+    if ((sms.provider as string) === 'aliyun') {
+      sms.provider = 'aliyunAuth'
+    }
+    if (!sms.codeExpireMinutes) {
+      sms.codeExpireMinutes = 5
+    }
+    if (sms.provider === 'aliyunAuth') {
+      if (!sms.templateVerifyCode) sms.templateVerifyCode = '100001'
+      if (!sms.templateModifyPhone) sms.templateModifyPhone = '100002'
+      if (!sms.templateResetPassword) sms.templateResetPassword = '100003'
+      if (!sms.templateBindPhone) sms.templateBindPhone = '100004'
+      if (!sms.templateVerifyBindPhone) sms.templateVerifyBindPhone = '100005'
+    }
+  }
   // 必须为 draft / savedSnapshot 各克隆一份，否则共享引用会导致编辑时快照被同步改掉
   setConfigGroup(savedSnapshot, code, cloneConfig(merged))
   setConfigGroup(draft, code, cloneConfig(merged))
@@ -770,7 +1196,12 @@ onBeforeRouteLeave(async () => {
   }
 })
 
-onMounted(loadAll)
+onMounted(() => {
+  loadAll()
+  if (activeTab.value === 'sms') {
+    loadRecentSmsLogs()
+  }
+})
 
 function stopPayPolling() {
   if (payPollTimer) {
@@ -908,5 +1339,81 @@ async function handleTestPayment(type: 'wechat' | 'alipay') {
   margin-top: 20px;
   display: flex;
   justify-content: center;
+}
+.sms-config-layout {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+}
+.sms-config-left {
+  flex: 6;
+  min-width: 0;
+}
+.sms-config-right {
+  flex: 4;
+  min-width: 300px;
+}
+.sms-section-card {
+  margin-bottom: 16px;
+  border: 1px solid #ebeef5;
+}
+.sms-section-card:last-child {
+  margin-bottom: 0;
+}
+.sms-card-title {
+  font-weight: 600;
+  color: #303133;
+}
+.sms-form {
+  max-width: none;
+}
+.sms-form :deep(.el-input),
+.sms-form :deep(.el-select) {
+  max-width: none;
+}
+.form-hint {
+  margin-top: 4px;
+  font-size: 12px;
+  color: #909399;
+  line-height: 1.4;
+}
+.sms-test-form {
+  margin-bottom: 4px;
+}
+.sms-test-row {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+}
+.sms-test-row .el-input {
+  flex: 1;
+}
+.sms-log-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.sms-tip-alert {
+  margin-top: 16px;
+}
+.sms-logs-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.sms-logs-pagination {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 14px;
+}
+@media (max-width: 960px) {
+  .sms-config-layout {
+    flex-direction: column;
+  }
+  .sms-config-right {
+    width: 100%;
+    min-width: 0;
+  }
 }
 </style>
