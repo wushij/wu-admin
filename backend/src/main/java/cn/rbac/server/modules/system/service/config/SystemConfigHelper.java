@@ -178,6 +178,15 @@ public class SystemConfigHelper {
         return CAPTCHA_TYPE_SMS.equals(login.getStr("captchaType", ""));
     }
 
+    /** 短信登录获取验证码前是否需滑块验证 */
+    public boolean isSmsLoginSliderCaptchaEnabled() {
+        JSONObject login = getGroupJson(GROUP_LOGIN);
+        if (!isSmsLoginEnabled()) {
+            return false;
+        }
+        return login.getBool("smsLoginSliderCaptchaEnabled", false);
+    }
+
     public boolean isRememberMeEnabled() {
         return getGroupJson(GROUP_LOGIN).getBool("rememberMe", true);
     }
@@ -327,6 +336,7 @@ public class SystemConfigHelper {
         login.put("captchaEnabled", isCaptchaEnabled());
         login.put("captchaType", getCaptchaType());
         login.put("smsLoginEnabled", isSmsLoginEnabled());
+        login.put("smsLoginSliderCaptchaEnabled", isSmsLoginSliderCaptchaEnabled());
         login.put("rememberMe", loginJson.getBool("rememberMe", true));
         login.put("maxRetryCount", getMaxRetryCount());
         login.put("lockTime", getLockTimeMinutes());

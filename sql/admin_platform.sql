@@ -4,23 +4,46 @@
 -- =============================================================================
 --
 -- 【使用方式】
---   全新安装   执行全文（含 DROP TABLE，仅用于空库）
---   已有库升级 仅执行文末「附录：已有库升级」（可重复执行，无 DROP）
+--   全新安装（空库）  直接执行全文即可（自动检测空库放行 Part A/B）
+--                     示例: mysql -u root -p < sql/admin_platform.sql
+--   已有库（有表）    勿跑全文 Part A/B；执行文末「附录」或 sql/add1.sql
+--   强制重装         SET @WU_ADMIN_ALLOW_DROP=1; 后再执行全文（会 DROP 清库）
 --
 -- 【正文结构】
 --   Part A  建表      §1 用户 ~ §16 系统配置（DROP 后 CREATE）
 --   Part B  初始数据  组织/用户/字典/配置/菜单/定时任务/角色权限
 --
--- 【附录结构】（旧库补丁；可重复执行，尽量不覆盖业务侧自定义）
---   配置与菜单 → 消息中心 → 数据修复与权限 → 组织迁移 → 定时任务
---   → 字典 / 安全 / 短信 → 性能索引
---   注意：普通用户菜单仅 INSERT IGNORE 补缺失；内置定时任务仅首次 INSERT，不覆盖已改 cron
---   菜单 ON DUPLICATE 会按脚本更新 name/path 等，在线改过菜单字段的库请注意
+-- 【附录】旧库补丁（缺表/缺菜单/迁移）；发版增量见 sql/add1.sql 等
 -- =============================================================================
 
 -- 建库并切换
 CREATE DATABASE IF NOT EXISTS `wu-admin` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE `wu-admin`;
+
+-- Part A/B 熔断：空库自动放行；已有表则拦截（防误删）；@WU_ADMIN_ALLOW_DROP=1 可强制重装
+SET @WU_ADMIN_ALLOW_DROP := IFNULL(@WU_ADMIN_ALLOW_DROP, 0);
+SET @WU_ADMIN_TABLE_CNT := (
+    SELECT COUNT(*)
+    FROM information_schema.tables
+    WHERE table_schema = 'wu-admin'
+      AND table_type = 'BASE TABLE'
+);
+
+DROP PROCEDURE IF EXISTS sp_wu_admin_require_drop;
+DELIMITER $$
+CREATE PROCEDURE sp_wu_admin_require_drop()
+BEGIN
+    IF @WU_ADMIN_ALLOW_DROP = 1 OR @WU_ADMIN_TABLE_CNT = 0 THEN
+        SELECT IF(@WU_ADMIN_TABLE_CNT = 0, '[OK] empty database, fresh install',
+                  '[OK] @WU_ADMIN_ALLOW_DROP=1, forced reinstall') AS result;
+    ELSE
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Part A/B 已拦截：wu-admin 已有表。旧库请执行文末附录或 sql/add1.sql；重装请 SET @WU_ADMIN_ALLOW_DROP=1;';
+    END IF;
+END$$
+DELIMITER ;
+CALL sp_wu_admin_require_drop();
+DROP PROCEDURE IF EXISTS sp_wu_admin_require_drop;
 
 -- =============================================================================
 -- Part A  建表（DROP + CREATE）
@@ -728,7 +751,7 @@ INSERT INTO sys_config_group (group_code, group_name, config_value, remark) VALU
 ('session', '会话配置', '{"tokenExpireHours":24}', 'JWT 与 Redis 会话有效期（小时）'),
 ('file', '文件配置', '{"maxSizeMb":50,"allowedExtensions":"jpg,jpeg,png,gif,webp,bmp,svg,pdf,doc,docx,xls,xlsx,ppt,pptx,txt,md,json,xml,zip,rar,mp4,mp3,wav,avi,mov"}', '文件管理上传限制'),
 ('rateLimit', '接口限流', '{"captchaPerIpMinute":40,"loginPerIpMinute":30,"registerPerIpMinute":10,"smsPerIpMinute":5,"smsSendIntervalSeconds":60,"smsPerPhoneDaily":10,"smsPerIpDaily":30}', '认证接口按 IP 限流；含短信防刷'),
-('login', '登录配置', '{"captchaEnabled":true,"captchaType":"image","smsLoginEnabled":false,"rememberMe":true,"maxRetryCount":5,"lockTime":10}', '验证码 image/slider；smsLoginEnabled 短信登录'),
+('login', '登录配置', '{"captchaEnabled":true,"captchaType":"image","smsLoginEnabled":false,"smsLoginSliderCaptchaEnabled":false,"rememberMe":true,"maxRetryCount":5,"lockTime":10}', '验证码 image/slider；smsLoginEnabled 短信登录；smsLoginSliderCaptchaEnabled 短信发送前滑块'),
 ('register', '注册配置', '{"enabled":true,"captchaEnabled":true,"captchaType":"image","defaultRoleCode":"user","needAudit":false,"minPasswordLength":6}', '开放注册、验证码类型、默认角色、是否审核'),
 ('thirdParty', '第三方配置', '{"wechat":{"enabled":false,"appId":"","appSecret":""},"alipay":{"enabled":false,"appId":"","privateKey":"","publicKey":""},"github":{"enabled":false,"clientId":"","clientSecret":""},"google":{"enabled":false,"clientId":"","clientSecret":"","redirectUri":""}}', '微信/支付宝/GitHub/Google 第三方登录'),
 ('payment', '支付配置', '{"wechatPay":{"enabled":false,"mchId":"","appId":"","apiV3Key":"","privateKey":"","certSerialNo":"","notifyUrl":""},"alipay":{"enabled":false,"appId":"","privateKey":"","publicKey":"","signType":"RSA2","gatewayUrl":"https://openapi.alipay.com/gateway.do","notifyUrl":"","returnUrl":""}}', '微信/支付宝支付与测试下单'),
@@ -892,10 +915,12 @@ INSERT INTO sys_role_menu (role_id, menu_id) VALUES
 (2, 170), (2, 172), (2, 178);
 
 -- =============================================================================
--- 附录：已有库升级
--- 可重复执行，无 DROP。尽量不覆盖：自定义角色菜单、已改动的内置定时任务 cron 等。
--- 单独升级旧库时，从本节起执行至文件末尾即可。
+-- 附录：已有库升级（极旧库首次补丁；可重复执行，无 DROP）
+-- 执行: 在客户端选中本节至文件末尾，或 mysql ... wu-admin < admin_platform.sql 仅当已跳过 Part A/B
+-- 发版增量（非全量）见 sql/add1.sql；菜单默认 INSERT IGNORE，不覆盖 name/path/icon
 -- =============================================================================
+
+SET @WU_ADMIN_SYNC_MENU := IFNULL(@WU_ADMIN_SYNC_MENU, 0);
 
 -- [附录·基础] 极旧库可能无配置分组表
 CREATE TABLE IF NOT EXISTS sys_config_group (
@@ -966,21 +991,11 @@ SET config_value = JSON_SET(
 WHERE group_code = 'thirdParty'
   AND (JSON_EXTRACT(config_value, '$.google') IS NULL);
 
--- [附录·菜单] 系统配置页 160-162
-INSERT INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, component, status) VALUES
+-- [附录·菜单] 系统配置页 160-162（INSERT IGNORE；强制同步见 sp_wu_admin_sync_builtin_menus）
+INSERT IGNORE INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, component, status) VALUES
 (160, '系统配置', 'system:config:list', 2, 6, 1, '/system/config', 'Tools', 'system/config/index', 1),
 (161, '配置查询', 'system:config:query', 3, 1, 160, '', '', '', 1),
-(162, '配置修改', 'system:config:update', 3, 2, 160, '', '', '', 1)
-ON DUPLICATE KEY UPDATE
-    name = VALUES(name),
-    permission = VALUES(permission),
-    type = VALUES(type),
-    sort = VALUES(sort),
-    parent_id = VALUES(parent_id),
-    path = VALUES(path),
-    icon = VALUES(icon),
-    component = VALUES(component),
-    status = VALUES(status);
+(162, '配置修改', 'system:config:update', 3, 2, 160, '', '', '', 1);
 
 INSERT IGNORE INTO sys_role_menu (role_id, menu_id) VALUES
 (1, 160), (1, 161), (1, 162);
@@ -990,15 +1005,18 @@ UPDATE sys_menu SET icon = 'UserFilled' WHERE id = 3 AND icon IN ('Key', 'key');
 UPDATE sys_menu SET icon = 'Document' WHERE id = 151 AND icon IS NOT NULL AND icon <> 'Document';
 
 -- [附录·菜单] 操作日志「查询」按钮 126
-INSERT INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, component, status) VALUES
-(126, '操作日志查询', 'system:operLog:query', 3, 1, 121, '', '', '', 1)
-ON DUPLICATE KEY UPDATE
-    name = VALUES(name),
-    permission = VALUES(permission),
-    type = VALUES(type),
-    sort = VALUES(sort),
-    parent_id = VALUES(parent_id),
-    status = VALUES(status);
+INSERT IGNORE INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, component, status) VALUES
+(126, '操作日志查询', 'system:operLog:query', 3, 1, 121, '', '', '', 1);
+
+UPDATE sys_menu
+SET permission = 'system:operLog:query',
+    name = '操作日志查询',
+    type = 3,
+    sort = 1,
+    parent_id = 121,
+    status = 1
+WHERE id = 126
+  AND (permission IS NULL OR permission = '' OR permission <> 'system:operLog:query');
 
 INSERT IGNORE INTO sys_role_menu (role_id, menu_id) VALUES (1, 126);
 
@@ -1121,7 +1139,7 @@ CREATE TABLE IF NOT EXISTS sys_chat_group_log (
     INDEX idx_group_time (group_id, create_time)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='群聊操作日志';
 
-INSERT INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, component, status) VALUES
+INSERT IGNORE INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, component, status) VALUES
 (170, '消息中心', '', 1, 6, 0, '/message', 'Bell', '', 1),
 (171, '系统通知', 'system:announce:list', 2, 1, 170, '/message/notice', 'Notification', 'message/notice/index', 1),
 (172, '即时聊天', 'system:chat:list', 2, 2, 170, '/message/chat', 'ChatDotRound', 'message/chat/index', 1),
@@ -1130,11 +1148,7 @@ INSERT INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, c
 (175, '通知修改', 'system:announce:update', 3, 3, 171, '', '', '', 1),
 (176, '通知删除', 'system:announce:delete', 3, 4, 171, '', '', '', 1),
 (177, '通知发布', 'system:announce:publish', 3, 5, 171, '', '', '', 1),
-(178, '聊天查询', 'system:chat:query', 3, 1, 172, '', '', '', 1)
-ON DUPLICATE KEY UPDATE
-    name = VALUES(name), permission = VALUES(permission), type = VALUES(type),
-    sort = VALUES(sort), parent_id = VALUES(parent_id), path = VALUES(path),
-    icon = VALUES(icon), component = VALUES(component), status = VALUES(status);
+(178, '聊天查询', 'system:chat:query', 3, 1, 172, '', '', '', 1);
 
 INSERT IGNORE INTO sys_role_menu (role_id, menu_id) VALUES
 (1, 170), (1, 171), (1, 172), (1, 173), (1, 174), (1, 175), (1, 176), (1, 177), (1, 178),
@@ -1329,6 +1343,44 @@ UPDATE sys_menu SET sort = 5 WHERE id = 105 AND parent_id = 0 AND deleted = 0;
 UPDATE sys_menu SET sort = 6 WHERE id = 170 AND parent_id = 0 AND deleted = 0;
 UPDATE sys_menu SET sort = 7 WHERE id = 150 AND parent_id = 0 AND deleted = 0;
 
+-- [附录·菜单] 可选强制同步内置菜单（默认跳过；慎用: SET @WU_ADMIN_SYNC_MENU=1）
+DROP PROCEDURE IF EXISTS sp_wu_admin_sync_builtin_menus;
+DELIMITER $$
+CREATE PROCEDURE sp_wu_admin_sync_builtin_menus()
+BEGIN
+    IF IFNULL(@WU_ADMIN_SYNC_MENU, 0) <> 1 THEN
+        SELECT '[SKIP] builtin menu sync (@WU_ADMIN_SYNC_MENU=0)' AS result;
+    ELSE
+        INSERT INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, component, status) VALUES
+        (160, '系统配置', 'system:config:list', 2, 6, 1, '/system/config', 'Tools', 'system/config/index', 1),
+        (161, '配置查询', 'system:config:query', 3, 1, 160, '', '', '', 1),
+        (162, '配置修改', 'system:config:update', 3, 2, 160, '', '', '', 1),
+        (126, '操作日志查询', 'system:operLog:query', 3, 1, 121, '', '', '', 1),
+        (170, '消息中心', '', 1, 6, 0, '/message', 'Bell', '', 1),
+        (171, '系统通知', 'system:announce:list', 2, 1, 170, '/message/notice', 'Notification', 'message/notice/index', 1),
+        (172, '即时聊天', 'system:chat:list', 2, 2, 170, '/message/chat', 'ChatDotRound', 'message/chat/index', 1),
+        (173, '通知查询', 'system:announce:query', 3, 1, 171, '', '', '', 1),
+        (174, '通知新增', 'system:announce:create', 3, 2, 171, '', '', '', 1),
+        (175, '通知修改', 'system:announce:update', 3, 3, 171, '', '', '', 1),
+        (176, '通知删除', 'system:announce:delete', 3, 4, 171, '', '', '', 1),
+        (177, '通知发布', 'system:announce:publish', 3, 5, 171, '', '', '', 1),
+        (178, '聊天查询', 'system:chat:query', 3, 1, 172, '', '', '', 1),
+        (180, '定时任务', 'monitor:job:list', 2, 3, 100, '/monitor/job', 'Timer', 'monitor/job/index', 1),
+        (181, '任务查询', 'monitor:job:query', 3, 1, 180, '', '', '', 1),
+        (182, '任务新增', 'monitor:job:add', 3, 2, 180, '', '', '', 1),
+        (183, '任务编辑', 'monitor:job:edit', 3, 3, 180, '', '', '', 1),
+        (184, '任务删除', 'monitor:job:delete', 3, 4, 180, '', '', '', 1)
+        ON DUPLICATE KEY UPDATE
+            name = VALUES(name), permission = VALUES(permission), type = VALUES(type),
+            sort = VALUES(sort), parent_id = VALUES(parent_id), path = VALUES(path),
+            icon = VALUES(icon), component = VALUES(component), status = VALUES(status);
+        SELECT '[OK] builtin menu sync applied' AS result;
+    END IF;
+END$$
+DELIMITER ;
+CALL sp_wu_admin_sync_builtin_menus();
+DROP PROCEDURE IF EXISTS sp_wu_admin_sync_builtin_menus;
+
 -- [附录·任务] 表 / 菜单 / 内置任务补建（正文 §7.3 已全量；含历史任务迁移）
 CREATE TABLE IF NOT EXISTS sys_job (
     id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
@@ -1364,16 +1416,12 @@ CREATE TABLE IF NOT EXISTS sys_job_log (
     INDEX idx_status (status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='定时任务日志表';
 
-INSERT INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, component, status) VALUES
+INSERT IGNORE INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, component, status) VALUES
 (180, '定时任务', 'monitor:job:list', 2, 3, 100, '/monitor/job', 'Timer', 'monitor/job/index', 1),
 (181, '任务查询', 'monitor:job:query', 3, 1, 180, '', '', '', 1),
 (182, '任务新增', 'monitor:job:add', 3, 2, 180, '', '', '', 1),
 (183, '任务编辑', 'monitor:job:edit', 3, 3, 180, '', '', '', 1),
-(184, '任务删除', 'monitor:job:delete', 3, 4, 180, '', '', '', 1)
-ON DUPLICATE KEY UPDATE
-    name = VALUES(name), permission = VALUES(permission), type = VALUES(type),
-    sort = VALUES(sort), parent_id = VALUES(parent_id), path = VALUES(path),
-    icon = VALUES(icon), component = VALUES(component), status = VALUES(status);
+(184, '任务删除', 'monitor:job:delete', 3, 4, 180, '', '', '', 1);
 
 INSERT IGNORE INTO sys_role_menu (role_id, menu_id) VALUES
 (1, 180), (1, 181), (1, 182), (1, 183), (1, 184);
@@ -1558,6 +1606,12 @@ UPDATE sys_config_group
 SET config_value = JSON_SET(config_value, '$.smsLoginEnabled', CAST(false AS JSON))
 WHERE group_code = 'login'
   AND JSON_EXTRACT(config_value, '$.smsLoginEnabled') IS NULL;
+
+-- [附录·登录] 短信发送前滑块验证 smsLoginSliderCaptchaEnabled（增量见 add2.sql）
+UPDATE sys_config_group
+SET config_value = JSON_SET(config_value, '$.smsLoginSliderCaptchaEnabled', CAST(false AS JSON))
+WHERE group_code = 'login'
+  AND JSON_EXTRACT(config_value, '$.smsLoginSliderCaptchaEnabled') IS NULL;
 
 -- [附录·限流] 短信发送防刷字段（IP/间隔/日上限）
 UPDATE sys_config_group

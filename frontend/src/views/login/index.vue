@@ -231,7 +231,7 @@
       </div>
     </div>
 
-    <SliderCaptcha v-model:show="showSliderModal" @success="doLogin" />
+    <SliderCaptcha v-model:show="showSliderModal" @success="onSliderSuccess" />
   </div>
 </template>
 
@@ -254,6 +254,7 @@ import Earth3D from '@/components/earth/Earth3D.vue'
 
 type CaptchaMode = 'image' | 'slider'
 type LoginMode = 'account' | 'sms'
+type SliderPurpose = 'login' | 'sms'
 
 interface LoginFormModel {
   username: string
@@ -273,11 +274,13 @@ const particlesLoaded = (container: unknown) => {
 const captchaEnabled = ref(true)
 const captchaType = ref<CaptchaMode>('image')
 const smsLoginEnabled = ref(false)
+const smsLoginSliderCaptchaEnabled = ref(false)
 const loginMode = ref<LoginMode>('account')
 const smsEnabled = ref(true)
 const rememberMeEnabled = ref(true)
 const registerEnabled = ref(true)
 const showSliderModal = ref(false)
+const sliderPurpose = ref<SliderPurpose>('login')
 const sitePlatformName = ref('Admin Platform')
 const sitePlatformSubtitle = ref('统一运维 · 高效管控')
 const siteLoginWelcome = ref('Welcome')
@@ -354,6 +357,7 @@ async function loadConfig() {
       captchaEnabled.value = config.login.captchaEnabled !== false
       captchaType.value = parseCaptchaMode(config.login.captchaType)
       smsLoginEnabled.value = config.login.smsLoginEnabled === true
+      smsLoginSliderCaptchaEnabled.value = config.login.smsLoginSliderCaptchaEnabled === true
       rememberMeEnabled.value = config.login.rememberMe !== false
       smsEnabled.value = config.login.smsEnabled !== false
     }
@@ -424,24 +428,48 @@ function syncAutofillFromDom() {
 async function handleSendSmsCode() {
   if (!formRef.value || sendingSms.value || smsCountdown.value > 0) return
   formData.phone = (formData.phone || '').trim()
+  if (!formData.phone) {
+    ElMessage.warning('请输入手机号')
+    return
+  }
   try {
     await formRef.value.validateField('phone')
   } catch {
+    ElMessage.warning('请输入正确的手机号')
     return
   }
   if (!smsEnabled.value) {
     ElMessage.warning('短信功能未启用')
     return
   }
+  if (smsLoginSliderCaptchaEnabled.value) {
+    sliderPurpose.value = 'sms'
+    showSliderModal.value = true
+    return
+  }
+  await doSendSmsCode()
+}
+
+async function doSendSmsCode() {
+  if (sendingSms.value || smsCountdown.value > 0) return
   sendingSms.value = true
   try {
-    await sendSmsCode(formData.phone)
+    const sliderCode = smsLoginSliderCaptchaEnabled.value ? 'slider_verified' : undefined
+    await sendSmsCode(formData.phone, sliderCode)
     ElMessage.success('验证码已发送至绑定手机号')
     startSmsCountdown()
   } catch (error) {
     ElMessage.error(getErrorMessage(error) || '发送失败')
   } finally {
     sendingSms.value = false
+  }
+}
+
+function onSliderSuccess() {
+  if (sliderPurpose.value === 'sms') {
+    void doSendSmsCode()
+  } else {
+    void doLogin()
   }
 }
 
@@ -458,6 +486,7 @@ async function handleLogin() {
   }
 
   if (loginMode.value === 'account' && captchaEnabled.value && captchaType.value === 'slider') {
+    sliderPurpose.value = 'login'
     showSliderModal.value = true
     return
   }

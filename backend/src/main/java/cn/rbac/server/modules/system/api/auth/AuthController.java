@@ -33,6 +33,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.util.StringUtils;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.annotation.Resource;
@@ -595,6 +596,12 @@ public class AuthController {
         if (findUserByMobile(phone) == null) {
             return CommonResult.error(400, "该手机号未绑定任何账号");
         }
+        if (systemConfigHelper.isSmsLoginSliderCaptchaEnabled()) {
+            String captchaInput = reqVO.getCode() == null ? "" : reqVO.getCode().trim();
+            if (!SystemConfigHelper.SLIDER_VERIFIED_CODE.equals(captchaInput)) {
+                return CommonResult.error(400, "请完成滑块验证");
+            }
+        }
         String code = String.valueOf((int) ((Math.random() * 9 + 1) * 100000));
         boolean success = smsServiceFactory.sendCode(phone, code);
         if (!success) {
@@ -687,15 +694,21 @@ public class AuthController {
     
     @Operation(summary = "注册")
     @PostMapping("/register")
+    @Transactional(rollbackFor = Exception.class)
     public CommonResult<Boolean> register(@RequestBody RegisterReqVO reqVO, HttpServletRequest request) {
         if (!systemConfigHelper.isRegisterEnabled()) {
-            return CommonResult.error(403, "系统暂未开放注册");
+            return CommonResult.error(400, "系统暂未开放注册");
         }
 
         String clientIp = getClientIp(request);
         String rlMsg = rateLimitByIp(clientIp, "register", systemConfigHelper.getRegisterPerIpMinute());
         if (rlMsg != null) {
             return CommonResult.error(429, rlMsg);
+        }
+
+        String username = reqVO.getUsername() == null ? "" : reqVO.getUsername().trim();
+        if (username.isEmpty()) {
+            return CommonResult.error(400, "请输入用户名");
         }
 
         int minPwdLen = systemConfigHelper.getRegisterMinPasswordLength();
@@ -708,39 +721,72 @@ public class AuthController {
         if (regCaptchaErr != null) {
             return CommonResult.error(400, regCaptchaErr);
         }
-        
-        // 检查用户名是否已存在
-        UserDO existUser = userMapper.selectOne(
-            new LambdaQueryWrapper<UserDO>()
-                .eq(UserDO::getUsername, reqVO.getUsername())
-        );
-        if (existUser != null) {
+
+        UserDO existing = userMapper.selectByUsernameRaw(username);
+        if (existing != null) {
+            if (existing.getDeleted() != null && existing.getDeleted() == 1) {
+                return restoreAndRegister(existing, reqVO, password);
+            }
+            if (existing.getStatus() != null && existing.getStatus() == 2) {
+                return CommonResult.error(400, "该用户名正在审核中，请等待管理员处理");
+            }
             return CommonResult.error(400, "用户名已存在");
         }
-        
-        // 创建用户
+
         UserDO user = new UserDO();
-        user.setUsername(reqVO.getUsername());
-        user.setPassword(passwordEncoder.encode(reqVO.getPassword()));
-        user.setNickname(reqVO.getNickname() != null ? reqVO.getNickname() : reqVO.getUsername());
+        user.setUsername(username);
+        user.setPassword(passwordEncoder.encode(password));
+        user.setNickname(reqVO.getNickname() != null ? reqVO.getNickname() : username);
         user.setStatus(systemConfigHelper.isRegisterNeedAudit() ? 2 : 1);
         userMapper.insert(user);
+        assignRegisterDefaultRole(user);
+        if (systemConfigHelper.isRegisterNeedAudit()) {
+            registerApprovalService.createOnRegister(user);
+        }
+        return buildRegisterSuccessResult();
+    }
 
+    /** 回收站软删后同用户名再次注册：恢复账号并更新资料 */
+    private CommonResult<Boolean> restoreAndRegister(UserDO deletedUser, RegisterReqVO reqVO, String password) {
+        if (deletedUser.getId() == null) {
+            return CommonResult.error(400, "用户数据异常");
+        }
+        if (userMapper.restoreById(deletedUser.getId()) <= 0) {
+            return CommonResult.error(400, "无法恢复该用户名，请联系管理员从回收站彻底删除后再注册");
+        }
+        UserDO user = userMapper.selectById(deletedUser.getId());
+        if (user == null) {
+            return CommonResult.error(500, "恢复账号失败，请稍后重试");
+        }
+        String username = deletedUser.getUsername();
+        user.setPassword(passwordEncoder.encode(password));
+        user.setNickname(reqVO.getNickname() != null ? reqVO.getNickname() : username);
+        user.setStatus(systemConfigHelper.isRegisterNeedAudit() ? 2 : 1);
+        userMapper.updateById(user);
+        assignRegisterDefaultRole(user);
+        if (systemConfigHelper.isRegisterNeedAudit()) {
+            registerApprovalService.createOnRegister(user);
+        }
+        return buildRegisterSuccessResult();
+    }
+
+    private void assignRegisterDefaultRole(UserDO user) {
+        if (user.getId() == null) {
+            return;
+        }
         String roleCode = systemConfigHelper.getRegisterDefaultRoleCode();
         RoleDO defaultRole = roleMapper.selectOne(
-            new LambdaQueryWrapper<RoleDO>()
-                .eq(RoleDO::getCode, roleCode)
+                new LambdaQueryWrapper<RoleDO>()
+                        .eq(RoleDO::getCode, roleCode)
         );
         if (defaultRole != null) {
             Set<Long> roleIds = new HashSet<>();
             roleIds.add(defaultRole.getId());
             permissionService.assignUserRole(user.getId(), roleIds);
         }
+    }
 
-        if (systemConfigHelper.isRegisterNeedAudit()) {
-            registerApprovalService.createOnRegister(user);
-        }
-
+    private CommonResult<Boolean> buildRegisterSuccessResult() {
         CommonResult<Boolean> result = CommonResult.success(true);
         result.setMessage(systemConfigHelper.isRegisterNeedAudit()
                 ? "注册成功，请等待管理员审核"
@@ -771,6 +817,8 @@ public class AuthController {
     @Data
     public static class SmsCodeReqVO {
         private String phone;
+        /** 滑块验证通过时传 slider_verified */
+        private String code;
     }
 
     @Data

@@ -14,6 +14,7 @@ import cn.rbac.server.modules.system.dal.mysql.notice.NoticeMapper;
 import cn.rbac.server.modules.system.dal.mysql.permission.RoleMapper;
 import cn.rbac.server.modules.system.dal.mysql.permission.UserRoleMapper;
 import cn.rbac.server.modules.system.dal.mysql.user.UserMapper;
+import cn.rbac.server.modules.system.dal.mysql.user.UserPostMapper;
 import cn.rbac.server.modules.system.service.approval.RegisterApprovalService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import org.springframework.stereotype.Service;
@@ -39,6 +40,8 @@ public class RegisterApprovalServiceImpl implements RegisterApprovalService {
     private RoleMapper roleMapper;
     @Resource
     private UserRoleMapper userRoleMapper;
+    @Resource
+    private UserPostMapper userPostMapper;
     @Resource
     private NoticeMapper noticeMapper;
 
@@ -102,12 +105,16 @@ public class RegisterApprovalServiceImpl implements RegisterApprovalService {
         }
         if ("APPROVE".equals(action)) {
             user.setStatus(1);
+            userMapper.updateById(user);
         } else if ("REJECT".equals(action)) {
             user.setStatus(3);
+            userMapper.updateById(user);
+            userRoleMapper.deleteByUserId(user.getId());
+            userPostMapper.deleteByUserId(user.getId());
+            userMapper.deleteById(user.getId());
         } else {
             return;
         }
-        userMapper.updateById(user);
     }
 
     public static Long parseRegisterUserId(String content) {

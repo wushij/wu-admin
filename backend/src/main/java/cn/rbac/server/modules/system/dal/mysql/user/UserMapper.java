@@ -42,4 +42,8 @@ public interface UserMapper extends BaseMapper<UserDO> {
 
     @Delete("DELETE FROM sys_user WHERE id = #{id} AND deleted = 1")
     int deletePhysicalById(@Param("id") Long id);
+
+    /** 含已软删记录，用于注册重名判断 */
+    @Select("SELECT * FROM sys_user WHERE username = #{username} LIMIT 1")
+    UserDO selectByUsernameRaw(@Param("username") String username);
 }
