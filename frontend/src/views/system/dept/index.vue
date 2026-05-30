@@ -29,7 +29,7 @@
           <span>部门列表</span>
           <div class="header-actions">
             <el-button v-permission="'system:dept:delete'" @click="openRecycleDialog">回收站</el-button>
-            <el-button type="primary" v-permission="'system:dept:create'" @click="handleAdd(null)">新增部门</el-button>
+            <el-button type="primary" v-permission="'system:dept:create'" @click="handleAdd()">新增部门</el-button>
           </div>
         </div>
       </template>
@@ -176,32 +176,33 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage, ElMessageBox, type FormInstance } from 'element-plus'
+import type { DeptVO, DeptSaveDTO, DeptRecycleQuery, DeptTreeQuery } from '@/api/system/dept'
 import { getDeptList, createDept, updateDept, deleteDept, updateDeptStatus, getRecycleDeptPage, restoreDept, deleteDeptPermanent } from '@/api/system/dept'
 
 const loading = ref(false)
-const deptList = ref([])
-const deptOptions = ref([])
+const deptList = ref<DeptVO[]>([])
+const deptOptions = ref<DeptVO[]>([])
 const dialogVisible = ref(false)
 const dialogTitle = ref('')
-const formRef = ref(null)
+const formRef = ref<FormInstance | null>(null)
 const recycleVisible = ref(false)
 const recycleLoading = ref(false)
-const recycleList = ref([])
+const recycleList = ref<DeptVO[]>([])
 const recycleTotal = ref(0)
 
-const queryParams = reactive({
+const queryParams = reactive<DeptTreeQuery>({
   name: '',
   status: null
 })
-const recycleQuery = reactive({
+const recycleQuery = reactive<DeptRecycleQuery>({
   pageNo: 1,
   pageSize: 10,
   name: '',
   status: null
 })
 
-const form = reactive({
+const form = reactive<DeptSaveDTO>({
   id: null,
   parentId: null,
   name: '',
@@ -240,7 +241,7 @@ const resetQuery = () => {
   handleQuery()
 }
 
-const handleAdd = (row) => {
+const handleAdd = (row?: DeptVO) => {
   resetForm()
   if (row) {
     form.parentId = row.id
@@ -249,14 +250,14 @@ const handleAdd = (row) => {
   dialogVisible.value = true
 }
 
-const handleEdit = (row) => {
+const handleEdit = (row: DeptVO) => {
   resetForm()
   dialogTitle.value = '编辑部门'
   Object.assign(form, row)
   dialogVisible.value = true
 }
 
-const handleDelete = async (row) => {
+const handleDelete = async (row: DeptVO) => {
   await ElMessageBox.confirm('确定要删除该部门吗？', '提示', { type: 'warning' })
   await deleteDept(row.id)
   ElMessage.success('删除成功')
@@ -280,14 +281,14 @@ const openRecycleDialog = async () => {
   await getRecycleList()
 }
 
-const handleRestore = async (row) => {
+const handleRestore = async (row: DeptVO) => {
   await restoreDept(row.id)
   ElMessage.success('恢复成功')
   await getRecycleList()
   await getList()
 }
 
-const handlePermanentDelete = async (row) => {
+const handlePermanentDelete = async (row: DeptVO) => {
   await ElMessageBox.confirm('确定彻底删除该部门吗？该操作不可恢复', '提示', { type: 'warning' })
   await deleteDeptPermanent(row.id)
   ElMessage.success('清除成功')
@@ -295,13 +296,14 @@ const handlePermanentDelete = async (row) => {
 }
 
 // 状态切换
-const handleStatusChange = async (row) => {
+const handleStatusChange = async (row: DeptVO) => {
   try {
     const text = row.status === 1 ? '启用' : '禁用'
     await ElMessageBox.confirm(`确认要${text}部门"${row.name}"吗？`, '提示', { type: 'warning' })
+    if (row.id == null || row.status == null) return
     await updateDeptStatus(row.id, row.status)
     ElMessage.success(`${text}成功`)
-  } catch (error) {
+  } catch {
     row.status = row.status === 1 ? 0 : 1
   }
 }

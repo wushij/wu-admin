@@ -272,7 +272,7 @@ function rebuildFormRules() {
 function syncAutofillFromDom() {
   const root = formRef.value?.$el as HTMLElement | undefined
   if (!root) return
-  const inputs = root.querySelectorAll('input.el-input__inner') as NodeListOf<HTMLInputElement>
+  const inputs = Array.from(root.querySelectorAll<HTMLInputElement>('input.el-input__inner'))
   if (inputs[0]?.value) formData.username = inputs[0].value.trim()
   if (inputs[1]?.value) formData.password = inputs[1].value
   if (inputs[2]?.value && captchaEnabled.value && captchaType.value === 'image') {

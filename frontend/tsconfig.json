@@ -14,11 +14,11 @@
     "noEmit": true,
     "jsx": "preserve",
 
-    /* Linting — 迁移期略放宽，避免 IDE 满屏红线；业务类型在 API/类型文件中逐步补齐 */
-    "strict": false,
-    "noImplicitAny": false,
-    "noUnusedLocals": false,
-    "noUnusedParameters": false,
+    /* Linting */
+    "strict": true,
+    "noImplicitAny": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
 
     /* Path Alias */

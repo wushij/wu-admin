@@ -16,7 +16,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 
 const route = useRoute()
-const iframeRef = ref(null)
+const iframeRef = ref<HTMLIFrameElement | null>(null)
 const loading = ref(true)
 
 const frameSrc = computed((): string => {

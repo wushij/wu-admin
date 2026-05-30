@@ -1,6 +1,6 @@
 import axios from 'axios'
-import request, { get, del, put } from '@/utils/request'
-import type { PageResult } from '@/types/api'
+import { get, post, put, del } from '@/utils/request'
+import type { PageQuery, PageResult } from '@/types/api'
 
 const BLOCKED_EXTENSIONS = ['exe', 'bat', 'cmd', 'sh', 'ps1', 'msi', 'dll', 'com', 'scr']
 
@@ -17,7 +17,6 @@ export interface FileGroupVO {
   fileCount?: number
   createTime?: string
   updateTime?: string
-  [key: string]: unknown
 }
 
 export interface FileGroupListResult {
@@ -36,7 +35,6 @@ export interface FileRecord {
   fileSuffix?: string
   groupId?: number
   createTime?: string
-  [key: string]: unknown
 }
 
 /** 由接口 /system/file/upload-policy 加载，保存系统配置后立即更新 */
@@ -94,19 +92,31 @@ export function getFileGroupList() {
   return get<FileGroupListResult>('/system/file-group/list')
 }
 
-export function createFileGroup(data: Record<string, unknown>) {
-  return request.post('/system/file-group', data)
+export interface FileGroupSaveDTO {
+  id?: number
+  name: string
 }
 
-export function updateFileGroup(data: Record<string, unknown>) {
-  return request.put('/system/file-group', data)
+export interface FilePageByGroupQuery extends PageQuery {
+  fileCategory?: string
+  originalName?: string
+  groupId?: number
+  ungrouped?: boolean
+}
+
+export function createFileGroup(data: FileGroupSaveDTO) {
+  return post('/system/file-group', data)
+}
+
+export function updateFileGroup(data: FileGroupSaveDTO) {
+  return put('/system/file-group', data)
 }
 
 export function deleteFileGroup(id: number) {
   return del(`/system/file-group/${id}`)
 }
 
-export function pageFileByGroup(params: Record<string, unknown>) {
+export function pageFileByGroup(params: FilePageByGroupQuery) {
   return get<PageResult<FileRecord>>('/system/file/page-by-group', params)
 }
 
@@ -116,7 +126,7 @@ export function uploadFile(file: File, groupId?: number | null) {
   if (groupId != null && groupId > 0) {
     formData.append('groupId', String(groupId))
   }
-  return request.post('/system/file/upload', formData, {
+  return post('/system/file/upload', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   })
 }
@@ -126,11 +136,11 @@ export function deleteFile(id: number) {
 }
 
 export function deleteFileBatch(ids: number[]) {
-  return request.delete('/system/file/batch', { data: ids })
+  return del('/system/file/batch', { data: ids })
 }
 
 export function moveFiles(fileIds: number[], groupId: number) {
-  return request.post('/system/file/move', { fileIds, groupId })
+  return post('/system/file/move', { fileIds, groupId })
 }
 
 export function renameFile(id: number, newName: string) {
@@ -152,9 +162,6 @@ export function withTokenQuery(url: string): string {
   const sep = url.includes('?') ? '&' : '?'
   return `${url}${sep}Authorization=${encodeURIComponent(token)}`
 }
-
-/** @deprecated 使用 withTokenQuery */
-export const withAuthQuery = withTokenQuery
 
 /** 列表缩略图 / 视频封面 */
 export function fileDisplayUrl(file?: FileRecord | null): string {

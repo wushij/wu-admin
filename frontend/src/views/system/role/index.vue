@@ -201,44 +201,60 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted, nextTick } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import { getRoleList, createRole, updateRole, deleteRole, assignRoleMenu, updateRoleStatus, getRoleMenuIds, getRecycleRolePage, restoreRole, deleteRolePermanent } from '@/api/system/role'
-import { getMenuList } from '@/api/system/menu'
+import { ElMessage, ElMessageBox, type FormInstance } from 'element-plus'
+import type { ElTree } from 'element-plus'
+import {
+  getRoleList,
+  createRole,
+  updateRole,
+  deleteRole,
+  assignRoleMenu,
+  updateRoleStatus,
+  type RoleSaveDTO,
+  type RoleListQuery,
+  getRoleMenuIds,
+  getRecycleRolePage,
+  restoreRole,
+  deleteRolePermanent,
+  type RoleVO,
+  type RoleRecycleQuery,
+} from '@/api/system/role'
+import { getMenuList, type MenuVO } from '@/api/system/menu'
 import { buildMenuTree } from '@/utils/menu-tree'
 
 const loading = ref(false)
-const roleList = ref([])
+const roleList = ref<RoleVO[]>([])
 const dialogVisible = ref(false)
 const dialogTitle = ref('')
 const menuDialogVisible = ref(false)
-const formRef = ref(null)
-const menuTreeRef = ref(null)
-const currentRole = ref<Partial<import('@/api/system/role').RoleVO>>({})
-const selectedMenus = ref([])
-const menuOptions = ref([])
+const formRef = ref<FormInstance | null>(null)
+const menuTreeRef = ref<InstanceType<typeof ElTree> | null>(null)
+const currentRole = ref<Partial<RoleVO>>({})
+const selectedMenus = ref<number[]>([])
+const menuOptions = ref<MenuVO[]>([])
 const recycleVisible = ref(false)
 const recycleLoading = ref(false)
-const recycleList = ref([])
+const recycleList = ref<RoleVO[]>([])
 const recycleTotal = ref(0)
 
-const queryParams = reactive({
+const queryParams = reactive<RoleListQuery>({
   name: '',
   status: null
 })
-const recycleQuery = reactive({
+const recycleQuery = reactive<RoleRecycleQuery>({
   pageNo: 1,
   pageSize: 10,
   name: '',
   status: null
 })
 
-const form = reactive({
+const form = reactive<RoleSaveDTO>({
   id: null,
   name: '',
   code: '',
   sort: 0,
   status: 1,
-  remark: ''
+  remark: '',
 })
 
 const rules = {
@@ -274,14 +290,14 @@ const handleAdd = () => {
   dialogVisible.value = true
 }
 
-const handleEdit = (row) => {
+const handleEdit = (row: RoleVO) => {
   resetForm()
   dialogTitle.value = '编辑角色'
   Object.assign(form, row)
   dialogVisible.value = true
 }
 
-const handleDelete = async (row) => {
+const handleDelete = async (row: RoleVO) => {
   await ElMessageBox.confirm('确定要删除该角色吗？', '提示', { type: 'warning' })
   await deleteRole(row.id)
   ElMessage.success('删除成功')
@@ -305,14 +321,14 @@ const openRecycleDialog = async () => {
   await getRecycleList()
 }
 
-const handleRestore = async (row) => {
+const handleRestore = async (row: RoleVO) => {
   await restoreRole(row.id)
   ElMessage.success('恢复成功')
   await getRecycleList()
   await getList()
 }
 
-const handlePermanentDelete = async (row) => {
+const handlePermanentDelete = async (row: RoleVO) => {
   await ElMessageBox.confirm('确定彻底删除该角色吗？该操作不可恢复', '提示', { type: 'warning' })
   await deleteRolePermanent(row.id)
   ElMessage.success('清除成功')
@@ -320,19 +336,20 @@ const handlePermanentDelete = async (row) => {
 }
 
 // 状态切换
-const handleStatusChange = async (row) => {
+const handleStatusChange = async (row: RoleVO) => {
   try {
     const text = row.status === 1 ? '启用' : '禁用'
     await ElMessageBox.confirm(`确认要${text}角色"${row.name}"吗？`, '提示', { type: 'warning' })
+    if (row.id == null || row.status == null) return
     await updateRoleStatus(row.id, row.status)
     ElMessage.success(`${text}成功`)
-  } catch (error) {
+  } catch {
     row.status = row.status === 1 ? 0 : 1
   }
 }
 
 // 操作命令分发
-const handleCommand = (command, row) => {
+const handleCommand = (command: string, row: RoleVO) => {
   switch (command) {
     case 'assignMenu':
       handleAssignMenu(row)
@@ -343,7 +360,7 @@ const handleCommand = (command, row) => {
   }
 }
 
-const handleAssignMenu = async (row) => {
+const handleAssignMenu = async (row: RoleVO) => {
   currentRole.value = row
   // 先加载菜单列表
   if (menuOptions.value.length === 0) {
@@ -355,7 +372,7 @@ const handleAssignMenu = async (row) => {
   }
   // 获取角色已有菜单
   const res = await getRoleMenuIds(row.id)
-  selectedMenus.value = res.data || []
+  selectedMenus.value = (res.data || []).map((id) => Number(id))
   menuDialogVisible.value = true
   // 等待 DOM 更新后设置选中状态
   await nextTick()
@@ -366,7 +383,11 @@ const handleAssignMenu = async (row) => {
 }
 
 const submitAssignMenu = async () => {
-  const menuIds = menuTreeRef.value.getCheckedKeys()
+  if (!menuTreeRef.value || currentRole.value.id == null) return
+  const menuIds = menuTreeRef.value
+    .getCheckedKeys()
+    .map((key) => Number(key))
+    .filter((id) => !Number.isNaN(id))
   await assignRoleMenu({ roleId: currentRole.value.id, menuIds })
   ElMessage.success('分配成功')
   menuDialogVisible.value = false

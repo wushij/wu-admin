@@ -1,14 +1,28 @@
-import request, { get, post, put, del } from '@/utils/request'
+import { get, post, put, del } from '@/utils/request'
 
 export interface PostVO {
   id: number
   name: string
+  postName?: string
+  postCode?: string
   code?: string
   parentId?: number
   sort?: number
   status?: number
+  remark?: string
   children?: PostVO[]
-  [key: string]: unknown
+  createTime?: string
+  updateTime?: string
+}
+
+export interface PostSaveDTO {
+  id?: number
+  parentId?: number
+  postCode?: string
+  postName?: string
+  sort?: number
+  status?: number
+  remark?: string
 }
 
 export function getPostTree() {
@@ -23,11 +37,11 @@ export function getPost(id: number) {
   return get<PostVO>(`/system/post/${id}`)
 }
 
-export function createPost(data: Record<string, unknown>) {
+export function createPost(data: PostSaveDTO) {
   return post('/system/post', data)
 }
 
-export function updatePost(data: Record<string, unknown>) {
+export function updatePost(data: PostSaveDTO) {
   return put('/system/post', data)
 }
 
@@ -36,5 +50,5 @@ export function deletePost(id: number) {
 }
 
 export function movePost(id: number, parentId: number) {
-  return request.post(`/system/post/${id}/move`, null, { params: { parentId } })
+  return post(`/system/post/${id}/move`, null, { params: { parentId } })
 }

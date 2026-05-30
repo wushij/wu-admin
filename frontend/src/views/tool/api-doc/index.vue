@@ -35,7 +35,7 @@ import { Document, Refresh, TopRight } from '@element-plus/icons-vue'
  */
 const docUrl = '/doc.html'
 
-const iframeRef = ref(null)
+const iframeRef = ref<HTMLIFrameElement | null>(null)
 const loading = ref(true)
 const frameKey = ref(0)
 

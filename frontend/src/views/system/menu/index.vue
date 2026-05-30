@@ -70,8 +70,8 @@
         <el-table-column prop="name" label="菜单名称" min-width="200" show-overflow-tooltip />
         <el-table-column prop="type" label="类型" width="90" align="center">
           <template #default="{ row }">
-            <el-tag :type="typeTagMap[row.type]?.tag" size="small" effect="light">
-              {{ typeTagMap[row.type]?.label }}
+            <el-tag :type="menuTypeMeta(row.type)?.tag" size="small" effect="light">
+              {{ menuTypeMeta(row.type)?.label }}
             </el-tag>
           </template>
         </el-table-column>
@@ -274,8 +274,8 @@
         <el-table-column prop="name" label="菜单名称" width="180" />
         <el-table-column prop="type" label="类型" width="100">
           <template #default="{ row }">
-            <el-tag :type="typeTagMap[row.type]?.tag" size="small">
-              {{ typeTagMap[row.type]?.label }}
+            <el-tag :type="menuTypeMeta(row.type)?.tag" size="small">
+              {{ menuTypeMeta(row.type)?.label }}
             </el-tag>
           </template>
         </el-table-column>
@@ -309,7 +309,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, nextTick } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage, ElMessageBox, type FormInstance, type TableInstance } from 'element-plus'
 import { Search, Refresh, Plus, Sort } from '@element-plus/icons-vue'
 import {
   getMenuList,
@@ -319,7 +319,11 @@ import {
   updateMenuStatus,
   getRecycleMenuPage,
   restoreMenu,
-  deleteMenuPermanent
+  deleteMenuPermanent,
+  type MenuVO,
+  type MenuSaveDTO,
+  type MenuListQuery,
+  type MenuRecycleQuery,
 } from '@/api/system/menu'
 import IconSelect from '@/components/IconSelect.vue'
 import { resolveMenuIcon } from '@/utils/menu-icon'
@@ -330,10 +334,15 @@ import {
   isExternalMenuComponent
 } from '@/utils/menu-tree'
 
-const typeTagMap = {
+type MenuTypeTag = 'success' | 'primary' | 'warning' | 'info' | 'danger'
+const typeTagMap: Record<number, { label: string; tag: MenuTypeTag }> = {
   1: { label: '目录', tag: 'info' },
   2: { label: '菜单', tag: 'success' },
-  3: { label: '按钮', tag: 'warning' }
+  3: { label: '按钮', tag: 'warning' },
+}
+
+function menuTypeMeta(type: number | undefined) {
+  return type != null ? typeTagMap[type] : undefined
 }
 
 const componentPresets = [
@@ -349,32 +358,32 @@ const componentPresets = [
 
 const loading = ref(false)
 const submitLoading = ref(false)
-const menuList = ref([])
-const parentOptions = ref([])
+const menuList = ref<MenuVO[]>([])
+const parentOptions = ref<MenuVO[]>([])
 const dialogVisible = ref(false)
 const dialogTitle = ref('')
-const formRef = ref(null)
-const tableRef = ref(null)
+const formRef = ref<FormInstance | null>(null)
+const tableRef = ref<TableInstance | null>(null)
 const expandAll = ref(false)
 
 const recycleVisible = ref(false)
 const recycleLoading = ref(false)
-const recycleList = ref([])
+const recycleList = ref<MenuVO[]>([])
 const recycleTotal = ref(0)
 
-const queryParams = reactive({
+const queryParams = reactive<MenuListQuery>({
   name: '',
   status: null,
   type: null
 })
-const recycleQuery = reactive({
+const recycleQuery = reactive<MenuRecycleQuery>({
   pageNo: 1,
   pageSize: 10,
   name: '',
   status: null
 })
 
-const form = reactive({
+const form = reactive<MenuSaveDTO & { isFrame: number }>({
   id: null,
   parentId: 0,
   name: '',
@@ -385,7 +394,7 @@ const form = reactive({
   sort: 0,
   icon: '',
   status: 1,
-  isFrame: 0
+  isFrame: 0,
 })
 
 const rules = {
@@ -395,7 +404,7 @@ const rules = {
 
 const menuStats = computed(() => countMenuTypes(menuList.value))
 
-const isExternalRow = (row) => isExternalMenuComponent(row.component)
+const isExternalRow = (row: MenuVO) => isExternalMenuComponent(row.component)
 
 const getList = async () => {
   loading.value = true
@@ -440,7 +449,7 @@ const handleAdd = (row?: import('@/api/system/menu').MenuVO) => {
   dialogVisible.value = true
 }
 
-const handleEdit = (row) => {
+const handleEdit = (row: MenuVO) => {
   resetForm()
   dialogTitle.value = '编辑菜单'
   Object.assign(form, {
@@ -471,17 +480,18 @@ const fillPermissionPrefix = () => {
   }
 }
 
-const handleDelete = async (row) => {
+const handleDelete = async (row: MenuVO) => {
   await ElMessageBox.confirm(`确定删除菜单「${row.name}」吗？`, '提示', { type: 'warning' })
   await deleteMenu(row.id)
   ElMessage.success('删除成功')
   getList()
 }
 
-const handleStatusChange = async (row) => {
+const handleStatusChange = async (row: MenuVO) => {
   const text = row.status === 1 ? '启用' : '禁用'
   try {
     await ElMessageBox.confirm(`确认要${text}菜单「${row.name}」吗？`, '提示', { type: 'warning' })
+    if (row.id == null || row.status == null) return
     await updateMenuStatus(row.id, row.status)
     ElMessage.success(`${text}成功`)
   } catch {
@@ -506,14 +516,14 @@ const getRecycleList = async () => {
   }
 }
 
-const handleRestore = async (row) => {
+const handleRestore = async (row: MenuVO) => {
   await restoreMenu(row.id)
   ElMessage.success('恢复成功')
   await getRecycleList()
   await getList()
 }
 
-const handlePermanentDelete = async (row) => {
+const handlePermanentDelete = async (row: MenuVO) => {
   await ElMessageBox.confirm('彻底删除后不可恢复，确定继续？', '提示', { type: 'warning' })
   await deleteMenuPermanent(row.id)
   ElMessage.success('已清除')
@@ -534,8 +544,8 @@ const resetForm = () => {
   form.isFrame = 0
 }
 
-const buildSubmitPayload = () => {
-  const payload = {
+const buildSubmitPayload = (): MenuSaveDTO => {
+  const payload: MenuSaveDTO = {
     id: form.id,
     parentId: form.parentId === 0 ? 0 : form.parentId,
     name: form.name,
@@ -545,7 +555,8 @@ const buildSubmitPayload = () => {
     icon: form.type === 3 ? '' : form.icon,
     path: form.type === 3 ? '' : form.path,
     component: form.type === 3 ? '' : form.component,
-    permission: form.permission || ''
+    permission: form.permission || '',
+    isFrame: form.isFrame,
   }
   if (form.type === 3) {
     payload.path = ''

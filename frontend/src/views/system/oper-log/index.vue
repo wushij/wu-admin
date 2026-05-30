@@ -123,13 +123,13 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { pageOperLog, deleteOperLog, cleanOperLog } from '@/api/system/oper-log'
+import { pageOperLog, deleteOperLog, cleanOperLog, type OperLogVO, type OperLogPageQuery } from '@/api/system/oper-log'
 
 const loading = ref(false)
 const total = ref(0)
-const tableData = ref([])
+const tableData = ref<OperLogVO[]>([])
 
-const queryParams = reactive({
+const queryParams = reactive<OperLogPageQuery>({
   pageNo: 1,
   pageSize: 10,
   title: '',
@@ -137,24 +137,25 @@ const queryParams = reactive({
   status: null
 })
 
-const businessTypeMap = {
+const businessTypeMap: Record<number, string> = {
   0: '其他',
   1: '新增',
   2: '修改',
   3: '删除',
   4: '查询',
   5: '导出',
-  6: '导入'
+  6: '导入',
 }
 
-function businessTypeLabel(type) {
+function businessTypeLabel(type: number | undefined) {
+  if (type == null) return '其他'
   return businessTypeMap[type] ?? '其他'
 }
 
 const detailVisible = ref(false)
 const detail = ref<Partial<import('@/api/system/oper-log').OperLogVO>>({})
 
-function formatJson(str) {
+function formatJson(str: string | undefined) {
   if (!str) return ''
   try {
     return JSON.stringify(JSON.parse(str), null, 2)
@@ -192,12 +193,12 @@ function resetQuery() {
   handleQuery()
 }
 
-function openDetail(row) {
+function openDetail(row: OperLogVO) {
   detail.value = { ...row }
   detailVisible.value = true
 }
 
-async function handleDelete(row) {
+async function handleDelete(row: OperLogVO) {
   await ElMessageBox.confirm('确定要删除该日志吗？', '提示', { type: 'warning' })
   await deleteOperLog(row.id)
   ElMessage.success('删除成功')

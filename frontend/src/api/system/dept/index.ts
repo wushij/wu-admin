@@ -1,5 +1,5 @@
-import request, { get, post, put, del } from '@/utils/request'
-import type { PageQuery } from '@/types/api'
+import { get, post, put, del } from '@/utils/request'
+import type { PageResult, RecyclePageQuery } from '@/types/api'
 
 export interface DeptVO {
   id: number
@@ -7,14 +7,34 @@ export interface DeptVO {
   parentId?: number
   sort?: number
   status?: number
-  leader?: string
+  leaderName?: string
   phone?: string
   email?: string
+  userCount?: number
   children?: DeptVO[]
-  [key: string]: unknown
+  createTime?: string
+  updateTime?: string
 }
 
-export function getDeptTree(params?: Record<string, unknown>) {
+export interface DeptTreeQuery {
+  name?: string
+  status?: number | null
+}
+
+export type DeptRecycleQuery = RecyclePageQuery & Pick<DeptTreeQuery, 'name' | 'status'>
+
+export interface DeptSaveDTO {
+  id?: number | null
+  parentId?: number | null
+  name: string
+  leaderName?: string
+  phone?: string
+  email?: string
+  sort?: number
+  status?: number
+}
+
+export function getDeptTree(params?: DeptTreeQuery) {
   return get<DeptVO[]>('/system/dept/tree', params)
 }
 
@@ -26,39 +46,34 @@ export function getDept(id: number) {
   return get<DeptVO>('/system/dept/get', { id })
 }
 
-export function createDept(data: Record<string, unknown>) {
+export function createDept(data: DeptSaveDTO) {
   return post('/system/dept/create', data)
 }
 
-export function updateDept(data: Record<string, unknown>) {
+export function updateDept(data: DeptSaveDTO) {
   return put('/system/dept/update', data)
 }
 
 export function deleteDept(id: number) {
-  return request.delete('/system/dept/delete', { params: { id } })
+  return del('/system/dept/delete', { params: { id } })
 }
 
 export function moveDept(id: number, parentId: number, sort: number) {
-  return request.put('/system/dept/move', null, { params: { id, parentId, sort } })
+  return put('/system/dept/move', null, { params: { id, parentId, sort } })
 }
 
 export function updateDeptStatus(id: number, status: number) {
-  return put('/system/dept/update-status', { id, status })
+  return put('/system/dept/update-status', null, { params: { id, status } })
 }
 
-export function getRecycleDeptPage(params: PageQuery) {
-  return get<import('@/types/api').PageResult<DeptVO>>('/system/dept/recycle/page', params)
+export function getRecycleDeptPage(params: DeptRecycleQuery) {
+  return get<PageResult<DeptVO>>('/system/dept/recycle/page', params)
 }
 
 export function restoreDept(id: number) {
-  return put('/system/dept/restore', { id })
+  return put('/system/dept/restore', null, { params: { id } })
 }
 
 export function deleteDeptPermanent(id: number) {
-  return del('/system/dept/delete-permanent', { id })
-}
-
-/** @deprecated 使用 getDeptTree */
-export function getDeptListAsTree(params?: Record<string, unknown>) {
-  return getDeptTree(params)
+  return del('/system/dept/delete-permanent', { params: { id } })
 }

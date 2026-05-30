@@ -1,5 +1,5 @@
-import request from '@/utils/request'
-import type { ApiResult, PageQuery, PageResult } from '@/types/api'
+import { get, post, put, del } from '@/utils/request'
+import type { PageQuery, PageResult, RecyclePageQuery } from '@/types/api'
 
 export interface ApprovalVO {
   id: number
@@ -15,7 +15,6 @@ export interface ApprovalVO {
   resultRemark?: string
   createTime?: string
   updateTime?: string
-  [key: string]: unknown
 }
 
 export interface ApprovalRecordVO {
@@ -26,45 +25,68 @@ export interface ApprovalRecordVO {
   action?: string
   remark?: string
   createTime?: string
-  [key: string]: unknown
 }
 
-export function getApprovalPage(params: PageQuery) {
-  return request.get('/system/approval/page', { params }) as Promise<ApiResult<PageResult<ApprovalVO>>>
+export interface ApprovalPageQuery extends PageQuery {
+  title?: string
+  formType?: string
+  status?: string
+}
+
+export interface ApprovalCreateDTO {
+  formType: string
+  title: string
+  approverUserId: number | null
+  content: string
+}
+
+export interface ApprovalActionDTO {
+  id: number
+  action: string
+  remark?: string
+}
+
+export interface ApprovalArchiveDTO {
+  id: number
+  remark?: string
+}
+
+export function getApprovalPage(params: ApprovalPageQuery) {
+  return get<PageResult<ApprovalVO>>('/system/approval/page', params)
 }
 
 export function getApproval(id: number) {
-  return request.get('/system/approval/get', { params: { id } }) as Promise<ApiResult<ApprovalVO>>
+  return get<ApprovalVO>('/system/approval/get', { id })
 }
 
 export function getApprovalRecords(formId: number) {
-  return request.get('/system/approval/record/list', { params: { formId } }) as Promise<ApiResult<ApprovalRecordVO[]>>
+  return get<ApprovalRecordVO[]>('/system/approval/record/list', { formId })
 }
 
-export function createApproval(data: Record<string, unknown>) {
-  return request.post('/system/approval/create', data)
+export function createApproval(data: ApprovalCreateDTO) {
+  return post('/system/approval/create', data)
 }
 
-export function approveApproval(data: Record<string, unknown>) {
-  return request.put('/system/approval/approve', data)
+export function approveApproval(data: ApprovalActionDTO) {
+  return put('/system/approval/approve', data)
 }
 
-export function archiveApproval(data: Record<string, unknown>) {
-  return request.put('/system/approval/archive', data)
+export function archiveApproval(data: ApprovalArchiveDTO) {
+  return put('/system/approval/archive', data)
 }
 
 export function deleteApproval(id: number) {
-  return request.delete('/system/approval/delete', { params: { id } })
+  return del('/system/approval/delete', { params: { id } })
 }
 
-export function getApprovalRecyclePage(params: PageQuery) {
-  return request.get('/system/approval/recycle/page', { params }) as Promise<ApiResult<PageResult<ApprovalVO>>>
+export function getApprovalRecyclePage(params: RecyclePageQuery) {
+  return get<PageResult<ApprovalVO>>('/system/approval/recycle/page', params)
 }
 
 export function restoreApproval(id: number) {
-  return request.put('/system/approval/restore', null, { params: { id } })
+  return put('/system/approval/restore', null, { params: { id } })
 }
 
 export function deleteApprovalPermanent(id: number) {
-  return request.delete('/system/approval/delete-permanent', { params: { id } })
+  return del('/system/approval/delete-permanent', { params: { id } })
 }

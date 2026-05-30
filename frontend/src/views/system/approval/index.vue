@@ -210,9 +210,9 @@
 <script setup lang="ts">
 import { nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage, ElMessageBox, type FormInstance, type TableInstance } from 'element-plus'
 import { useUserStore } from '@/store/user'
-import { getUserList } from '@/api/system/user'
+import { getUserList, type UserVO } from '@/api/system/user'
 import {
   approveApproval,
   archiveApproval,
@@ -223,31 +223,36 @@ import {
   getApprovalPage,
   getApprovalRecords,
   getApprovalRecyclePage,
-  restoreApproval
+  restoreApproval,
+  type ApprovalVO,
+  type ApprovalRecordVO,
+  type ApprovalCreateDTO,
+  type ApprovalPageQuery,
 } from '@/api/system/approval'
+import type { RecyclePageQuery } from '@/types/api'
 
 const userStore = useUserStore()
 const route = useRoute()
 const loading = ref(false)
-const tableRef = ref(null)
+const tableRef = ref<TableInstance | null>(null)
 const total = ref(0)
-const list = ref([])
-const userOptions = ref([])
+const list = ref<ApprovalVO[]>([])
+const userOptions = ref<UserVO[]>([])
 const formVisible = ref(false)
 const approveVisible = ref(false)
 const recycleVisible = ref(false)
 const recycleLoading = ref(false)
-const recycleList = ref([])
+const recycleList = ref<ApprovalVO[]>([])
 const recycleTotal = ref(0)
 const detailVisible = ref(false)
-const formRef = ref(null)
-const current = ref<import('@/api/system/approval').ApprovalVO | Record<string, unknown>>({})
-const records = ref([])
+const formRef = ref<FormInstance | null>(null)
+const current = ref<Partial<import('@/api/system/approval').ApprovalVO>>({})
+const records = ref<ApprovalRecordVO[]>([])
 const approveAction = ref('APPROVE')
 const approveRemark = ref('')
-const approveTargetId = ref(null)
+const approveTargetId = ref<number | null>(null)
 
-const queryParams = reactive({
+const queryParams = reactive<ApprovalPageQuery>({
   pageNo: 1,
   pageSize: 10,
   title: '',
@@ -255,14 +260,14 @@ const queryParams = reactive({
   status: ''
 })
 
-const form = reactive({
+const form = reactive<ApprovalCreateDTO>({
   formType: 'GENERAL',
   title: '',
   approverUserId: null,
-  content: ''
+  content: '',
 })
 
-const recycleQuery = reactive({
+const recycleQuery = reactive<RecyclePageQuery>({
   pageNo: 1,
   pageSize: 10
 })
@@ -274,66 +279,85 @@ const rules = {
   content: [{ required: true, message: '请输入审批内容', trigger: 'blur' }]
 }
 
-const registerDetail = ref<Record<string, unknown>>({})
+interface RegisterDetailParsed {
+  userId?: number
+  username?: string
+  nickname?: string
+  mobile?: string
+}
 
-const parseRegisterContent = (content) => {
+const registerDetail = ref<RegisterDetailParsed>({})
+
+const FORM_TYPE_LABELS = {
+  GENERAL: '通用',
+  LEAVE: '请假',
+  PURCHASE: '采购',
+  REIMBURSE: '报销',
+  SEAL: '用印',
+  CONTRACT: '合同',
+  REGISTER: '注册审核',
+} as const
+
+const STATUS_LABELS = {
+  SUBMITTED: '待审批',
+  APPROVED: '已通过',
+  REJECTED: '已驳回',
+  ARCHIVED: '已归档',
+} as const
+
+const ACTION_LABELS = {
+  SUBMIT: '提交审批',
+  APPROVE: '审批通过',
+  REJECT: '审批驳回',
+  ARCHIVE: '归档单据',
+} as const
+
+const parseRegisterContent = (content: string | undefined): RegisterDetailParsed => {
   if (!content) return {}
   try {
-    const obj = typeof content === 'string' ? JSON.parse(content) : content
+    const obj = JSON.parse(content) as RegisterDetailParsed
     return {
       userId: obj.userId,
       username: obj.username,
       nickname: obj.nickname,
-      mobile: obj.mobile
+      mobile: obj.mobile,
     }
   } catch {
     return {}
   }
 }
 
-const hasPerm = (perm) => (userStore.userInfo?.permissions || []).includes(perm)
+const hasPerm = (perm: string) => (userStore.userInfo?.permissions || []).includes(perm)
 
-const formatType = (type) => {
-  const map = {
-    GENERAL: '通用',
-    LEAVE: '请假',
-    PURCHASE: '采购',
-    REIMBURSE: '报销',
-    SEAL: '用印',
-    CONTRACT: '合同',
-    REGISTER: '注册审核'
+const formatType = (type: string | undefined) => {
+  if (type && type in FORM_TYPE_LABELS) {
+    return FORM_TYPE_LABELS[type as keyof typeof FORM_TYPE_LABELS]
   }
-  return map[type] || type || '-'
+  return type || '-'
 }
 
-const formatStatus = (status) => {
-  const map = {
-    SUBMITTED: '待审批',
-    APPROVED: '已通过',
-    REJECTED: '已驳回',
-    ARCHIVED: '已归档'
+const formatStatus = (status: string | undefined) => {
+  if (status && status in STATUS_LABELS) {
+    return STATUS_LABELS[status as keyof typeof STATUS_LABELS]
   }
-  return map[status] || status || '-'
+  return status || '-'
 }
 
-const statusTagType = (status) => {
+const statusTagType = (status: string | undefined) => {
   if (status === 'SUBMITTED') return 'warning'
   if (status === 'APPROVED') return 'success'
   if (status === 'REJECTED') return 'danger'
   return 'info'
 }
 
-const actionText = (action) => {
-  const map = {
-    SUBMIT: '提交审批',
-    APPROVE: '审批通过',
-    REJECT: '审批驳回',
-    ARCHIVE: '归档单据'
+const actionText = (action: string | undefined) => {
+  if (action && action in ACTION_LABELS) {
+    return ACTION_LABELS[action as keyof typeof ACTION_LABELS]
   }
-  return map[action] || action
+  return action || '-'
 }
 
-const canDeleteRow = (row) => row.formType !== 'REGISTER'
+const canDeleteRow = (row: ApprovalVO) => row.formType !== 'REGISTER'
 
 const getList = async () => {
   loading.value = true
@@ -413,7 +437,7 @@ const submitForm = async () => {
   })
 }
 
-const canApproveRow = (row) => {
+const canApproveRow = (row: ApprovalVO) => {
   if (row.status !== 'SUBMITTED') return false
   if (row.formType === 'REGISTER') {
     return hasPerm('system:approval:approve')
@@ -421,7 +445,7 @@ const canApproveRow = (row) => {
   return row.approverUserId === userStore.userInfo?.userId
 }
 
-const canArchiveRow = (row) => {
+const canArchiveRow = (row: ApprovalVO) => {
   if (row.status !== 'APPROVED' && row.status !== 'REJECTED') return false
   if (row.formType === 'REGISTER') {
     return hasPerm('system:approval:archive')
@@ -429,7 +453,7 @@ const canArchiveRow = (row) => {
   return row.applicantUserId === userStore.userInfo?.userId
 }
 
-const openApproveDialog = (row, action) => {
+const openApproveDialog = (row: ApprovalVO, action: string) => {
   approveTargetId.value = row.id
   approveAction.value = action
   approveRemark.value = ''
@@ -448,31 +472,32 @@ const submitApprove = async () => {
   getList()
 }
 
-const handleArchive = async (row) => {
+const handleArchive = async (row: ApprovalVO) => {
   await ElMessageBox.confirm(`确认归档审批单【${row.formNo}】吗？`, '提示', { type: 'warning' })
   await archiveApproval({ id: row.id, remark: '归档' })
   ElMessage.success('归档成功')
   getList()
 }
 
-const handleDelete = async (row) => {
+const handleDelete = async (row: ApprovalVO) => {
   await ElMessageBox.confirm(`确认删除审批单【${row.formNo}】吗？删除后不可恢复。`, '提示', { type: 'warning' })
   await deleteApproval(row.id)
   ElMessage.success('删除成功')
-  if (queryParams.pageNo > 1 && list.value.length === 1) {
-    queryParams.pageNo -= 1
+  const pageNo = queryParams.pageNo ?? 1
+  if (pageNo > 1 && list.value.length === 1) {
+    queryParams.pageNo = pageNo - 1
   }
   getList()
 }
 
-const handleRestore = async (row) => {
+const handleRestore = async (row: ApprovalVO) => {
   await restoreApproval(row.id)
   ElMessage.success('恢复成功')
   getRecycleList()
   getList()
 }
 
-const handlePermanentDelete = async (row) => {
+const handlePermanentDelete = async (row: ApprovalVO) => {
   await ElMessageBox.confirm(`确认彻底删除审批单【${row.formNo}】吗？该操作不可恢复。`, '警告', { type: 'warning' })
   await deleteApprovalPermanent(row.id)
   ElMessage.success('已彻底删除')
@@ -482,11 +507,13 @@ const handlePermanentDelete = async (row) => {
   getRecycleList()
 }
 
-const openDetail = async (id) => {
+const openDetail = async (id: number) => {
   const [detailRes, recordRes] = await Promise.all([getApproval(id), getApprovalRecords(id)])
   current.value = detailRes.data || {}
   registerDetail.value = current.value.formType === 'REGISTER'
-    ? parseRegisterContent(current.value.content)
+    ? parseRegisterContent(
+        typeof current.value.content === 'string' ? current.value.content : undefined
+      )
     : {}
   records.value = recordRes.data || []
   detailVisible.value = true

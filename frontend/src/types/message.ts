@@ -58,11 +58,30 @@ export interface ChatGroupLogItem {
   createTime?: string
 }
 
-/** 系统通知（用户侧列表项） */
-export interface AnnounceItem {
+/** 系统通知（用户侧列表项，与后端 AnnounceMyVO 对齐） */
+export interface AnnounceMyVO {
   id: number
   title: string
   content: string
-  isRead?: number
+  noticeType?: number
+  status?: number
+  createName?: string
   createTime?: string
+  isRead?: number
+  readTime?: string
+}
+
+/** 公告管理列表（与后端 AnnounceDO 展示字段对齐） */
+export interface AnnounceVO {
+  id: number
+  title: string
+  content: string
+  noticeType?: number
+  channels?: string[]
+  targetType?: number
+  targetIds?: number[]
+  status?: number
+  createName?: string
+  createTime?: string
+  createBy?: number
 }
