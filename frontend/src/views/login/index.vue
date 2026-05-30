@@ -57,6 +57,26 @@
               <h2 class="login-form__title">{{ siteLoginWelcome }}</h2>
             </header>
 
+            <!-- 登录方式切换（仅启用短信验证时显示） -->
+            <div v-if="showLoginModeSwitch" class="login-mode-switch">
+              <button
+                type="button"
+                class="login-mode-switch__item"
+                :class="{ 'login-mode-switch__item--active': loginMode === 'account' }"
+                @click="switchLoginMode('account')"
+              >
+                账号登录
+              </button>
+              <button
+                type="button"
+                class="login-mode-switch__item"
+                :class="{ 'login-mode-switch__item--active': loginMode === 'sms' }"
+                @click="switchLoginMode('sms')"
+              >
+                短信登录
+              </button>
+            </div>
+
             <el-form
               ref="formRef"
               :model="formData"
@@ -65,7 +85,7 @@
               :class="['form-container', { 'form-container--submitted': submitAttempted }]"
               size="large"
             >
-            <el-form-item prop="username" class="form-item">
+            <el-form-item v-if="loginMode === 'account'" prop="username" class="form-item">
               <el-input
                 v-model="formData.username"
                 name="username"
@@ -81,7 +101,7 @@
               </el-input>
             </el-form-item>
             
-            <el-form-item prop="password" class="form-item">
+            <el-form-item v-if="loginMode === 'account'" prop="password" class="form-item">
               <el-input
                 v-model="formData.password"
                 name="password"
@@ -99,8 +119,57 @@
               </el-input>
             </el-form-item>
             
+            <!-- 短信登录 -->
+            <template v-if="loginMode === 'sms'">
+              <div class="sms-login-intro">
+                <el-icon class="sms-login-intro__icon"><Message /></el-icon>
+                <p class="sms-login-intro__text">
+                  请使用个人中心<strong>已绑定</strong>的手机号收取验证码
+                </p>
+              </div>
+              <el-form-item prop="phone" class="form-item sms-form-item">
+                <el-input
+                  v-model="formData.phone"
+                  placeholder="请输入绑定的手机号"
+                  maxlength="11"
+                  clearable
+                  autocomplete="off"
+                  class="form-input"
+                >
+                  <template #prefix>
+                    <el-icon class="input-icon"><Iphone /></el-icon>
+                  </template>
+                </el-input>
+              </el-form-item>
+              <el-form-item prop="code" class="form-item sms-form-item">
+                <div class="sms-code-row">
+                  <el-input
+                    v-model="formData.code"
+                    placeholder="请输入验证码"
+                    maxlength="6"
+                    autocomplete="off"
+                    @keyup.enter="handleLogin"
+                    class="form-input sms-code-field"
+                  >
+                    <template #prefix>
+                      <el-icon class="input-icon"><Key /></el-icon>
+                    </template>
+                  </el-input>
+                  <el-button
+                    class="sms-send-btn"
+                    :disabled="smsCountdown > 0 || sendingSms || !smsEnabled"
+                    :loading="sendingSms"
+                    @click="handleSendSmsCode"
+                  >
+                    {{ smsCountdown > 0 ? `${smsCountdown}s` : '获取验证码' }}
+                  </el-button>
+                </div>
+              </el-form-item>
+              <p v-if="!smsEnabled" class="sms-disabled-tip">短信功能未启用，请联系管理员</p>
+            </template>
+
             <!-- 图片验证码（滑块模式不显示表单项） -->
-            <el-form-item v-if="captchaEnabled && captchaType === 'image'" prop="code" class="form-item">
+            <el-form-item v-if="loginMode === 'account' && captchaEnabled && captchaType === 'image'" prop="code" class="form-item">
               <div class="captcha-row">
                 <el-input
                   v-model="formData.code"
@@ -124,9 +193,21 @@
               </div>
             </el-form-item>
             
-            <el-form-item v-if="rememberMeEnabled" class="form-item">
-              <div class="login-options">
-                <el-checkbox v-model="formData.rememberMe" class="remember-checkbox">记住我</el-checkbox>
+            <el-form-item
+              v-if="loginMode === 'account' && (rememberMeEnabled || registerEnabled)"
+              class="form-item"
+            >
+              <div
+                class="login-options"
+                :class="{ 'login-options--register-only': !rememberMeEnabled && registerEnabled }"
+              >
+                <el-checkbox
+                  v-if="rememberMeEnabled"
+                  v-model="formData.rememberMe"
+                  class="remember-checkbox"
+                >
+                  记住我
+                </el-checkbox>
                 <el-link v-if="registerEnabled" type="primary" @click="goRegister" class="register-link">
                   没有账号？立即注册
                 </el-link>
@@ -155,12 +236,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, nextTick } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
-import { User, Lock, Key } from '@element-plus/icons-vue'
+import { User, Lock, Key, Iphone, Message } from '@element-plus/icons-vue'
 import { useUserStore } from '@/store/user'
-import { getCaptcha, getConfig } from '@/api/system/auth'
+import { getCaptcha, getConfig, sendSmsCode } from '@/api/system/auth'
 import type { LoginForm } from '@/types/api'
 import {
   authParticleOptions1,
@@ -172,10 +253,12 @@ import SliderCaptcha from '@/components/SliderCaptcha.vue'
 import Earth3D from '@/components/earth/Earth3D.vue'
 
 type CaptchaMode = 'image' | 'slider'
+type LoginMode = 'account' | 'sms'
 
 interface LoginFormModel {
   username: string
   password: string
+  phone: string
   code: string
   rememberMe: boolean
 }
@@ -189,6 +272,9 @@ const particlesLoaded = (container: unknown) => {
 
 const captchaEnabled = ref(true)
 const captchaType = ref<CaptchaMode>('image')
+const smsLoginEnabled = ref(false)
+const loginMode = ref<LoginMode>('account')
+const smsEnabled = ref(true)
 const rememberMeEnabled = ref(true)
 const registerEnabled = ref(true)
 const showSliderModal = ref(false)
@@ -202,21 +288,60 @@ const captchaUuid = ref('')
 const formRef = ref<FormInstance | null>(null)
 const loading = ref(false)
 const submitAttempted = ref(false)
+const sendingSms = ref(false)
+const smsCountdown = ref(0)
+let smsTimer: ReturnType<typeof setInterval> | null = null
 
 const formData = reactive<LoginFormModel>({
   username: '',
   password: '',
+  phone: '',
   code: '',
   rememberMe: false,
 })
 
-const formRules = ref<FormRules>({
-  username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
-  password: [{ required: true, message: '请输入密码', trigger: 'blur' }],
-})
+const formRules = ref<FormRules>({})
+
+const showLoginModeSwitch = computed(
+  () => smsLoginEnabled.value && smsEnabled.value
+)
+
+function switchLoginMode(mode: LoginMode) {
+  if (loginMode.value === mode) return
+  loginMode.value = mode
+  submitAttempted.value = false
+  formData.code = ''
+  if (mode === 'account') {
+    formData.phone = ''
+  } else {
+    formData.username = ''
+    formData.password = ''
+  }
+  rebuildFormRules()
+  nextTick(() => formRef.value?.clearValidate())
+}
 
 function parseCaptchaMode(value: string | undefined): CaptchaMode {
   return value === 'slider' ? 'slider' : 'image'
+}
+
+function startSmsCountdown(seconds = 60) {
+  if (smsTimer) {
+    clearInterval(smsTimer)
+    smsTimer = null
+  }
+  smsCountdown.value = seconds
+  smsTimer = setInterval(() => {
+    if (smsCountdown.value <= 1) {
+      smsCountdown.value = 0
+      if (smsTimer) {
+        clearInterval(smsTimer)
+        smsTimer = null
+      }
+    } else {
+      smsCountdown.value -= 1
+    }
+  }, 1000)
 }
 
 async function loadConfig() {
@@ -228,7 +353,9 @@ async function loadConfig() {
     if (config.login) {
       captchaEnabled.value = config.login.captchaEnabled !== false
       captchaType.value = parseCaptchaMode(config.login.captchaType)
+      smsLoginEnabled.value = config.login.smsLoginEnabled === true
       rememberMeEnabled.value = config.login.rememberMe !== false
+      smsEnabled.value = config.login.smsEnabled !== false
     }
     if (config.register) {
       registerEnabled.value = config.register.enabled !== false
@@ -258,12 +385,19 @@ async function loadCaptcha() {
 }
 
 function rebuildFormRules() {
-  const next: FormRules = {
-    username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
-    password: [{ required: true, message: '请输入密码', trigger: 'blur' }],
-  }
-  if (captchaEnabled.value && captchaType.value === 'image') {
-    next.code = [{ required: true, message: '请输入验证码', trigger: 'blur' }]
+  const next: FormRules = {}
+  if (loginMode.value === 'account') {
+    next.username = [{ required: true, message: '请输入用户名', trigger: 'blur' }]
+    next.password = [{ required: true, message: '请输入密码', trigger: 'blur' }]
+    if (captchaEnabled.value && captchaType.value === 'image') {
+      next.code = [{ required: true, message: '请输入验证码', trigger: 'blur' }]
+    }
+  } else if (loginMode.value === 'sms') {
+    next.phone = [
+      { required: true, message: '请输入手机号', trigger: 'blur' },
+      { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号', trigger: 'blur' },
+    ]
+    next.code = [{ required: true, message: '请输入短信验证码', trigger: 'blur' }]
   }
   formRules.value = next
 }
@@ -273,10 +407,41 @@ function syncAutofillFromDom() {
   const root = formRef.value?.$el as HTMLElement | undefined
   if (!root) return
   const inputs = Array.from(root.querySelectorAll<HTMLInputElement>('input.el-input__inner'))
-  if (inputs[0]?.value) formData.username = inputs[0].value.trim()
-  if (inputs[1]?.value) formData.password = inputs[1].value
-  if (inputs[2]?.value && captchaEnabled.value && captchaType.value === 'image') {
-    formData.code = inputs[2].value.trim()
+  if (loginMode.value === 'account') {
+    if (inputs[0]?.value) formData.username = inputs[0].value.trim()
+    if (inputs[1]?.value) formData.password = inputs[1].value
+    if (inputs[2]?.value && captchaEnabled.value && captchaType.value === 'image') {
+      formData.code = inputs[2].value.trim()
+    }
+  } else if (loginMode.value === 'sms') {
+    const phoneInput = root.querySelector<HTMLInputElement>('input[placeholder="请输入绑定的手机号"]')
+    const codeInput = root.querySelector<HTMLInputElement>('input[placeholder="请输入验证码"]')
+    if (phoneInput?.value) formData.phone = phoneInput.value.trim()
+    if (codeInput?.value) formData.code = codeInput.value.trim()
+  }
+}
+
+async function handleSendSmsCode() {
+  if (!formRef.value || sendingSms.value || smsCountdown.value > 0) return
+  formData.phone = (formData.phone || '').trim()
+  try {
+    await formRef.value.validateField('phone')
+  } catch {
+    return
+  }
+  if (!smsEnabled.value) {
+    ElMessage.warning('短信功能未启用')
+    return
+  }
+  sendingSms.value = true
+  try {
+    await sendSmsCode(formData.phone)
+    ElMessage.success('验证码已发送至绑定手机号')
+    startSmsCountdown()
+  } catch (error) {
+    ElMessage.error(getErrorMessage(error) || '发送失败')
+  } finally {
+    sendingSms.value = false
   }
 }
 
@@ -292,7 +457,7 @@ async function handleLogin() {
     return
   }
 
-  if (captchaEnabled.value && captchaType.value === 'slider') {
+  if (loginMode.value === 'account' && captchaEnabled.value && captchaType.value === 'slider') {
     showSliderModal.value = true
     return
   }
@@ -302,15 +467,24 @@ async function handleLogin() {
 async function doLogin() {
   loading.value = true
   try {
-    const loginData: LoginForm = {
-      username: formData.username,
-      password: formData.password,
-      rememberMe: formData.rememberMe,
-    }
-    if (captchaEnabled.value) {
-      if (captchaType.value === 'slider') {
+    let loginData: LoginForm
+    if (loginMode.value === 'sms') {
+      loginData = {
+        loginType: 'sms',
+        phone: formData.phone.trim(),
+        code: formData.code.trim(),
+        rememberMe: formData.rememberMe,
+      }
+    } else {
+      loginData = {
+        loginType: 'account',
+        username: formData.username,
+        password: formData.password,
+        rememberMe: formData.rememberMe,
+      }
+      if (captchaEnabled.value && captchaType.value === 'slider') {
         loginData.code = 'slider_verified'
-      } else {
+      } else if (captchaEnabled.value && captchaType.value === 'image') {
         loginData.uuid = captchaUuid.value
         loginData.code = formData.code
       }
@@ -320,15 +494,15 @@ async function doLogin() {
       ElMessage.success('登录成功')
       setTimeout(() => router.push('/'), 500)
     } else {
+      // 非 200 但未被拦截器 reject 的罕见情况
       ElMessage.error(result.msg || result.message || '登录失败')
       refreshCaptchaAfterFail()
     }
   } catch (error) {
     console.error('登录失败', error)
+    // axios 拦截器已弹出业务错误，避免重复 toast
     const errorMessage = getErrorMessage(error)
-    if (errorMessage && !errorMessage.includes('status code')) {
-      ElMessage.error(errorMessage)
-    } else {
+    if (!errorMessage || errorMessage.includes('status code')) {
       ElMessage.error('登录失败，请检查网络连接')
     }
     refreshCaptchaAfterFail()
@@ -338,8 +512,11 @@ async function doLogin() {
 }
 
 function refreshCaptchaAfterFail() {
-  if (captchaEnabled.value && captchaType.value === 'image') {
+  if (loginMode.value === 'account' && captchaEnabled.value && captchaType.value === 'image') {
     loadCaptcha()
+    formData.code = ''
+  }
+  if (loginMode.value === 'sms') {
     formData.code = ''
   }
 }
@@ -350,12 +527,20 @@ function goRegister() {
 
 onMounted(async () => {
   await loadConfig()
-  if (captchaEnabled.value && captchaType.value === 'image') {
+  if (loginMode.value === 'account' && captchaEnabled.value && captchaType.value === 'image') {
     loadCaptcha()
   }
+  rebuildFormRules()
   await nextTick()
   syncAutofillFromDom()
   formRef.value?.clearValidate()
+})
+
+onUnmounted(() => {
+  if (smsTimer) {
+    clearInterval(smsTimer)
+    smsTimer = null
+  }
 })
 </script>
 
@@ -517,6 +702,45 @@ onMounted(async () => {
   text-shadow: 0 2px 12px rgba(0, 0, 0, 0.35);
 }
 
+.login-mode-switch {
+  display: flex;
+  gap: 8px;
+  padding: 4px;
+  margin-bottom: 24px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.22);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.login-mode-switch__item {
+  flex: 1;
+  height: 40px;
+  border: none;
+  border-radius: 9px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.login-mode-switch__item:hover:not(.login-mode-switch__item--active) {
+  background: rgba(255, 255, 255, 0.1) !important;
+  color: #fff !important;
+}
+
+.login-mode-switch__item--active {
+  background: rgba(255, 255, 255, 0.95);
+  color: #303133;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+}
+
+.login-mode-switch__item--active:hover {
+  background: rgba(255, 255, 255, 0.95) !important;
+  color: #303133 !important;
+}
+
 @keyframes loginBrandIn {
   from {
     opacity: 0;
@@ -668,6 +892,100 @@ onMounted(async () => {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
+/* 短信登录 */
+.sms-login-intro {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  margin-bottom: 20px;
+  border-radius: 10px;
+  background: rgba(64, 158, 255, 0.12);
+  border: 1px solid rgba(121, 187, 255, 0.28);
+  animation: fadeInUp 0.5s ease both;
+}
+
+.sms-login-intro__icon {
+  flex-shrink: 0;
+  font-size: 18px;
+  color: #79bbff;
+}
+
+.sms-login-intro__text {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.sms-login-intro__text strong {
+  color: #a0cfff;
+  font-weight: 600;
+}
+
+.sms-form-item {
+  animation: fadeInUp 0.5s ease both;
+}
+
+.sms-form-item:nth-of-type(2) {
+  animation-delay: 0.08s;
+}
+
+.sms-form-item:nth-of-type(3) {
+  animation-delay: 0.16s;
+}
+
+.sms-code-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  width: 100%;
+}
+
+.sms-code-field {
+  flex: 1;
+  min-width: 0;
+}
+
+.sms-send-btn {
+  flex-shrink: 0;
+  height: 48px !important;
+  min-width: 112px;
+  padding: 0 18px !important;
+  border: 1px solid rgba(255, 255, 255, 0.35) !important;
+  border-radius: 12px !important;
+  background: rgba(255, 255, 255, 0.95) !important;
+  color: #303133 !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2) !important;
+  outline: none !important;
+}
+
+.sms-send-btn:hover:not(:disabled),
+.sms-send-btn:focus:not(:disabled),
+.sms-send-btn:focus-visible:not(:disabled) {
+  background: #fff !important;
+  border-color: rgba(255, 255, 255, 0.55) !important;
+  color: #111827 !important;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.28) !important;
+  outline: none !important;
+}
+
+.sms-send-btn:disabled {
+  background: rgba(255, 255, 255, 0.55) !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+  color: rgba(48, 49, 51, 0.45) !important;
+  box-shadow: none !important;
+}
+
+.sms-disabled-tip {
+  margin: 0 0 12px;
+  font-size: 12px;
+  color: #f89898;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
 /* 进入页面前不展示校验红字，避免规则加载 / 自动填充时闪一下 */
 .form-container:not(.form-container--submitted) :deep(.el-form-item__error) {
   display: none !important;
@@ -677,12 +995,25 @@ onMounted(async () => {
   box-shadow: 0 0 0 1px var(--el-input-border-color, var(--el-border-color)) inset !important;
 }
 
-/* 验证码错误提示 */
+/* 校验错误：静态占位，避免被下一项遮挡 */
+.form-container :deep(.el-form-item) {
+  position: relative;
+  margin-bottom: 22px;
+}
+
 .form-container :deep(.el-form-item__error) {
-  color: #f56c6c !important;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+  position: static !important;
+  display: block;
+  padding-top: 6px;
+  line-height: 1.4;
+  color: #ff8a8a !important;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
   font-size: 12px !important;
-  margin-top: 4px !important;
+  margin-top: 0 !important;
+}
+
+.form-container :deep(.el-form-item__content) {
+  line-height: normal;
 }
 
 /* 登录选项 */
@@ -692,6 +1023,10 @@ onMounted(async () => {
   align-items: center;
   width: 100%;
   margin-bottom: 8px;
+}
+
+.login-options--register-only {
+  justify-content: flex-end;
 }
 
 /* 记住我复选框样式 */

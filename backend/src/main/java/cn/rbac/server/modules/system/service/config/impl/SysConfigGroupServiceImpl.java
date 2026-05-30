@@ -22,10 +22,16 @@ public class SysConfigGroupServiceImpl implements SysConfigGroupService {
             SystemConfigHelper.CAPTCHA_TYPE_IMAGE,
             SystemConfigHelper.CAPTCHA_TYPE_SLIDER);
 
+    private static final Set<String> REGISTER_CAPTCHA_TYPES = Set.of(
+            SystemConfigHelper.CAPTCHA_TYPE_IMAGE,
+            SystemConfigHelper.CAPTCHA_TYPE_SLIDER);
+
     @Resource
     private SysConfigGroupMapper configGroupMapper;
     @Resource
     private SysConfigCacheService sysConfigCacheService;
+    @Resource
+    private SystemConfigHelper systemConfigHelper;
 
     @Override
     public List<SysConfigGroupDO> listAll() {
@@ -75,6 +81,9 @@ public class SysConfigGroupServiceImpl implements SysConfigGroupService {
             case SystemConfigHelper.GROUP_REGISTER:
                 validateRegisterConfig(json);
                 break;
+            case SystemConfigHelper.GROUP_SMS:
+                validateSmsConfig(json);
+                break;
             default:
                 break;
         }
@@ -108,6 +117,19 @@ public class SysConfigGroupServiceImpl implements SysConfigGroupService {
         validateRate(json.getInt("captchaPerIpMinute", 40), "验证码接口");
         validateRate(json.getInt("loginPerIpMinute", 30), "登录接口");
         validateRate(json.getInt("registerPerIpMinute", 10), "注册接口");
+        validateRate(json.getInt("smsPerIpMinute", 5), "短信发送");
+        int interval = json.getInt("smsSendIntervalSeconds", 60);
+        if (interval < 30 || interval > 300) {
+            throw new IllegalArgumentException("短信发送间隔须在 30～300 秒之间");
+        }
+        validateDailyLimit(json.getInt("smsPerPhoneDaily", 10), "手机号每日短信");
+        validateDailyLimit(json.getInt("smsPerIpDaily", 30), "IP 每日短信");
+    }
+
+    private void validateDailyLimit(int n, String label) {
+        if (n < 0 || n > 500) {
+            throw new IllegalArgumentException(label + "上限须在 0～500 之间（0 表示不限制）");
+        }
     }
 
     private void validateRate(int n, String label) {
@@ -120,9 +142,16 @@ public class SysConfigGroupServiceImpl implements SysConfigGroupService {
         boolean captchaEnabled = json.getBool("captchaEnabled", true);
         if (captchaEnabled) {
             String type = json.getStr("captchaType", SystemConfigHelper.CAPTCHA_TYPE_IMAGE);
+            if (SystemConfigHelper.CAPTCHA_TYPE_SMS.equals(type)) {
+                throw new IllegalArgumentException("短信登录请使用「短信验证码登录」开关，验证码类型仅支持 image 或 slider");
+            }
             if (StrUtil.isBlank(type) || !LOGIN_CAPTCHA_TYPES.contains(type)) {
                 throw new IllegalArgumentException("验证码类型仅支持 image 或 slider");
             }
+        }
+        boolean smsLoginEnabled = json.getBool("smsLoginEnabled", false);
+        if (smsLoginEnabled && !systemConfigHelper.isSmsEnabled()) {
+            throw new IllegalArgumentException("启用短信验证码登录须先在短信配置中开启短信功能");
         }
         int maxRetry = json.getInt("maxRetryCount", 5);
         if (maxRetry < 1 || maxRetry > 20) {
@@ -138,7 +167,7 @@ public class SysConfigGroupServiceImpl implements SysConfigGroupService {
         boolean captchaEnabled = json.getBool("captchaEnabled", true);
         if (captchaEnabled) {
             String type = json.getStr("captchaType", SystemConfigHelper.CAPTCHA_TYPE_IMAGE);
-            if (StrUtil.isBlank(type) || !LOGIN_CAPTCHA_TYPES.contains(type)) {
+            if (StrUtil.isBlank(type) || !REGISTER_CAPTCHA_TYPES.contains(type)) {
                 throw new IllegalArgumentException("注册验证码类型仅支持 image 或 slider");
             }
         }
@@ -151,6 +180,17 @@ public class SysConfigGroupServiceImpl implements SysConfigGroupService {
         int minLen = json.getInt("minPasswordLength", 6);
         if (minLen < 6 || minLen > 32) {
             throw new IllegalArgumentException("密码最小长度须在 6～32 之间");
+        }
+    }
+
+    private void validateSmsConfig(JSONObject json) {
+        String provider = json.getStr("provider", "aliyunAuth");
+        if ("aliyun".equals(provider)) {
+            json.set("provider", "aliyunAuth");
+            provider = "aliyunAuth";
+        }
+        if (StrUtil.isBlank(provider) || (!"aliyunAuth".equals(provider) && !"tencent".equals(provider))) {
+            throw new IllegalArgumentException("短信服务商仅支持 aliyunAuth 或 tencent");
         }
     }
 }

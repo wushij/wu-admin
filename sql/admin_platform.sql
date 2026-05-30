@@ -1,21 +1,32 @@
--- =============================================
--- Admin Platform 统一数据库脚本（唯一入口）
--- 数据库名: wu-admin
+-- =============================================================================
+-- Admin Platform 数据库脚本（唯一入口）
+-- 数据库: wu-admin  |  字符集: utf8mb4_unicode_ci
+-- =============================================================================
 --
--- 【全新安装】执行本文件全文即可（建库、建表、初始数据）。
--- 【已有库升级】若表已存在，可只执行文末「附录：已有库升级」段（可重复执行）。
+-- 【使用方式】
+--   全新安装   执行全文（含 DROP TABLE，仅用于空库）
+--   已有库升级 仅执行文末「附录：已有库升级」（可重复执行，无 DROP）
 --
--- 已有库增量：add1.sql～add3.sql（业务/消息）、add4.sql（索引）、add5.sql（安全配置）、add6.sql（组织示例数据）、add7.sql（第三方/支付）、add8.sql（Google 配置）、add9.sql（组织树分级）、add10.sql（一级菜单排序）、add11.sql（定时任务）；
--- 或执行文末「附录：已有库升级」段（配置/菜单/消息表/组织数据等，可重复执行）。
--- =============================================
+-- 【正文结构】
+--   Part A  建表      §1 用户 ~ §16 系统配置（DROP 后 CREATE）
+--   Part B  初始数据  组织/用户/字典/配置/菜单/定时任务/角色权限
+--
+-- 【附录结构】（旧库补丁；可重复执行，尽量不覆盖业务侧自定义）
+--   配置与菜单 → 消息中心 → 数据修复与权限 → 组织迁移 → 定时任务
+--   → 字典 / 安全 / 短信 → 性能索引
+--   注意：普通用户菜单仅 INSERT IGNORE 补缺失；内置定时任务仅首次 INSERT，不覆盖已改 cron
+--   菜单 ON DUPLICATE 会按脚本更新 name/path 等，在线改过菜单字段的库请注意
+-- =============================================================================
 
--- 创建数据库
+-- 建库并切换
 CREATE DATABASE IF NOT EXISTS `wu-admin` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE `wu-admin`;
 
--- =============================================
--- 1. 用户表
--- =============================================
+-- =============================================================================
+-- Part A  建表（DROP + CREATE）
+-- =============================================================================
+
+-- §1 用户表
 DROP TABLE IF EXISTS sys_user;
 CREATE TABLE sys_user (
     id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '用户ID',
@@ -40,9 +51,7 @@ CREATE TABLE sys_user (
     INDEX idx_deleted_status (deleted, status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户表';
 
--- =============================================
--- 2. 角色表
--- =============================================
+-- §2 角色表
 DROP TABLE IF EXISTS sys_role;
 CREATE TABLE sys_role (
     id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '角色ID',
@@ -61,9 +70,7 @@ CREATE TABLE sys_role (
     UNIQUE KEY uk_code (code)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='角色表';
 
--- =============================================
--- 3. 菜单表
--- =============================================
+-- §3 菜单表
 DROP TABLE IF EXISTS sys_menu;
 CREATE TABLE sys_menu (
     id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '菜单ID',
@@ -84,9 +91,7 @@ CREATE TABLE sys_menu (
     INDEX idx_parent_id (parent_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='菜单表';
 
--- =============================================
--- 4. 部门表
--- =============================================
+-- §4 部门表
 DROP TABLE IF EXISTS sys_dept;
 CREATE TABLE sys_dept (
     id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '部门ID',
@@ -106,9 +111,7 @@ CREATE TABLE sys_dept (
     INDEX idx_parent_id (parent_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='部门表';
 
--- =============================================
--- 4.1 岗位表
--- =============================================
+-- §4.1 岗位表
 DROP TABLE IF EXISTS sys_user_post;
 DROP TABLE IF EXISTS sys_post;
 CREATE TABLE sys_post (
@@ -137,9 +140,7 @@ CREATE TABLE sys_user_post (
     UNIQUE KEY uk_user_post (user_id, post_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户岗位关联表';
 
--- =============================================
--- 5. 用户角色关联表
--- =============================================
+-- §5 用户角色关联
 DROP TABLE IF EXISTS sys_user_role;
 CREATE TABLE sys_user_role (
     id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
@@ -150,9 +151,7 @@ CREATE TABLE sys_user_role (
     UNIQUE KEY uk_user_role (user_id, role_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户角色关联表';
 
--- =============================================
--- 6. 角色菜单关联表
--- =============================================
+-- §6 角色菜单关联
 DROP TABLE IF EXISTS sys_role_menu;
 CREATE TABLE sys_role_menu (
     id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
@@ -163,9 +162,7 @@ CREATE TABLE sys_role_menu (
     UNIQUE KEY uk_role_menu (role_id, menu_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='角色菜单关联表';
 
--- =============================================
--- 7. 登录日志表
--- =============================================
+-- §7 登录日志
 DROP TABLE IF EXISTS sys_login_log;
 CREATE TABLE sys_login_log (
     id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
@@ -183,9 +180,7 @@ CREATE TABLE sys_login_log (
     INDEX idx_login_time (login_time)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='登录日志表';
 
--- =============================================
--- 7.0 字典类型 / 字典数据
--- =============================================
+-- §7.1 字典类型 / 字典数据
 DROP TABLE IF EXISTS sys_dict_data;
 DROP TABLE IF EXISTS sys_dict_type;
 CREATE TABLE sys_dict_type (
@@ -220,13 +215,12 @@ CREATE TABLE sys_dict_data (
     updater VARCHAR(64) DEFAULT '' COMMENT '更新者',
     deleted INT DEFAULT 0 COMMENT '删除标识',
     PRIMARY KEY (id),
+    UNIQUE KEY uk_dict_type_value (dict_type, dict_value),  -- 不含 deleted；软删后同 value 再建需应用层处理
     KEY idx_dict_type (dict_type),
     KEY idx_dict_type_status_deleted (dict_type, status, deleted, sort)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='字典数据表';
 
--- =============================================
--- 7.1 操作日志表
--- =============================================
+-- §7.2 操作日志
 DROP TABLE IF EXISTS sys_oper_log;
 CREATE TABLE sys_oper_log (
     id BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
@@ -250,9 +244,7 @@ CREATE TABLE sys_oper_log (
     INDEX idx_oper_time_status (oper_time, status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='操作日志表';
 
--- =============================================
--- 7b. 定时任务
--- =============================================
+-- §7.3 定时任务（sys_job / sys_job_log，Quartz 调度）
 DROP TABLE IF EXISTS sys_job_log;
 DROP TABLE IF EXISTS sys_job;
 CREATE TABLE sys_job (
@@ -289,9 +281,7 @@ CREATE TABLE sys_job_log (
     INDEX idx_status (status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='定时任务日志表';
 
--- =============================================
--- 8. 工单表
--- =============================================
+-- §8 工单
 DROP TABLE IF EXISTS sys_ticket;
 CREATE TABLE sys_ticket (
     id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
@@ -314,12 +304,11 @@ CREATE TABLE sys_ticket (
     INDEX idx_priority (priority),
     INDEX idx_creator_user_id (creator_user_id),
     INDEX idx_assignee_user_id (assignee_user_id),
-    INDEX idx_deleted_status_time (deleted, status, create_time)
+    INDEX idx_deleted_status_time (deleted, status, create_time),
+    INDEX idx_deleted_update_time (deleted, update_time)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='工单表';
 
--- =============================================
--- 9. 工单评论表
--- =============================================
+-- §9 工单评论
 DROP TABLE IF EXISTS sys_ticket_comment;
 CREATE TABLE sys_ticket_comment (
     id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
@@ -335,9 +324,7 @@ CREATE TABLE sys_ticket_comment (
     INDEX idx_user_id (user_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='工单评论表';
 
--- =============================================
--- 10. 工单附件表
--- =============================================
+-- §10 工单附件
 DROP TABLE IF EXISTS sys_ticket_attachment;
 CREATE TABLE sys_ticket_attachment (
     id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
@@ -355,9 +342,7 @@ CREATE TABLE sys_ticket_attachment (
     INDEX idx_uploader_user_id (uploader_user_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='工单附件表';
 
--- =============================================
--- 11. 站内消息表
--- =============================================
+-- §11 站内消息（业务收件箱 sys_notice，工单/审批触达）
 DROP TABLE IF EXISTS sys_notice;
 CREATE TABLE sys_notice (
     id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
@@ -372,15 +357,13 @@ CREATE TABLE sys_notice (
     creator VARCHAR(64) DEFAULT '' COMMENT '创建者',
     updater VARCHAR(64) DEFAULT '' COMMENT '更新者',
     deleted TINYINT DEFAULT 0 COMMENT '是否删除',
-    INDEX idx_user_read_status (user_id, read_status),
     INDEX idx_user_read_deleted (user_id, read_status, deleted),
+    INDEX idx_read_create_time (read_status, create_time),
     INDEX idx_biz (biz_type, biz_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='站内消息表';
 
--- =============================================
--- 11b. 消息中心（系统通知 + 即时聊天）
--- 保留 sys_notice 为业务收件箱；sys_announce 为管理员发布的广播通知
--- =============================================
+-- §11b 消息中心（广播通知 sys_announce + 即时聊天私聊/群聊）
+--      sys_notice 保留为业务收件箱；sys_announce 为管理员发布的广播通知
 DROP TABLE IF EXISTS sys_chat_group_log;
 DROP TABLE IF EXISTS sys_chat_group_message;
 DROP TABLE IF EXISTS sys_chat_group_member;
@@ -446,7 +429,8 @@ CREATE TABLE sys_chat_message (
     INDEX idx_sender (sender_id),
     INDEX idx_receiver (receiver_id),
     INDEX idx_receiver_unread (receiver_id, is_read, sender_id),
-    INDEX idx_pair_time (sender_id, receiver_id, send_time)
+    INDEX idx_pair_time (sender_id, receiver_id, send_time),
+    INDEX idx_send_time (send_time)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='私聊消息';
 
 CREATE TABLE sys_user_blacklist (
@@ -491,7 +475,8 @@ CREATE TABLE sys_chat_group_message (
     content TEXT NOT NULL,
     msg_type TINYINT DEFAULT 1,
     send_time DATETIME DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_group_time (group_id, send_time)
+    INDEX idx_group_time (group_id, send_time),
+    INDEX idx_send_time (send_time)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='群消息';
 
 CREATE TABLE sys_chat_group_log (
@@ -507,9 +492,7 @@ CREATE TABLE sys_chat_group_log (
     INDEX idx_group_time (group_id, create_time)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='群聊操作日志';
 
--- =============================================
--- 12. 审批单表
--- =============================================
+-- §12 审批单
 DROP TABLE IF EXISTS sys_approval_form;
 CREATE TABLE sys_approval_form (
     id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
@@ -533,9 +516,7 @@ CREATE TABLE sys_approval_form (
     INDEX idx_type_applicant_status (form_type, applicant_user_id, status, deleted)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='审批单表';
 
--- =============================================
--- 13. 审批记录表
--- =============================================
+-- §13 审批记录
 DROP TABLE IF EXISTS sys_approval_record;
 CREATE TABLE sys_approval_record (
     id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
@@ -552,9 +533,7 @@ CREATE TABLE sys_approval_record (
     INDEX idx_operator_user_id (operator_user_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='审批记录表';
 
--- =============================================
--- 14. API 访问统计日志表
--- =============================================
+-- §14 API 访问统计日志
 DROP TABLE IF EXISTS sys_api_access_log;
 CREATE TABLE sys_api_access_log (
     id BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
@@ -574,9 +553,7 @@ CREATE TABLE sys_api_access_log (
     INDEX idx_user_id (user_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='API访问统计日志';
 
--- =============================================
--- 15. 文件管理
--- =============================================
+-- §15 文件管理（sys_file / sys_file_group）
 DROP TABLE IF EXISTS sys_file;
 CREATE TABLE sys_file (
     id BIGINT NOT NULL AUTO_INCREMENT COMMENT '文件ID',
@@ -610,9 +587,31 @@ CREATE TABLE sys_file_group (
     PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='文件分组表';
 
--- =============================================
--- 系统配置分组表
--- =============================================
+-- §15b 短信发送记录（sys_sms_log）
+DROP TABLE IF EXISTS sys_sms_log;
+CREATE TABLE sys_sms_log (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
+    phone VARCHAR(20) NOT NULL COMMENT '手机号',
+    content VARCHAR(500) DEFAULT NULL COMMENT '短信内容/验证码',
+    sms_type VARCHAR(20) DEFAULT 'verify_code' COMMENT 'verify_code / notice / marketing',
+    template_id VARCHAR(50) DEFAULT NULL COMMENT '模板ID',
+    template_params VARCHAR(500) DEFAULT NULL COMMENT '模板参数 JSON',
+    provider VARCHAR(20) DEFAULT NULL COMMENT 'aliyun / tencent / console',
+    status TINYINT DEFAULT 0 COMMENT '0-发送中 1-成功 2-失败',
+    result_msg VARCHAR(500) DEFAULT NULL COMMENT '结果信息',
+    biz_id VARCHAR(100) DEFAULT NULL COMMENT '服务商消息ID',
+    send_time DATETIME DEFAULT NULL COMMENT '发送时间',
+    user_id BIGINT DEFAULT NULL COMMENT '用户ID',
+    biz_type VARCHAR(30) DEFAULT NULL COMMENT '业务类型',
+    ip VARCHAR(50) DEFAULT NULL COMMENT 'IP地址',
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    INDEX idx_phone_create_time (phone, create_time),
+    INDEX idx_create_time (create_time),
+    INDEX idx_send_time (send_time),
+    INDEX idx_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='短信发送记录表';
+
+-- §16 系统配置分组（sys_config_group，JSON 按 group_code 存储）
 DROP TABLE IF EXISTS sys_config_group;
 CREATE TABLE sys_config_group (
     id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键',
@@ -628,11 +627,11 @@ CREATE TABLE sys_config_group (
     UNIQUE KEY uk_group_code (group_code)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='系统配置分组';
 
--- =============================================
--- 初始化数据
--- =============================================
+-- =============================================================================
+-- Part B  初始化数据
+-- =============================================================================
 
--- 初始化部门（id=1 为本部虚拟根，界面隐藏；二级为各中心）
+-- 部门（id=1 为本部虚拟根，界面隐藏；二级为各中心）
 INSERT INTO sys_dept (id, name, parent_id, ancestors, sort, status, leader_name) VALUES
 (1, '本部', 0, '0', 0, 1, '管理员'),
 (2, '技术中心', 1, '0,1', 1, 1, NULL),
@@ -650,6 +649,7 @@ INSERT INTO sys_dept (id, name, parent_id, ancestors, sort, status, leader_name)
 (14, '前端组', 6, '0,1,2,6', 1, 1, NULL),
 (15, '后端组', 6, '0,1,2,6', 2, 1, NULL);
 
+-- 岗位（树形层级）
 INSERT INTO sys_post (id, parent_id, post_code, post_name, sort, status, remark) VALUES
 (1, 0, 'chairman', '董事长', 0, 1, '岗位体系根'),
 (2, 1, 'ceo', '总经理', 1, 1, ''),
@@ -674,17 +674,17 @@ INSERT INTO sys_post (id, parent_id, post_code, post_name, sort, status, remark)
 ALTER TABLE sys_dept AUTO_INCREMENT = 16;
 ALTER TABLE sys_post AUTO_INCREMENT = 20;
 
--- 初始化用户 (密码为 admin123，BCrypt加密)
+-- 用户（默认密码 admin123，BCrypt 加密）
 INSERT INTO sys_user (id, username, password, nickname, mobile, email, status, dept_id) VALUES
 (1, 'admin', '$2a$10$7JB720yubVSZvUI0rEqK/.VqGOZTH.ulu33dHOiBE8ByOhJIrdAu2', '管理员', '13800138000', 'admin@admin.cn', 1, 1),
 (2, 'zhangsan', '$2a$10$7JB720yubVSZvUI0rEqK/.VqGOZTH.ulu33dHOiBE8ByOhJIrdAu2', '张三', '13800138001', 'zhangsan@admin.cn', 1, 6);
 
--- 初始化角色
+-- 角色
 INSERT INTO sys_role (id, name, code, sort, status, remark) VALUES
 (1, '超级管理员', 'super_admin', 1, 1, '超级管理员，拥有所有权限'),
 (2, '普通用户', 'user', 2, 1, '仅部分功能');
 
--- 初始化字典
+-- 字典（含工单/审批业务字典 type 4～7）
 INSERT INTO sys_dict_type (id, dict_name, dict_type, status, remark) VALUES
 (1, '系统状态', 'sys_normal_disable', 1, '通用启用停用'),
 (2, '用户性别', 'sys_user_sex', 1, '用户性别'),
@@ -722,18 +722,20 @@ INSERT INTO sys_dict_data (dict_type, sort, dict_label, dict_value, list_class, 
 ('sys_approval_status', 3, '已驳回', 'REJECTED', 'danger', 0, 1),
 ('sys_approval_status', 4, '已归档', 'ARCHIVED', 'info', 0, 1);
 
+-- 系统配置（10 分组：site / session / file / rateLimit / login / register / thirdParty / payment / sms / security）
 INSERT INTO sys_config_group (group_code, group_name, config_value, remark) VALUES
 ('site', '基础信息', '{"platformName":"Admin Platform","platformSubtitle":"统一运维 · 高效管控","loginWelcome":"Welcome","registerTitle":"Sign Up","copyright":""}', '平台展示名称与登录页文案'),
 ('session', '会话配置', '{"tokenExpireHours":24}', 'JWT 与 Redis 会话有效期（小时）'),
 ('file', '文件配置', '{"maxSizeMb":50,"allowedExtensions":"jpg,jpeg,png,gif,webp,bmp,svg,pdf,doc,docx,xls,xlsx,ppt,pptx,txt,md,json,xml,zip,rar,mp4,mp3,wav,avi,mov"}', '文件管理上传限制'),
-('rateLimit', '接口限流', '{"captchaPerIpMinute":40,"loginPerIpMinute":30,"registerPerIpMinute":10}', '认证接口按 IP 限流'),
-('login', '登录配置', '{"captchaEnabled":true,"captchaType":"image","rememberMe":true,"maxRetryCount":5,"lockTime":10}', '验证码类型 image=图片 slider=滑块'),
+('rateLimit', '接口限流', '{"captchaPerIpMinute":40,"loginPerIpMinute":30,"registerPerIpMinute":10,"smsPerIpMinute":5,"smsSendIntervalSeconds":60,"smsPerPhoneDaily":10,"smsPerIpDaily":30}', '认证接口按 IP 限流；含短信防刷'),
+('login', '登录配置', '{"captchaEnabled":true,"captchaType":"image","smsLoginEnabled":false,"rememberMe":true,"maxRetryCount":5,"lockTime":10}', '验证码 image/slider；smsLoginEnabled 短信登录'),
 ('register', '注册配置', '{"enabled":true,"captchaEnabled":true,"captchaType":"image","defaultRoleCode":"user","needAudit":false,"minPasswordLength":6}', '开放注册、验证码类型、默认角色、是否审核'),
 ('thirdParty', '第三方配置', '{"wechat":{"enabled":false,"appId":"","appSecret":""},"alipay":{"enabled":false,"appId":"","privateKey":"","publicKey":""},"github":{"enabled":false,"clientId":"","clientSecret":""},"google":{"enabled":false,"clientId":"","clientSecret":"","redirectUri":""}}', '微信/支付宝/GitHub/Google 第三方登录'),
 ('payment', '支付配置', '{"wechatPay":{"enabled":false,"mchId":"","appId":"","apiV3Key":"","privateKey":"","certSerialNo":"","notifyUrl":""},"alipay":{"enabled":false,"appId":"","privateKey":"","publicKey":"","signType":"RSA2","gatewayUrl":"https://openapi.alipay.com/gateway.do","notifyUrl":"","returnUrl":""}}', '微信/支付宝支付与测试下单'),
+('sms', '短信配置', '{"enabled":false,"provider":"aliyunAuth","accessKeyId":"","accessKeySecret":"","signName":"","tencentAppId":"","templateVerifyCode":"100001","templateModifyPhone":"100002","templateResetPassword":"100003","templateBindPhone":"100004","templateVerifyBindPhone":"100005","schemeName":"","codeExpireMinutes":5}', '阿里云短信认证/腾讯云'),
 ('security', '安全配置', '{"disableDevtool":false,"isConcurrent":false}', '前端安全与会话：禁止调试、禁止多端同时在线');
 
--- 初始化菜单
+-- 菜单与按钮（一级目录 sort：系统管理 1 / 业务 2 / 监控 3 / 日志 4 / 文件 5 / 消息 6 / 工具 7）
 INSERT INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, component, status) VALUES
 -- 系统管理目录
 (1, '系统管理', '', 1, 1, 0, '/system', 'Setting', '', 1),
@@ -846,7 +848,7 @@ INSERT INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, c
 (177, '通知发布', 'system:announce:publish', 3, 5, 171, '', '', '', 1),
 (178, '聊天查询', 'system:chat:query', 3, 1, 172, '', '', '', 1);
 
--- 初始化定时任务（默认暂停，可在「系统监控-定时任务」启用）
+-- 内置定时任务（默认暂停 status=0，在「系统监控 → 定时任务」启用）
 INSERT INTO sys_job (id, job_name, job_group, invoke_target, cron_expression, misfire_policy, concurrent, status, remark) VALUES
 (1, '过期日志归档清理', 'SYSTEM', 'systemJobTask.purgeExpiredLogs', '0 30 2 * * ?', 3, 1, 0, '清理超保留期的操作/登录/API访问日志'),
 (2, '私聊消息清理', 'SYSTEM', 'systemJobTask.purgeOldChatMessages', '0 0 3 * * ?', 3, 1, 0, '清理超过 180 天的私聊记录'),
@@ -855,12 +857,12 @@ INSERT INTO sys_job (id, job_name, job_group, invoke_target, cron_expression, mi
 (5, '已读通知清理', 'SYSTEM', 'systemJobTask.purgeReadNotices', '0 15 3 * * ?', 3, 1, 0, '清理已读且超过 90 天的站内通知'),
 (6, '工单回收站清理', 'SYSTEM', 'systemJobTask.purgeTicketRecycleBin', '0 30 3 * * ?', 3, 1, 0, '彻底删除回收站中超过 30 天的工单');
 
--- 初始化用户角色关联
+-- 用户 ↔ 角色
 INSERT INTO sys_user_role (user_id, role_id) VALUES
 (1, 1), -- admin 拥有超级管理员角色
 (2, 2); -- zhangsan 拥有普通用户角色
 
--- 初始化角色菜单关联 (超级管理员拥有所有菜单权限)
+-- 超级管理员 ↔ 全部菜单
 INSERT INTO sys_role_menu (role_id, menu_id) VALUES
 (1, 1), (1, 2), (1, 3), (1, 4), (1, 5), (1, 130), (1, 160), (1, 7), (1, 8), (1, 9),
 (1, 6), (1, 120), (1, 121), (1, 126), (1, 127), (1, 128),
@@ -889,11 +891,13 @@ INSERT INTO sys_role_menu (role_id, menu_id) VALUES
 (2, 151),
 (2, 170), (2, 172), (2, 178);
 
--- =============================================
--- 附录：已有库升级（可重复执行，全新安装执行亦无害）
--- 仅执行本段即可，无需其它 sql 文件
--- =============================================
+-- =============================================================================
+-- 附录：已有库升级
+-- 可重复执行，无 DROP。尽量不覆盖：自定义角色菜单、已改动的内置定时任务 cron 等。
+-- 单独升级旧库时，从本节起执行至文件末尾即可。
+-- =============================================================================
 
+-- [附录·基础] 极旧库可能无配置分组表
 CREATE TABLE IF NOT EXISTS sys_config_group (
     id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键',
     group_code VARCHAR(50) NOT NULL COMMENT '分组编码',
@@ -908,20 +912,39 @@ CREATE TABLE IF NOT EXISTS sys_config_group (
     UNIQUE KEY uk_group_code (group_code)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='系统配置分组';
 
-INSERT INTO sys_config_group (group_code, group_name, config_value, remark) VALUES
-('site', '基础信息', '{"platformName":"Admin Platform","platformSubtitle":"统一运维 · 高效管控","loginWelcome":"Welcome","registerTitle":"Sign Up","copyright":""}', '平台展示名称与登录页文案'),
-('session', '会话配置', '{"tokenExpireHours":24}', 'JWT 与 Redis 会话有效期（小时）'),
-('file', '文件配置', '{"maxSizeMb":50,"allowedExtensions":"jpg,jpeg,png,gif,webp,bmp,svg,pdf,doc,docx,xls,xlsx,ppt,pptx,txt,md,json,xml,zip,rar,mp4,mp3,wav,avi,mov"}', '文件管理上传限制'),
-('rateLimit', '接口限流', '{"captchaPerIpMinute":40,"loginPerIpMinute":30,"registerPerIpMinute":10}', '认证接口按 IP 限流'),
-('login', '登录配置', '{"captchaEnabled":true,"captchaType":"image","rememberMe":true,"maxRetryCount":5,"lockTime":10}', '验证码类型 image=图片 slider=滑块'),
-('register', '注册配置', '{"enabled":true,"captchaEnabled":true,"captchaType":"image","defaultRoleCode":"user","needAudit":false,"minPasswordLength":6}', '开放注册、验证码类型、默认角色、是否审核'),
-('security', '安全配置', '{"disableDevtool":false,"isConcurrent":false}', '前端安全与会话：禁止调试、禁止多端同时在线')
-ON DUPLICATE KEY UPDATE
-    group_name = VALUES(group_name),
-    config_value = VALUES(config_value),
-    remark = VALUES(remark);
+-- [附录·配置] 注册/登录 captchaType 补全（缺省 image）
+UPDATE sys_config_group
+SET config_value = JSON_SET(
+        COALESCE(config_value, '{}'),
+        '$.captchaType',
+        COALESCE(
+                NULLIF(JSON_UNQUOTE(JSON_EXTRACT(config_value, '$.captchaType')), ''),
+                'image'
+        )
+    ),
+    remark = '开放注册、验证码类型、默认角色、是否审核'
+WHERE group_code = 'register'
+  AND (
+    JSON_EXTRACT(config_value, '$.captchaType') IS NULL
+        OR JSON_UNQUOTE(JSON_EXTRACT(config_value, '$.captchaType')) = ''
+    );
 
--- 第三方配置 + 支付配置（已有库可单独执行 sql/add7.sql，与下文一致）
+UPDATE sys_config_group
+SET config_value = JSON_SET(
+        COALESCE(config_value, '{}'),
+        '$.captchaType',
+        COALESCE(
+                NULLIF(JSON_UNQUOTE(JSON_EXTRACT(config_value, '$.captchaType')), ''),
+                'image'
+        )
+    )
+WHERE group_code = 'login'
+  AND (
+    JSON_EXTRACT(config_value, '$.captchaType') IS NULL
+        OR JSON_UNQUOTE(JSON_EXTRACT(config_value, '$.captchaType')) = ''
+    );
+
+-- [附录·配置] 第三方 + 支付分组（ON DUPLICATE 不覆盖已有 config_value）
 INSERT INTO sys_config_group (group_code, group_name, config_value, remark) VALUES
 ('thirdParty', '第三方配置',
  '{"wechat":{"enabled":false,"appId":"","appSecret":""},"alipay":{"enabled":false,"appId":"","privateKey":"","publicKey":""},"github":{"enabled":false,"clientId":"","clientSecret":""},"google":{"enabled":false,"clientId":"","clientSecret":"","redirectUri":""}}',
@@ -933,6 +956,17 @@ ON DUPLICATE KEY UPDATE
     group_name = VALUES(group_name),
     remark = VALUES(remark);
 
+-- [附录·配置] thirdParty 补 Google 登录字段
+UPDATE sys_config_group
+SET config_value = JSON_SET(
+        config_value,
+        '$.google',
+        JSON_OBJECT('enabled', false, 'clientId', '', 'clientSecret', '', 'redirectUri', '')
+    )
+WHERE group_code = 'thirdParty'
+  AND (JSON_EXTRACT(config_value, '$.google') IS NULL);
+
+-- [附录·菜单] 系统配置页 160-162
 INSERT INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, component, status) VALUES
 (160, '系统配置', 'system:config:list', 2, 6, 1, '/system/config', 'Tools', 'system/config/index', 1),
 (161, '配置查询', 'system:config:query', 3, 1, 160, '', '', '', 1),
@@ -951,11 +985,11 @@ ON DUPLICATE KEY UPDATE
 INSERT IGNORE INTO sys_role_menu (role_id, menu_id) VALUES
 (1, 160), (1, 161), (1, 162);
 
--- 菜单图标
+-- [附录·菜单] 图标修正
 UPDATE sys_menu SET icon = 'UserFilled' WHERE id = 3 AND icon IN ('Key', 'key');
 UPDATE sys_menu SET icon = 'Document' WHERE id = 151 AND icon IS NOT NULL AND icon <> 'Document';
 
--- 操作日志「查询」按钮（旧库可能缺失）
+-- [附录·菜单] 操作日志「查询」按钮 126
 INSERT INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, component, status) VALUES
 (126, '操作日志查询', 'system:operLog:query', 3, 1, 121, '', '', '', 1)
 ON DUPLICATE KEY UPDATE
@@ -968,8 +1002,7 @@ ON DUPLICATE KEY UPDATE
 
 INSERT IGNORE INTO sys_role_menu (role_id, menu_id) VALUES (1, 126);
 
--- 消息中心（已有库升级请执行 sql/add2.sql、sql/add3.sql，勿重复执行全量脚本）
--- 以下段落与 message_center.sql 内容一致，供全量安装时一并创建
+-- [附录·消息] 表与菜单补建（正文 §11b 已全量建表）
 CREATE TABLE IF NOT EXISTS sys_announce (
     id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键',
     title VARCHAR(200) NOT NULL COMMENT '标题',
@@ -1025,7 +1058,8 @@ CREATE TABLE IF NOT EXISTS sys_chat_message (
     INDEX idx_sender (sender_id),
     INDEX idx_receiver (receiver_id),
     INDEX idx_receiver_unread (receiver_id, is_read, sender_id),
-    INDEX idx_pair_time (sender_id, receiver_id, send_time)
+    INDEX idx_pair_time (sender_id, receiver_id, send_time),
+    INDEX idx_send_time (send_time)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='私聊消息';
 
 CREATE TABLE IF NOT EXISTS sys_user_blacklist (
@@ -1070,7 +1104,8 @@ CREATE TABLE IF NOT EXISTS sys_chat_group_message (
     content TEXT NOT NULL,
     msg_type TINYINT DEFAULT 1,
     send_time DATETIME DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_group_time (group_id, send_time)
+    INDEX idx_group_time (group_id, send_time),
+    INDEX idx_send_time (send_time)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='群消息';
 
 CREATE TABLE IF NOT EXISTS sys_chat_group_log (
@@ -1105,18 +1140,17 @@ INSERT IGNORE INTO sys_role_menu (role_id, menu_id) VALUES
 (1, 170), (1, 171), (1, 172), (1, 173), (1, 174), (1, 175), (1, 176), (1, 177), (1, 178),
 (2, 170), (2, 172), (2, 178);
 
--- 操作日志操作人员：历史误存 userId 时回填为 username
+-- [附录·修复] 操作日志 oper_name 误存 userId → 回填 username
 UPDATE sys_oper_log o
 INNER JOIN sys_user u ON u.id = CAST(o.oper_name AS UNSIGNED) AND u.deleted = 0
 SET o.oper_name = u.username
 WHERE o.oper_name REGEXP '^[0-9]+$';
 
--- 普通用户默认菜单与备注（执行后请普通用户重新登录）
-UPDATE sys_role SET remark = '仅部分功能' WHERE id = 2;
+-- [附录·权限] 普通用户：仅补缺失默认菜单（不 DELETE，保留 role_id=2 已自定义权限）
+UPDATE sys_role SET remark = '仅部分功能'
+WHERE id = 2 AND (remark IS NULL OR remark = '' OR remark = '普通用户');
 
-DELETE FROM sys_role_menu WHERE role_id = 2;
-
-INSERT INTO sys_role_menu (role_id, menu_id) VALUES
+INSERT IGNORE INTO sys_role_menu (role_id, menu_id) VALUES
 (2, 2), (2, 10), (2, 3), (2, 20), (2, 4), (2, 30), (2, 5), (2, 40),
 (2, 130), (2, 131), (2, 160), (2, 161),
 (2, 8), (2, 7), (2, 60), (2, 61), (2, 62), (2, 63), (2, 64),
@@ -1127,7 +1161,7 @@ INSERT INTO sys_role_menu (role_id, menu_id) VALUES
 (2, 151),
 (2, 170), (2, 172), (2, 178);
 
--- 可选：为历史「待审核」用户补建注册审批单（无则跳过；审批人只查一次）
+-- [附录·修复] 待审核用户（status=2）补建 REGISTER 审批单
 SET @register_approver_id := (
     SELECT ur.user_id
     FROM sys_user_role ur
@@ -1141,7 +1175,13 @@ SELECT
     CONCAT('RG', UNIX_TIMESTAMP(), LPAD(u.id, 4, '0')),
     'REGISTER',
     CONCAT('用户注册审核 - ', u.username),
-    CONCAT('{"bizType":"USER_REGISTER","userId":', u.id, ',"username":"', u.username, '","nickname":"', IFNULL(u.nickname, ''), '","mobile":"', IFNULL(u.mobile, ''), '"}'),
+    JSON_OBJECT(
+        'bizType', 'USER_REGISTER',
+        'userId', u.id,
+        'username', u.username,
+        'nickname', IFNULL(u.nickname, ''),
+        'mobile', IFNULL(u.mobile, '')
+    ),
     'SUBMITTED',
     u.id,
     @register_approver_id,
@@ -1159,17 +1199,503 @@ WHERE u.deleted = 0
       AND f.status = 'SUBMITTED'
   );
 
--- 通用状态字典文案与业务页一致（启用/禁用）
+-- [附录·字典] 通用状态文案统一（启用/禁用）
 UPDATE sys_dict_data SET dict_label = '启用' WHERE dict_type = 'sys_normal_disable' AND dict_value = '1';
 UPDATE sys_dict_data SET dict_label = '禁用' WHERE dict_type = 'sys_normal_disable' AND dict_value = '0';
 
--- ---------- 组织示例/分级（已有库：sql/add6.sql 补数据，sql/add9.sql 扁平树改分级） ----------
--- 详见 add6.sql、add9.sql，此处不重复冗长 INSERT
+-- [附录·组织] 扁平部门树 → 中心分级（正文 Part B 已是分级结果，旧库才需执行）
+UPDATE sys_dept SET name = '本部' WHERE id = 1 AND name = '总公司' AND deleted = 0;
 
--- 已有 security 分组但缺少 isConcurrent 时补默认 false（与 add5.sql 一致）
+INSERT INTO sys_dept (name, parent_id, ancestors, sort, status, leader_name)
+SELECT '技术中心', 1, '0,1', 1, 1, NULL FROM DUAL
+WHERE EXISTS (SELECT 1 FROM sys_dept WHERE id = 1 AND deleted = 0)
+  AND NOT EXISTS (SELECT 1 FROM sys_dept WHERE name = '技术中心' AND parent_id = 1 AND deleted = 0);
+
+INSERT INTO sys_dept (name, parent_id, ancestors, sort, status, leader_name)
+SELECT '业务中心', 1, '0,1', 2, 1, NULL FROM DUAL
+WHERE EXISTS (SELECT 1 FROM sys_dept WHERE id = 1 AND deleted = 0)
+  AND NOT EXISTS (SELECT 1 FROM sys_dept WHERE name = '业务中心' AND parent_id = 1 AND deleted = 0);
+
+INSERT INTO sys_dept (name, parent_id, ancestors, sort, status, leader_name)
+SELECT '职能中心', 1, '0,1', 3, 1, NULL FROM DUAL
+WHERE EXISTS (SELECT 1 FROM sys_dept WHERE id = 1 AND deleted = 0)
+  AND NOT EXISTS (SELECT 1 FROM sys_dept WHERE name = '职能中心' AND parent_id = 1 AND deleted = 0);
+
+INSERT INTO sys_dept (name, parent_id, ancestors, sort, status, leader_name)
+SELECT '运营中心', 1, '0,1', 4, 1, NULL FROM DUAL
+WHERE EXISTS (SELECT 1 FROM sys_dept WHERE id = 1 AND deleted = 0)
+  AND NOT EXISTS (SELECT 1 FROM sys_dept WHERE name = '运营中心' AND parent_id = 1 AND deleted = 0);
+
+UPDATE sys_dept d
+INNER JOIN sys_dept c ON c.name = '技术中心' AND c.parent_id = 1 AND c.deleted = 0
+SET d.parent_id = c.id, d.ancestors = CONCAT(c.ancestors, ',', c.id)
+WHERE d.name IN ('研发部', '运维部', '产品部') AND d.deleted = 0 AND d.parent_id = 1;
+
+UPDATE sys_dept d
+INNER JOIN sys_dept c ON c.name = '业务中心' AND c.parent_id = 1 AND c.deleted = 0
+SET d.parent_id = c.id, d.ancestors = CONCAT(c.ancestors, ',', c.id)
+WHERE d.name = '市场部' AND d.deleted = 0 AND d.parent_id = 1;
+
+UPDATE sys_dept d
+INNER JOIN sys_dept c ON c.name = '职能中心' AND c.parent_id = 1 AND c.deleted = 0
+SET d.parent_id = c.id, d.ancestors = CONCAT(c.ancestors, ',', c.id)
+WHERE d.name IN ('财务部', '人事部') AND d.deleted = 0 AND d.parent_id = 1;
+
+UPDATE sys_dept d
+INNER JOIN sys_dept c ON c.name = '运营中心' AND c.parent_id = 1 AND c.deleted = 0
+SET d.parent_id = c.id, d.ancestors = CONCAT(c.ancestors, ',', c.id)
+WHERE d.name IN ('实训部', '客服部') AND d.deleted = 0 AND d.parent_id = 1;
+
+UPDATE sys_dept g
+INNER JOIN sys_dept rd ON rd.name = '研发部' AND rd.deleted = 0
+SET g.parent_id = rd.id, g.ancestors = CONCAT(rd.ancestors, ',', rd.id)
+WHERE g.name IN ('前端组', '后端组') AND g.deleted = 0
+  AND (g.parent_id <> rd.id OR g.ancestors NOT LIKE CONCAT(rd.ancestors, ',', rd.id, '%'));
+
+INSERT INTO sys_post (parent_id, post_code, post_name, sort, status, remark)
+SELECT 0, 'chairman', '董事长', 0, 1, '岗位体系根' FROM DUAL
+WHERE NOT EXISTS (SELECT 1 FROM sys_post WHERE post_code = 'chairman' AND deleted = 0);
+
+UPDATE sys_post ceo
+INNER JOIN sys_post ch ON ch.post_code = 'chairman' AND ch.deleted = 0
+SET ceo.parent_id = ch.id, ceo.sort = 1
+WHERE ceo.post_code = 'ceo' AND ceo.deleted = 0 AND ceo.parent_id = 0;
+
+INSERT INTO sys_post (parent_id, post_code, post_name, sort, status, remark)
+SELECT p.id, 'cto', '技术总监', 1, 1, ''
+FROM sys_post p
+WHERE p.post_code = 'ceo' AND p.deleted = 0
+  AND NOT EXISTS (SELECT 1 FROM sys_post WHERE post_code = 'cto' AND deleted = 0)
+LIMIT 1;
+
+INSERT INTO sys_post (parent_id, post_code, post_name, sort, status, remark)
+SELECT p.id, 'dev_exec', '开发工程师', 2, 1, ''
+FROM sys_post p
+WHERE p.post_code = 'ceo' AND p.deleted = 0
+  AND NOT EXISTS (SELECT 1 FROM sys_post WHERE post_code = 'dev_exec' AND deleted = 0)
+LIMIT 1;
+
+INSERT INTO sys_post (parent_id, post_code, post_name, sort, status, remark)
+SELECT p.id, 'biz_line', '业务体系', 3, 1, '岗位分类' FROM sys_post p
+WHERE p.post_code = 'ceo' AND p.deleted = 0
+  AND NOT EXISTS (SELECT 1 FROM sys_post WHERE post_code = 'biz_line' AND deleted = 0)
+LIMIT 1;
+
+INSERT INTO sys_post (parent_id, post_code, post_name, sort, status, remark)
+SELECT p.id, 'func_line', '职能体系', 4, 1, '岗位分类' FROM sys_post p
+WHERE p.post_code = 'ceo' AND p.deleted = 0
+  AND NOT EXISTS (SELECT 1 FROM sys_post WHERE post_code = 'func_line' AND deleted = 0)
+LIMIT 1;
+
+INSERT INTO sys_post (parent_id, post_code, post_name, sort, status, remark)
+SELECT p.id, 'ops_line', '运营体系', 5, 1, '岗位分类' FROM sys_post p
+WHERE p.post_code = 'ceo' AND p.deleted = 0
+  AND NOT EXISTS (SELECT 1 FROM sys_post WHERE post_code = 'ops_line' AND deleted = 0)
+LIMIT 1;
+
+UPDATE sys_post x
+INNER JOIN sys_post cto ON cto.post_code = 'cto' AND cto.deleted = 0
+SET x.parent_id = cto.id
+WHERE x.post_code IN ('dev', 'qa', 'product_mgr', 'ops_eng') AND x.deleted = 0 AND x.parent_id = 0;
+
+UPDATE sys_post x
+INNER JOIN sys_post bl ON bl.post_code = 'biz_line' AND bl.deleted = 0
+SET x.parent_id = bl.id
+WHERE x.post_code = 'market_spec' AND x.deleted = 0 AND x.parent_id = 0;
+
+UPDATE sys_post x
+INNER JOIN sys_post fl ON fl.post_code = 'func_line' AND fl.deleted = 0
+SET x.parent_id = fl.id
+WHERE x.post_code IN ('finance_mgr', 'hr_spec') AND x.deleted = 0 AND x.parent_id = 0;
+
+UPDATE sys_post x
+INNER JOIN sys_post ol ON ol.post_code = 'ops_line' AND ol.deleted = 0
+SET x.parent_id = ol.id
+WHERE x.post_code = 'train_lecturer' AND x.deleted = 0 AND x.parent_id = 0;
+
+UPDATE sys_post x
+INNER JOIN sys_post dev ON dev.post_code = 'dev' AND dev.deleted = 0
+SET x.parent_id = dev.id
+WHERE x.post_code IN ('dev_lead', 'fe_dev', 'be_dev') AND x.deleted = 0 AND x.parent_id <> dev.id;
+
+UPDATE sys_post x
+INNER JOIN sys_post qa ON qa.post_code = 'qa' AND qa.deleted = 0
+SET x.parent_id = qa.id
+WHERE x.post_code = 'qa_lead' AND x.deleted = 0 AND x.parent_id <> qa.id;
+
+-- [附录·菜单] 一级目录排序（日志 4 / 文件 5 / 消息 6 / 工具 7）
+UPDATE sys_menu SET sort = 4 WHERE id = 120 AND parent_id = 0 AND deleted = 0;
+UPDATE sys_menu SET sort = 5 WHERE id = 105 AND parent_id = 0 AND deleted = 0;
+UPDATE sys_menu SET sort = 6 WHERE id = 170 AND parent_id = 0 AND deleted = 0;
+UPDATE sys_menu SET sort = 7 WHERE id = 150 AND parent_id = 0 AND deleted = 0;
+
+-- [附录·任务] 表 / 菜单 / 内置任务补建（正文 §7.3 已全量；含历史任务迁移）
+CREATE TABLE IF NOT EXISTS sys_job (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
+    job_name VARCHAR(64) NOT NULL COMMENT '任务名称',
+    job_group VARCHAR(64) DEFAULT 'DEFAULT' COMMENT '任务组名',
+    invoke_target VARCHAR(500) NOT NULL COMMENT '调用目标字符串',
+    cron_expression VARCHAR(255) DEFAULT NULL COMMENT 'cron执行表达式',
+    misfire_policy TINYINT DEFAULT 3 COMMENT '计划执行错误策略(1-立即执行 2-执行一次 3-放弃执行)',
+    concurrent TINYINT DEFAULT 1 COMMENT '是否并发执行(0-允许 1-禁止)',
+    status TINYINT DEFAULT 0 COMMENT '状态(0-暂停 1-正常)',
+    remark VARCHAR(500) DEFAULT NULL COMMENT '备注',
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    creator VARCHAR(64) DEFAULT '' COMMENT '创建者',
+    updater VARCHAR(64) DEFAULT '' COMMENT '更新者',
+    deleted TINYINT DEFAULT 0 COMMENT '是否删除',
+    INDEX idx_job_group (job_group),
+    INDEX idx_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='定时任务表';
+
+CREATE TABLE IF NOT EXISTS sys_job_log (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
+    job_name VARCHAR(64) NOT NULL COMMENT '任务名称',
+    job_group VARCHAR(64) DEFAULT NULL COMMENT '任务组名',
+    invoke_target VARCHAR(500) DEFAULT NULL COMMENT '调用目标字符串',
+    job_message VARCHAR(500) DEFAULT NULL COMMENT '日志信息',
+    status TINYINT DEFAULT 0 COMMENT '执行状态(0-正常 1-失败)',
+    exception_info VARCHAR(2000) DEFAULT NULL COMMENT '异常信息',
+    start_time DATETIME DEFAULT NULL COMMENT '开始时间',
+    stop_time DATETIME DEFAULT NULL COMMENT '停止时间',
+    INDEX idx_job_name (job_name),
+    INDEX idx_start_time (start_time),
+    INDEX idx_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='定时任务日志表';
+
+INSERT INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, component, status) VALUES
+(180, '定时任务', 'monitor:job:list', 2, 3, 100, '/monitor/job', 'Timer', 'monitor/job/index', 1),
+(181, '任务查询', 'monitor:job:query', 3, 1, 180, '', '', '', 1),
+(182, '任务新增', 'monitor:job:add', 3, 2, 180, '', '', '', 1),
+(183, '任务编辑', 'monitor:job:edit', 3, 3, 180, '', '', '', 1),
+(184, '任务删除', 'monitor:job:delete', 3, 4, 180, '', '', '', 1)
+ON DUPLICATE KEY UPDATE
+    name = VALUES(name), permission = VALUES(permission), type = VALUES(type),
+    sort = VALUES(sort), parent_id = VALUES(parent_id), path = VALUES(path),
+    icon = VALUES(icon), component = VALUES(component), status = VALUES(status);
+
+INSERT IGNORE INTO sys_role_menu (role_id, menu_id) VALUES
+(1, 180), (1, 181), (1, 182), (1, 183), (1, 184);
+
+-- 移除已废弃的内置任务；迁移旧版字典/配置缓存任务为聊天清理
+DELETE FROM sys_job WHERE invoke_target IN (
+    'systemJobTask.flushApiAccessLogs',
+    'sampleJobTask.heartbeat'
+);
+
+-- 迁移旧版废弃/缓存类内置任务（按 invoke_target 匹配，不强制改 id=2/3）
+UPDATE sys_job SET
+    job_name = '私聊消息清理',
+    invoke_target = 'systemJobTask.purgeOldChatMessages',
+    cron_expression = '0 0 3 * * ?',
+    remark = '清理超过 180 天的私聊记录'
+WHERE invoke_target = 'systemJobTask.refreshDictCache';
+
+UPDATE sys_job SET
+    job_name = '群聊消息清理',
+    invoke_target = 'systemJobTask.purgeOldGroupChatMessages',
+    cron_expression = '0 10 3 * * ?',
+    remark = '清理超过 180 天的群聊记录'
+WHERE invoke_target = 'systemJobTask.refreshConfigCache';
+
+-- 内置 6 项：仅首次插入（INSERT IGNORE），不覆盖管理员已修改的 cron/status
+INSERT IGNORE INTO sys_job (id, job_name, job_group, invoke_target, cron_expression, misfire_policy, concurrent, status, remark) VALUES
+(1, '过期日志归档清理', 'SYSTEM', 'systemJobTask.purgeExpiredLogs', '0 30 2 * * ?', 3, 1, 0, '清理超保留期的操作/登录/API访问日志'),
+(2, '私聊消息清理', 'SYSTEM', 'systemJobTask.purgeOldChatMessages', '0 0 3 * * ?', 3, 1, 0, '清理超过 180 天的私聊记录'),
+(3, '群聊消息清理', 'SYSTEM', 'systemJobTask.purgeOldGroupChatMessages', '0 10 3 * * ?', 3, 1, 0, '清理超过 180 天的群聊记录'),
+(4, '调度日志清理', 'SYSTEM', 'systemJobTask.purgeExpiredJobLogs', '0 0 4 ? * SUN', 3, 1, 0, '清理 30 天前的 Quartz 调度执行日志'),
+(5, '已读通知清理', 'SYSTEM', 'systemJobTask.purgeReadNotices', '0 15 3 * * ?', 3, 1, 0, '清理已读且超过 90 天的站内通知'),
+(6, '工单回收站清理', 'SYSTEM', 'systemJobTask.purgeTicketRecycleBin', '0 30 3 * * ?', 3, 1, 0, '彻底删除回收站中超过 30 天的工单');
+
+-- [附录·字典] 工单/审批业务字典（type 4～7）
+INSERT INTO sys_dict_type (id, dict_name, dict_type, status, remark) VALUES
+(4, '工单状态', 'sys_ticket_status', 1, '工单流转状态'),
+(5, '工单优先级', 'sys_ticket_priority', 1, '工单优先级'),
+(6, '审批类型', 'sys_approval_form_type', 1, '审批单业务类型'),
+(7, '审批状态', 'sys_approval_status', 1, '审批单流转状态')
+ON DUPLICATE KEY UPDATE dict_name = VALUES(dict_name), remark = VALUES(remark);
+
+-- 旧库可能因重复跑附录产生重复 dict_data：去重（保留 id 较小的一条）后补唯一索引
+-- 注意：若重复项中较新 id 才是正确文案，会被删掉；仅用于加索引前的清理，正常库无重复则 no-op
+DELETE d1 FROM sys_dict_data d1
+INNER JOIN sys_dict_data d2
+    ON d1.dict_type = d2.dict_type
+    AND d1.dict_value = d2.dict_value
+    AND d1.id > d2.id;
+
+SET @uk_dict_cnt := (
+    SELECT COUNT(*)
+    FROM information_schema.statistics
+    WHERE table_schema = DATABASE()
+      AND table_name = 'sys_dict_data'
+      AND index_name = 'uk_dict_type_value'
+);
+SET @uk_dict_ddl := IF(
+    @uk_dict_cnt = 0,
+    'ALTER TABLE sys_dict_data ADD UNIQUE INDEX uk_dict_type_value (dict_type, dict_value)',
+    'SELECT 1'
+);
+PREPARE uk_dict_stmt FROM @uk_dict_ddl;
+EXECUTE uk_dict_stmt;
+DEALLOCATE PREPARE uk_dict_stmt;
+
+INSERT INTO sys_dict_data (dict_type, sort, dict_label, dict_value, list_class, is_default, status) VALUES
+('sys_ticket_status', 1, '待处理', 'OPEN', 'info', 1, 1),
+('sys_ticket_status', 2, '处理中', 'IN_PROGRESS', 'warning', 0, 1),
+('sys_ticket_status', 3, '已解决', 'RESOLVED', 'success', 0, 1),
+('sys_ticket_status', 4, '已关闭', 'CLOSED', 'danger', 0, 1),
+('sys_ticket_priority', 1, '低', 'LOW', 'info', 0, 1),
+('sys_ticket_priority', 2, '中', 'MEDIUM', 'success', 1, 1),
+('sys_ticket_priority', 3, '高', 'HIGH', 'warning', 0, 1),
+('sys_ticket_priority', 4, '紧急', 'URGENT', 'danger', 0, 1),
+('sys_approval_form_type', 1, '通用', 'GENERAL', 'info', 1, 1),
+('sys_approval_form_type', 2, '请假', 'LEAVE', 'primary', 0, 1),
+('sys_approval_form_type', 3, '采购', 'PURCHASE', 'warning', 0, 1),
+('sys_approval_form_type', 4, '报销', 'REIMBURSE', 'success', 0, 1),
+('sys_approval_form_type', 5, '用印', 'SEAL', 'danger', 0, 1),
+('sys_approval_form_type', 6, '合同', 'CONTRACT', 'info', 0, 1),
+('sys_approval_form_type', 7, '注册审核', 'REGISTER', 'warning', 0, 1),
+('sys_approval_status', 1, '待审批', 'SUBMITTED', 'warning', 1, 1),
+('sys_approval_status', 2, '已通过', 'APPROVED', 'success', 0, 1),
+('sys_approval_status', 3, '已驳回', 'REJECTED', 'danger', 0, 1),
+('sys_approval_status', 4, '已归档', 'ARCHIVED', 'info', 0, 1)
+ON DUPLICATE KEY UPDATE
+    dict_label = VALUES(dict_label),
+    list_class = VALUES(list_class),
+    is_default = VALUES(is_default),
+    sort = VALUES(sort);
+
+-- [附录·配置] security 分组 + isConcurrent 补全
+INSERT INTO sys_config_group (group_code, group_name, config_value, remark) VALUES
+('security', '安全配置', '{"disableDevtool":false,"isConcurrent":false}', '前端安全与会话：禁止调试、禁止多端同时在线')
+ON DUPLICATE KEY UPDATE
+    group_name = VALUES(group_name),
+    remark = VALUES(remark);
+
 UPDATE sys_config_group
 SET config_value = JSON_SET(config_value, '$.isConcurrent', CAST(false AS JSON))
 WHERE group_code = 'security'
   AND JSON_EXTRACT(config_value, '$.isConcurrent') IS NULL;
 
--- ---------- 性能索引（已有库请单独执行 sql/add4.sql，勿重复执行下方 ALTER） ----------
+-- [附录·短信] 配置分组 + sys_sms_log 表（正文 §15b 已全量）
+INSERT INTO sys_config_group (group_code, group_name, config_value, remark) VALUES
+('sms', '短信配置', '{"enabled":false,"provider":"aliyunAuth","accessKeyId":"","accessKeySecret":"","signName":"","tencentAppId":"","templateVerifyCode":"100001","templateModifyPhone":"100002","templateResetPassword":"100003","templateBindPhone":"100004","templateVerifyBindPhone":"100005","schemeName":"","codeExpireMinutes":5}', '阿里云短信认证/腾讯云')
+ON DUPLICATE KEY UPDATE group_name = VALUES(group_name), remark = VALUES(remark);
+
+CREATE TABLE IF NOT EXISTS sys_sms_log (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
+    phone VARCHAR(20) NOT NULL COMMENT '手机号',
+    content VARCHAR(500) DEFAULT NULL COMMENT '短信内容/验证码',
+    sms_type VARCHAR(20) DEFAULT 'verify_code' COMMENT 'verify_code / notice / marketing',
+    template_id VARCHAR(50) DEFAULT NULL COMMENT '模板ID',
+    template_params VARCHAR(500) DEFAULT NULL COMMENT '模板参数 JSON',
+    provider VARCHAR(20) DEFAULT NULL COMMENT 'aliyun / tencent / console',
+    status TINYINT DEFAULT 0 COMMENT '0-发送中 1-成功 2-失败',
+    result_msg VARCHAR(500) DEFAULT NULL COMMENT '结果信息',
+    biz_id VARCHAR(100) DEFAULT NULL COMMENT '服务商消息ID',
+    send_time DATETIME DEFAULT NULL COMMENT '发送时间',
+    user_id BIGINT DEFAULT NULL COMMENT '用户ID',
+    biz_type VARCHAR(30) DEFAULT NULL COMMENT '业务类型',
+    ip VARCHAR(50) DEFAULT NULL COMMENT 'IP地址',
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    INDEX idx_phone_create_time (phone, create_time),
+    INDEX idx_create_time (create_time),
+    INDEX idx_send_time (send_time),
+    INDEX idx_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='短信发送记录表';
+
+-- [附录·短信] provider 迁移：aliyun → aliyunAuth
+UPDATE sys_config_group
+SET config_value = JSON_SET(
+        JSON_SET(
+                JSON_SET(config_value, '$.provider', 'aliyunAuth'),
+                '$.schemeName', IFNULL(JSON_UNQUOTE(JSON_EXTRACT(config_value, '$.schemeName')), '')
+        ),
+        '$.codeExpireMinutes',
+        IFNULL(JSON_EXTRACT(config_value, '$.codeExpireMinutes'), CAST(5 AS JSON))
+    )
+WHERE group_code = 'sms'
+  AND (
+    JSON_UNQUOTE(JSON_EXTRACT(config_value, '$.provider')) = 'aliyun'
+        OR JSON_EXTRACT(config_value, '$.codeExpireMinutes') IS NULL
+    );
+
+-- [附录·短信] 赠送模板字段 100001～100005
+UPDATE sys_config_group
+SET config_value = JSON_SET(
+        JSON_SET(
+                JSON_SET(
+                        JSON_SET(
+                                JSON_SET(config_value,
+                                        '$.templateVerifyCode',
+                                        IFNULL(NULLIF(JSON_UNQUOTE(JSON_EXTRACT(config_value, '$.templateVerifyCode')), ''), '100001')
+                                ),
+                                '$.templateModifyPhone',
+                                IFNULL(NULLIF(JSON_UNQUOTE(JSON_EXTRACT(config_value, '$.templateModifyPhone')), ''), '100002')
+                        ),
+                        '$.templateResetPassword',
+                        IFNULL(NULLIF(JSON_UNQUOTE(JSON_EXTRACT(config_value, '$.templateResetPassword')), ''), '100003')
+                ),
+                '$.templateBindPhone',
+                IFNULL(NULLIF(JSON_UNQUOTE(JSON_EXTRACT(config_value, '$.templateBindPhone')), ''), '100004')
+        ),
+        '$.templateVerifyBindPhone',
+        IFNULL(NULLIF(JSON_UNQUOTE(JSON_EXTRACT(config_value, '$.templateVerifyBindPhone')), ''), '100005')
+    )
+WHERE group_code = 'sms';
+
+-- [附录·登录] 短信登录独立开关 smsLoginEnabled（与原 captchaType=sms 迁移）
+UPDATE sys_config_group
+SET config_value = JSON_SET(
+        JSON_SET(config_value, '$.smsLoginEnabled', CAST(true AS JSON)),
+        '$.captchaType', 'image'
+    )
+WHERE group_code = 'login'
+  AND JSON_UNQUOTE(JSON_EXTRACT(config_value, '$.captchaType')) = 'sms';
+
+UPDATE sys_config_group
+SET config_value = JSON_SET(config_value, '$.smsLoginEnabled', CAST(false AS JSON))
+WHERE group_code = 'login'
+  AND JSON_EXTRACT(config_value, '$.smsLoginEnabled') IS NULL;
+
+-- [附录·限流] 短信发送防刷字段（IP/间隔/日上限）
+UPDATE sys_config_group
+SET config_value = JSON_SET(
+        JSON_SET(
+                JSON_SET(
+                        JSON_SET(config_value,
+                                '$.smsPerIpMinute',
+                                IFNULL(JSON_EXTRACT(config_value, '$.smsPerIpMinute'), CAST(5 AS JSON))
+                        ),
+                        '$.smsSendIntervalSeconds',
+                        IFNULL(JSON_EXTRACT(config_value, '$.smsSendIntervalSeconds'), CAST(60 AS JSON))
+                ),
+                '$.smsPerPhoneDaily',
+                IFNULL(JSON_EXTRACT(config_value, '$.smsPerPhoneDaily'), CAST(10 AS JSON))
+        ),
+        '$.smsPerIpDaily',
+        IFNULL(JSON_EXTRACT(config_value, '$.smsPerIpDaily'), CAST(30 AS JSON))
+    )
+WHERE group_code = 'rateLimit';
+
+-- [附录·索引] 通用性能索引（sp_add_index_if_missing，已存在则跳过）
+DROP PROCEDURE IF EXISTS sp_add_index_if_missing;
+
+DELIMITER $$
+
+CREATE PROCEDURE sp_add_index_if_missing(
+    IN p_table VARCHAR(64),
+    IN p_index VARCHAR(64),
+    IN p_ddl TEXT
+)
+BEGIN
+    DECLARE v_cnt INT DEFAULT 0;
+
+    SELECT COUNT(*) INTO v_cnt
+    FROM information_schema.statistics
+    WHERE table_schema = DATABASE()
+      AND table_name = p_table
+      AND index_name = p_index;
+
+    IF v_cnt = 0 THEN
+        SET @ddl_sql = p_ddl;
+        PREPARE stmt FROM @ddl_sql;
+        EXECUTE stmt;
+        DEALLOCATE PREPARE stmt;
+        SELECT CONCAT('[OK] ', p_table, '.', p_index) AS result;
+    ELSE
+        SELECT CONCAT('[SKIP] ', p_table, '.', p_index) AS result;
+    END IF;
+END$$
+
+DELIMITER ;
+
+CALL sp_add_index_if_missing('sys_dict_data', 'idx_dict_type_status_deleted',
+    'ALTER TABLE sys_dict_data ADD INDEX idx_dict_type_status_deleted (dict_type, status, deleted, sort)');
+
+CALL sp_add_index_if_missing('sys_user', 'idx_deleted_status',
+    'ALTER TABLE sys_user ADD INDEX idx_deleted_status (deleted, status)');
+
+CALL sp_add_index_if_missing('sys_user_post', 'uk_user_post',
+    'ALTER TABLE sys_user_post ADD UNIQUE INDEX uk_user_post (user_id, post_id)');
+
+CALL sp_add_index_if_missing('sys_oper_log', 'idx_oper_time_status',
+    'ALTER TABLE sys_oper_log ADD INDEX idx_oper_time_status (oper_time, status)');
+
+CALL sp_add_index_if_missing('sys_chat_group_member', 'idx_user_id',
+    'ALTER TABLE sys_chat_group_member ADD INDEX idx_user_id (user_id)');
+
+CALL sp_add_index_if_missing('sys_chat_message', 'idx_receiver_unread',
+    'ALTER TABLE sys_chat_message ADD INDEX idx_receiver_unread (receiver_id, is_read, sender_id)');
+
+CALL sp_add_index_if_missing('sys_notice', 'idx_user_read_deleted',
+    'ALTER TABLE sys_notice ADD INDEX idx_user_read_deleted (user_id, read_status, deleted)');
+
+CALL sp_add_index_if_missing('sys_approval_form', 'idx_type_applicant_status',
+    'ALTER TABLE sys_approval_form ADD INDEX idx_type_applicant_status (form_type, applicant_user_id, status, deleted)');
+
+CALL sp_add_index_if_missing('sys_ticket', 'idx_deleted_status_time',
+    'ALTER TABLE sys_ticket ADD INDEX idx_deleted_status_time (deleted, status, create_time)');
+
+CALL sp_add_index_if_missing('sys_file', 'idx_group_time',
+    'ALTER TABLE sys_file ADD INDEX idx_group_time (group_id, create_time)');
+
+CALL sp_add_index_if_missing('sys_api_access_log', 'idx_start_time_success',
+    'ALTER TABLE sys_api_access_log ADD INDEX idx_start_time_success (start_time, success)');
+
+-- [附录·索引] 清理任务/短信日志时间索引 + 冗余单列索引清理
+CALL sp_add_index_if_missing('sys_chat_message', 'idx_send_time',
+    'ALTER TABLE sys_chat_message ADD INDEX idx_send_time (send_time)');
+
+CALL sp_add_index_if_missing('sys_chat_group_message', 'idx_send_time',
+    'ALTER TABLE sys_chat_group_message ADD INDEX idx_send_time (send_time)');
+
+CALL sp_add_index_if_missing('sys_notice', 'idx_read_create_time',
+    'ALTER TABLE sys_notice ADD INDEX idx_read_create_time (read_status, create_time)');
+
+CALL sp_add_index_if_missing('sys_ticket', 'idx_deleted_update_time',
+    'ALTER TABLE sys_ticket ADD INDEX idx_deleted_update_time (deleted, update_time)');
+
+CALL sp_add_index_if_missing('sys_sms_log', 'idx_create_time',
+    'ALTER TABLE sys_sms_log ADD INDEX idx_create_time (create_time)');
+
+CALL sp_add_index_if_missing('sys_sms_log', 'idx_phone_create_time',
+    'ALTER TABLE sys_sms_log ADD INDEX idx_phone_create_time (phone, create_time)');
+
+DROP PROCEDURE IF EXISTS sp_add_index_if_missing;
+
+DROP PROCEDURE IF EXISTS sp_drop_index_if_exists;
+
+DELIMITER $$
+
+CREATE PROCEDURE sp_drop_index_if_exists(
+    IN p_table VARCHAR(64),
+    IN p_index VARCHAR(64)
+)
+BEGIN
+    DECLARE v_cnt INT DEFAULT 0;
+
+    SELECT COUNT(*) INTO v_cnt
+    FROM information_schema.statistics
+    WHERE table_schema = DATABASE()
+      AND table_name = p_table
+      AND index_name = p_index;
+
+    IF v_cnt > 0 THEN
+        SET @ddl_sql = CONCAT('ALTER TABLE `', p_table, '` DROP INDEX `', p_index, '`');
+        PREPARE stmt FROM @ddl_sql;
+        EXECUTE stmt;
+        DEALLOCATE PREPARE stmt;
+        SELECT CONCAT('[DROP] ', p_table, '.', p_index) AS result;
+    ELSE
+        SELECT CONCAT('[SKIP] ', p_table, '.', p_index) AS result;
+    END IF;
+END$$
+
+DELIMITER ;
+
+CALL sp_drop_index_if_exists('sys_notice', 'idx_user_read_status');
+CALL sp_drop_index_if_exists('sys_sms_log', 'idx_phone');
+
+DROP PROCEDURE IF EXISTS sp_drop_index_if_exists;

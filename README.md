@@ -12,16 +12,16 @@
 | **系统管理** | 用户、角色、菜单、组织、字典（含**类型复制**）、**系统配置**；用户支持**待审核 / 已驳回** |
 | **组织管理** | 部门 + 岗位；左树右表、拖拽调整、岗位成员、部门回收站 |
 | **菜单管理** | 树形表格；目录/菜单/按钮联动；图标选择器；外链新窗口 / iframe 内嵌 |
-| **系统配置** | 九分组 Tab：基础信息、会话、文件、限流、登录/注册认证、**第三方配置**、**支付配置**、安全配置；支付支持**测试订单**与异步回调 |
+| **系统配置** | 十分组 Tab：基础信息、会话、文件、限流、登录/注册认证、**第三方配置**、**支付配置**、**短信配置**、安全配置；支付支持**测试订单**与异步回调；短信支持**测试发送**与发送记录 |
 | **个人中心** | 顶栏入口 `/profile`：资料编辑、头像上传、自助改密、我的登录记录 |
 | **回收站** | 用户、角色、菜单、部门、工单、审批单逻辑删除，支持恢复与彻底删除 |
 | **开发工具** | 内嵌 Knife4j 接口文档（`doc.html`） |
 | **系统日志** | 操作日志（AOP，含详情）；登录日志（IP 归属地、浏览器解析） |
-| **系统监控** | API 访问统计（ECharts 图表 + 日志列表）、在线用户与强退 |
+| **系统监控** | API 访问统计（ECharts 图表 + 日志列表）、在线用户与强退、**定时任务**（Quartz 调度、内置清理任务，默认暂停） |
 | **文件管理** | 分组 CRUD、按类型筛选；图片/PDF/Office 预览；大小与扩展名受**系统配置**约束 |
 | **业务中心** | **工单**：优先级、截止/超时、评论附件、指派与全员通知（非超管仅看本人相关）；**审批**：请假/采购/报销/用印/合同/通用 + `REGISTER` 注册审核，支持归档 |
 | **消息中心** | **业务消息**（`sys_notice`，工单/审批触达）、系统通知（全员/用户/部门定向、发送日志）、即时聊天（私聊/群聊）、WebSocket |
-| **认证安全** | 图片/滑块验证码、登录失败锁定（用户+IP）、记住我、登录/注册限流；Sa-Token 会话（Redis db=1） |
+| **认证安全** | 图片/滑块验证码、**短信验证码登录**（独立开关，与账号验证码分离）、登录失败锁定（用户+IP）、记住我、登录/注册/短信**限流防刷**；Sa-Token 会话（Redis db=1） |
 | **界面体验** | 主题色切换；登录/注册页 Three.js 地球 + 粒子背景；顶栏消息铃铛三 Tab |
 
 侧栏菜单由 `sys_menu` 按角色动态渲染（超级管理员默认全部）；页面路由在 `frontend/src/router` **静态注册**，新增菜单时需保证 `path` 与路由一致。修改菜单或角色后需**重新登录**刷新侧栏。
@@ -37,11 +37,12 @@
 | `site` | 基础信息 | 平台名称、副标题、登录/注册页标题、版权 | 登录页、注册页、工作台展示 |
 | `session` | 会话配置 | `tokenExpireHours`（1～720） | Sa-Token 会话 TTL |
 | `file` | 文件配置 | `maxSizeMb`、`allowedExtensions` | 上传校验（上限不超过平台 500MB） |
-| `rateLimit` | 接口限流 | 验证码/登录/注册 每分钟每 IP 次数（0=不限） | 认证接口防刷 |
-| `login` | 登录认证 | 验证码开关、类型（`image`/`slider`）、记住我、重试锁定 | 登录流程 |
+| `rateLimit` | 接口限流 | 验证码/登录/注册 每分钟每 IP；**短信**：每 IP 每分钟、同号发送间隔、同号/同 IP 日上限（0=不限） | 认证与短信发码防刷 |
+| `login` | 登录认证 | 验证码开关、类型（`image`/`slider`）、**短信登录**（`smsLoginEnabled`）、记住我、重试锁定 | 登录流程（账号 Tab / 短信 Tab） |
 | `register` | 注册认证 | 开放注册、验证码、默认角色、**需审核**、密码最小长度 | 注册流程 |
 | `thirdParty` | 第三方配置 | 微信 / 支付宝 / GitHub / **Google** 登录密钥（AppID、Client ID/Secret、重定向 URI 等） | 第三方 OAuth 接入（配置存储，按业务启用） |
 | `payment` | 支付配置 | 微信 Native、支付宝当面付；商户密钥、`notifyUrl`；**生成测试订单**（0.01 元） | 测试下单与支付回调 |
+| `sms` | 短信配置 | 启用、`provider`（`aliyunAuth`/`tencent`）、密钥、签名、模板 100001～100005；**测试发送**、最近发送记录 | 短信认证 SendSmsVerifyCode；登录页短信 Tab |
 | `security` | 安全配置 | `disableDevtool`（禁止 F12 等前端调试）、`isConcurrent`（false=禁止多端同时在线，新登录踢旧会话） | 前端调试需**刷新页面**；会话策略**保存后对新登录立即生效** |
 
 **公开接口**（无需登录）：`GET /api/auth/config`，返回 `site`、`login`、`register`、`security`（仅 `disableDevtool`）等前端所需配置。
@@ -52,6 +53,13 @@
 - `GET /api/system/config-group/{groupCode}`
 - `PUT /api/system/config-group/{groupCode}`，body：`{ "configValue": "{...json...}" }`
 - `POST /api/system/config-group/test-payment`，body：`{ "type": "wechat" | "alipay" }`（需 `system:config:update`，**须先保存支付配置**）
+- `POST /api/system/config-group/test-sms`，body：`{ "phone": "13800138000" }`（需 `system:config:update`，**须先保存短信配置**）
+- `GET /api/system/config-group/sms-logs/recent?limit=5`
+- `GET /api/system/config-group/sms-logs?page=1&size=10&phone=&status=`
+- `POST /api/auth/sms-code`，body：`{ "phone": "13800138000" }`（发码；Redis 校验，受 `rateLimit` 短信限流约束）
+- `POST /api/auth/login`，body 含 `loginType`：`account`（账号+密码+图形/滑块验证码）或 `sms`（手机号+短信验证码，须为已绑定手机）
+
+**短信登录**：在 **系统配置 → 登录认证** 开启「短信登录」，并在 **短信配置** 中启用短信；登录页出现「账号登录 / 短信登录」切换，短信 Tab 仅需手机号与验证码（使用个人中心已绑定手机号）。
 
 **支付回调与查单**（回调无需登录，已在 Security 白名单 `/pay/notify/**`）：
 
@@ -164,30 +172,23 @@ frontend/src/
 
 ### 数据库
 
-全量安装：`sql/admin_platform.sql` 已含消息中心表（§11b）、`sys_chat_group_log` 及组织管理示例部门/岗位数据。
+全量安装与已有库升级均使用 **`sql/admin_platform.sql`**（唯一数据库脚本）：
 
-**已有库增量**（按顺序执行，均可重复执行、无 DROP）：
-
-| 脚本 | 用途 |
+| 场景 | 做法 |
 |------|------|
-| `sql/add1.sql` | 注册验证码类型、系统配置补全等 |
-| `sql/add2.sql` | **消息中心**（通知/聊天/群聊表 + 菜单 170–178） |
-| `sql/add3.sql` | **群聊操作日志**表 `sys_chat_group_log` |
-| `sql/add4.sql` | **性能索引**（聊天/审批/工单/文件/API 日志等，已有库单独执行） |
-| `sql/add5.sql` | **安全配置**分组 `security`（`disableDevtool`、`isConcurrent`） |
-| `sql/add6.sql` | **组织示例数据**（部门、岗位增量，可重复执行） |
-| `sql/add9.sql` | **组织树分级**（技术中心/业务中心等二级分类 + 岗位层级，去掉「总公司」展示） |
-| `sql/add7.sql` | **第三方配置** + **支付配置**分组（`thirdParty`、`payment`） |
-| `sql/add8.sql` | 已有 `thirdParty` 分组补全 **Google** 字段（不覆盖其它密钥） |
+| **全新安装** | 执行全文：`mysql -u root -p < sql/admin_platform.sql`（含 DROP，仅用于空库） |
+| **已有库升级** | 仅执行文末 **「附录：已有库升级」** 段（可重复执行、无 DROP；补缺失项，不覆盖自定义角色菜单与已改定时任务） |
 
-```bash
-mysql -u root -p wu-admin < sql/add2.sql
-mysql -u root -p wu-admin < sql/add3.sql
-```
-
-执行涉及菜单的脚本后请 **重新登录** 以刷新侧栏。升级后需 **重启后端** 使 WebSocket 与新接口生效。
+正文已含：消息中心表（§11b）、`sys_chat_group_log`、分级组织示例、定时任务、短信配置与 `sys_sms_log`、性能索引（含清理任务相关时间索引）。升级后涉及菜单变更时请 **重新登录**；WebSocket 与新接口需 **重启后端**。
 
 > 说明：历史聊天图片若曾走通用文件上传，可能仍出现在文件列表；升级后新发的聊天图片走专用目录，列表会自动排除。
+
+## 定时任务（系统监控 → 定时任务）
+
+- 菜单：`/monitor/job`，权限 `monitor:job:*`
+- 表：`sys_job`、`sys_job_log`；基于 Quartz 调度，支持 CRUD、暂停/恢复、立即执行
+- 内置 6 项系统清理任务（过期日志、私聊/群聊消息、调度日志、已读通知、工单回收站），**默认暂停**，可在管理页启用
+- 全量脚本 §7b 建表并初始化；旧库通过 `admin_platform.sql` 附录补建
 
 ---
 
@@ -284,16 +285,7 @@ wu-admin/
 │   ├── tsconfig.json
 │   └── vite.config.ts          # 开发代理 /api → localhost:8080
 ├── sql/
-│   ├── admin_platform.sql      # 全量安装 + 文末「附录」升级段（含组织示例数据）
-│   ├── add1.sql                # 已有库增量（配置/注册等）
-│   ├── add2.sql                # 已有库增量（消息中心）
-│   ├── add3.sql                # 已有库增量（群聊操作日志）
-│   ├── add4.sql                # 已有库增量（性能索引）
-│   ├── add5.sql                # 已有库增量（前端安全配置）
-│   ├── add6.sql                # 已有库增量（部门/岗位示例数据）
-│   ├── add7.sql                # 已有库增量（第三方/支付配置）
-│   ├── add8.sql                # 已有库增量（thirdParty 补 Google）
-│   └── add9.sql                # 已有库增量（组织树分级）
+│   └── admin_platform.sql      # 唯一数据库脚本（全量安装 + 文末「附录：已有库升级」）
 ├── data/                       # 本地上传目录（git 忽略，对应 file.storage.local-path）
 └── README.md
 ```
@@ -360,7 +352,7 @@ cn.rbac.server/
 mysql -u root -p < sql/admin_platform.sql
 ```
 
-> 全量脚本含 `DROP TABLE`，仅用于新库。已有旧库按下方「数据库脚本」顺序执行增量。
+> 全量脚本含 `DROP TABLE`，**仅用于新库**。已有旧库勿执行正文建表段，只执行文末「附录：已有库升级」。
 
 ### 2. 启动 Redis
 
@@ -432,29 +424,32 @@ npm run dev
 | `/api/system/**` | 用户、角色、菜单、组织、字典、**config-group**（含 test-payment）、审批、工单、**announce/chat** 等 |
 | `/api/pay/**` | 支付回调（`/notify/*` 公开）、测试订单查单 |
 | `/api/files/**` | 文件上传与访问 |
-| `/api/monitor/**` | API 访问、在线用户 |
+| `/api/monitor/**` | API 访问、在线用户、**定时任务** |
 | `/api/dashboard/**` | 工作台统计（含配置摘要、待审核用户数） |
 
 ---
 
 ## 数据库脚本
 
-维护 **`sql/admin_platform.sql`**（全量）及增量脚本 **`add1.sql` ~ `add9.sql`**。
+仅维护 **`sql/admin_platform.sql`**：
 
 | 场景 | 做法 |
 |------|------|
-| **全新安装** | 执行全文：`mysql -u root -p wu-admin < sql/admin_platform.sql`（空库） |
-| **已有库升级（配置/注册等）** | `mysql -u root -p wu-admin < sql/add1.sql` |
-| **已有库升级消息中心** | `mysql -u root -p wu-admin < sql/add2.sql` |
-| **已有库升级群聊日志** | `mysql -u root -p wu-admin < sql/add3.sql` |
-| **已有库补性能索引** | `mysql -u root -p wu-admin < sql/add4.sql`（可重复执行，索引已存在可忽略报错） |
-| **已有库补安全配置** | `mysql -u root -p wu-admin < sql/add5.sql` |
-| **已有库补组织示例** | `mysql -u root -p wu-admin < sql/add6.sql`（部门/岗位，按名称与编码判重） |
-| **已有库组织改分级树** | `mysql -u root -p wu-admin < sql/add9.sql`（扁平部门/岗位归入中心与岗位体系） |
-| **已有库补第三方/支付配置** | `mysql -u root -p wu-admin < sql/add7.sql`（或执行全量脚本文末「附录」同段） |
-| **已有库补 Google 登录配置项** | `mysql -u root -p wu-admin < sql/add8.sql`（仅当 `thirdParty` 中尚无 `google` 节点时写入） |
+| **全新安装** | `mysql -u root -p < sql/admin_platform.sql` |
+| **已有库升级** | 在客户端中选中并执行文件末尾 **「附录：已有库升级」** 段（约第 915 行起） |
 
-增量脚本均 **无 DROP**，可重复执行。`add7.sql` 对已存在的分组仅更新名称与备注，**不覆盖**已有 `config_value`。执行涉及菜单的升级后请 **重新登录**。
+附录可重复执行，用于补全：配置分组、消息中心、定时任务、短信、组织树迁移、字典、性能索引等。执行涉及菜单的升级后请 **重新登录**。
+
+**附录行为说明（可重复执行、尽量非破坏性）：**
+
+| 项 | 行为 |
+|----|------|
+| 字典数据 | `(dict_type, dict_value)` 唯一索引（**不含 deleted**）；附录先去重（保留 **id 较小** 的一条）再加索引，随后 upsert。内置字典无影响；若未来字典支持软删后同 value 再建，需调整索引或应用层约束 |
+| 菜单（160–162、170–178、180–184 等） | `ON DUPLICATE KEY UPDATE` 会按脚本 **覆盖 name/path/component 等**；在线改过菜单字段的库重复跑附录可能被盖回 |
+| 普通用户（role_id=2） | 仅 `INSERT IGNORE` 补缺失菜单，**不会 DELETE 清空**已自定义权限 |
+| 内置定时任务 id 1～6 | 仅 `INSERT IGNORE` 首次插入，**不会覆盖**管理员已改的 cron / status |
+| 旧版任务迁移 | 仅当 `invoke_target` 仍为 `refreshDictCache` / `refreshConfigCache` 时才改写 |
+| 注册审批补单 | `content` 使用 `JSON_OBJECT` 生成，避免用户名含引号导致非法 JSON |
 
 ---
 
@@ -545,7 +540,7 @@ A：已配置 OpenAPI 默认服务 `http://localhost:3000/api`；重启后端与
 A：在 **系统配置 → 文件存储** 调整；单文件上限不得超过 500MB。
 
 **Q：消息中心菜单不显示或聊天 403？**  
-A：对已有库执行 `add2.sql`（及 `add3.sql` 若需群聊日志），重启后端后 **重新登录**。普通用户需角色分配菜单 170/172；只读权限用户访问 `:list` 接口时会映射为 `:query`。
+A：对已有库执行 `admin_platform.sql` 文末「附录：已有库升级」段，重启后端后 **重新登录**。普通用户需角色分配菜单 170/172；只读权限用户访问 `:list` 接口时会映射为 `:query`。
 
 **Q：顶栏有通知角标但列表为空？**  
 A：确认 WebSocket 已连接（登录后自动初始化）；在顶栏铃铛打开「系统通知」Tab 会拉取列表。管理员发布通知需 `system:announce:publish`。
@@ -554,10 +549,16 @@ A：确认 WebSocket 已连接（登录后自动初始化）；在顶栏铃铛�
 A：升级后新图片走 `/system/chat/upload/image`，存储于 `images/chat/` 且文件列表已排除；历史旧数据可手动删除。
 
 **Q：开启「禁止前端调试」无效？**  
-A：在 **系统配置 → 安全配置** 保存后需 **整页刷新**；已有库需先执行 `sql/add5.sql` 插入 `security` 分组。此为浏览器端限制，无法替代后端鉴权。
+A：在 **系统配置 → 安全配置** 保存后需 **整页刷新**；已有库需先执行 `admin_platform.sql` 附录补全 `security` 分组。此为浏览器端限制，无法替代后端鉴权。
 
-**Q：系统配置没有「第三方配置 / 支付配置」Tab？**  
-A：对已有库执行 `sql/add7.sql`，或执行 `admin_platform.sql` 文末「附录」中第三方/支付配置段；**重启后端**并刷新页面。
+**Q：系统配置没有「第三方配置 / 支付配置 / 短信配置」Tab？**  
+A：对已有库执行 `admin_platform.sql` 文末「附录：已有库升级」段；**重启后端**并刷新页面。
+
+**Q：登录页没有「短信登录」？**  
+A：在 **系统配置 → 登录认证** 开启「短信登录」，并在 **短信配置** 中启用短信；保存后刷新登录页。短信 Tab 仅支持已在个人中心绑定的手机号。
+
+**Q：短信验证码发送失败或被限流？**  
+A：检查 **接口限流** 分组中的短信防刷项（每 IP 每分钟、同号间隔、日上限）；阿里云需在控制台配置短信认证方案与模板 100001。
 
 **Q：测试支付下单失败或支付后状态不更新？**  
 A：① 先在支付配置 Tab **保存全部**再点「生成测试订单」；② 检查商户密钥是否完整；③ `notifyUrl` 须公网 HTTPS 可达（本地可用 ngrok）；④ 支付成功后弹窗会每 2 秒轮询 `GET /api/pay/order/{orderNo}`。
