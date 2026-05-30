@@ -22,9 +22,13 @@ public class SystemConfigHelper {
     public static final String GROUP_SECURITY = "security";
     public static final String GROUP_THIRD_PARTY = "thirdParty";
     public static final String GROUP_PAYMENT = "payment";
+    public static final String GROUP_SMS = "sms";
     public static final String CAPTCHA_TYPE_IMAGE = "image";
     public static final String CAPTCHA_TYPE_SLIDER = "slider";
+    public static final String CAPTCHA_TYPE_SMS = "sms";
     public static final String SLIDER_VERIFIED_CODE = "slider_verified";
+    public static final String LOGIN_TYPE_ACCOUNT = "account";
+    public static final String LOGIN_TYPE_SMS = "sms";
 
     /** 平台级上传上限（MB），与 spring.servlet.multipart 一致，后台配置不得超过此值 */
     public static final int PLATFORM_MAX_FILE_MB = 500;
@@ -109,11 +113,42 @@ public class SystemConfigHelper {
         return clampRate(getGroupJson(GROUP_RATE_LIMIT).getInt("registerPerIpMinute", defaultRegisterPerIpMinute));
     }
 
+    /** 短信发送：同一 IP 每分钟上限 */
+    public int getSmsPerIpMinute() {
+        return clampRate(getGroupJson(GROUP_RATE_LIMIT).getInt("smsPerIpMinute", 5));
+    }
+
+    /** 短信发送：同一手机号两次发送最小间隔（秒） */
+    public int getSmsSendIntervalSeconds() {
+        int sec = getGroupJson(GROUP_RATE_LIMIT).getInt("smsSendIntervalSeconds", 60);
+        if (sec < 30) {
+            return 30;
+        }
+        return Math.min(sec, 300);
+    }
+
+    /** 短信发送：同一手机号每日上限（0 表示不限制） */
+    public int getSmsPerPhoneDaily() {
+        return clampDaily(getGroupJson(GROUP_RATE_LIMIT).getInt("smsPerPhoneDaily", 10));
+    }
+
+    /** 短信发送：同一 IP 每日上限（0 表示不限制） */
+    public int getSmsPerIpDaily() {
+        return clampDaily(getGroupJson(GROUP_RATE_LIMIT).getInt("smsPerIpDaily", 30));
+    }
+
     private int clampRate(int n) {
         if (n <= 0) {
             return 0;
         }
         return Math.min(n, 200);
+    }
+
+    private int clampDaily(int n) {
+        if (n < 0) {
+            return 0;
+        }
+        return Math.min(n, 500);
     }
 
     // ---------- 登录 / 注册 ----------
@@ -128,7 +163,19 @@ public class SystemConfigHelper {
     public String getCaptchaType() {
         JSONObject login = getGroupJson(GROUP_LOGIN);
         String type = login.getStr("captchaType", CAPTCHA_TYPE_IMAGE);
-        return StrUtil.isBlank(type) ? CAPTCHA_TYPE_IMAGE : type;
+        if (StrUtil.isBlank(type) || CAPTCHA_TYPE_SMS.equals(type)) {
+            return CAPTCHA_TYPE_IMAGE;
+        }
+        return CAPTCHA_TYPE_SLIDER.equals(type) ? CAPTCHA_TYPE_SLIDER : CAPTCHA_TYPE_IMAGE;
+    }
+
+    /** 是否开启短信验证码登录（与图形/滑块验证码独立） */
+    public boolean isSmsLoginEnabled() {
+        JSONObject login = getGroupJson(GROUP_LOGIN);
+        if (login.containsKey("smsLoginEnabled")) {
+            return login.getBool("smsLoginEnabled", false);
+        }
+        return CAPTCHA_TYPE_SMS.equals(login.getStr("captchaType", ""));
     }
 
     public boolean isRememberMeEnabled() {
@@ -190,6 +237,80 @@ public class SystemConfigHelper {
         return getGroupJson(GROUP_SECURITY).getBool("isConcurrent", false);
     }
 
+    // ---------- 短信配置 ----------
+    public boolean isSmsEnabled() {
+        return getGroupJson(GROUP_SMS).getBool("enabled", false);
+    }
+
+    public String getSmsProvider() {
+        String provider = getGroupJson(GROUP_SMS).getStr("provider", "aliyunAuth");
+        if (StrUtil.isBlank(provider)) {
+            return "aliyunAuth";
+        }
+        provider = provider.trim();
+        // 旧值 aliyun 已切换为短信认证方案
+        if ("aliyun".equals(provider)) {
+            return "aliyunAuth";
+        }
+        return provider;
+    }
+
+    public String getSmsAccessKeyId() {
+        return getGroupJson(GROUP_SMS).getStr("accessKeyId", "");
+    }
+
+    public String getSmsAccessKeySecret() {
+        return getGroupJson(GROUP_SMS).getStr("accessKeySecret", "");
+    }
+
+    public String getSmsSignName() {
+        return getGroupJson(GROUP_SMS).getStr("signName", "");
+    }
+
+    public String getSmsTencentAppId() {
+        return getGroupJson(GROUP_SMS).getStr("tencentAppId", "");
+    }
+
+    public String getSmsTemplateVerifyCode() {
+        return getGroupJson(GROUP_SMS).getStr("templateVerifyCode", "");
+    }
+
+    public String getSmsTemplateResetPassword() {
+        return getGroupJson(GROUP_SMS).getStr("templateResetPassword", "");
+    }
+
+    public String getSmsTemplateModifyPhone() {
+        return getGroupJson(GROUP_SMS).getStr("templateModifyPhone", "");
+    }
+
+    public String getSmsTemplateBindPhone() {
+        return getGroupJson(GROUP_SMS).getStr("templateBindPhone", "");
+    }
+
+    public String getSmsTemplateVerifyBindPhone() {
+        return getGroupJson(GROUP_SMS).getStr("templateVerifyBindPhone", "");
+    }
+
+    /** @deprecated 短信认证不支持通知模板，保留读取兼容旧 JSON */
+    public String getSmsTemplateNotice() {
+        return getGroupJson(GROUP_SMS).getStr("templateNotice", "");
+    }
+
+    /** 短信认证方案名称（CheckSmsVerifyCode），可为空 */
+    public String getSmsSchemeName() {
+        return getGroupJson(GROUP_SMS).getStr("schemeName", "");
+    }
+
+    /** 验证码有效期（分钟），用于短信认证模板参数 min */
+    public int getSmsCodeExpireMinutes() {
+        int minutes = getGroupJson(GROUP_SMS).getInt("codeExpireMinutes", 5);
+        return minutes < 1 ? 5 : Math.min(minutes, 30);
+    }
+
+    public boolean isAliyunAuthSmsProvider() {
+        return "aliyunAuth".equals(getSmsProvider());
+    }
+
     public Map<String, Object> buildPublicConfig() {
         Map<String, Object> result = new HashMap<>();
 
@@ -205,9 +326,11 @@ public class SystemConfigHelper {
         Map<String, Object> login = new HashMap<>();
         login.put("captchaEnabled", isCaptchaEnabled());
         login.put("captchaType", getCaptchaType());
+        login.put("smsLoginEnabled", isSmsLoginEnabled());
         login.put("rememberMe", loginJson.getBool("rememberMe", true));
         login.put("maxRetryCount", getMaxRetryCount());
         login.put("lockTime", getLockTimeMinutes());
+        login.put("smsEnabled", isSmsEnabled());
         result.put("login", login);
 
         Map<String, Object> register = new HashMap<>();

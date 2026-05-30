@@ -1,6 +1,6 @@
 import { get, put, post } from '@/utils/request'
 import type { AxiosRequestConfig } from 'axios'
-import type { PayOrderRecord } from '@/types/config'
+import type { PayOrderRecord, SmsLogRecord } from '@/types/config'
 
 export interface ConfigGroup {
   groupCode: string
@@ -35,4 +35,30 @@ export function testPayment(type: 'wechat' | 'alipay') {
 
 export function getPayOrderStatus(orderNo: string) {
   return get<PayOrderRecord>(`/pay/order/${orderNo}`)
+}
+
+export function testSms(phone: string, templateCode?: string) {
+  return post<boolean>('/system/config-group/test-sms', {
+    phone,
+    ...(templateCode ? { templateCode } : {}),
+  })
+}
+
+export function getRecentSmsLogs(limit = 5) {
+  return get<SmsLogRecord[]>('/system/config-group/sms-logs/recent', { limit })
+}
+
+export function getSmsLogs(params: {
+  page: number
+  size: number
+  phone?: string
+  status?: number | null
+}) {
+  const query: Record<string, unknown> = {
+    page: params.page,
+    size: params.size,
+  }
+  if (params.phone) query.phone = params.phone
+  if (params.status != null) query.status = params.status
+  return get<{ list: SmsLogRecord[]; total: number }>('/system/config-group/sms-logs', query)
 }

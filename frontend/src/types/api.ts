@@ -35,8 +35,10 @@ export interface PageResult<T> {
 
 /** 登录表单 */
 export interface LoginForm {
-  username: string
-  password: string
+  loginType?: 'account' | 'sms'
+  username?: string
+  password?: string
+  phone?: string
   uuid?: string
   code?: string
   rememberMe?: boolean

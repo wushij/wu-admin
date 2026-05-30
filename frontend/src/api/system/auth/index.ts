@@ -30,6 +30,10 @@ export function getConfig() {
   return get<AuthConfig>('/auth/config')
 }
 
+export function sendSmsCode(phone: string) {
+  return post<boolean>('/auth/sms-code', { phone })
+}
+
 export function logout() {
   return post<unknown>('/auth/logout')
 }

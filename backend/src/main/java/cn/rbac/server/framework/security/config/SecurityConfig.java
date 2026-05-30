@@ -66,7 +66,9 @@ public class SecurityConfig {
                     antMatcher("/auth/register"),
                     antMatcher("/auth/config"),
                     antMatcher("/auth/info"),
-                    antMatcher("/auth/logout")
+                    antMatcher("/auth/logout"),
+                    antMatcher("/auth/sms-code"),
+                    antMatcher("/auth/sms-code/verify")
                 ).permitAll()
                 .requestMatchers(
                     antMatcher("/doc.html"),
