@@ -84,8 +84,64 @@
                 <el-form-item label="昵称" prop="nickname">
                   <el-input v-model="infoForm.nickname" placeholder="请输入昵称" maxlength="30" show-word-limit />
                 </el-form-item>
-                <el-form-item label="手机号" prop="mobile">
-                  <el-input v-model="infoForm.mobile" placeholder="请输入手机号" maxlength="11" clearable />
+                <el-form-item
+                  v-if="hasBoundMobile && !mobileBindEditing"
+                  label="手机号"
+                  class="mobile-form-item"
+                >
+                  <div class="mobile-bound-row">
+                    <el-input
+                      :model-value="maskedMobile"
+                      disabled
+                      class="mobile-bound-input"
+                    />
+                    <el-button
+                      v-if="smsEnabled"
+                      plain
+                      class="mobile-change-btn"
+                      @click="openMobileBindEditing"
+                    >
+                      更换手机号
+                    </el-button>
+                  </div>
+                </el-form-item>
+                <template v-else-if="showMobileBindFields">
+                  <el-form-item label="手机号" prop="bindMobile">
+                    <el-input
+                      v-model="infoForm.bindMobile"
+                      placeholder="请输入手机号"
+                      maxlength="11"
+                      clearable
+                    />
+                  </el-form-item>
+                  <el-form-item label="验证码" prop="bindSmsCode">
+                    <div class="mobile-bind-action-row">
+                      <el-input
+                        v-model="infoForm.bindSmsCode"
+                        class="mobile-bind-sms-input"
+                        placeholder="请输入 6 位验证码"
+                        maxlength="6"
+                        autocomplete="off"
+                      />
+                      <el-button
+                        type="primary"
+                        plain
+                        class="sms-send-btn"
+                        :disabled="bindSmsCountdown > 0 || sendingBindSmsCode"
+                        :loading="sendingBindSmsCode"
+                        @click="handleSendBindSmsCode"
+                      >
+                        {{ bindSmsCountdown > 0 ? `${bindSmsCountdown}s` : '获取验证码' }}
+                      </el-button>
+                      <el-button type="primary" :loading="bindingMobile" @click="handleBindMobile">
+                        {{ hasBoundMobile ? '确认更换' : '绑定手机号' }}
+                      </el-button>
+                      <el-button v-if="hasBoundMobile" @click="cancelMobileBindEditing">取消</el-button>
+                    </div>
+                  </el-form-item>
+                </template>
+                <el-form-item v-else label="手机号" class="mobile-form-item">
+                  <span class="mobile-bind-hint">短信功能未启用，无法绑定手机号，请联系管理员</span>
                 </el-form-item>
                 <el-form-item label="邮箱" prop="email">
                   <el-input v-model="infoForm.email" placeholder="请输入邮箱" maxlength="100" clearable />
@@ -350,6 +406,7 @@ import { useUserStore } from '@/store/user'
 import {
   getProfile, updateProfile, changePassword, uploadAvatar, getMyLoginLogs,
   sendProfilePasswordSmsCode, resetPasswordBySms,
+  sendProfileMobileBindSmsCode, bindProfileMobile,
 } from '@/api/system/profile'
 import { getConfig } from '@/api/system/auth'
 import SliderCaptcha from '@/components/SliderCaptcha.vue'
@@ -369,17 +426,24 @@ const pwdFormRef = ref<FormInstance>()
 const smsPwdFormRef = ref<FormInstance>()
 
 const securityMode = ref<'password' | 'sms'>('password')
+const sliderTarget = ref<'resetPwd' | 'bindMobile'>('resetPwd')
 const smsEnabled = ref(false)
 const showSliderModal = ref(false)
 const sendingSmsCode = ref(false)
+const sendingBindSmsCode = ref(false)
 const savingSmsPwd = ref(false)
+const bindingMobile = ref(false)
 const smsCountdown = ref(0)
+const bindSmsCountdown = ref(0)
+const mobileBindEditing = ref(false)
 let smsTimer: ReturnType<typeof setInterval> | null = null
+let bindSmsTimer: ReturnType<typeof setInterval> | null = null
 
 const infoForm = reactive({
   nickname: '',
-  mobile: '',
   email: '',
+  bindMobile: '',
+  bindSmsCode: '',
 })
 
 const pwdForm = reactive({
@@ -457,16 +521,25 @@ const canUseSmsReset = computed(
   () => smsEnabled.value && hasBoundMobile.value,
 )
 
+const showMobileBindFields = computed(
+  () => smsEnabled.value && (!hasBoundMobile.value || mobileBindEditing.value),
+)
+
 const infoRules: FormRules = {
   nickname: [
     { required: true, message: '请输入昵称', trigger: 'blur' },
     { min: 2, max: 30, message: '昵称长度 2～30 个字符', trigger: 'blur' },
   ],
-  mobile: [
-    { pattern: /^$|^1[3-9]\d{9}$/, message: '请输入正确的手机号', trigger: 'blur' },
-  ],
   email: [
     { type: 'email', message: '请输入正确的邮箱地址', trigger: 'blur' },
+  ],
+  bindMobile: [
+    { required: true, message: '请输入手机号', trigger: 'blur' },
+    { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号', trigger: 'blur' },
+  ],
+  bindSmsCode: [
+    { required: true, message: '请输入短信验证码', trigger: 'blur' },
+    { pattern: /^\d{4,6}$/, message: '请输入正确的验证码', trigger: 'blur' },
   ],
 }
 
@@ -534,6 +607,25 @@ function startSmsCountdown(seconds = 60) {
   }, 1000)
 }
 
+function startBindSmsCountdown(seconds = 60) {
+  if (bindSmsTimer) {
+    clearInterval(bindSmsTimer)
+    bindSmsTimer = null
+  }
+  bindSmsCountdown.value = seconds
+  bindSmsTimer = setInterval(() => {
+    if (bindSmsCountdown.value <= 1) {
+      bindSmsCountdown.value = 0
+      if (bindSmsTimer) {
+        clearInterval(bindSmsTimer)
+        bindSmsTimer = null
+      }
+    } else {
+      bindSmsCountdown.value -= 1
+    }
+  }, 1000)
+}
+
 async function loadSmsConfig() {
   try {
     const res = await getConfig()
@@ -551,6 +643,9 @@ function openSmsResetMode() {
   if (!hasBoundMobile.value) {
     ElMessage.warning('请先在「基本资料」中绑定手机号')
     activeTab.value = 'info'
+    if (smsEnabled.value) {
+      mobileBindEditing.value = true
+    }
     return
   }
   securityMode.value = 'sms'
@@ -571,10 +666,43 @@ function resetSmsPwdForm() {
 
 function handleSendResetSmsCode() {
   if (!canUseSmsReset.value || sendingSmsCode.value || smsCountdown.value > 0) return
+  sliderTarget.value = 'resetPwd'
+  showSliderModal.value = true
+}
+
+async function handleSendBindSmsCode() {
+  if (!smsEnabled.value || sendingBindSmsCode.value || bindSmsCountdown.value > 0) return
+  try {
+    await infoFormRef.value?.validateField('bindMobile')
+  } catch {
+    return
+  }
+  const phone = infoForm.bindMobile.trim()
+  if (phone === (profile.value.mobile || '').trim()) {
+    ElMessage.warning('新手机号不能与当前绑定的号码相同')
+    return
+  }
+  sliderTarget.value = 'bindMobile'
   showSliderModal.value = true
 }
 
 async function onSliderSuccess() {
+  if (sliderTarget.value === 'bindMobile') {
+    sendingBindSmsCode.value = true
+    try {
+      await sendProfileMobileBindSmsCode({
+        mobile: infoForm.bindMobile.trim(),
+        code: 'slider_verified',
+      })
+      ElMessage.success('验证码已发送')
+      startBindSmsCountdown()
+    } catch {
+      /* request 拦截器已提示 */
+    } finally {
+      sendingBindSmsCode.value = false
+    }
+    return
+  }
   sendingSmsCode.value = true
   try {
     await sendProfilePasswordSmsCode('slider_verified')
@@ -584,6 +712,54 @@ async function onSliderSuccess() {
     // 错误提示由 request 拦截器统一弹出，避免重复
   } finally {
     sendingSmsCode.value = false
+  }
+}
+
+function clearBindFieldValidate() {
+  infoFormRef.value?.clearValidate(['bindMobile', 'bindSmsCode'])
+}
+
+function openMobileBindEditing() {
+  mobileBindEditing.value = true
+  infoForm.bindMobile = ''
+  infoForm.bindSmsCode = ''
+  clearBindFieldValidate()
+}
+
+function cancelMobileBindEditing() {
+  mobileBindEditing.value = false
+  infoForm.bindMobile = ''
+  infoForm.bindSmsCode = ''
+  clearBindFieldValidate()
+}
+
+async function handleBindMobile() {
+  if (!smsEnabled.value) {
+    ElMessage.warning('短信功能未启用，请联系管理员')
+    return
+  }
+  try {
+    await infoFormRef.value?.validateField('bindMobile')
+    await infoFormRef.value?.validateField('bindSmsCode')
+  } catch {
+    return
+  }
+  bindingMobile.value = true
+  try {
+    await bindProfileMobile({
+      mobile: infoForm.bindMobile.trim(),
+      smsCode: infoForm.bindSmsCode.trim(),
+    })
+    ElMessage.success(hasBoundMobile.value ? '手机号已更换' : '手机号已绑定')
+    mobileBindEditing.value = false
+    infoForm.bindMobile = ''
+    infoForm.bindSmsCode = ''
+    clearBindFieldValidate()
+    await loadProfile()
+  } catch {
+    /* request 拦截器已提示 */
+  } finally {
+    bindingMobile.value = false
   }
 }
 
@@ -617,8 +793,12 @@ function formatTime(time?: string, short = false) {
 
 function syncInfoForm() {
   infoForm.nickname = profile.value.nickname || ''
-  infoForm.mobile = profile.value.mobile || ''
   infoForm.email = profile.value.email || ''
+  infoForm.bindMobile = ''
+  infoForm.bindSmsCode = ''
+  if (!hasBoundMobile.value) {
+    mobileBindEditing.value = true
+  }
 }
 
 async function loadProfile() {
@@ -656,13 +836,16 @@ function resetPwdForm() {
 }
 
 async function handleSaveInfo() {
-  const valid = await infoFormRef.value?.validate().catch(() => false)
-  if (!valid) return
+  try {
+    await infoFormRef.value?.validateField('nickname')
+    await infoFormRef.value?.validateField('email')
+  } catch {
+    return
+  }
   savingInfo.value = true
   try {
     await updateProfile({
       nickname: infoForm.nickname.trim(),
-      mobile: infoForm.mobile.trim(),
       email: infoForm.email.trim(),
     })
     ElMessage.success('资料已保存')
@@ -739,6 +922,10 @@ onUnmounted(() => {
   if (smsTimer) {
     clearInterval(smsTimer)
     smsTimer = null
+  }
+  if (bindSmsTimer) {
+    clearInterval(bindSmsTimer)
+    bindSmsTimer = null
   }
 })
 </script>
@@ -1162,6 +1349,53 @@ onUnmounted(() => {
   font-weight: 600;
   letter-spacing: 0.08em;
   color: #0f172a;
+}
+
+.mobile-form-item :deep(.el-form-item__content) {
+  line-height: normal;
+}
+
+.mobile-bound-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+
+.mobile-bound-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.mobile-change-btn {
+  flex-shrink: 0;
+  height: 32px;
+  padding: 0 12px;
+  white-space: nowrap;
+}
+
+.mobile-bind-hint {
+  display: block;
+  line-height: 32px;
+  font-size: 13px;
+  color: var(--el-text-color-secondary);
+}
+
+.mobile-bind-action-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  flex-wrap: nowrap;
+}
+
+.mobile-bind-sms-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.mobile-bind-action-row .sms-send-btn {
+  flex-shrink: 0;
 }
 
 .sms-code-row {

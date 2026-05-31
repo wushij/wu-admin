@@ -13,18 +13,70 @@
 | **组织管理** | 部门 + 岗位；左树右表、拖拽调整、岗位成员、部门回收站 |
 | **菜单管理** | 树形表格；目录/菜单/按钮联动；图标选择器；外链新窗口 / iframe 内嵌 |
 | **系统配置** | 十分组 Tab：基础信息、会话、文件、限流、登录/注册认证、**第三方配置**、**支付配置**、**短信配置**、安全配置；支付支持**测试订单**与异步回调；短信支持**测试发送**与发送记录 |
-| **个人中心** | 顶栏入口 `/profile`：资料编辑、头像上传、自助改密、**短信验证重置密码**（忘记当前密码时）、我的登录记录 |
+| **个人中心** | 顶栏入口 `/profile`：资料编辑、头像上传、**短信验证绑定/更换手机号**（发码前强制滑块）、自助改密、**短信验证重置密码**（忘记当前密码时）、我的登录记录 |
 | **回收站** | 用户、角色、菜单、部门、工单、审批单逻辑删除，支持恢复与彻底删除 |
 | **开发工具** | 内嵌 Knife4j 接口文档（`doc.html`） |
-| **系统日志** | 操作日志（AOP，含详情）；登录日志（IP 归属地、浏览器解析） |
+| **系统日志** | 操作日志（AOP，含详情）；登录日志（**ip2region IP 归属地**、浏览器解析） |
 | **系统监控** | API 访问统计（ECharts 图表 + 日志列表）、在线用户与强退、**定时任务**（Quartz 调度、内置清理任务，默认暂停） |
 | **文件管理** | 分组 CRUD、按类型筛选；图片/PDF/Office 预览；大小与扩展名受**系统配置**约束 |
-| **业务中心** | **工单**：优先级、截止/超时、评论附件、指派与全员通知（非超管仅看本人相关）；**审批**：请假/采购/报销/用印/合同/通用 + `REGISTER` 注册审核，支持归档 |
+| **业务中心** | **工单**：优先级、截止/超时、评论附件、指派与全员通知（非超管仅看本人相关）；**审批**：请假/采购/报销/用印/合同/通用 + `REGISTER` 注册审核，**详情抽屉内可直接通过/驳回**，支持归档 |
 | **消息中心** | **业务消息**（`sys_notice`，工单/审批触达）、系统通知（全员/用户/部门定向、发送日志）、即时聊天（私聊/群聊）、WebSocket |
 | **认证安全** | 图片/滑块验证码、**短信验证码登录**（独立开关，与账号验证码分离）、**短信发码前滑块**（可选）、登录失败锁定（用户+IP）、记住我、登录/注册/短信**限流防刷**；账号密码错误统一提示「账号或密码错误」；Sa-Token 会话（Redis db=1） |
 | **界面体验** | 主题色切换；登录/注册页 Three.js 地球 + 粒子背景；顶栏消息铃铛三 Tab |
 
 侧栏菜单由 `sys_menu` 按角色动态渲染（超级管理员默认全部）；页面路由在 `frontend/src/router` **静态注册**，新增菜单时需保证 `path` 与路由一致。修改菜单或角色后需**重新登录**刷新侧栏。
+
+---
+
+## 近期优化与增强
+
+以下为近期迭代的主要能力，便于对照部署与联调。
+
+### 个人中心 · 短信绑定/更换手机号
+
+- **基本资料** 中手机号不再随 `PUT /auth/profile` 直接修改，须走 **短信验证绑定** 流程。
+- 已绑定：展示脱敏号码 + **「更换手机号」**；未绑定：在表单内填写新号与验证码。
+- **发码前强制滑块**（与登录页「发码前滑块」开关无关，与重置密码发码一致）。
+- 短信模板：首次绑定用 `templateBindPhone`（100004），更换用 `templateModifyPhone`（100002）；未配置时回退 `templateVerifyCode`。
+- 受 **短信配置** 启用状态与 **接口限流** 分组中的短信防刷规则约束；校验逻辑与登录短信一致（Redis 优先，阿里云短信认证可 fallback）。
+
+| 接口 | 说明 |
+|------|------|
+| `POST /api/auth/profile/mobile/sms-code` | 发绑定验证码，body：`{ "mobile": "13800138000", "code": "slider_verified" }` |
+| `PUT /api/auth/profile/mobile` | 绑定/更换，body：`{ "mobile": "13800138000", "smsCode": "123456" }` |
+
+后端：`ProfileSmsMobileBindService`；前端：`frontend/src/views/profile/index.vue`。
+
+### 审批单中心 · 详情页审批
+
+- **审批单详情** 抽屉底部（居中）增加 **通过 / 驳回** 操作，与列表「处理」下拉等效；审批完成后详情自动刷新。
+- **注册审核**（`REGISTER`）：须具备 `system:approval:approve`；其他类型须为指定审批人且状态为 `SUBMITTED`。
+- 按钮为 plain 描边样式（通过黑色边框、驳回红色边框），与全站次要操作风格一致。
+
+### 开发与生产环境分离
+
+| 环境 | 激活方式 | 说明 |
+|------|----------|------|
+| **prod**（默认） | 无需额外参数，或 `SPRING_PROFILES_ACTIVE=prod` | `application-prod.yml`：库名 `wuadmin`、Redis 密码等生产配置 |
+| **dev**（本地） | `-Dspring.profiles.active=dev` 或 `$env:SPRING_PROFILES_ACTIVE='dev'` | `application-dev.yml`：库名 `wu-admin`、本地 root 账号；Redis **无密码** |
+
+- `application.yml` 中 **Redis 密码仅写在 prod  profile**，避免本地 dev 误连带密 Redis 或空密码覆盖生产配置。
+- `DevRedissonConfig`（`@Profile("dev")`）：本地 Redis 无密码时，将 Redisson 空串密码置 `null`，避免无效 `AUTH` 报错。
+
+### IP 归属地（ip2region）
+
+- 公用工具 `IpLocationUtils`，加载 classpath `ip2region/ip2region.xdb`。
+- 用于 **登录日志**、**在线用户** 等场景的 IP 解析；内网地址显示「内网IP」。
+
+### 接口文档 iframe 嵌入
+
+- 生产环境 Nginx 反代后，Knife4j 默认 `X-Frame-Options` 会导致 **系统管理 → 接口文档** iframe 空白。
+- `Knife4jIframeHeaderFilter` 对 `/doc.html`、`/v3/api-docs`、`/swagger-ui`、`/webjars/` 等路径响应头设为 `SAMEORIGIN`，允许同源 iframe 内嵌。
+
+### 组织树展示
+
+- `frontend/src/utils/org-tree.ts`：`displayOrgTree` 隐藏唯一根节点（如「本部」），直接展示下级中心/部门。
+- **岗位体系** 左侧树默认展开至 **第 2 级**（`collectExpandKeysByDepth(..., 2)`）；**部门体系** 与用户管理侧栏部门树默认折叠，减少首屏展开过多节点。
 
 ---
 
@@ -78,14 +130,18 @@
 | 接口 | 说明 |
 |------|------|
 | `GET /api/auth/profile` | 当前用户资料（部门、角色、岗位、最近登录等） |
-| `PUT /api/auth/profile` | 更新昵称、手机、邮箱 |
+| `PUT /api/auth/profile` | 更新昵称、邮箱、头像（**手机号须走下方 `/mobile` 接口**） |
 | `PUT /api/auth/profile/password` | 已知原密码时自助改密 |
 | `POST /api/auth/profile/password/sms-code` | 发送重置密码短信（body：`{ "code": "slider_verified" }`，**发码前强制滑块**，不受登录页「发码前滑块」开关影响） |
 | `PUT /api/auth/profile/password/sms-reset` | 短信验证重置密码（body：`smsCode`、`newPassword`、`confirmPassword`） |
+| `POST /api/auth/profile/mobile/sms-code` | 发送绑定/更换手机号短信（body：`mobile`、`code: slider_verified`，**发码前强制滑块**） |
+| `PUT /api/auth/profile/mobile` | 短信验证绑定或更换手机号（body：`mobile`、`smsCode`） |
 | `POST /api/auth/profile/avatar` | 上传头像（最大 2MB） |
 | `GET /api/auth/profile/login-logs` | 我的登录记录分页 |
 
 **安全设置 · 忘记密码**：个人中心 → **安全设置** →「当前密码」右侧「忘记密码」。须先在 **基本资料** 绑定手机号且 **短信配置** 已启用；未绑定时显示提示「重置密码需先绑定手机号」。验证码发送至已绑定手机，发码前须完成滑块验证；校验逻辑与登录短信一致（Redis 优先，阿里云短信认证可 fallback）。
+
+**基本资料 · 绑定手机号**：须 **短信配置** 已启用。未绑定时在基本资料填写手机号与验证码；已绑定后显示脱敏号码，点击 **「更换手机号」** 进入更换流程。发码前须完成滑块验证，受 `rateLimit` 短信限流约束。
 
 `application.yml` 中 `sa-token.timeout`、`auth.security.*`、`file.storage.*` 为**缺省兜底**；库中有对应分组时以库为准（`session.tokenExpireHours` 在登录时写入 Sa-Token 超时）。
 
@@ -97,7 +153,7 @@
 
 1. 用户注册成功，账号 `status = 2`（待审核），分配配置中的默认角色；
 2. 自动创建类型为 `REGISTER` 的审批单，并通知**首位可用的超级管理员**（`super_admin` 角色，站内通知 `sys_notice`）；
-3. 管理员在 **业务中心 → 审批单中心** 通过或驳回；
+3. 管理员在 **业务中心 → 审批单中心** 通过或驳回（列表「处理」下拉，或打开 **详情** 抽屉底部 **通过 / 驳回**）；
 4. **通过** → `status = 1`，用户出现在 **用户管理** 默认列表，可登录；
 5. **驳回** → 逻辑删除账号并清理角色/岗位关联，**不出现在用户管理**；申请人收到审核结果通知；
 6. 若该用户名曾在回收站（软删），**同用户名再次注册**会自动恢复账号并重新走审核流程。
@@ -114,6 +170,8 @@
 | `3` | 审核驳回 | **不显示**（驳回后通常已软删） |
 
 工作台统计含「待审核用户」数量（`userPendingCount`，按 `status = 2` 统计）。
+
+**审批操作说明**：注册审核（`REGISTER`）需权限 `system:approval:approve`（任意可用超管均可处理）；其他审批类型须为单据指定审批人。仅 `SUBMITTED`（待审批）状态可执行通过/驳回；详情页与列表操作等效，审批后状态与通知自动更新。
 
 ---
 
@@ -209,8 +267,8 @@ frontend/src/
 ### 组织管理（`/system/org`）
 
 - Tab：**部门体系 | 岗位体系**
-- 部门：树形、`ancestors`、拖拽、回收站
-- 岗位：`sys_user_post` 关联、组织内成员
+- 部门：树形、`ancestors`、拖拽、回收站；左侧树**默认折叠**（隐藏唯一根节点后直接展示下级）
+- 岗位：`sys_user_post` 关联、组织内成员；岗位树**默认展开至第 2 级**
 
 ### 菜单管理（`/system/menu`）
 
@@ -221,7 +279,7 @@ frontend/src/
 
 - **开发工具 → 接口文档**，内嵌 Knife4j（基于 **Springdoc OpenAPI 3**）
 - 开发：文档静态资源经 Vite 代理到后端 `8080`；**调试请求**默认 `http://localhost:3000/api`
-- 生产：Nginx → 后端 `/api/doc.html`、`/api/v3/api-docs` 等
+- 生产：Nginx → 后端 `/api/doc.html`、`/api/v3/api-docs` 等；后端 `Knife4jIframeHeaderFilter` 将文档相关路径的 `X-Frame-Options` 设为 `SAMEORIGIN`，避免 iframe 空白
 - 调试需带请求头 `Authorization: <登录 token>`，修改类接口用 **PUT/POST**，勿用 GET
 - Spring Boot **3.5** 需 **springdoc ≥ 2.8.9**；`knife4j.enable` 建议为 `false`（4.5.0 增强模块与 springdoc 2.8 API 不兼容，关闭后 `doc.html` 仍正常）
 
@@ -283,7 +341,9 @@ wu-admin/
 │   │   ├── framework/          # 安全、MyBatis、Redis、Web 过滤器等
 │   │   └── modules/system/     # 系统业务（api / service / dal）
 │   └── src/main/resources/
-│       └── application.yml
+│       ├── application.yml          # 公共配置；默认 profile=prod
+│       ├── application-dev.yml      # 本地开发（wu-admin 库、无 Redis 密码）
+│       └── application-prod.yml     # 生产（wuadmin 库、Redis 密码等）
 ├── frontend/                   # Vue 3 + TypeScript 前端
 │   ├── src/
 │   │   ├── api/                # 接口封装（system、message、monitor 等，均为 .ts）
@@ -292,7 +352,7 @@ wu-admin/
 │   │   ├── router/             # 路由与守卫
 │   │   ├── store/              # Pinia（user、message 等）
 │   │   ├── types/              # TS 类型（api、message、config）
-│   │   ├── utils/              # request、主题、菜单、WebSocket 工具
+│   │   ├── utils/              # request、主题、菜单、org-tree、WebSocket 工具
 │   │   └── directives/         # v-permission 等指令
 │   ├── tsconfig.json
 │   └── vite.config.ts          # 开发代理 /api → localhost:8080
@@ -312,16 +372,16 @@ wu-admin/
 cn.rbac.server/
 ├── common/
 │   ├── pojo/                         # CommonResult、PageParam、PageResult
-│   └── util/                         # ClientIpUtils、UserAgentUtils
+│   └── util/                         # ClientIpUtils、UserAgentUtils、IpLocationUtils
 ├── framework/                        # 技术基础设施（可抽公共 starter）
-│   ├── config/                       # DynamicConfigProvider（SPI）
+│   ├── config/                       # DynamicConfigProvider、DevRedissonConfig（dev）
 │   ├── security/
 │   │   ├── api/                      # PermissionApi（SPI）
 │   │   ├── config/                   # SecurityConfig
 │   │   └── core/                     # TokenService、SecurityUtils
 │   ├── web/
 │   │   ├── core/                     # GlobalExceptionHandler
-│   │   └── filter/                   # SaTokenAuthenticationFilter（Sa-Token → Spring Security 桥接）
+│   │   └── filter/                   # SaTokenAuthenticationFilter、Knife4jIframeHeaderFilter
 │   ├── log/annotation/               # @Log
 │   ├── mybatis/、redis/、storage/
 └── modules/
@@ -377,14 +437,26 @@ mysql -u root -p wu-admin < sql/add2.sql
 
 ### 2. 启动 Redis
 
-`127.0.0.1:6379`，database **1**。
+`127.0.0.1:6379`，database **1**。本地 dev 一般**无密码**；生产（prod）见 `application-prod.yml`（如密码 `root`）。
 
 ### 3. 启动后端（8080）
+
+**本地开发**（使用 `dev` profile，连接本地 `wu-admin` 库、无密 Redis）：
+
+```powershell
+cd backend
+$env:SPRING_PROFILES_ACTIVE='dev'
+mvn spring-boot:run -DskipTests
+```
+
+**生产 / 默认**（`prod` profile，见 `application-prod.yml`）：
 
 ```powershell
 cd backend
 mvn spring-boot:run -DskipTests
 ```
+
+或打包后：`java -jar backend.jar`（默认即为 `prod`）。
 
 ### 4. 启动前端（3000）
 
@@ -415,8 +487,10 @@ npm run dev
 |--------|------|
 | `server.port` | `8080` |
 | `server.servlet.context-path` | `/api`（统一 API 前缀） |
-| `spring.datasource.*` | MySQL `wu-admin` |
+| `spring.profiles.active` | 默认 **`prod`**（`SPRING_PROFILES_ACTIVE` 可覆盖）；本地开发用 **`dev`** |
+| `spring.datasource.*` | MySQL；prod 见 `application-prod.yml`（`wuadmin`），dev 见 `application-dev.yml`（`wu-admin`） |
 | `spring.redis.database` | `1` |
+| `spring.data.redis.password` | **仅 `application-prod.yml`**（prod）；dev 无密码，由 `DevRedissonConfig` 处理 Redisson |
 | `spring.servlet.multipart.max-file-size` | 平台物理上限 **500MB** |
 | `sa-token.*` | Sa-Token 缺省（`session.tokenExpireHours` 在登录时覆盖 timeout） |
 | `file.storage.*` | 上传目录与缺省限制 |
@@ -570,7 +644,7 @@ A：① 确认 **注册认证** 已开启开放注册；② 升级后软删用�
 A：**系统配置 → 登录认证** 开启「短信验证码登录」与「发送前滑块验证」；已有库执行 `sql/add2.sql` 补配置字段，保存后刷新登录页。
 
 **Q：接口文档 iframe 空白或 `/v3/api-docs` 403？**  
-A：① 确认后端（8080）已启动，浏览器访问 `http://127.0.0.1:8080/api/v3/api-docs` 应返回 JSON；② 开发环境重启 Vite 以加载 Knife4j 代理；③ 勿将 springdoc 降为 2.6（与 Spring Boot 3.5 不兼容）；④ `knife4j.enable` 保持 `false` 直至升级兼容的 Knife4j 版本。
+A：① 确认后端（8080）已启动，浏览器访问 `http://127.0.0.1:8080/api/v3/api-docs` 应返回 JSON；② 开发环境重启 Vite 以加载 Knife4j 代理；③ 生产环境确认已部署含 `Knife4jIframeHeaderFilter` 的后端（响应头 `X-Frame-Options: SAMEORIGIN`）；④ 勿将 springdoc 降为 2.6（与 Spring Boot 3.5 不兼容）；⑤ `knife4j.enable` 保持 `false` 直至升级兼容的 Knife4j 版本。
 
 **Q：Knife4j 调试 404 或返回 HTML？**  
 A：已配置 OpenAPI 默认服务 `http://localhost:3000/api`；重启后端与 Vite 后，在文档页选择该服务器、方法用 PUT/POST，并填 `Authorization`。若仍 401，先登录管理端复制 token。
@@ -607,6 +681,15 @@ A：历史登录日志可能未写 `userId`，升级后重新登录即可；个�
 
 **Q：忘记当前密码如何重置？**  
 A：个人中心 → **安全设置** →「忘记密码」（须已绑定手机号且短信已启用）。发码前完成滑块验证，验证码发至绑定手机；重置成功后请用新密码登录。
+
+**Q：如何绑定或更换个人中心手机号？**  
+A：个人中心 → **基本资料**。须 **短信配置** 已启用；发码前完成滑块验证。已绑定号码显示脱敏 +「更换手机号」；`PUT /auth/profile` 不再直接修改手机号。
+
+**Q：审批单详情里没有通过/驳回按钮？**  
+A：仅 **待审批**（`SUBMITTED`）且有权时显示：注册审核需 `system:approval:approve`，其他类型须为指定审批人。详情抽屉底部与列表「处理」等效；若无按钮请确认角色权限后重新登录。
+
+**Q：本地 Redis 报 ERR invalid password 或 AUTH 失败？**  
+A：本地请用 **`dev` profile** 启动（`SPRING_PROFILES_ACTIVE=dev`），且本地 Redis 勿设密码；生产密码仅在 `application-prod.yml` 配置。
 
 **Q：登录输错密码却提示「登录已过期」？**  
 A：升级后账号/密码错误统一返回「账号或密码错误」；若仍为旧版，请更新前后端并重启后端。

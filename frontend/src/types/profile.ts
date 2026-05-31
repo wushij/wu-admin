@@ -27,9 +27,19 @@ export interface UserProfile {
 
 export interface ProfileUpdateDTO {
   nickname?: string
-  mobile?: string
   email?: string
   avatar?: string
+}
+
+export interface ProfileMobileBindSmsCodeDTO {
+  mobile: string
+  /** 滑块通过后传 slider_verified */
+  code: string
+}
+
+export interface ProfileMobileBindDTO {
+  mobile: string
+  smsCode: string
 }
 
 export interface ChangePasswordDTO {

@@ -4,6 +4,8 @@ import type {
   ProfileUpdateDTO,
   ChangePasswordDTO,
   ProfilePasswordSmsResetDTO,
+  ProfileMobileBindSmsCodeDTO,
+  ProfileMobileBindDTO,
   ProfileLoginLogQuery,
   ProfileLoginLogPage,
 } from '@/types/profile'
@@ -27,6 +29,15 @@ export function sendProfilePasswordSmsCode(sliderCode: string) {
 
 export function resetPasswordBySms(data: ProfilePasswordSmsResetDTO) {
   return put<unknown>('/auth/profile/password/sms-reset', data)
+}
+
+/** 绑定手机号发码（须先滑块，body.code 传 slider_verified） */
+export function sendProfileMobileBindSmsCode(data: ProfileMobileBindSmsCodeDTO) {
+  return post<boolean>('/auth/profile/mobile/sms-code', data)
+}
+
+export function bindProfileMobile(data: ProfileMobileBindDTO) {
+  return put<unknown>('/auth/profile/mobile', data)
 }
 
 export function uploadAvatar(file: File) {
