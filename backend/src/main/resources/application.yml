@@ -24,11 +24,11 @@ app:
 spring:
   application:
     name: backend
+  profiles:
+    # 默认 prod（宝塔直连）；本地 IDE 加 VM 选项：-Dspring.profiles.active=dev
+    active: ${SPRING_PROFILES_ACTIVE:prod}
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://127.0.0.1:3306/wu-admin?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&nullCatalogMeansCurrent=true
-    username: root
-    password: root
     type: com.alibaba.druid.pool.DruidDataSource
     druid:
       initial-size: 5
@@ -39,6 +39,8 @@ spring:
       host: 127.0.0.1
       port: 6379
       database: 1
+      # 与宝塔 requirepass 一致；本地无密码时在 application-dev.yml 中置空覆盖
+      password: root
   # 禁用 Spring Security 默认用户（使用 Sa-Token + 自定义 SecurityConfig）
   security:
     user:

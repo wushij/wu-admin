@@ -13,6 +13,7 @@ replay_pid*
 
 # Frontend build
 dist/
+frontend/BOOT-INF/
 *.local
 
 # IDE
@@ -39,3 +40,7 @@ backend/data/
 
 # IDE / editor
 .cursor/
+
+# 本地/部署专用（不上传 GitHub）
+部署与本地开发说明.md
+sql/admin_platform_mysql56.sql
