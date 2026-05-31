@@ -42,6 +42,7 @@ backend/data/
 .cursor/
 
 # 本地/部署专用（不上传 GitHub）
+配置文件.txt
 GitHub上传与推送全流程.md
 部署与本地开发说明.md
 sql/admin_platform_mysql56.sql

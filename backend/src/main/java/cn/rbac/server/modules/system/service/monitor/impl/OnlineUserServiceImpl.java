@@ -6,6 +6,7 @@ import cn.dev33.satoken.stp.StpUtil;
 import cn.rbac.server.framework.config.DynamicConfigProvider;
 import cn.rbac.server.framework.security.core.service.TokenService;
 import cn.rbac.server.common.util.ClientIpUtils;
+import cn.rbac.server.common.util.IpLocationUtils;
 import cn.rbac.server.modules.system.api.monitor.vo.OnlineUserVO;
 import cn.rbac.server.modules.system.dal.dataobject.dept.DeptDO;
 import cn.rbac.server.modules.system.dal.dataobject.user.UserDO;
@@ -259,13 +260,7 @@ public class OnlineUserServiceImpl implements OnlineUserService {
     }
 
     private String resolveLocation(String ip) {
-        if (!StringUtils.hasText(ip)) {
-            return "未知";
-        }
-        if ("127.0.0.1".equals(ip) || ip.startsWith("192.168.") || ip.startsWith("10.") || ip.startsWith("172.")) {
-            return "内网IP";
-        }
-        return "未知";
+        return IpLocationUtils.resolve(ip);
     }
 
     private String formatTime(Long millis) {

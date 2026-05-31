@@ -34,3 +34,23 @@ export function resolveDeptRootParentId(
   const hidden = findSingleOrgRoot(roots, 0)
   return hidden?.id ?? fallback
 }
+
+/** 树默认展开前 maxDepth 层（0=全折叠，2=展开到第二级，与岗位体系默认展示一致） */
+export function collectExpandKeysByDepth<T extends { id?: number; children?: T[] }>(
+  nodes: T[] | null | undefined,
+  maxDepth: number,
+  depth = 0,
+  keys: number[] = []
+): number[] {
+  if (!nodes?.length) return keys
+  for (const node of nodes) {
+    const id = node.id
+    if (id != null && node.children?.length) {
+      if (depth < maxDepth) {
+        keys.push(id)
+      }
+      collectExpandKeysByDepth(node.children, maxDepth, depth + 1, keys)
+    }
+  }
+  return keys
+}

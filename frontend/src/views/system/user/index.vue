@@ -13,7 +13,6 @@
             :props="{ label: 'name', children: 'children' }"
             node-key="id"
             highlight-current
-            default-expand-all
             @node-click="handleDeptClick"
           />
         </el-card>
