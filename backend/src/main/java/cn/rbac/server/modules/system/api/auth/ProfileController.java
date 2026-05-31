@@ -18,6 +18,7 @@ import cn.rbac.server.modules.system.dal.mysql.post.PostMapper;
 import cn.rbac.server.modules.system.dal.mysql.user.UserMapper;
 import cn.rbac.server.modules.system.dal.mysql.user.UserPostMapper;
 import cn.rbac.server.common.util.ClientIpUtils;
+import cn.rbac.server.modules.system.service.auth.ProfileSmsMobileBindService;
 import cn.rbac.server.modules.system.service.auth.ProfileSmsPasswordService;
 import cn.rbac.server.modules.system.service.config.SystemConfigHelper;
 import cn.rbac.server.modules.system.service.permission.PermissionService;
@@ -69,6 +70,8 @@ public class ProfileController {
     private SystemConfigHelper systemConfigHelper;
     @Resource
     private ProfileSmsPasswordService profileSmsPasswordService;
+    @Resource
+    private ProfileSmsMobileBindService profileSmsMobileBindService;
 
     @Operation(summary = "获取当前用户资料")
     @GetMapping
@@ -94,19 +97,7 @@ public class ProfileController {
         if (StringUtils.hasText(reqVO.getNickname())) {
             user.setNickname(reqVO.getNickname().trim());
         }
-        if (reqVO.getMobile() != null) {
-            String mobile = reqVO.getMobile().trim();
-            if (StringUtils.hasText(mobile)) {
-                UserDO exist = userMapper.selectOne(new LambdaQueryWrapper<UserDO>()
-                        .eq(UserDO::getMobile, mobile)
-                        .ne(UserDO::getId, userId)
-                        .eq(UserDO::getDeleted, 0));
-                if (exist != null) {
-                    return CommonResult.error(400, "手机号已被其他账号使用");
-                }
-            }
-            user.setMobile(mobile);
-        }
+        // 手机号须通过 /mobile 接口短信验证绑定，不可在此直接修改
         if (reqVO.getEmail() != null) {
             String email = reqVO.getEmail().trim();
             if (StringUtils.hasText(email)) {
@@ -124,6 +115,39 @@ public class ProfileController {
             user.setAvatar(reqVO.getAvatar());
         }
 
+        userMapper.updateById(user);
+        return CommonResult.success(true);
+    }
+
+    @Operation(summary = "发送绑定手机号短信验证码（须先完成滑块验证）")
+    @PostMapping("/mobile/sms-code")
+    public CommonResult<Boolean> sendMobileBindSmsCode(
+            @RequestBody ProfileMobileBindSmsCodeReqVO reqVO,
+            HttpServletRequest request) {
+        StpUtil.checkLogin();
+        Long userId = StpUtil.getLoginIdAsLong();
+        String err = profileSmsMobileBindService.sendBindCode(
+                userId, reqVO.getMobile(), ClientIpUtils.resolve(request), reqVO.getCode());
+        if (err != null) {
+            return CommonResult.error(400, err);
+        }
+        return CommonResult.success(true);
+    }
+
+    @Operation(summary = "短信验证绑定/更换手机号")
+    @Log(title = "个人中心", businessType = Log.BusinessType.UPDATE)
+    @PutMapping("/mobile")
+    public CommonResult<Boolean> bindMobile(@RequestBody ProfileMobileBindReqVO reqVO) {
+        StpUtil.checkLogin();
+        Long userId = StpUtil.getLoginIdAsLong();
+        UserDO user = userMapper.selectById(userId);
+        if (user == null) {
+            return CommonResult.error(404, "用户不存在");
+        }
+        String err = profileSmsMobileBindService.bindMobile(userId, user, reqVO.getMobile(), reqVO.getSmsCode());
+        if (err != null) {
+            return CommonResult.error(400, err);
+        }
         userMapper.updateById(user);
         return CommonResult.success(true);
     }
@@ -326,6 +350,19 @@ public class ProfileController {
         private String oldPassword;
         private String newPassword;
         private String confirmPassword;
+    }
+
+    @Data
+    public static class ProfileMobileBindSmsCodeReqVO {
+        private String mobile;
+        /** 滑块验证通过时传 slider_verified */
+        private String code;
+    }
+
+    @Data
+    public static class ProfileMobileBindReqVO {
+        private String mobile;
+        private String smsCode;
     }
 
     @Data

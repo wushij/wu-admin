@@ -39,8 +39,7 @@ spring:
       host: 127.0.0.1
       port: 6379
       database: 1
-      # 与宝塔 requirepass 一致；本地无密码时在 application-dev.yml 中置空覆盖
-      password: root
+      # Redis 密码仅在 application-prod.yml（prod 环境）；本地 dev 无密码
   # 禁用 Spring Security 默认用户（使用 Sa-Token + 自定义 SecurityConfig）
   security:
     user:
