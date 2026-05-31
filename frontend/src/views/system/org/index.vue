@@ -27,7 +27,6 @@
           highlight-current
           draggable
           :allow-drop="allowDeptDrop"
-          default-expand-all
           @node-click="onDeptNodeClick"
           @node-drop="onDeptDrop"
         >
@@ -45,7 +44,7 @@
           highlight-current
           draggable
           :allow-drop="allowPostDrop"
-          default-expand-all
+          :default-expanded-keys="postDefaultExpandedKeys"
           @node-click="onPostNodeClick"
           @node-drop="onPostDrop"
         >
@@ -281,7 +280,7 @@ import {
 } from '@/api/system/post'
 
 import { unwrapOrgTreeNode } from '@/types/org'
-import { displayOrgTree, resolveDeptRootParentId } from '@/utils/org-tree'
+import { displayOrgTree, resolveDeptRootParentId, collectExpandKeysByDepth } from '@/utils/org-tree'
 
 const router = useRouter()
 const activeTab = ref('dept')
@@ -292,6 +291,9 @@ const postTreeRef = ref<InstanceType<typeof ElTree> | null>(null)
 const deptTreeRaw = ref<DeptVO[]>([])
 const deptDisplayTree = computed(() => displayOrgTree(deptTreeRaw.value))
 const postTree = ref<PostVO[]>([])
+
+/** 岗位树默认只展开前两级（如 董事长 → 总经理）， deeper 节点需手动展开 */
+const postDefaultExpandedKeys = computed(() => collectExpandKeysByDepth(postTree.value, 2))
 
 const selectedId = ref<number | null>(null)
 const selectedName = ref('')

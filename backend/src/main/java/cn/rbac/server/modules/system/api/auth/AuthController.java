@@ -25,12 +25,11 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
-import org.lionsoul.ip2region.xdb.Searcher;
+import cn.rbac.server.common.util.IpLocationUtils;
 import org.redisson.api.RBucket;
 import org.redisson.api.RedissonClient;
 import org.redisson.api.RAtomicLong;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.io.ClassPathResource;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.util.StringUtils;
 import org.springframework.transaction.annotation.Transactional;
@@ -38,7 +37,6 @@ import org.springframework.web.bind.annotation.*;
 
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
-import java.io.InputStream;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -285,8 +283,7 @@ public class AuthController {
         String ip = getClientIp(request);
         log.setIpaddr(ip);
         
-        // 解析IP地址获取地理位置（简单实现）
-        log.setLoginLocation(getLocationByIP(ip));
+        log.setLoginLocation(IpLocationUtils.resolve(ip));
         
         String userAgentStr = request.getHeader("User-Agent");
         log.setBrowser(UserAgentUtils.parseBrowser(userAgentStr));
@@ -474,75 +471,6 @@ public class AuthController {
         redissonClient.getBucket(LOGIN_LOCK_IP_KEY + ip).delete();
     }
 
-    
-    /**
-     * 根据IP地址获取地理位置
-     * 使用 IP2Region 库进行IP地址解析
-     */
-    private String getLocationByIP(String ip) {
-        if (ip == null || ip.isEmpty()) {
-            return "未知";
-        }
-        
-        // 内网IP
-        if (ip.startsWith("192.168.") || ip.startsWith("10.") || 
-            ip.startsWith("172.16.") || ip.startsWith("127.") ||
-            ip.startsWith("172.17.") || ip.startsWith("172.18.") ||
-            ip.startsWith("172.19.") || ip.startsWith("172.20.") ||
-            ip.startsWith("172.21.") || ip.startsWith("172.22.") ||
-            ip.startsWith("172.23.") || ip.startsWith("172.24.") ||
-            ip.startsWith("172.25.") || ip.startsWith("172.26.") ||
-            ip.startsWith("172.27.") || ip.startsWith("172.28.") ||
-            ip.startsWith("172.29.") || ip.startsWith("172.30.") ||
-            ip.startsWith("172.31.")) {
-            return "内网IP";
-        }
-        
-        try {
-            // 从 classpath 加载 IP2Region 数据库文件
-            ClassPathResource resource = new ClassPathResource("ip2region/ip2region.xdb");
-            if (!resource.exists()) {
-                log.warn("IP2Region数据库文件不存在: {}", resource.getPath());
-                return "未知";
-            }
-            
-            InputStream is = resource.getInputStream();
-            byte[] dbBuff = new byte[is.available()];
-            is.read(dbBuff);
-            is.close();
-            
-            // 使用字节数组创建Searcher
-            Searcher searcher = Searcher.newWithBuffer(dbBuff);
-            String region = searcher.search(ip);
-            searcher.close();
-            
-            if (region != null && !region.isEmpty()) {
-                // 格式化输出：中国|0|江苏省|苏州市|电信 -> 江苏苏州
-                String[] parts = region.split("\\|");
-                StringBuilder location = new StringBuilder();
-                
-                // 跳过国家和区域字段，取省份和城市
-                if (parts.length >= 3 && !"0".equals(parts[2])) {
-                    location.append(parts[2].replace("省", "").replace("自治区", ""));
-                }
-                if (parts.length >= 4 && !"0".equals(parts[3])) {
-                    location.append(parts[3].replace("市", ""));
-                }
-                
-                // 添加运营商信息
-                if (parts.length >= 5 && !"0".equals(parts[4])) {
-                    location.append("(").append(parts[4]).append(")");
-                }
-                
-                return location.length() > 0 ? location.toString() : "未知";
-            }
-        } catch (Exception e) {
-            log.warn("IP地址解析失败: {}, 错误: {}", ip, e.getMessage());
-        }
-        
-        return "未知";
-    }
-    
     @Operation(summary = "获取用户信息")
     @GetMapping("/info")
     public CommonResult<Map<String, Object>> info() {
