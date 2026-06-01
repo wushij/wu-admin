@@ -44,6 +44,7 @@ export interface ChatSendPayload {
   receiverId?: number
   content: string
   msgType?: number
+  mentionIds?: number[]
 }
 
 export interface CreateGroupPayload {
@@ -116,6 +117,30 @@ export function uploadChatImage(file: File) {
   return post<FileRecord>('/system/chat/upload/image', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   })
+}
+
+export function uploadChatFile(file: File) {
+  const formData = new FormData()
+  formData.append('file', file)
+  return post<FileRecord>('/system/chat/upload/file', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+}
+
+export function canCreateChatGroup() {
+  return get<boolean>('/system/chat/can-create-group')
+}
+
+export function recallPrivateMessage(messageId: number) {
+  return post<ChatMessage>(`/system/chat/recall/${messageId}`)
+}
+
+export function recallGroupMessage(groupId: number, messageId: number) {
+  return post<ChatMessage>(`/system/chat/group/${groupId}/message/${messageId}/recall`)
+}
+
+export function sendTypingSignal(targetUserId: number) {
+  return post(`/system/chat/typing/${targetUserId}`)
 }
 
 export function getChatHistory(targetId: number, params?: MessagePageQuery) {

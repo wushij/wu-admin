@@ -397,7 +397,7 @@ const quickEntries: QuickEntry[] = [
   { key: 'ticket', name: '工单管理', desc: '处理跟踪工单', path: '/system/ticket', permission: 'system:ticket:list', icon: Tickets, theme: 'ticket' },
   {
     key: 'chat',
-    name: '即时聊天',
+    name: '企业IM',
     desc: '私聊与群聊消息',
     path: '/message/chat',
     permission: 'system:chat:list',

@@ -1,10 +1,12 @@
 package cn.rbac.server.modules.system.api.file;
 
+import cn.rbac.server.framework.storage.FileContentTypes;
 import cn.rbac.server.framework.storage.FileStorageProperties;
+import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -12,6 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -31,7 +34,6 @@ public class FileAccessController {
         String uri = request.getRequestURI();
         int idx = uri.indexOf("/files/");
         String relative = idx >= 0 ? uri.substring(idx + "/files/".length()) : "";
-        // img 标签通过 ?Authorization= 传 token 时，不能把查询串拼进文件路径
         int q = relative.indexOf('?');
         if (q >= 0) {
             relative = relative.substring(0, q);
@@ -47,10 +49,23 @@ public class FileAccessController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
         }
         byte[] bytes = Files.readAllBytes(full);
-        String contentType = Files.probeContentType(full);
-        if (contentType == null) {
-            contentType = MediaType.APPLICATION_OCTET_STREAM_VALUE;
+        String storageName = full.getFileName().toString();
+        String probed = Files.probeContentType(full);
+        String contentType = FileContentTypes.resolve(storageName, null, probed);
+
+        String filenameParam = request.getParameter("filename");
+        String dispositionParam = request.getParameter("disposition");
+        boolean forceAttachment = "attachment".equalsIgnoreCase(dispositionParam)
+                || FileContentTypes.shouldForceDownload(contentType);
+
+        var builder = ResponseEntity.ok().header(HttpHeaders.CONTENT_TYPE, contentType);
+        if (forceAttachment) {
+            String downloadName = StringUtils.hasText(filenameParam) ? filenameParam : storageName;
+            ContentDisposition cd = ContentDisposition.attachment()
+                    .filename(downloadName, StandardCharsets.UTF_8)
+                    .build();
+            builder.header(HttpHeaders.CONTENT_DISPOSITION, cd.toString());
         }
-        return ResponseEntity.ok().header(HttpHeaders.CONTENT_TYPE, contentType).body(bytes);
+        return builder.body(bytes);
     }
 }

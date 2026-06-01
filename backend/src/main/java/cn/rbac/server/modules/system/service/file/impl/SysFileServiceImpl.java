@@ -2,6 +2,7 @@ package cn.rbac.server.modules.system.service.file.impl;
 
 import cn.rbac.server.common.pojo.PageResult;
 import cn.rbac.server.framework.security.core.service.SecurityUtils;
+import cn.rbac.server.framework.storage.FileContentTypes;
 import cn.rbac.server.framework.storage.LocalFileStorage;
 import cn.rbac.server.modules.system.dal.dataobject.file.SysFileDO;
 import cn.rbac.server.modules.system.dal.mysql.file.SysFileMapper;
@@ -26,8 +27,9 @@ import java.util.UUID;
 @Service
 public class SysFileServiceImpl extends ServiceImpl<SysFileMapper, SysFileDO> implements SysFileService {
 
-    /** 即时聊天图片专用目录，文件列表默认不展示 */
+    /** 企业IM 聊天图片专用目录，文件列表默认不展示 */
     public static final String CHAT_IMAGE_PATH_PREFIX = "images/chat/";
+    public static final String CHAT_FILE_PATH_PREFIX = "files/chat/";
 
     @Resource
     private LocalFileStorage localFileStorage;
@@ -81,7 +83,7 @@ public class SysFileServiceImpl extends ServiceImpl<SysFileMapper, SysFileDO> im
             record.setFilePath(storagePath + "/" + fileName);
             record.setUrl(url);
             record.setFileSize(file.getSize());
-            record.setFileType(file.getContentType());
+            record.setFileType(FileContentTypes.resolve(originalName, file.getContentType(), null));
             record.setFileSuffix(suffix);
             record.setStorageType("local");
             record.setGroupId(groupId);
@@ -114,8 +116,16 @@ public class SysFileServiceImpl extends ServiceImpl<SysFileMapper, SysFileDO> im
         return upload(file, CHAT_IMAGE_PATH_PREFIX + generatePath(), null);
     }
 
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public SysFileDO uploadChatFile(MultipartFile file) {
+        localFileStorage.validateUpload(file.getOriginalFilename(), file.getSize());
+        return upload(file, CHAT_FILE_PATH_PREFIX + generatePath(), null);
+    }
+
     private void excludeChatInternalFiles(LambdaQueryWrapper<SysFileDO> wrapper) {
-        wrapper.notLikeRight(SysFileDO::getFilePath, CHAT_IMAGE_PATH_PREFIX);
+        wrapper.notLikeRight(SysFileDO::getFilePath, CHAT_IMAGE_PATH_PREFIX)
+                .notLikeRight(SysFileDO::getFilePath, CHAT_FILE_PATH_PREFIX);
     }
 
     @Override
