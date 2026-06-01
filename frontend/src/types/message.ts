@@ -33,6 +33,7 @@ export interface ChatMessage {
   groupId?: number
   content?: string
   msgType?: number
+  mentionIds?: number[] | string
   sendTime?: string
 }
 

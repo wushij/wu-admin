@@ -385,7 +385,7 @@ CREATE TABLE sys_notice (
     INDEX idx_biz (biz_type, biz_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='站内消息表';
 
--- §11b 消息中心（广播通知 sys_announce + 即时聊天私聊/群聊）
+-- §11b 消息中心（广播通知 sys_announce + 企业IM 私聊/群聊）
 --      sys_notice 保留为业务收件箱；sys_announce 为管理员发布的广播通知
 DROP TABLE IF EXISTS sys_chat_group_log;
 DROP TABLE IF EXISTS sys_chat_group_message;
@@ -497,6 +497,7 @@ CREATE TABLE sys_chat_group_message (
     sender_avatar VARCHAR(500) DEFAULT NULL,
     content TEXT NOT NULL,
     msg_type TINYINT DEFAULT 1,
+    mention_ids VARCHAR(500) DEFAULT NULL COMMENT '@的用户ID列表JSON',
     send_time DATETIME DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_group_time (group_id, send_time),
     INDEX idx_send_time (send_time)
@@ -863,7 +864,7 @@ INSERT INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, c
 -- 消息中心
 (170, '消息中心', '', 1, 6, 0, '/message', 'Bell', '', 1),
 (171, '系统通知', 'system:announce:list', 2, 1, 170, '/message/notice', 'Notification', 'message/notice/index', 1),
-(172, '即时聊天', 'system:chat:list', 2, 2, 170, '/message/chat', 'ChatDotRound', 'message/chat/index', 1),
+(172, '企业IM', 'system:chat:list', 2, 2, 170, '/message/chat', 'ChatDotRound', 'message/chat/index', 1),
 (173, '通知查询', 'system:announce:query', 3, 1, 171, '', '', '', 1),
 (174, '通知新增', 'system:announce:create', 3, 2, 171, '', '', '', 1),
 (175, '通知修改', 'system:announce:update', 3, 3, 171, '', '', '', 1),
@@ -1127,6 +1128,7 @@ CREATE TABLE IF NOT EXISTS sys_chat_group_message (
     sender_avatar VARCHAR(500) DEFAULT NULL,
     content TEXT NOT NULL,
     msg_type TINYINT DEFAULT 1,
+    mention_ids VARCHAR(500) DEFAULT NULL COMMENT '@的用户ID列表JSON',
     send_time DATETIME DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_group_time (group_id, send_time),
     INDEX idx_send_time (send_time)
@@ -1148,7 +1150,7 @@ CREATE TABLE IF NOT EXISTS sys_chat_group_log (
 INSERT IGNORE INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, component, status) VALUES
 (170, '消息中心', '', 1, 6, 0, '/message', 'Bell', '', 1),
 (171, '系统通知', 'system:announce:list', 2, 1, 170, '/message/notice', 'Notification', 'message/notice/index', 1),
-(172, '即时聊天', 'system:chat:list', 2, 2, 170, '/message/chat', 'ChatDotRound', 'message/chat/index', 1),
+(172, '企业IM', 'system:chat:list', 2, 2, 170, '/message/chat', 'ChatDotRound', 'message/chat/index', 1),
 (173, '通知查询', 'system:announce:query', 3, 1, 171, '', '', '', 1),
 (174, '通知新增', 'system:announce:create', 3, 2, 171, '', '', '', 1),
 (175, '通知修改', 'system:announce:update', 3, 3, 171, '', '', '', 1),
@@ -1364,7 +1366,7 @@ BEGIN
         (126, '操作日志查询', 'system:operLog:query', 3, 1, 121, '', '', '', 1),
         (170, '消息中心', '', 1, 6, 0, '/message', 'Bell', '', 1),
         (171, '系统通知', 'system:announce:list', 2, 1, 170, '/message/notice', 'Notification', 'message/notice/index', 1),
-        (172, '即时聊天', 'system:chat:list', 2, 2, 170, '/message/chat', 'ChatDotRound', 'message/chat/index', 1),
+        (172, '企业IM', 'system:chat:list', 2, 2, 170, '/message/chat', 'ChatDotRound', 'message/chat/index', 1),
         (173, '通知查询', 'system:announce:query', 3, 1, 171, '', '', '', 1),
         (174, '通知新增', 'system:announce:create', 3, 2, 171, '', '', '', 1),
         (175, '通知修改', 'system:announce:update', 3, 3, 171, '', '', '', 1),

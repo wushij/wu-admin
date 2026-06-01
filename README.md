@@ -20,7 +20,7 @@
 | **系统监控** | API 访问统计（ECharts 图表 + 日志列表）、在线用户与强退、**定时任务**（Quartz 调度、内置清理任务，默认暂停） |
 | **文件管理** | 分组 CRUD、按类型筛选；图片/PDF/Office 预览；大小与扩展名受**系统配置**约束 |
 | **业务中心** | **工单**：优先级、截止/超时、评论附件、指派与全员通知（非超管仅看本人相关）；**审批**：请假/采购/报销/用印/合同/通用 + `REGISTER` 注册审核，**详情抽屉内可直接通过/驳回**，支持归档 |
-| **消息中心** | **业务消息**（`sys_notice`，工单/审批触达）、系统通知（全员/用户/部门定向、发送日志）、即时聊天（私聊/群聊）、WebSocket |
+| **消息中心** | **业务消息**（`sys_notice`，工单/审批触达）、系统通知（全员/用户/部门定向、发送日志）、**企业IM**（私聊/群聊、文件、@、撤回、正在输入等）、WebSocket |
 | **认证安全** | 图片/滑块验证码、**短信验证码登录**（独立开关，与账号验证码分离）、**短信发码前滑块**（可选）、登录失败锁定（用户+IP）、记住我、登录/注册/短信**限流防刷**；账号密码错误统一提示「账号或密码错误」；Sa-Token 会话（Redis db=1） |
 | **界面体验** | 主题色切换；登录/注册页 Three.js 地球 + 粒子背景；顶栏消息铃铛三 Tab |
 
@@ -77,6 +77,49 @@
 
 - `frontend/src/utils/org-tree.ts`：`displayOrgTree` 隐藏唯一根节点（如「本部」），直接展示下级中心/部门。
 - **岗位体系** 左侧树默认展开至 **第 2 级**（`collectExpandKeysByDepth(..., 2)`）；**部门体系** 与用户管理侧栏部门树默认折叠，减少首屏展开过多节点。
+
+### 企业IM 能力增强
+
+企业 IM（菜单名由「即时聊天」更名为 **企业IM**，见 `sql/add3.sql`）近期新增以下能力，前后端与 WebSocket 需一并升级并 **重启后端**。
+
+| 能力 | 说明 |
+|------|------|
+| **历史消息分页** | 私聊/群聊默认拉最近 50 条；滚至顶部自动加载更早记录，并保持滚动位置不跳动 |
+| **通用文件发送** | 除图片外支持 PDF、Word、Excel、压缩包等；复用 **系统配置 → 文件存储** 的大小与扩展名限制；存储于 `files/chat/`，不出现在文件管理列表 |
+| **群聊 @ 成员** | 输入 `@` 弹出成员列表；被 @ 用户 WebSocket 强提醒（通知标题 `[有人@你]`）并计入群未读角标 |
+| **消息撤回** | 自己发送的消息 **2 分钟内** 可右键撤回；私聊显示「你/对方撤回了一条消息」，群聊显示「昵称撤回了一条消息」；对方 **实时** 同步，无需刷新 |
+| **建群权限** | 仅 **超级管理员**（`super_admin`）可创建群聊；侧栏「+」按权限显示 |
+| **正在输入…** | 私聊输入时向对方推送 typing 事件，顶栏显示「对方正在输入…」 |
+| **图片预览** | 聊天图片点击后使用 Element Plus 全屏查看器居中预览 |
+
+**消息类型（`msgType`）**
+
+| 值 | 含义 |
+|----|------|
+| `1` | 文本 |
+| `2` | 图片 |
+| `3` | 文件（`content` 为 JSON：`url`、`name`、`size`、`fileId`） |
+| `4` | 系统消息（群事件等） |
+| `5` | 已撤回 |
+
+**WebSocket 推送类型**：`notice` / `chat` / `groupChat` / `typing`；群消息可带 `atMe: true`；撤回带 `recall: true` 与 `messageId`。
+
+**数据库增量**
+
+| 脚本 | 环境 | 内容 |
+|------|------|------|
+| `sql/add3.sql` | 本地 dev（`wu-admin`） | 菜单更名为「企业IM」 |
+| `sql/add4.sql` | 本地 dev | 群消息表 `mention_ids` 字段 |
+| `sql/add3_add4_wuadmin.sql` | **生产**（`wuadmin`） | 合并 add3 + add4 |
+
+```bash
+# 本地
+mysql -u root -p wu-admin < sql/add3.sql
+mysql -u root -p wu-admin < sql/add4.sql
+
+# 服务器（库名 wuadmin，与 application-prod.yml 一致）
+mysql -u wuadmin -p wuadmin < sql/add3_add4_wuadmin.sql
+```
 
 ---
 
@@ -185,9 +228,9 @@
 |------|------|
 | **业务消息** | 顶栏铃铛「业务消息」Tab，数据表 `sys_notice`，点击跳转工单/审批 |
 | **系统通知** | 管理员在「系统通知」页发布广播/定向公告（`sys_announce`），用户顶栏「系统通知」Tab 查看 |
-| **即时聊天** | 私聊 + 群聊；文本/表情/图片；在线状态；拉黑；群管（邀请/移除/禁言/转让/解散） |
+| **企业IM** | 私聊 + 群聊；文本/表情/图片/**文件**；在线状态；拉黑；群管（邀请/移除/禁言/转让/解散）；**@ 提醒**；**2 分钟内撤回**；**正在输入** |
 | **群聊日志** | 群组详情 →「群聊日志」Tab，记录建群、邀请、退群等操作（`sys_chat_group_log`） |
-| **实时推送** | WebSocket 推送新通知、私聊、群聊；顶栏角标与聊天页联动刷新 |
+| **实时推送** | WebSocket 推送新通知、私聊、群聊、**@ 强提醒**、**撤回**、**正在输入**；顶栏角标与聊天页联动刷新 |
 
 ### 菜单与页面
 
@@ -195,9 +238,9 @@
 |------|------|------|------|
 | 消息中心 | `/message` | — | 目录 |
 | 系统通知 | `/message/notice` | `message/notice/index` | `system:announce:list`（管理端） |
-| 即时聊天 | `/message/chat` | `message/chat/index` | `system:chat:list` |
+| 企业IM | `/message/chat` | `message/chat/index` | `system:chat:list` |
 
-普通用户默认拥有 **即时聊天** + 顶栏查看 **系统通知**，不含「系统通知」管理页（需 `system:announce:*`）。
+普通用户默认拥有 **企业IM** + 顶栏查看 **系统通知**，不含「系统通知」管理页（需 `system:announce:*`）。
 
 ### 主要 API（前缀 `/api`）
 
@@ -205,26 +248,38 @@
 |------|------|------|
 | 汇总 | `GET /system/message/summary` | 业务 + 公告 + 聊天未读数 |
 | 通知 | `/system/announce/*` | 分页、CRUD、发布、我的通知、已读、发送日志 |
-| 私聊 | `POST /system/chat/send` | 发消息 |
-| 私聊 | `GET /system/chat/history/{targetId}` | 历史记录 |
+| 私聊 | `POST /system/chat/send` | 发消息（body 含 `msgType`、`content`） |
+| 私聊 | `GET /system/chat/history/{targetId}` | 历史记录（`pageNo` / `pageSize`，默认 50 条/页） |
 | 私聊 | `POST /system/chat/read/{senderId}` | 标记已读 |
+| 私聊 | `POST /system/chat/recall/{messageId}` | 撤回私聊消息（2 分钟内） |
+| 私聊 | `POST /system/chat/typing/{targetUserId}` | 正在输入信号 |
 | 群聊 | `/system/chat/group/*` | 建群、成员、消息、禁言、转让等 |
+| 群聊 | `GET /system/chat/group/{groupId}/messages` | 群历史（分页） |
+| 群聊 | `POST /system/chat/group/{groupId}/message` | 发群消息（body 可含 `mentionIds`） |
+| 群聊 | `POST /system/chat/group/{groupId}/message/{messageId}/recall` | 撤回群消息 |
 | 群聊 | `GET /system/chat/group/{groupId}/logs` | 群操作日志 |
-| 聊天图片 | `POST /system/chat/upload/image` | 上传至 `images/chat/` 目录，**不出现在文件管理列表** |
-| WebSocket | `ws(s)://{host}/api/ws/message?token=...` | 推送类型：`notice` / `chat` / `groupChat` |
+| 群聊 | `GET /system/chat/can-create-group` | 是否可建群（仅 `super_admin` 为 true） |
+| 聊天图片 | `POST /system/chat/upload/image` | 上传至 `images/chat/`，**不出现在文件管理列表** |
+| 聊天文件 | `POST /system/chat/upload/file` | 上传至 `files/chat/`，受文件配置大小/扩展名约束 |
+| WebSocket | `ws(s)://{host}/api/ws/message?token=...` | 推送：`notice` / `chat` / `groupChat` / `typing`；群聊可带 `atMe`；撤回带 `recall` + `messageId` |
 
 ### 前端关键文件
 
 ```
 frontend/src/
 ├── api/message/index.ts          # 通知、聊天、群聊 API
-├── store/message.ts              # 未读汇总、WebSocket、群未读角标
+├── constants/chat.ts             # 消息类型、分页大小
+├── utils/chat-message.ts         # 文件 payload、撤回文案、@ 渲染
+├── store/message.ts              # 未读汇总、WebSocket、群未读角标、撤回事件
 ├── types/message.ts              # 消息相关类型
 ├── utils/messageWebSocket.ts     # WS 连接封装
-├── components/MessageNotification.vue  # 新消息浮层提示
+├── components/
+│   ├── EmojiPicker.vue           # 表情选择器
+│   ├── chat/ChatToolbarIcons.vue # 输入栏图标
+│   └── MessageNotification.vue   # 新消息浮层提示
 └── views/message/
     ├── notice/index.vue          # 系统通知管理（发布/发送日志）
-    └── chat/index.vue            # 即时聊天（私聊/群聊/群组详情）
+    └── chat/index.vue            # 企业IM（私聊/群聊/群组详情）
 ```
 
 后端：`modules/system/api/message/`（`AnnounceController`、`ChatController`）、`framework/websocket/`（`WebSocketConfig`、`MessageWebSocketHandler`）。
@@ -235,7 +290,9 @@ frontend/src/
 |------|------|
 | `system:announce:list` | 进入通知管理页 |
 | `system:announce:create/update/delete/publish` | 通知 CRUD 与发布 |
-| `system:chat:list` | 即时聊天与聊天图片上传 |
+| `system:chat:list` | 企业IM、聊天图片/文件上传、撤回、@、正在输入等 |
+
+> **建群**：后端强制仅 `super_admin` 可调用建群接口；前端侧栏「+」通过 `GET /can-create-group` 控制显示。
 
 ### 数据库
 
@@ -245,13 +302,13 @@ frontend/src/
 |------|------|------|
 | **全新安装（空库）** | `sql/admin_platform.sql` | `mysql -u root -p < sql/admin_platform.sql`（空库自动放行） |
 | **极旧库首次升级** | `admin_platform.sql` **附录段**（约 910 行起） | 补全缺表/菜单/索引，可重复执行 |
-| **发版增量** | **`sql/add1.sql`**、`sql/add2.sql` … | `mysql -u root -p wu-admin < sql/add2.sql`（仅本版新增项） |
+| **发版增量** | **`sql/add1.sql`** … **`sql/add4.sql`** | 见下表；生产库名 `wuadmin` 可用 `add3_add4_wuadmin.sql` |
 
 > 切勿对生产库直接跑 `admin_platform.sql` 全文（Part A 含 DROP，默认会被熔断拦截）。
 
-正文已含：消息中心表（§11b）、`sys_chat_group_log`、分级组织示例、定时任务、短信配置与 `sys_sms_log`、性能索引（含清理任务相关时间索引）。升级后涉及菜单变更时请 **重新登录**；WebSocket 与新接口需 **重启后端**。
+正文已含：消息中心表（§11b）、`sys_chat_group_log`、群消息 `mention_ids`、分级组织示例、定时任务、短信配置与 `sys_sms_log`、性能索引（含清理任务相关时间索引）。升级后涉及菜单变更时请 **重新登录**；WebSocket 与新接口需 **重启后端**。
 
-> 说明：历史聊天图片若曾走通用文件上传，可能仍出现在文件列表；升级后新发的聊天图片走专用目录，列表会自动排除。
+> 说明：历史聊天图片若曾走通用文件上传，可能仍出现在文件列表；升级后新发的聊天图片走 `images/chat/`、文件走 `files/chat/`，列表会自动排除。
 
 ## 定时任务（系统监控 → 定时任务）
 
@@ -359,7 +416,10 @@ wu-admin/
 ├── sql/
 │   ├── admin_platform.sql      # 全量安装 + 文末附录（旧库首次补丁）
 │   ├── add1.sql                # 增量补丁 #1
-│   └── add2.sql                # 增量补丁 #2（登录 smsLoginSliderCaptchaEnabled）
+│   ├── add2.sql                # 增量补丁 #2（登录 smsLoginSliderCaptchaEnabled）
+│   ├── add3.sql                # 增量补丁 #3（菜单「企业IM」）
+│   ├── add4.sql                # 增量补丁 #4（群消息 mention_ids）
+│   └── add3_add4_wuadmin.sql   # 生产合并补丁（库名 wuadmin）
 ├── data/                       # 本地上传目录（git 忽略，对应 file.storage.local-path）
 └── README.md
 ```
@@ -429,6 +489,11 @@ mysql -u root -p < sql/admin_platform.sql
 # 已有库发版增量（按版本依次执行）
 mysql -u root -p wu-admin < sql/add1.sql
 mysql -u root -p wu-admin < sql/add2.sql
+mysql -u root -p wu-admin < sql/add3.sql
+mysql -u root -p wu-admin < sql/add4.sql
+
+# 生产服务器（库名 wuadmin，合并 add3+add4）
+mysql -u wuadmin -p wuadmin < sql/add3_add4_wuadmin.sql
 
 # 极旧库首次补全（缺表/菜单时，执行 admin_platform.sql 附录段，约 910 行起）
 ```
@@ -526,13 +591,14 @@ npm run dev
 
 ## 数据库脚本
 
-维护 **`sql/admin_platform.sql`**（全量 + 附录）与 **`sql/add1.sql`、`sql/add2.sql`** 等增量补丁：
+维护 **`sql/admin_platform.sql`**（全量 + 附录）与 **`sql/add1.sql` … `add4.sql`** 等增量补丁：
 
 | 场景 | 做法 |
 |------|------|
 | **全新安装** | 空库直接 `mysql -u root -p < sql/admin_platform.sql` |
 | **极旧库首次升级** | 执行 `admin_platform.sql` 文末 **附录**（约 910 行起） |
-| **发版增量** | 依次 `mysql -u root -p wu-admin < sql/add1.sql`、`sql/add2.sql` …（仅含该版本新增 SQL） |
+| **发版增量（本地 dev）** | 依次 `mysql -u root -p wu-admin < sql/add1.sql` … `add4.sql` |
+| **发版增量（生产）** | `mysql -u wuadmin -p wuadmin < sql/add3_add4_wuadmin.sql`（或按需单独执行 add3/add4 并改库名） |
 
 `addN.sql` 体量应保持在几十行量级；全量补丁逻辑在 `admin_platform.sql` 附录。
 
@@ -540,6 +606,9 @@ npm run dev
 |----------|------|
 | `add1.sql` | 清理旧版冗余索引等 |
 | `add2.sql` | 登录配置 `smsLoginSliderCaptchaEnabled`（短信发码前滑块，默认 `false`） |
+| `add3.sql` | 菜单 id=172「即时聊天」→「**企业IM**」 |
+| `add4.sql` | `sys_chat_group_message.mention_ids`（群 @ 提醒，可重复执行） |
+| `add3_add4_wuadmin.sql` | **生产库 `wuadmin`** 合并 add3 + add4 |
 
 **附录 / 增量行为（可重复执行、尽量非破坏性）：**
 
@@ -653,13 +722,28 @@ A：已配置 OpenAPI 默认服务 `http://localhost:3000/api`；重启后端与
 A：在 **系统配置 → 文件存储** 调整；单文件上限不得超过 500MB。
 
 **Q：消息中心菜单不显示或聊天 403？**  
-A：对已有库：极旧库先跑 **admin_platform.sql 附录**；发版增量跑 `sql/add1.sql`，重启后端后 **重新登录**。普通用户需角色分配菜单 170/172；只读权限用户访问 `:list` 接口时会映射为 `:query`。
+A：对已有库：极旧库先跑 **admin_platform.sql 附录**；发版增量依次跑 `sql/add1.sql` … `add4.sql`（生产可用 `add3_add4_wuadmin.sql`），**重启后端**后 **重新登录**。普通用户需角色分配菜单 170/172；只读权限用户访问 `:list` 接口时会映射为 `:query`。
 
 **Q：顶栏有通知角标但列表为空？**  
 A：确认 WebSocket 已连接（登录后自动初始化）；在顶栏铃铛打开「系统通知」Tab 会拉取列表。管理员发布通知需 `system:announce:publish`。
 
 **Q：聊天图片出现在文件管理里？**  
-A：升级后新图片走 `/system/chat/upload/image`，存储于 `images/chat/` 且文件列表已排除；历史旧数据可手动删除。
+A：升级后新图片走 `/system/chat/upload/image`（`images/chat/`）、新文件走 `/system/chat/upload/file`（`files/chat/`），文件列表已排除；历史旧数据可手动删除。
+
+**Q：企业IM 升级后 @ / 撤回 / 文件发送不可用？**  
+A：① 已有库执行 `sql/add4.sql`（或生产 `add3_add4_wuadmin.sql`）；② **重启后端**；③ 重新登录刷新菜单名「企业IM」；④ 确认角色有 `system:chat:list`。
+
+**Q：群聊 @ 没有强提醒或角标？**  
+A：确认 `mention_ids` 字段已入库（add4）；被 @ 时 WebSocket 推送带 `atMe: true`，顶栏通知标题为 `[有人@你]`。
+
+**Q：撤回后对方要刷新才看到？**  
+A：升级至含撤回 WebSocket 同步的版本并重启后端；私聊/群聊均通过 `recall` 事件实时更新，无需刷新。
+
+**Q：普通用户看不到「创建群聊」？**  
+A：仅 **超级管理员**（`super_admin`）可建群，属预期行为；`GET /system/chat/can-create-group` 返回 false 时侧栏不显示「+」。
+
+**Q：聊天文件下载变成乱码或 txt？**  
+A：升级后后端按扩展名返回正确 MIME 并触发下载；请重新部署含 `FileContentTypes` 的后端 jar。
 
 **Q：开启「禁止前端调试」无效？**  
 A：在 **系统配置 → 安全配置** 保存后需 **整页刷新**；缺 `security` 分组时先跑 **admin_platform.sql 附录**。此为浏览器端限制，无法替代后端鉴权。

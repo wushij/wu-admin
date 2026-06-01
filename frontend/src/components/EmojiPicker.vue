@@ -2,7 +2,7 @@
   <el-popover placement="top-start" :width="340" trigger="click" popper-class="emoji-popover">
     <template #reference>
       <el-button link class="toolbar-btn" title="表情">
-        <el-icon><Sunny /></el-icon>
+        <ChatToolbarIcons name="emoji" />
       </el-button>
     </template>
     <div class="emoji-panel">
@@ -32,7 +32,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { Sunny } from '@element-plus/icons-vue'
+import ChatToolbarIcons from '@/components/chat/ChatToolbarIcons.vue'
 import { CHAT_EMOJI_CATEGORIES } from '@/constants/chat-emojis'
 
 const emit = defineEmits<{

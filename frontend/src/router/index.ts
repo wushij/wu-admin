@@ -135,7 +135,7 @@ const routes: RouteRecordRaw[] = [
         path: 'message/chat',
         name: 'MessageChat',
         component: () => import('@/views/message/chat/index.vue'),
-        meta: { title: '即时聊天', icon: 'ChatDotRound', permission: 'system:chat:list' }
+        meta: { title: '企业IM', icon: 'ChatDotRound', permission: 'system:chat:list' }
       }
     ]
   }

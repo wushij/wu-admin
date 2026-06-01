@@ -1,7 +1,9 @@
 package cn.rbac.server.modules.system.service.message;
 
-import cn.rbac.server.framework.security.core.service.SecurityUtils;
 import cn.rbac.server.framework.websocket.MessageWebSocketHandler;
+import cn.rbac.server.modules.system.service.permission.PermissionService;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import cn.rbac.server.modules.system.dal.dataobject.message.*;
 import cn.rbac.server.modules.system.dal.dataobject.user.UserDO;
 import cn.rbac.server.modules.system.dal.mysql.message.*;
@@ -15,12 +17,16 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
 public class ChatService {
+
+    private static final int RECALL_MINUTES = 2;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Resource
     private ChatMessageMapper chatMessageMapper;
@@ -38,6 +44,12 @@ public class ChatService {
     private ChatGroupLogMapper groupLogMapper;
     @Resource
     private MessageWebSocketHandler webSocketHandler;
+    @Resource
+    private PermissionService permissionService;
+
+    public boolean canCreateGroup(Long userId) {
+        return userId != null && permissionService.hasRole(userId, "super_admin");
+    }
 
     public boolean isBlocked(Long senderId, Long receiverId) {
         Long c1 = blacklistMapper.selectCount(new LambdaQueryWrapper<UserBlacklistDO>()
@@ -105,7 +117,7 @@ public class ChatService {
                     .orderByDesc(ChatMessageDO::getSendTime)
                     .last("LIMIT 1"));
             if (latest != null) {
-                item.put("lastMessage", latest.getMsgType() != null && latest.getMsgType() == 2 ? "[图片]" : latest.getContent());
+                item.put("lastMessage", ChatMsgType.previewLabel(latest.getMsgType(), latest.getContent()));
                 item.put("lastMessageTime", latest.getSendTime());
             }
             long unread = chatMessageMapper.selectCount(new LambdaQueryWrapper<ChatMessageDO>()
@@ -174,6 +186,9 @@ public class ChatService {
 
     @Transactional(rollbackFor = Exception.class)
     public ChatGroupDO createGroup(Long ownerId, String name, List<Long> memberIds) {
+        if (!canCreateGroup(ownerId)) {
+            throw new IllegalStateException("仅超级管理员可创建群聊");
+        }
         ChatGroupDO group = new ChatGroupDO();
         group.setName(name);
         group.setOwnerId(ownerId);
@@ -223,7 +238,7 @@ public class ChatService {
                     .orderByDesc(ChatGroupMessageDO::getSendTime)
                     .last("LIMIT 1"));
             if (last != null) {
-                item.put("lastMessage", last.getContent());
+                item.put("lastMessage", ChatMsgType.previewLabel(last.getMsgType(), last.getContent()));
                 item.put("lastMessageTime", last.getSendTime());
             }
             list.add(item);
@@ -233,6 +248,12 @@ public class ChatService {
 
     @Transactional(rollbackFor = Exception.class)
     public ChatGroupMessageDO sendGroupMessage(Long groupId, Long senderId, String content, Integer msgType) {
+        return sendGroupMessage(groupId, senderId, content, msgType, null);
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public ChatGroupMessageDO sendGroupMessage(Long groupId, Long senderId, String content, Integer msgType,
+            List<Long> mentionIds) {
         ChatGroupMemberDO member = groupMemberMapper.selectOne(new LambdaQueryWrapper<ChatGroupMemberDO>()
                 .eq(ChatGroupMemberDO::getGroupId, groupId)
                 .eq(ChatGroupMemberDO::getUserId, senderId));
@@ -249,8 +270,16 @@ public class ChatService {
         msg.setSenderName(sender != null ? sender.getNickname() : "");
         msg.setSenderAvatar(sender != null ? sender.getAvatar() : null);
         msg.setContent(content);
-        msg.setMsgType(msgType == null ? 1 : msgType);
+        msg.setMsgType(msgType == null ? ChatMsgType.TEXT : msgType);
         msg.setSendTime(LocalDateTime.now());
+        List<Long> atIds = normalizeMentionIds(mentionIds);
+        if (!atIds.isEmpty()) {
+            try {
+                msg.setMentionIds(objectMapper.writeValueAsString(atIds));
+            } catch (Exception e) {
+                throw new IllegalStateException("提及用户解析失败");
+            }
+        }
         groupMessageMapper.insert(msg);
         List<ChatGroupMemberDO> members = groupMemberMapper.selectList(
                 new LambdaQueryWrapper<ChatGroupMemberDO>().eq(ChatGroupMemberDO::getGroupId, groupId));
@@ -262,12 +291,125 @@ public class ChatService {
         payload.put("senderAvatar", msg.getSenderAvatar());
         payload.put("content", content);
         payload.put("msgType", msg.getMsgType());
+        payload.put("mentionIds", atIds);
         for (ChatGroupMemberDO m : members) {
             if (!m.getUserId().equals(senderId)) {
+                boolean atMe = atIds.contains(m.getUserId());
+                payload.put("atMe", atMe);
                 webSocketHandler.sendGroupChatPayload(m.getUserId(), payload);
             }
         }
         return msg;
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public ChatMessageDO recallPrivate(Long userId, Long messageId) {
+        ChatMessageDO msg = chatMessageMapper.selectById(messageId);
+        if (msg == null) {
+            throw new IllegalStateException("消息不存在");
+        }
+        if (!userId.equals(msg.getSenderId())) {
+            throw new IllegalStateException("只能撤回自己发送的消息");
+        }
+        ensureWithinRecallWindow(msg.getSendTime());
+        if (msg.getMsgType() != null && msg.getMsgType() == ChatMsgType.RECALLED) {
+            return msg;
+        }
+        msg.setMsgType(ChatMsgType.RECALLED);
+        msg.setContent("");
+        chatMessageMapper.updateById(msg);
+        broadcastPrivateRecall(msg);
+        return msg;
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public ChatGroupMessageDO recallGroupMessage(Long groupId, Long userId, Long messageId) {
+        ChatGroupMemberDO member = groupMemberMapper.selectOne(new LambdaQueryWrapper<ChatGroupMemberDO>()
+                .eq(ChatGroupMemberDO::getGroupId, groupId)
+                .eq(ChatGroupMemberDO::getUserId, userId));
+        if (member == null) {
+            throw new IllegalStateException("不在该群");
+        }
+        ChatGroupMessageDO msg = groupMessageMapper.selectById(messageId);
+        if (msg == null || !groupId.equals(msg.getGroupId())) {
+            throw new IllegalStateException("消息不存在");
+        }
+        if (!userId.equals(msg.getSenderId())) {
+            throw new IllegalStateException("只能撤回自己发送的消息");
+        }
+        ensureWithinRecallWindow(msg.getSendTime());
+        if (msg.getMsgType() != null && msg.getMsgType() == ChatMsgType.RECALLED) {
+            return msg;
+        }
+        msg.setMsgType(ChatMsgType.RECALLED);
+        msg.setContent("");
+        groupMessageMapper.updateById(msg);
+        broadcastGroupRecall(msg);
+        return msg;
+    }
+
+    public void relayTyping(Long fromUserId, Long toUserId) {
+        if (fromUserId == null || toUserId == null || fromUserId.equals(toUserId)) {
+            return;
+        }
+        webSocketHandler.sendTypingPayload(toUserId, fromUserId);
+    }
+
+    private void ensureWithinRecallWindow(LocalDateTime sendTime) {
+        if (sendTime == null) {
+            return;
+        }
+        if (Duration.between(sendTime, LocalDateTime.now()).toMinutes() > RECALL_MINUTES) {
+            throw new IllegalStateException("已超过 " + RECALL_MINUTES + " 分钟，无法撤回");
+        }
+    }
+
+    private void broadcastPrivateRecall(ChatMessageDO msg) {
+        Map<String, Object> payload = recallPayload(msg.getId(), msg.getSenderId(), null, msg.getSenderName());
+        webSocketHandler.sendChatPayload(msg.getReceiverId(), payload);
+        webSocketHandler.sendChatPayload(msg.getSenderId(), payload);
+    }
+
+    private void broadcastGroupRecall(ChatGroupMessageDO msg) {
+        List<ChatGroupMemberDO> members = groupMemberMapper.selectList(
+                new LambdaQueryWrapper<ChatGroupMemberDO>().eq(ChatGroupMemberDO::getGroupId, msg.getGroupId()));
+        Map<String, Object> payload = recallPayload(msg.getId(), msg.getSenderId(), msg.getGroupId(), msg.getSenderName());
+        for (ChatGroupMemberDO m : members) {
+            webSocketHandler.sendGroupChatPayload(m.getUserId(), payload);
+        }
+    }
+
+    private Map<String, Object> recallPayload(Long messageId, Long senderId, Long groupId, String senderName) {
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("recall", true);
+        payload.put("id", messageId);
+        payload.put("messageId", messageId);
+        payload.put("senderId", senderId);
+        payload.put("senderName", senderName);
+        payload.put("msgType", ChatMsgType.RECALLED);
+        if (groupId != null) {
+            payload.put("groupId", groupId);
+        }
+        return payload;
+    }
+
+    private List<Long> normalizeMentionIds(List<Long> mentionIds) {
+        if (mentionIds == null || mentionIds.isEmpty()) {
+            return List.of();
+        }
+        return mentionIds.stream().filter(Objects::nonNull).distinct().toList();
+    }
+
+    public List<Long> parseMentionIds(String json) {
+        if (!StringUtils.hasText(json)) {
+            return List.of();
+        }
+        try {
+            return objectMapper.readValue(json, new TypeReference<List<Long>>() {
+            });
+        } catch (Exception e) {
+            return List.of();
+        }
     }
 
     public Page<ChatGroupMessageDO> groupMessages(Long groupId, Long userId, int pageNo, int pageSize) {
