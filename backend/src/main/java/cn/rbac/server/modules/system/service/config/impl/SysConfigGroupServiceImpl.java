@@ -153,6 +153,10 @@ public class SysConfigGroupServiceImpl implements SysConfigGroupService {
         if (smsLoginEnabled && !systemConfigHelper.isSmsEnabled()) {
             throw new IllegalArgumentException("启用短信验证码登录须先在短信配置中开启短信功能");
         }
+        boolean smsLoginSliderCaptchaEnabled = json.getBool("smsLoginSliderCaptchaEnabled", false);
+        if (smsLoginSliderCaptchaEnabled && !smsLoginEnabled) {
+            throw new IllegalArgumentException("启用短信发送前滑块验证须先开启短信验证码登录");
+        }
         int maxRetry = json.getInt("maxRetryCount", 5);
         if (maxRetry < 1 || maxRetry > 20) {
             throw new IllegalArgumentException("最大重试次数须在 1～20 之间");

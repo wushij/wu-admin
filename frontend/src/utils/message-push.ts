@@ -7,7 +7,10 @@ export interface ActiveChatTarget {
 
 export function resolvePushTitle(msg: WsPushMessage): string {
   if (msg.type === 'notice') return msg.title || '系统通知'
-  if (msg.type === 'groupChat') return msg.senderName ? `${msg.senderName}(群消息)` : '群消息'
+  if (msg.type === 'groupChat') {
+    if (msg.atMe) return '[有人@你] ' + (msg.senderName ? `${msg.senderName}(群消息)` : '群消息')
+    return msg.senderName ? `${msg.senderName}(群消息)` : '群消息'
+  }
   return msg.senderName || '新消息'
 }
 

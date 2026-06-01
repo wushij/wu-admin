@@ -25,19 +25,18 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
-import org.lionsoul.ip2region.xdb.Searcher;
+import cn.rbac.server.common.util.IpLocationUtils;
 import org.redisson.api.RBucket;
 import org.redisson.api.RedissonClient;
 import org.redisson.api.RAtomicLong;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.io.ClassPathResource;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.util.StringUtils;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
-import java.io.InputStream;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -173,12 +172,12 @@ public class AuthController {
         if (user == null) {
             handleLoginFailure(username, clientIp);
             recordLoginLog(null, username, 1, "用户不存在", request);
-            return CommonResult.error(401, "用户不存在");
+            return CommonResult.error(400, "账号或密码错误");
         }
         if (!passwordEncoder.matches(reqVO.getPassword(), user.getPassword())) {
             handleLoginFailure(username, clientIp);
             recordLoginLog(user.getId(), username, 1, "密码错误", request);
-            return CommonResult.error(401, "密码错误");
+            return CommonResult.error(400, "账号或密码错误");
         }
 
         String statusErr = checkUserLoginStatus(user);
@@ -229,7 +228,7 @@ public class AuthController {
         if (user == null) {
             handleLoginFailure(username, clientIp);
             recordLoginLog(null, username, 1, "该手机号未绑定任何账号", request);
-            return CommonResult.error(401, "该手机号未绑定任何账号");
+            return CommonResult.error(400, "该手机号未绑定任何账号");
         }
 
         String statusErr = checkUserLoginStatus(user);
@@ -284,8 +283,7 @@ public class AuthController {
         String ip = getClientIp(request);
         log.setIpaddr(ip);
         
-        // 解析IP地址获取地理位置（简单实现）
-        log.setLoginLocation(getLocationByIP(ip));
+        log.setLoginLocation(IpLocationUtils.resolve(ip));
         
         String userAgentStr = request.getHeader("User-Agent");
         log.setBrowser(UserAgentUtils.parseBrowser(userAgentStr));
@@ -473,75 +471,6 @@ public class AuthController {
         redissonClient.getBucket(LOGIN_LOCK_IP_KEY + ip).delete();
     }
 
-    
-    /**
-     * 根据IP地址获取地理位置
-     * 使用 IP2Region 库进行IP地址解析
-     */
-    private String getLocationByIP(String ip) {
-        if (ip == null || ip.isEmpty()) {
-            return "未知";
-        }
-        
-        // 内网IP
-        if (ip.startsWith("192.168.") || ip.startsWith("10.") || 
-            ip.startsWith("172.16.") || ip.startsWith("127.") ||
-            ip.startsWith("172.17.") || ip.startsWith("172.18.") ||
-            ip.startsWith("172.19.") || ip.startsWith("172.20.") ||
-            ip.startsWith("172.21.") || ip.startsWith("172.22.") ||
-            ip.startsWith("172.23.") || ip.startsWith("172.24.") ||
-            ip.startsWith("172.25.") || ip.startsWith("172.26.") ||
-            ip.startsWith("172.27.") || ip.startsWith("172.28.") ||
-            ip.startsWith("172.29.") || ip.startsWith("172.30.") ||
-            ip.startsWith("172.31.")) {
-            return "内网IP";
-        }
-        
-        try {
-            // 从 classpath 加载 IP2Region 数据库文件
-            ClassPathResource resource = new ClassPathResource("ip2region/ip2region.xdb");
-            if (!resource.exists()) {
-                log.warn("IP2Region数据库文件不存在: {}", resource.getPath());
-                return "未知";
-            }
-            
-            InputStream is = resource.getInputStream();
-            byte[] dbBuff = new byte[is.available()];
-            is.read(dbBuff);
-            is.close();
-            
-            // 使用字节数组创建Searcher
-            Searcher searcher = Searcher.newWithBuffer(dbBuff);
-            String region = searcher.search(ip);
-            searcher.close();
-            
-            if (region != null && !region.isEmpty()) {
-                // 格式化输出：中国|0|江苏省|苏州市|电信 -> 江苏苏州
-                String[] parts = region.split("\\|");
-                StringBuilder location = new StringBuilder();
-                
-                // 跳过国家和区域字段，取省份和城市
-                if (parts.length >= 3 && !"0".equals(parts[2])) {
-                    location.append(parts[2].replace("省", "").replace("自治区", ""));
-                }
-                if (parts.length >= 4 && !"0".equals(parts[3])) {
-                    location.append(parts[3].replace("市", ""));
-                }
-                
-                // 添加运营商信息
-                if (parts.length >= 5 && !"0".equals(parts[4])) {
-                    location.append("(").append(parts[4]).append(")");
-                }
-                
-                return location.length() > 0 ? location.toString() : "未知";
-            }
-        } catch (Exception e) {
-            log.warn("IP地址解析失败: {}, 错误: {}", ip, e.getMessage());
-        }
-        
-        return "未知";
-    }
-    
     @Operation(summary = "获取用户信息")
     @GetMapping("/info")
     public CommonResult<Map<String, Object>> info() {
@@ -594,6 +523,12 @@ public class AuthController {
         }
         if (findUserByMobile(phone) == null) {
             return CommonResult.error(400, "该手机号未绑定任何账号");
+        }
+        if (systemConfigHelper.isSmsLoginSliderCaptchaEnabled()) {
+            String captchaInput = reqVO.getCode() == null ? "" : reqVO.getCode().trim();
+            if (!SystemConfigHelper.SLIDER_VERIFIED_CODE.equals(captchaInput)) {
+                return CommonResult.error(400, "请完成滑块验证");
+            }
         }
         String code = String.valueOf((int) ((Math.random() * 9 + 1) * 100000));
         boolean success = smsServiceFactory.sendCode(phone, code);
@@ -687,15 +622,21 @@ public class AuthController {
     
     @Operation(summary = "注册")
     @PostMapping("/register")
+    @Transactional(rollbackFor = Exception.class)
     public CommonResult<Boolean> register(@RequestBody RegisterReqVO reqVO, HttpServletRequest request) {
         if (!systemConfigHelper.isRegisterEnabled()) {
-            return CommonResult.error(403, "系统暂未开放注册");
+            return CommonResult.error(400, "系统暂未开放注册");
         }
 
         String clientIp = getClientIp(request);
         String rlMsg = rateLimitByIp(clientIp, "register", systemConfigHelper.getRegisterPerIpMinute());
         if (rlMsg != null) {
             return CommonResult.error(429, rlMsg);
+        }
+
+        String username = reqVO.getUsername() == null ? "" : reqVO.getUsername().trim();
+        if (username.isEmpty()) {
+            return CommonResult.error(400, "请输入用户名");
         }
 
         int minPwdLen = systemConfigHelper.getRegisterMinPasswordLength();
@@ -708,39 +649,72 @@ public class AuthController {
         if (regCaptchaErr != null) {
             return CommonResult.error(400, regCaptchaErr);
         }
-        
-        // 检查用户名是否已存在
-        UserDO existUser = userMapper.selectOne(
-            new LambdaQueryWrapper<UserDO>()
-                .eq(UserDO::getUsername, reqVO.getUsername())
-        );
-        if (existUser != null) {
+
+        UserDO existing = userMapper.selectByUsernameRaw(username);
+        if (existing != null) {
+            if (existing.getDeleted() != null && existing.getDeleted() == 1) {
+                return restoreAndRegister(existing, reqVO, password);
+            }
+            if (existing.getStatus() != null && existing.getStatus() == 2) {
+                return CommonResult.error(400, "该用户名正在审核中，请等待管理员处理");
+            }
             return CommonResult.error(400, "用户名已存在");
         }
-        
-        // 创建用户
+
         UserDO user = new UserDO();
-        user.setUsername(reqVO.getUsername());
-        user.setPassword(passwordEncoder.encode(reqVO.getPassword()));
-        user.setNickname(reqVO.getNickname() != null ? reqVO.getNickname() : reqVO.getUsername());
+        user.setUsername(username);
+        user.setPassword(passwordEncoder.encode(password));
+        user.setNickname(reqVO.getNickname() != null ? reqVO.getNickname() : username);
         user.setStatus(systemConfigHelper.isRegisterNeedAudit() ? 2 : 1);
         userMapper.insert(user);
+        assignRegisterDefaultRole(user);
+        if (systemConfigHelper.isRegisterNeedAudit()) {
+            registerApprovalService.createOnRegister(user);
+        }
+        return buildRegisterSuccessResult();
+    }
 
+    /** 回收站软删后同用户名再次注册：恢复账号并更新资料 */
+    private CommonResult<Boolean> restoreAndRegister(UserDO deletedUser, RegisterReqVO reqVO, String password) {
+        if (deletedUser.getId() == null) {
+            return CommonResult.error(400, "用户数据异常");
+        }
+        if (userMapper.restoreById(deletedUser.getId()) <= 0) {
+            return CommonResult.error(400, "无法恢复该用户名，请联系管理员从回收站彻底删除后再注册");
+        }
+        UserDO user = userMapper.selectById(deletedUser.getId());
+        if (user == null) {
+            return CommonResult.error(500, "恢复账号失败，请稍后重试");
+        }
+        String username = deletedUser.getUsername();
+        user.setPassword(passwordEncoder.encode(password));
+        user.setNickname(reqVO.getNickname() != null ? reqVO.getNickname() : username);
+        user.setStatus(systemConfigHelper.isRegisterNeedAudit() ? 2 : 1);
+        userMapper.updateById(user);
+        assignRegisterDefaultRole(user);
+        if (systemConfigHelper.isRegisterNeedAudit()) {
+            registerApprovalService.createOnRegister(user);
+        }
+        return buildRegisterSuccessResult();
+    }
+
+    private void assignRegisterDefaultRole(UserDO user) {
+        if (user.getId() == null) {
+            return;
+        }
         String roleCode = systemConfigHelper.getRegisterDefaultRoleCode();
         RoleDO defaultRole = roleMapper.selectOne(
-            new LambdaQueryWrapper<RoleDO>()
-                .eq(RoleDO::getCode, roleCode)
+                new LambdaQueryWrapper<RoleDO>()
+                        .eq(RoleDO::getCode, roleCode)
         );
         if (defaultRole != null) {
             Set<Long> roleIds = new HashSet<>();
             roleIds.add(defaultRole.getId());
             permissionService.assignUserRole(user.getId(), roleIds);
         }
+    }
 
-        if (systemConfigHelper.isRegisterNeedAudit()) {
-            registerApprovalService.createOnRegister(user);
-        }
-
+    private CommonResult<Boolean> buildRegisterSuccessResult() {
         CommonResult<Boolean> result = CommonResult.success(true);
         result.setMessage(systemConfigHelper.isRegisterNeedAudit()
                 ? "注册成功，请等待管理员审核"
@@ -771,6 +745,8 @@ public class AuthController {
     @Data
     public static class SmsCodeReqVO {
         private String phone;
+        /** 滑块验证通过时传 slider_verified */
+        private String code;
     }
 
     @Data

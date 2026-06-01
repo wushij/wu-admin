@@ -121,12 +121,6 @@
             
             <!-- 短信登录 -->
             <template v-if="loginMode === 'sms'">
-              <div class="sms-login-intro">
-                <el-icon class="sms-login-intro__icon"><Message /></el-icon>
-                <p class="sms-login-intro__text">
-                  请使用个人中心<strong>已绑定</strong>的手机号收取验证码
-                </p>
-              </div>
               <el-form-item prop="phone" class="form-item sms-form-item">
                 <el-input
                   v-model="formData.phone"
@@ -231,7 +225,7 @@
       </div>
     </div>
 
-    <SliderCaptcha v-model:show="showSliderModal" @success="doLogin" />
+    <SliderCaptcha v-model:show="showSliderModal" @success="onSliderSuccess" />
   </div>
 </template>
 
@@ -239,7 +233,7 @@
 import { ref, reactive, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
-import { User, Lock, Key, Iphone, Message } from '@element-plus/icons-vue'
+import { User, Lock, Key, Iphone } from '@element-plus/icons-vue'
 import { useUserStore } from '@/store/user'
 import { getCaptcha, getConfig, sendSmsCode } from '@/api/system/auth'
 import type { LoginForm } from '@/types/api'
@@ -254,6 +248,7 @@ import Earth3D from '@/components/earth/Earth3D.vue'
 
 type CaptchaMode = 'image' | 'slider'
 type LoginMode = 'account' | 'sms'
+type SliderPurpose = 'login' | 'sms'
 
 interface LoginFormModel {
   username: string
@@ -273,11 +268,13 @@ const particlesLoaded = (container: unknown) => {
 const captchaEnabled = ref(true)
 const captchaType = ref<CaptchaMode>('image')
 const smsLoginEnabled = ref(false)
+const smsLoginSliderCaptchaEnabled = ref(false)
 const loginMode = ref<LoginMode>('account')
 const smsEnabled = ref(true)
 const rememberMeEnabled = ref(true)
 const registerEnabled = ref(true)
 const showSliderModal = ref(false)
+const sliderPurpose = ref<SliderPurpose>('login')
 const sitePlatformName = ref('Admin Platform')
 const sitePlatformSubtitle = ref('统一运维 · 高效管控')
 const siteLoginWelcome = ref('Welcome')
@@ -354,11 +351,9 @@ async function loadConfig() {
       captchaEnabled.value = config.login.captchaEnabled !== false
       captchaType.value = parseCaptchaMode(config.login.captchaType)
       smsLoginEnabled.value = config.login.smsLoginEnabled === true
+      smsLoginSliderCaptchaEnabled.value = config.login.smsLoginSliderCaptchaEnabled === true
       rememberMeEnabled.value = config.login.rememberMe !== false
       smsEnabled.value = config.login.smsEnabled !== false
-      if (smsLoginEnabled.value && !captchaEnabled.value) {
-        loginMode.value = 'sms'
-      }
     }
     if (config.register) {
       registerEnabled.value = config.register.enabled !== false
@@ -427,24 +422,48 @@ function syncAutofillFromDom() {
 async function handleSendSmsCode() {
   if (!formRef.value || sendingSms.value || smsCountdown.value > 0) return
   formData.phone = (formData.phone || '').trim()
+  if (!formData.phone) {
+    ElMessage.warning('请输入手机号')
+    return
+  }
   try {
     await formRef.value.validateField('phone')
   } catch {
+    ElMessage.warning('请输入正确的手机号')
     return
   }
   if (!smsEnabled.value) {
     ElMessage.warning('短信功能未启用')
     return
   }
+  if (smsLoginSliderCaptchaEnabled.value) {
+    sliderPurpose.value = 'sms'
+    showSliderModal.value = true
+    return
+  }
+  await doSendSmsCode()
+}
+
+async function doSendSmsCode() {
+  if (sendingSms.value || smsCountdown.value > 0) return
   sendingSms.value = true
   try {
-    await sendSmsCode(formData.phone)
+    const sliderCode = smsLoginSliderCaptchaEnabled.value ? 'slider_verified' : undefined
+    await sendSmsCode(formData.phone, sliderCode)
     ElMessage.success('验证码已发送至绑定手机号')
     startSmsCountdown()
   } catch (error) {
     ElMessage.error(getErrorMessage(error) || '发送失败')
   } finally {
     sendingSms.value = false
+  }
+}
+
+function onSliderSuccess() {
+  if (sliderPurpose.value === 'sms') {
+    void doSendSmsCode()
+  } else {
+    void doLogin()
   }
 }
 
@@ -461,6 +480,7 @@ async function handleLogin() {
   }
 
   if (loginMode.value === 'account' && captchaEnabled.value && captchaType.value === 'slider') {
+    sliderPurpose.value = 'login'
     showSliderModal.value = true
     return
   }
@@ -896,36 +916,6 @@ onUnmounted(() => {
 }
 
 /* 短信登录 */
-.sms-login-intro {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px 14px;
-  margin-bottom: 20px;
-  border-radius: 10px;
-  background: rgba(64, 158, 255, 0.12);
-  border: 1px solid rgba(121, 187, 255, 0.28);
-  animation: fadeInUp 0.5s ease both;
-}
-
-.sms-login-intro__icon {
-  flex-shrink: 0;
-  font-size: 18px;
-  color: #79bbff;
-}
-
-.sms-login-intro__text {
-  margin: 0;
-  font-size: 13px;
-  line-height: 1.5;
-  color: rgba(255, 255, 255, 0.88);
-}
-
-.sms-login-intro__text strong {
-  color: #a0cfff;
-  font-weight: 600;
-}
-
 .sms-form-item {
   animation: fadeInUp 0.5s ease both;
 }

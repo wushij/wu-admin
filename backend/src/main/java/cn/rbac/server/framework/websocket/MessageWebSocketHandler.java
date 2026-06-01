@@ -35,8 +35,17 @@ public class MessageWebSocketHandler extends TextWebSocketHandler {
     protected void handleTextMessage(WebSocketSession session, TextMessage message) {
         try {
             var node = objectMapper.readTree(message.getPayload());
-            if ("ping".equals(node.path("type").asText())) {
+            String type = node.path("type").asText();
+            if ("ping".equals(type)) {
                 sendJson(session, Map.of("type", "pong"));
+                return;
+            }
+            if ("typing".equals(type)) {
+                Long fromUserId = getUserId(session);
+                long toUserId = node.path("toUserId").asLong(0);
+                if (fromUserId != null && toUserId > 0 && !fromUserId.equals(toUserId)) {
+                    sendTypingPayload(toUserId, fromUserId);
+                }
             }
         } catch (Exception e) {
             log.warn("WS message parse failed", e);
@@ -87,11 +96,25 @@ public class MessageWebSocketHandler extends TextWebSocketHandler {
 
     public void sendGroupChatPayload(Long userId, Map<String, Object> payload) {
         try {
-            payload.put("type", "groupChat");
+            if (!payload.containsKey("type")) {
+                payload.put("type", "groupChat");
+            }
             payload.put("time", System.currentTimeMillis());
             sendToUser(userId, objectMapper.writeValueAsString(payload));
         } catch (Exception e) {
             log.error("sendGroupChatPayload failed", e);
+        }
+    }
+
+    public void sendTypingPayload(Long toUserId, Long fromUserId) {
+        try {
+            String json = objectMapper.writeValueAsString(Map.of(
+                    "type", "typing",
+                    "fromUserId", fromUserId,
+                    "time", System.currentTimeMillis()));
+            sendToUser(toUserId, json);
+        } catch (Exception e) {
+            log.error("sendTypingPayload failed", e);
         }
     }
 

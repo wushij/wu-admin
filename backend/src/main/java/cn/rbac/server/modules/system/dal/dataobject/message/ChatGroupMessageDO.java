@@ -18,5 +18,7 @@ public class ChatGroupMessageDO {
     private String senderAvatar;
     private String content;
     private Integer msgType;
+    /** JSON 数组：被 @ 的用户 ID */
+    private String mentionIds;
     private LocalDateTime sendTime;
 }

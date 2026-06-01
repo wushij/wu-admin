@@ -1,50 +1,53 @@
+﻿-- =============================================================================
+-- add1.sql  增量补丁 #1（可重复执行，无 DROP）
 -- =============================================================================
--- add1.sql — 已有 wu-admin 库增量脚本（可重复执行，勿 DROP 表/库）
--- 用途：注册验证码类型、系统配置结构补全
--- 执行后请重启后端或于管理端「系统配置」点一次「保存全部」以刷新 Redis 缓存
+-- 仅含本版本新增项，不是全量升级脚本。
+--
+-- 用法:
+--   mysql -u root -p wu-admin < sql/add1.sql
+--
+-- 说明:
+--   · 极旧库缺表/缺菜单 → 先执行 admin_platform.sql 文末「附录」（约 910 行起）
+--   · 日常发版增量 → 依次执行 add1.sql、add2.sql …
+--   · 空库安装 → 直接执行 admin_platform.sql 全文
 -- =============================================================================
 
 USE `wu-admin`;
 
--- -----------------------------------------------------------------------------
--- 1. 注册配置：补充 captchaType（图片 image / 滑块 slider）
--- -----------------------------------------------------------------------------
-UPDATE sys_config_group
-SET config_value = JSON_SET(
-        COALESCE(config_value, '{}'),
-        '$.captchaType',
-        COALESCE(
-                NULLIF(JSON_UNQUOTE(JSON_EXTRACT(config_value, '$.captchaType')), ''),
-                'image'
-        )
-    ),
-    remark = '开放注册、验证码类型、默认角色、是否审核'
-WHERE group_code = 'register'
-  AND (
-    JSON_EXTRACT(config_value, '$.captchaType') IS NULL
-        OR JSON_UNQUOTE(JSON_EXTRACT(config_value, '$.captchaType')) = ''
-    );
+-- [add1] 清理旧版附录曾建的冗余单列索引（已存在复合索引替代）
+DROP PROCEDURE IF EXISTS sp_drop_index_if_exists;
 
--- -----------------------------------------------------------------------------
--- 2. 登录配置：确保 captchaType 字段存在（旧库可能仅有 captchaEnabled）
--- -----------------------------------------------------------------------------
-UPDATE sys_config_group
-SET config_value = JSON_SET(
-        COALESCE(config_value, '{}'),
-        '$.captchaType',
-        COALESCE(
-                NULLIF(JSON_UNQUOTE(JSON_EXTRACT(config_value, '$.captchaType')), ''),
-                'image'
-        )
-    )
-WHERE group_code = 'login'
-  AND (
-    JSON_EXTRACT(config_value, '$.captchaType') IS NULL
-        OR JSON_UNQUOTE(JSON_EXTRACT(config_value, '$.captchaType')) = ''
-    );
+DELIMITER $$
 
--- -----------------------------------------------------------------------------
--- 3. 校验（可选，执行后查看结果）
--- -----------------------------------------------------------------------------
--- SELECT group_code, config_value, remark FROM sys_config_group
--- WHERE group_code IN ('login', 'register');
+CREATE PROCEDURE sp_drop_index_if_exists(
+    IN p_table VARCHAR(64),
+    IN p_index VARCHAR(64)
+)
+BEGIN
+    DECLARE v_cnt INT DEFAULT 0;
+
+    SELECT COUNT(*) INTO v_cnt
+    FROM information_schema.statistics
+    WHERE table_schema = DATABASE()
+      AND table_name = p_table
+      AND index_name = p_index;
+
+    IF v_cnt > 0 THEN
+        SET @ddl_sql = CONCAT('ALTER TABLE `', p_table, '` DROP INDEX `', p_index, '`');
+        PREPARE stmt FROM @ddl_sql;
+        EXECUTE stmt;
+        DEALLOCATE PREPARE stmt;
+        SELECT CONCAT('[DROP] ', p_table, '.', p_index) AS result;
+    ELSE
+        SELECT CONCAT('[SKIP] ', p_table, '.', p_index) AS result;
+    END IF;
+END$$
+
+DELIMITER ;
+
+CALL sp_drop_index_if_exists('sys_notice', 'idx_user_read_status');
+CALL sp_drop_index_if_exists('sys_sms_log', 'idx_phone');
+
+DROP PROCEDURE IF EXISTS sp_drop_index_if_exists;
+
+SELECT '[OK] add1.sql finished' AS result;

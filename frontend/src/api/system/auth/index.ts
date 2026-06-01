@@ -30,8 +30,12 @@ export function getConfig() {
   return get<AuthConfig>('/auth/config')
 }
 
-export function sendSmsCode(phone: string) {
-  return post<boolean>('/auth/sms-code', { phone })
+export function sendSmsCode(phone: string, sliderCode?: string) {
+  const payload: { phone: string; code?: string } = { phone }
+  if (sliderCode) {
+    payload.code = sliderCode
+  }
+  return post<boolean>('/auth/sms-code', payload)
 }
 
 export function logout() {

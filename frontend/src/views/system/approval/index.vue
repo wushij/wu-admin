@@ -210,6 +210,32 @@
           <span v-if="item.remark">：{{ item.remark }}</span>
         </el-timeline-item>
       </el-timeline>
+      <template #footer>
+        <div v-if="current.id && (canApproveRow(current as ApprovalVO) || canArchiveRow(current as ApprovalVO))" class="detail-actions">
+          <el-button
+            v-if="canApproveRow(current as ApprovalVO)"
+            v-permission="'system:approval:approve'"
+            plain
+            class="detail-action-btn detail-action-btn--approve"
+            @click="openApproveDialog(current as ApprovalVO, 'APPROVE')"
+          >通过</el-button>
+          <el-button
+            v-if="canApproveRow(current as ApprovalVO)"
+            v-permission="'system:approval:approve'"
+            plain
+            type="danger"
+            class="detail-action-btn"
+            @click="openApproveDialog(current as ApprovalVO, 'REJECT')"
+          >驳回</el-button>
+          <el-button
+            v-if="canArchiveRow(current as ApprovalVO)"
+            v-permission="'system:approval:archive'"
+            plain
+            class="detail-action-btn detail-action-btn--approve"
+            @click="handleArchive(current as ApprovalVO)"
+          >归档</el-button>
+        </div>
+      </template>
     </el-drawer>
   </div>
 </template>
@@ -435,21 +461,28 @@ const openApproveDialog = (row: ApprovalVO, action: string) => {
 
 const submitApprove = async () => {
   if (!approveTargetId.value) return
+  const targetId = approveTargetId.value
   await approveApproval({
-    id: approveTargetId.value,
+    id: targetId,
     action: approveAction.value,
     remark: approveRemark.value
   })
   ElMessage.success('审批完成')
   approveVisible.value = false
-  getList()
+  await getList()
+  if (detailVisible.value && current.value.id === targetId) {
+    await openDetail(targetId)
+  }
 }
 
 const handleArchive = async (row: ApprovalVO) => {
   await ElMessageBox.confirm(`确认归档审批单【${row.formNo}】吗？`, '提示', { type: 'warning' })
   await archiveApproval({ id: row.id, remark: '归档' })
   ElMessage.success('归档成功')
-  getList()
+  await getList()
+  if (detailVisible.value && current.value.id === row.id) {
+    await openDetail(row.id)
+  }
 }
 
 const handleDelete = async (row: ApprovalVO) => {
@@ -558,5 +591,25 @@ watch(recycleVisible, relayoutTable)
 .record-title {
   margin: 16px 0 10px;
   font-weight: 600;
+}
+.detail-actions {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+.detail-action-btn {
+  min-width: 88px;
+}
+.detail-action-btn--approve {
+  --el-button-border-color: #303133;
+  --el-button-text-color: #303133;
+  --el-button-hover-border-color: #303133;
+  --el-button-hover-text-color: #303133;
+  --el-button-hover-bg-color: #f5f7fa;
+  --el-button-active-border-color: #303133;
+  --el-button-active-text-color: #303133;
+  --el-button-active-bg-color: #eef0f3;
 }
 </style>

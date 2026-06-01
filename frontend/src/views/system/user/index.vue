@@ -13,7 +13,6 @@
             :props="{ label: 'name', children: 'children' }"
             node-key="id"
             highlight-current
-            default-expand-all
             @node-click="handleDeptClick"
           />
         </el-card>
@@ -71,9 +70,12 @@
             <el-table-column prop="mobile" label="手机号" width="130" />
             <el-table-column prop="deptName" label="部门" width="120" show-overflow-tooltip />
             <el-table-column prop="postNames" label="岗位" min-width="140" show-overflow-tooltip />
-            <el-table-column prop="status" label="状态" width="100">
+            <el-table-column prop="status" label="状态" width="110">
               <template #default="{ row }">
+                <el-tag v-if="row.status === 2" type="warning">待审核</el-tag>
+                <el-tag v-else-if="row.status === 3" type="danger">审核驳回</el-tag>
                 <el-switch
+                  v-else
                   v-model="row.status"
                   :active-value="1"
                   :inactive-value="0"
@@ -423,8 +425,9 @@ const resetQuery = () => {
   handleQuery()
 }
 
-// 状态切换
+// 状态切换（仅 0/1；待审核=2、驳回=3 用标签展示，避免 switch 误触发 change）
 const handleStatusChange = async (row: UserVO) => {
+  if (row.status !== 0 && row.status !== 1) return
   try {
     const text = row.status === 1 ? '启用' : '禁用'
     await ElMessageBox.confirm(`确认要${text}用户"${row.username}"吗？`, '提示', { type: 'warning' })

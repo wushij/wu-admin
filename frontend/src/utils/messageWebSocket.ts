@@ -1,4 +1,4 @@
-export type WsMessageType = 'notice' | 'chat' | 'groupChat' | 'ping' | 'pong' | string
+export type WsMessageType = 'notice' | 'chat' | 'groupChat' | 'typing' | 'ping' | 'pong' | string
 
 export interface WsPushMessage {
   type: WsMessageType
@@ -10,6 +10,12 @@ export interface WsPushMessage {
   senderAvatar?: string
   groupId?: number
   msgType?: number
+  fromUserId?: number
+  atMe?: boolean
+  mentionIds?: number[]
+  recall?: boolean
+  messageId?: number
+  id?: number
 }
 
 type WsHandler = (msg: WsPushMessage) => void
@@ -73,6 +79,13 @@ export function disconnectMessageWebSocket(): void {
 export function onMessageWebSocket(handler: WsHandler): () => void {
   handlers.add(handler)
   return () => handlers.delete(handler)
+}
+
+/** 客户端通过 WS 发送（如正在输入） */
+export function sendMessageWebSocket(payload: Record<string, unknown>): void {
+  if (ws?.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify(payload))
+  }
 }
 
 function startHeartbeat(): void {

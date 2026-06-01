@@ -30,7 +30,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-@Tag(name = "即时聊天")
+@Tag(name = "企业IM")
 @RestController
 @RequestMapping("/system/chat")
 public class ChatController {
@@ -47,6 +47,35 @@ public class ChatController {
     @Operation(summary = "上传聊天图片")
     public CommonResult<SysFileDO> uploadImage(@RequestParam("file") MultipartFile file) {
         return CommonResult.success(fileService.uploadChatImage(file));
+    }
+
+    @PostMapping(value = "/upload/file", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("@ss.hasRead('system:chat:list')")
+    @Operation(summary = "上传聊天文件")
+    public CommonResult<SysFileDO> uploadFile(@RequestParam("file") MultipartFile file) {
+        return CommonResult.success(fileService.uploadChatFile(file));
+    }
+
+    @GetMapping("/can-create-group")
+    @PreAuthorize("@ss.hasRead('system:chat:list')")
+    @Operation(summary = "是否可创建群聊")
+    public CommonResult<Boolean> canCreateGroup() {
+        return CommonResult.success(chatService.canCreateGroup(SecurityUtils.getLoginUserId()));
+    }
+
+    @PostMapping("/recall/{messageId}")
+    @PreAuthorize("@ss.hasRead('system:chat:list')")
+    @Operation(summary = "撤回私聊消息")
+    public CommonResult<ChatMessageDO> recallPrivate(@PathVariable Long messageId) {
+        return CommonResult.success(chatService.recallPrivate(SecurityUtils.getLoginUserId(), messageId));
+    }
+
+    @PostMapping("/typing/{targetUserId}")
+    @PreAuthorize("@ss.hasRead('system:chat:list')")
+    @Operation(summary = "私聊正在输入")
+    public CommonResult<Boolean> typing(@PathVariable Long targetUserId) {
+        chatService.relayTyping(SecurityUtils.getLoginUserId(), targetUserId);
+        return CommonResult.success(true);
     }
 
     @PostMapping("/send")
@@ -115,6 +144,7 @@ public class ChatController {
         private Long receiverId;
         private String content;
         private Integer msgType;
+        private List<Long> mentionIds;
     }
 }
 
@@ -156,7 +186,16 @@ class ChatGroupController {
     @PreAuthorize("@ss.hasRead('system:chat:list')")
     public CommonResult<ChatGroupMessageDO> send(@PathVariable Long groupId, @RequestBody ChatController.SendReq req) {
         return CommonResult.success(chatService.sendGroupMessage(
-                groupId, SecurityUtils.getLoginUserId(), req.getContent(), req.getMsgType()));
+                groupId, SecurityUtils.getLoginUserId(), req.getContent(), req.getMsgType(), req.getMentionIds()));
+    }
+
+    @PostMapping("/{groupId}/message/{messageId}/recall")
+    @PreAuthorize("@ss.hasRead('system:chat:list')")
+    @Operation(summary = "撤回群消息")
+    public CommonResult<ChatGroupMessageDO> recallGroupMessage(@PathVariable Long groupId,
+            @PathVariable Long messageId) {
+        return CommonResult.success(chatService.recallGroupMessage(
+                groupId, SecurityUtils.getLoginUserId(), messageId));
     }
 
     @GetMapping("/{groupId}/messages")

@@ -72,6 +72,9 @@ public class UserController {
         }
         if (status != null) {
             wrapper.eq(UserDO::getStatus, status);
+        } else {
+            // 默认仅展示已纳入系统的用户（启用/停用）；注册待审(2)、审核驳回(3)在审批单中心处理
+            wrapper.in(UserDO::getStatus, 0, 1);
         }
         if (deptId != null) {
             wrapper.eq(UserDO::getDeptId, deptId);

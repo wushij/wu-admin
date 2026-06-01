@@ -144,12 +144,12 @@
               </el-tab-pane>
               <el-tab-pane name="chat">
                 <template #label>
-                  <span>聊天</span>
+                  <span>企业IM</span>
                   <el-badge v-if="messageStore.chatCount" :value="messageStore.chatCount" class="tab-badge" />
                 </template>
                 <div class="chat-tab-body">
-                  <p class="chat-hint">即时聊天未读 {{ messageStore.chatCount }} 条</p>
-                  <el-button type="primary" @click="router.push('/message/chat')">进入聊天</el-button>
+                  <p class="chat-hint">企业IM 未读 {{ messageStore.chatCount }} 条</p>
+                  <el-button type="primary" @click="router.push('/message/chat')">进入企业IM</el-button>
                 </div>
               </el-tab-pane>
             </el-tabs>
@@ -158,31 +158,44 @@
           <el-popover
             trigger="click"
             placement="bottom-end"
-            :width="280"
+            :width="320"
             :show-arrow="false"
+            popper-class="theme-picker-popper"
           >
             <template #reference>
               <el-icon class="theme-icon" :size="20"><component :is="ElementPlusIconsVue.Brush" /></el-icon>
             </template>
             <div class="theme-picker-content">
-              <div class="theme-picker-title">主题色</div>
+              <div class="theme-picker-header">
+                <span class="theme-picker-title">主题风格</span>
+                <span class="theme-picker-hint">选择品牌主色</span>
+              </div>
               <div class="preset-colors">
-                <div
-                  v-for="item in presetColors"
-                  :key="item.name"
-                  class="preset-color"
-                  :class="{ active: currentColor === item.color }"
-                  :style="{ backgroundColor: item.color }"
-                  :title="item.label"
-                  @click="handleColorChange(item.color)"
+                <button
+                  v-for="item in themePresetList"
+                  :key="item.id"
+                  type="button"
+                  class="preset-color-btn"
+                  :class="{ active: activePresetId === item.id }"
+                  @click="handlePresetSelect(item.id)"
+                >
+                  <span class="preset-swatch" :style="{ background: item.primary }">
+                    <el-icon v-if="activePresetId === item.id" class="preset-check">
+                      <component :is="ElementPlusIconsVue.Check" />
+                    </el-icon>
+                  </span>
+                  <span class="preset-label">{{ item.label }}</span>
+                </button>
+              </div>
+              <div class="theme-custom-row">
+                <span class="theme-custom-label">自定义</span>
+                <el-color-picker
+                  v-model="currentColor"
+                  :show-alpha="false"
+                  size="small"
+                  @change="handleColorChange"
                 />
               </div>
-              <el-color-picker
-                v-model="currentColor"
-                show-alpha
-                size="default"
-                @change="handleColorChange"
-              />
             </div>
           </el-popover>
 
@@ -222,7 +235,16 @@ import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/store/user'
 import * as ElementPlusIconsVue from '@element-plus/icons-vue'
-import { themePresets, applyTheme, saveTheme, getCurrentTheme, adjustColor } from '@/utils/theme'
+import {
+  themePresetList,
+  themePresets,
+  applyTheme,
+  saveTheme,
+  getCurrentTheme,
+  buildThemeConfig,
+  findPresetIdByPrimary,
+  switchTheme,
+} from '@/utils/theme'
 import { resolveMenuIcon } from '@/utils/menu-icon'
 import { ElMessage } from 'element-plus'
 import { getMyNoticeList, readAllNotice, readNotice } from '@/api/system/notice'
@@ -261,20 +283,13 @@ const MENU_ICON_SPIN_MS = 520
 const isSystemMenu = (menu: MenuNode) =>
   String(menu?.id) === SYSTEM_MENU_ID || menu?.name === '系统管理'
 
-const presetColors = [
-  { name: 'default', color: '#111827', label: '深灰' },
-  { name: 'blue', color: '#1890ff', label: '蓝色' },
-  { name: 'green', color: '#52c41a', label: '绿色' },
-  { name: 'orange', color: '#fa8c16', label: '橙色' },
-  { name: 'pink', color: '#eb2f96', label: '粉色' },
-  { name: 'purple', color: '#722ed1', label: '紫色' },
-  { name: 'cyan', color: '#13c2c2', label: '青色' },
-  { name: 'gold', color: '#faad14', label: '金色' },
-  { name: 'red', color: '#f5222d', label: '红色' },
-  { name: 'violet', color: '#6932c7', label: '紫罗兰' },
-]
-
 const currentColor = ref(getCurrentTheme().primaryColor)
+const activePresetId = computed(() => findPresetIdByPrimary(currentColor.value))
+
+function handlePresetSelect(presetId: string) {
+  switchTheme(presetId)
+  currentColor.value = themePresets[presetId]?.primaryColor ?? themePresets.slate.primaryColor
+}
 const sitePlatformName = ref('Admin Platform')
 const sitePlatformSubtitle = ref('Management System')
 
@@ -291,27 +306,16 @@ async function loadSiteConfig() {
 }
 
 function handleColorChange(color: string | null) {
-  if (color) {
-    currentColor.value = color
-    const themeEntry = Object.entries(themePresets).find(([_, config]) => config.primaryColor === color)
-    if (themeEntry) {
-      const [, themeConfig] = themeEntry
-      applyTheme(themeConfig)
-      saveTheme(themeConfig)
-    } else {
-      const customTheme = {
-        primaryColor: color,
-        primaryColorHover: adjustColor(color, 30),
-        primaryColorActive: adjustColor(color, -30),
-        textColorBase: '#1F2937',
-        textColor2: '#6B7280',
-        borderColor: '#E5E7EB',
-        bgColor: '#F9FAFB',
-      }
-      applyTheme(customTheme)
-      saveTheme(customTheme)
-    }
+  if (!color) return
+  currentColor.value = color
+  const presetId = findPresetIdByPrimary(color)
+  if (presetId && themePresets[presetId]) {
+    switchTheme(presetId)
+    return
   }
+  const customTheme = buildThemeConfig(color)
+  applyTheme(customTheme)
+  saveTheme(customTheme)
 }
 
 const userMenus = computed<MenuNode[]>(() => {
@@ -536,10 +540,10 @@ onUnmounted(() => {
 
 .sidebar {
   width: 220px;
-  background: linear-gradient(180deg, #ffffff 0%, #f8f9fa 100%);
-  border-right: 1px solid #e8eaed;
+  background: var(--theme-sidebar-bg, #ffffff);
+  border-right: 1px solid var(--theme-border, #e2e8f0);
   transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.04);
+  box-shadow: 2px 0 12px rgba(15, 23, 42, 0.04);
   display: flex;
   flex-direction: column;
 }
@@ -554,7 +558,11 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   padding: 0 16px;
-  background: linear-gradient(135deg, var(--theme-primary, #111827) 0%, var(--theme-primary-active, #374151) 100%);
+  background: linear-gradient(
+    135deg,
+    var(--theme-primary, #010710) 0%,
+    var(--theme-logo-end, var(--theme-primary-active, #0f172a)) 100%
+  );
   gap: 12px;
   position: relative;
   overflow: hidden;
@@ -733,7 +741,8 @@ onUnmounted(() => {
 }
 
 .notice-item.unread {
-  background: #eef5ff;
+  background: var(--theme-primary-muted, rgba(37, 99, 235, 0.08));
+  border: 1px solid var(--theme-primary-muted-strong, rgba(37, 99, 235, 0.12));
 }
 
 .notice-title {
@@ -759,45 +768,104 @@ onUnmounted(() => {
 }
 
 .theme-icon:hover {
-  color: var(--theme-primary, #111827);
+  color: var(--theme-primary, #010710);
 }
 
 .theme-picker-content {
-  padding: 10px 0;
+  padding: 4px 2px 8px;
+}
+
+.theme-picker-header {
+  padding: 0 4px 14px;
+  border-bottom: 1px solid var(--theme-border, #e2e8f0);
+  margin-bottom: 14px;
 }
 
 .theme-picker-title {
-  font-size: 14px;
+  display: block;
+  font-size: 15px;
   font-weight: 600;
-  color: #303133;
-  margin-bottom: 12px;
-  padding: 0 12px;
+  color: var(--theme-text-base, #1e293b);
+  letter-spacing: 0.02em;
+}
+
+.theme-picker-hint {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--theme-text-secondary, #64748b);
 }
 
 .preset-colors {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 8px;
-  padding: 0 12px;
-  margin-bottom: 12px;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px 8px;
+  margin-bottom: 14px;
 }
 
-.preset-color {
-  width: 32px;
-  height: 32px;
-  border-radius: 6px;
+.preset-color-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  border: none;
+  background: transparent;
   cursor: pointer;
-  transition: all 0.3s;
-  border: 2px solid transparent;
+  border-radius: 10px;
+  transition: transform 0.2s ease;
 }
 
-.preset-color:hover {
-  transform: scale(1.1);
+.preset-color-btn:hover {
+  transform: translateY(-1px);
 }
 
-.preset-color.active {
-  border-color: #303133;
-  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.1);
+.preset-color-btn.active .preset-swatch {
+  box-shadow:
+    0 0 0 2px #fff,
+    0 0 0 4px var(--theme-primary, #010710);
+}
+
+.preset-color-btn.active .preset-label {
+  color: var(--theme-primary, #010710);
+  font-weight: 600;
+}
+
+.preset-swatch {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: box-shadow 0.2s ease;
+}
+
+.preset-check {
+  font-size: 18px;
+  color: #fff;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.35));
+}
+
+.preset-label {
+  font-size: 11px;
+  color: var(--theme-text-secondary, #64748b);
+  line-height: 1.2;
+}
+
+.theme-custom-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 4px 0;
+  border-top: 1px solid var(--theme-border, #e2e8f0);
+}
+
+.theme-custom-label {
+  font-size: 13px;
+  color: var(--theme-text-secondary, #64748b);
 }
 
 .user-info {
@@ -835,14 +903,14 @@ onUnmounted(() => {
 }
 
 :deep(.el-menu--inline) {
-  background: #f5f7fa;
+  background: var(--theme-primary-muted, rgba(30, 41, 59, 0.06));
   border-radius: 8px;
   margin: 4px 0;
 }
 
 :deep(.el-sub-menu__title),
 :deep(.el-menu-item) {
-  color: #475467;
+  color: var(--theme-text-secondary, #64748b);
   border-radius: 8px;
   margin: 2px 0;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -877,8 +945,8 @@ onUnmounted(() => {
   border-radius: 8px;
   background: linear-gradient(
     135deg,
-    var(--theme-primary, #111827) 0%,
-    var(--theme-primary-hover, #374151) 100%
+    var(--theme-primary, #010710) 0%,
+    var(--theme-logo-end, var(--theme-primary-hover, #334155)) 100%
   );
   color: #fff;
   vertical-align: middle;
@@ -887,30 +955,35 @@ onUnmounted(() => {
 
 :deep(.el-menu-item-dashboard:hover .dashboard-menu-icon) {
   transform: scale(1.05);
-  box-shadow: 0 2px 8px rgba(17, 24, 39, 0.2);
+  box-shadow: 0 4px 12px var(--theme-primary-muted-strong, rgba(30, 41, 59, 0.2));
 }
 
 :deep(.el-menu-item-dashboard.is-active .dashboard-menu-icon) {
-  background: rgba(255, 255, 255, 0.2);
-  box-shadow: none;
+  background: linear-gradient(
+    135deg,
+    var(--theme-primary, #010710) 0%,
+    var(--theme-logo-end, var(--theme-primary-hover, #334155)) 100%
+  );
+  color: #fff;
+  box-shadow: 0 2px 8px var(--theme-primary-muted-strong, rgba(30, 41, 59, 0.25));
 }
 
 :deep(.el-sub-menu__title:hover),
 :deep(.el-menu-item:hover) {
-  background: rgba(17, 24, 39, 0.04);
-  color: var(--theme-primary, #111827);
+  background: var(--theme-primary-muted, rgba(30, 41, 59, 0.08));
+  color: var(--theme-primary, #010710);
 }
 
 :deep(.el-menu-item.is-active) {
-  color: #fff;
-  background: linear-gradient(135deg, var(--theme-primary, #111827) 0%, var(--theme-primary-hover, #374151) 100%);
+  color: var(--theme-primary, #010710);
+  background: var(--theme-primary-muted, rgba(30, 41, 59, 0.1));
   font-weight: 600;
-  box-shadow: 0 2px 8px rgba(17, 24, 39, 0.15);
+  box-shadow: inset 3px 0 0 var(--theme-primary, #010710);
 }
 
 :deep(.el-sub-menu.is-opened > .el-sub-menu__title) {
-  color: var(--theme-primary, #111827);
-  background: rgba(17, 24, 39, 0.06);
+  color: var(--theme-primary, #010710);
+  background: var(--theme-primary-muted-strong, rgba(30, 41, 59, 0.12));
 }
 
 :deep(.el-menu--collapse .el-menu-item),

@@ -14,6 +14,21 @@ function showForbiddenOnce(message: string) {
   ElMessage.error(message)
 }
 
+/** 公开认证接口不携带管理员 token，避免干扰注册/登录 */
+const AUTH_PUBLIC_SUFFIXES = [
+  '/auth/login',
+  '/auth/register',
+  '/auth/captcha',
+  '/auth/config',
+  '/auth/sms-code',
+]
+
+function isAuthPublicUrl(url?: string): boolean {
+  if (!url) return false
+  const path = url.split('?')[0]
+  return AUTH_PUBLIC_SUFFIXES.some((suffix) => path === suffix || path.endsWith(suffix))
+}
+
 // 创建axios实例
 const service: AxiosInstance = axios.create({
   baseURL: '/api', // 统一通过 /api 访问后端
@@ -28,7 +43,7 @@ service.interceptors.request.use(
   (config) => {
     // 从localStorage获取token
     const token = localStorage.getItem('token')
-    if (token) {
+    if (token && !isAuthPublicUrl(config.url)) {
       config.headers['Authorization'] = token
     }
     return config
@@ -49,7 +64,12 @@ service.interceptors.response.use(
     if (isApiSuccessCode(code)) {
       return res  // 返回完整响应对象，前端用 res.data 访问数据
     } else if (code === 401) {
-      // 未授权，跳转登录
+      const cfg = response.config as InternalAxiosRequestConfig
+      if (isAuthPublicUrl(cfg.url)) {
+        ElMessage.error(msg || message || '认证失败')
+        return Promise.reject(new Error(msg || message || '认证失败'))
+      }
+      // 已登录态 token 失效
       ElMessage.error('登录已过期，请重新登录')
       localStorage.removeItem('token')
       router.push('/login')
@@ -71,9 +91,14 @@ service.interceptors.response.use(
     if (error.response) {
       const { status, data } = error.response
       if (status === 401) {
-        ElMessage.error('登录已过期，请重新登录')
-        localStorage.removeItem('token')
-        router.push('/login')
+        const cfg = error.config as InternalAxiosRequestConfig
+        if (isAuthPublicUrl(cfg?.url)) {
+          ElMessage.error(data?.msg || data?.message || '认证失败')
+        } else {
+          ElMessage.error('登录已过期，请重新登录')
+          localStorage.removeItem('token')
+          router.push('/login')
+        }
       } else if (status === 403) {
         const cfg = error.config as InternalAxiosRequestConfig & { silent403?: boolean }
         if (!cfg?.silent403) {

@@ -11,6 +11,7 @@ export interface LoginConfig {
   captchaEnabled?: boolean
   captchaType?: string
   smsLoginEnabled?: boolean
+  smsLoginSliderCaptchaEnabled?: boolean
   rememberMe?: boolean
   smsEnabled?: boolean
 }
@@ -65,6 +66,7 @@ export interface LoginAdminConfig {
   captchaEnabled: boolean
   captchaType: string
   smsLoginEnabled: boolean
+  smsLoginSliderCaptchaEnabled: boolean
   rememberMe: boolean
   maxRetryCount: number
   lockTime: number

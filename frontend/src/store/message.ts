@@ -122,7 +122,16 @@ export const useMessageStore = defineStore('message', () => {
     currentNotification.value = null
   }
 
+  /** 递增后通知聊天页处理撤回 WS */
+  const recallTick = ref(0)
+  const lastRecall = ref<WsPushMessage | null>(null)
+
   function handleWsMessage(msg: WsPushMessage) {
+    if (msg.recall && (msg.messageId != null || msg.id != null)) {
+      lastRecall.value = msg
+      recallTick.value++
+      return
+    }
     if (msg.type === 'notice') {
       showPushNotification(msg)
       announceListTick.value++
@@ -141,6 +150,10 @@ export const useMessageStore = defineStore('message', () => {
         incrementGroupUnread(msg.groupId)
         showPushNotification(msg)
       }
+      return
+    }
+    if (msg.type === 'typing') {
+      return
     }
   }
 
@@ -186,5 +199,7 @@ export const useMessageStore = defineStore('message', () => {
     clearGroupUnread,
     getGroupUnread,
     handleWsMessage,
+    recallTick,
+    lastRecall,
   }
 })

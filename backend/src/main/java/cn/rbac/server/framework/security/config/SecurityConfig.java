@@ -61,14 +61,7 @@ public class SecurityConfig {
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(
-                    antMatcher("/auth/login"),
-                    antMatcher("/auth/captcha"),
-                    antMatcher("/auth/register"),
-                    antMatcher("/auth/config"),
-                    antMatcher("/auth/info"),
-                    antMatcher("/auth/logout"),
-                    antMatcher("/auth/sms-code"),
-                    antMatcher("/auth/sms-code/verify")
+                    antMatcher("/auth/**")
                 ).permitAll()
                 .requestMatchers(
                     antMatcher("/doc.html"),
