@@ -92,7 +92,7 @@ public class AliyunDypnsSmsService implements SmsService {
             return;
         }
         RBucket<String> bucket = redissonClient.getBucket(SMS_OUT_ID_KEY + phone);
-        bucket.set(outId, expireMinutes, TimeUnit.MINUTES);
+        setWithTtl(bucket, outId, expireMinutes, TimeUnit.MINUTES);
     }
 
     @Override
@@ -104,5 +104,10 @@ public class AliyunDypnsSmsService implements SmsService {
     @Override
     public String getProviderName() {
         return "aliyunAuth";
+    }
+
+    @SuppressWarnings("deprecation")
+    private <V> void setWithTtl(RBucket<V> bucket, V value, long duration, TimeUnit unit) {
+        bucket.set(value, duration, unit);
     }
 }

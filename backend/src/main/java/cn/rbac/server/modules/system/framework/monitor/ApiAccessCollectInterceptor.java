@@ -5,6 +5,8 @@ import cn.rbac.server.framework.security.core.service.SecurityUtils;
 import cn.rbac.server.modules.system.dal.dataobject.monitor.ApiAccessLogDO;
 import cn.rbac.server.modules.system.service.monitor.ApiAccessLogService;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.lang.NonNull;
+import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
 
@@ -23,14 +25,14 @@ public class ApiAccessCollectInterceptor implements HandlerInterceptor {
     private ApiAccessLogService apiAccessLogService;
 
     @Override
-    public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
+    public boolean preHandle(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response, @NonNull Object handler) {
         request.setAttribute(START_TIME_ATTR, System.currentTimeMillis());
         return true;
     }
 
     @Override
-    public void afterCompletion(HttpServletRequest request, HttpServletResponse response,
-                                Object handler, Exception ex) {
+    public void afterCompletion(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response,
+                                @NonNull Object handler, @Nullable Exception ex) {
         try {
             String path = request.getRequestURI();
             if (shouldExclude(path)) {

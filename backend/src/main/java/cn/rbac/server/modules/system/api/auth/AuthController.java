@@ -29,7 +29,6 @@ import cn.rbac.server.common.util.IpLocationUtils;
 import org.redisson.api.RBucket;
 import org.redisson.api.RedissonClient;
 import org.redisson.api.RAtomicLong;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.util.StringUtils;
 import org.springframework.transaction.annotation.Transactional;
@@ -82,7 +81,6 @@ public class AuthController {
     private static final String SMS_LIMIT_KEY = "sms:limit:";
     private static final String SMS_DAILY_PHONE_KEY = "sms:daily:phone:";
     private static final String SMS_DAILY_IP_KEY = "sms:daily:ip:";
-    private static final String ONLINE_USER_KEY = "dashboard:online:user:";
     private static final String LOGIN_FAIL_USER_KEY = "auth:login:fail:user:";
     private static final String LOGIN_FAIL_IP_KEY = "auth:login:fail:ip:";
     private static final String LOGIN_LOCK_USER_KEY = "auth:login:lock:user:";
@@ -119,7 +117,7 @@ public class AuthController {
         
         // 存储到Redis，5分钟过期（使用RedissonClient）
         RBucket<String> bucket = redissonClient.getBucket(CAPTCHA_KEY + uuid);
-        bucket.set(code.toLowerCase(), 5, TimeUnit.MINUTES);
+        setWithTtl(bucket, code.toLowerCase(), 5, TimeUnit.MINUTES);
         
         Map<String, Object> result = new HashMap<>();
         result.put("uuid", uuid);
@@ -412,7 +410,7 @@ public class AuthController {
         RAtomicLong counter = redissonClient.getAtomicLong(redisKey);
         long n = counter.incrementAndGet();
         if (n == 1) {
-            counter.expire(90, TimeUnit.SECONDS);
+            expireAfter(counter, 90, TimeUnit.SECONDS);
         }
         if (n > maxPerMinute) {
             return "请求过于频繁，请稍后再试";
@@ -457,9 +455,9 @@ public class AuthController {
         RBucket<Integer> failBucket = redissonClient.getBucket(failKey);
         Integer failCount = failBucket.get();
         int nextCount = (failCount == null ? 0 : failCount) + 1;
-        failBucket.set(nextCount, lockMinutes, TimeUnit.MINUTES);
+        setWithTtl(failBucket, nextCount, lockMinutes, TimeUnit.MINUTES);
         if (nextCount >= maxRetry) {
-            redissonClient.getBucket(lockKey).set(System.currentTimeMillis(), lockMinutes, TimeUnit.MINUTES);
+            setWithTtl(redissonClient.getBucket(lockKey), System.currentTimeMillis(), lockMinutes, TimeUnit.MINUTES);
             failBucket.delete();
         }
     }
@@ -469,6 +467,16 @@ public class AuthController {
         redissonClient.getBucket(LOGIN_FAIL_IP_KEY + ip).delete();
         redissonClient.getBucket(LOGIN_LOCK_USER_KEY + username).delete();
         redissonClient.getBucket(LOGIN_LOCK_IP_KEY + ip).delete();
+    }
+
+    @SuppressWarnings("deprecation")
+    private <V> void setWithTtl(RBucket<V> bucket, V value, long duration, TimeUnit unit) {
+        bucket.set(value, duration, unit);
+    }
+
+    @SuppressWarnings("deprecation")
+    private void expireAfter(org.redisson.api.RExpirable expirable, long duration, TimeUnit unit) {
+        expirable.expire(duration, unit);
     }
 
     @Operation(summary = "获取用户信息")
@@ -535,7 +543,7 @@ public class AuthController {
         if (!success) {
             return CommonResult.error(500, "短信发送失败，请稍后重试");
         }
-        redissonClient.getBucket(SMS_CODE_KEY + phone).set(code, 5, TimeUnit.MINUTES);
+        setWithTtl(redissonClient.getBucket(SMS_CODE_KEY + phone), code, 5, TimeUnit.MINUTES);
         recordSmsSendOnSuccess(phone, clientIp);
         return CommonResult.success(true);
     }
@@ -563,7 +571,7 @@ public class AuthController {
 
     private void recordSmsSendOnSuccess(String phone, String clientIp) {
         int intervalSec = systemConfigHelper.getSmsSendIntervalSeconds();
-        redissonClient.getBucket(SMS_LIMIT_KEY + phone).set("1", intervalSec, TimeUnit.SECONDS);
+        setWithTtl(redissonClient.getBucket(SMS_LIMIT_KEY + phone), "1", intervalSec, TimeUnit.SECONDS);
         incrementDailyCount(SMS_DAILY_PHONE_KEY + phone);
         incrementDailyCount(SMS_DAILY_IP_KEY + clientIp);
     }
@@ -582,7 +590,7 @@ public class AuthController {
         RAtomicLong counter = redissonClient.getAtomicLong(dailyKey(prefixKey));
         long n = counter.incrementAndGet();
         if (n == 1) {
-            counter.expire(25, TimeUnit.HOURS);
+            expireAfter(counter, 25, TimeUnit.HOURS);
         }
     }
 

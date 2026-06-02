@@ -1,6 +1,5 @@
 package cn.rbac.server.modules.system.service.permission;
 
-import cn.rbac.server.modules.system.dal.dataobject.permission.RoleDO;
 import cn.rbac.server.modules.system.dal.dataobject.permission.MenuDO;
 import java.util.List;
 import java.util.Set;

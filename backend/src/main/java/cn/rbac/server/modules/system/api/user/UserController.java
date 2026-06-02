@@ -93,6 +93,7 @@ public class UserController {
         return CommonResult.success(PageResult.of(page.getRecords(), page.getTotal()));
     }
 
+    @SuppressWarnings("deprecation")
     private void fillUserDisplayFields(List<UserDO> users) {
         if (users == null || users.isEmpty()) {
             return;
@@ -100,21 +101,29 @@ public class UserController {
         Set<Long> deptIds = users.stream().map(UserDO::getDeptId).filter(id -> id != null).collect(Collectors.toSet());
         if (!deptIds.isEmpty()) {
             List<DeptDO> depts = deptMapper.selectBatchIds(deptIds);
-            Map<Long, String> deptNameMap = depts.stream().collect(Collectors.toMap(DeptDO::getId, DeptDO::getName));
-            users.forEach(user -> {
-                if (user.getDeptId() != null) {
-                    user.setDeptName(deptNameMap.get(user.getDeptId()));
-                }
-            });
+            if (depts != null) {
+                Map<Long, String> deptNameMap = depts.stream().collect(Collectors.toMap(DeptDO::getId, DeptDO::getName));
+                users.forEach(user -> {
+                    if (user.getDeptId() != null) {
+                        user.setDeptName(deptNameMap.get(user.getDeptId()));
+                    }
+                });
+            }
         }
         List<UserPostDO> allLinks = userPostMapper.selectList(null);
         Map<Long, List<Long>> userPostMap = allLinks.stream()
                 .collect(Collectors.groupingBy(UserPostDO::getUserId,
                         Collectors.mapping(UserPostDO::getPostId, Collectors.toList())));
         Set<Long> postIds = allLinks.stream().map(UserPostDO::getPostId).collect(Collectors.toSet());
-        Map<Long, String> postNameMap = postIds.isEmpty() ? Collections.emptyMap()
-                : postMapper.selectBatchIds(postIds).stream()
-                .collect(Collectors.toMap(PostDO::getId, PostDO::getPostName));
+        Map<Long, String> postNameMap;
+        if (!postIds.isEmpty()) {
+            List<PostDO> postList = postMapper.selectBatchIds(postIds);
+            postNameMap = postList != null
+                    ? postList.stream().collect(Collectors.toMap(PostDO::getId, PostDO::getPostName))
+                    : Collections.emptyMap();
+        } else {
+            postNameMap = Collections.emptyMap();
+        }
         users.forEach(user -> {
             user.setRoleIds(permissionService.getUserRoleIdListByUserId(user.getId()));
             List<Long> pids = userPostMap.getOrDefault(user.getId(), Collections.emptyList());
@@ -207,6 +216,7 @@ public class UserController {
         return CommonResult.success(true);
     }
 
+    @SuppressWarnings("deprecation")
     @Operation(summary = "用户回收站分页")
     @GetMapping("/recycle/page")
     @PreAuthorize("@ss.hasPermission('system:user:delete')")
@@ -222,12 +232,14 @@ public class UserController {
             Set<Long> deptIds = users.stream().map(UserDO::getDeptId).filter(id -> id != null).collect(Collectors.toSet());
             if (!deptIds.isEmpty()) {
                 List<DeptDO> depts = deptMapper.selectBatchIds(deptIds);
-                Map<Long, String> deptNameMap = depts.stream().collect(Collectors.toMap(DeptDO::getId, DeptDO::getName));
-                users.forEach(user -> {
-                    if (user.getDeptId() != null) {
-                        user.setDeptName(deptNameMap.get(user.getDeptId()));
-                    }
-                });
+                if (depts != null) {
+                    Map<Long, String> deptNameMap = depts.stream().collect(Collectors.toMap(DeptDO::getId, DeptDO::getName));
+                    users.forEach(user -> {
+                        if (user.getDeptId() != null) {
+                            user.setDeptName(deptNameMap.get(user.getDeptId()));
+                        }
+                    });
+                }
             }
             users.forEach(user -> user.setRoleIds(permissionService.getUserRoleIdListByUserId(user.getId())));
         }

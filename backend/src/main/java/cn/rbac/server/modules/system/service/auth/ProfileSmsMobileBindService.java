@@ -78,8 +78,8 @@ public class ProfileSmsMobileBindService {
             return "短信发送失败，请稍后重试";
         }
         int expireMin = systemConfigHelper.getSmsCodeExpireMinutes();
-        redissonClient.getBucket(PROFILE_BIND_SMS_KEY + userId).set(code, expireMin, TimeUnit.MINUTES);
-        redissonClient.getBucket(PROFILE_BIND_PHONE_KEY + userId).set(phone, expireMin, TimeUnit.MINUTES);
+        setWithTtl(redissonClient.getBucket(PROFILE_BIND_SMS_KEY + userId), code, expireMin, TimeUnit.MINUTES);
+        setWithTtl(redissonClient.getBucket(PROFILE_BIND_PHONE_KEY + userId), phone, expireMin, TimeUnit.MINUTES);
         recordSmsSendOnSuccess(phone, clientIp);
         return null;
     }
@@ -182,7 +182,7 @@ public class ProfileSmsMobileBindService {
 
     private void recordSmsSendOnSuccess(String phone, String clientIp) {
         int intervalSec = systemConfigHelper.getSmsSendIntervalSeconds();
-        redissonClient.getBucket(SMS_LIMIT_KEY + phone).set("1", intervalSec, TimeUnit.SECONDS);
+        setWithTtl(redissonClient.getBucket(SMS_LIMIT_KEY + phone), "1", intervalSec, TimeUnit.SECONDS);
         incrementDailyCount(SMS_DAILY_PHONE_KEY + phone);
         incrementDailyCount(SMS_DAILY_IP_KEY + clientIp);
     }
@@ -196,7 +196,7 @@ public class ProfileSmsMobileBindService {
         RAtomicLong counter = redissonClient.getAtomicLong(redisKey);
         long n = counter.incrementAndGet();
         if (n == 1) {
-            counter.expire(90, TimeUnit.SECONDS);
+            expireAfter(counter, 90, TimeUnit.SECONDS);
         }
         if (n > maxPerMinute) {
             return "请求过于频繁，请稍后再试";
@@ -218,11 +218,21 @@ public class ProfileSmsMobileBindService {
         RAtomicLong counter = redissonClient.getAtomicLong(dailyKey(prefixKey));
         long n = counter.incrementAndGet();
         if (n == 1) {
-            counter.expire(25, TimeUnit.HOURS);
+            expireAfter(counter, 25, TimeUnit.HOURS);
         }
     }
 
     private String dailyKey(String prefixKey) {
         return prefixKey + LocalDate.now();
+    }
+
+    @SuppressWarnings("deprecation")
+    private <V> void setWithTtl(RBucket<V> bucket, V value, long duration, TimeUnit unit) {
+        bucket.set(value, duration, unit);
+    }
+
+    @SuppressWarnings("deprecation")
+    private void expireAfter(org.redisson.api.RExpirable expirable, long duration, TimeUnit unit) {
+        expirable.expire(duration, unit);
     }
 }

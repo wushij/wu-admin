@@ -158,7 +158,7 @@ public class DashboardController {
         String today = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE);
         RBucket<Long> bucket = redissonClient.getBucket(VISIT_COUNT_KEY + today);
         Long count = bucket.get();
-        bucket.set((count == null ? 0L : count) + 1, 7, TimeUnit.DAYS);
+        setWithTtl(bucket, (count == null ? 0L : count) + 1, 7, TimeUnit.DAYS);
         return CommonResult.success(null);
     }
 
@@ -228,5 +228,10 @@ public class DashboardController {
             return todayNew > 0 ? 100 : 0;
         }
         return (int) Math.round((todayNew - yesterdayNew) * 100.0 / yesterdayNew);
+    }
+
+    @SuppressWarnings("deprecation")
+    private <V> void setWithTtl(RBucket<V> bucket, V value, long duration, TimeUnit unit) {
+        bucket.set(value, duration, unit);
     }
 }

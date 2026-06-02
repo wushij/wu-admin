@@ -91,6 +91,7 @@ public class TencentSmsService implements SmsService {
         return success;
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public boolean sendNotice(String phone, String title, String content) {
         String templateId = configHelper.getSmsTemplateNotice();

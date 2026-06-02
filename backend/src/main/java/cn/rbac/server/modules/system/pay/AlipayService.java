@@ -40,8 +40,6 @@ public class AlipayService extends AbstractPayService {
         String appId = config.getStr("appId", "");
         String privateKey = config.getStr("privateKey", "");
         String publicKey = config.getStr("publicKey", "");
-        String signType = config.getStr("signType", "RSA2");
-        String gatewayUrl = config.getStr("gatewayUrl", "https://openapi.alipay.com/gateway.do");
         String notifyUrl = config.getStr("notifyUrl", "");
 
         if (!StringUtils.hasText(appId) || !StringUtils.hasText(privateKey) || !StringUtils.hasText(publicKey)) {

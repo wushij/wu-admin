@@ -8,7 +8,6 @@ import com.aliyun.dysmsapi20170525.models.SendSmsResponse;
 import com.aliyun.teaopenapi.models.Config;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 /**
@@ -78,6 +77,7 @@ public class AliyunSmsService implements SmsService {
         return success;
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public boolean sendNotice(String phone, String title, String content) {
         String templateCode = configHelper.getSmsTemplateNotice();
