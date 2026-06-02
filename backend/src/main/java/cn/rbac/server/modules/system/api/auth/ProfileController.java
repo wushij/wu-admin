@@ -283,6 +283,7 @@ public class ProfileController {
                         .eq(LoginLogDO::getUsername, user.getUsername()));
     }
 
+    @SuppressWarnings("deprecation")
     private Map<String, Object> buildProfileMap(UserDO user) {
         Map<String, Object> profile = new LinkedHashMap<>();
         profile.put("userId", user.getId());
@@ -308,8 +309,13 @@ public class ProfileController {
         profile.put("roleIds", roleIds);
         if (!roleIds.isEmpty()) {
             List<RoleDO> roles = roleMapper.selectBatchIds(roleIds);
-            profile.put("roleNames", roles.stream().map(RoleDO::getName).collect(Collectors.toList()));
-            profile.put("roleCodes", roles.stream().map(RoleDO::getCode).collect(Collectors.toList()));
+            if (roles != null) {
+                profile.put("roleNames", roles.stream().map(RoleDO::getName).collect(Collectors.toList()));
+                profile.put("roleCodes", roles.stream().map(RoleDO::getCode).collect(Collectors.toList()));
+            } else {
+                profile.put("roleNames", Collections.emptyList());
+                profile.put("roleCodes", Collections.emptyList());
+            }
         } else {
             profile.put("roleNames", Collections.emptyList());
             profile.put("roleCodes", Collections.emptyList());
@@ -319,7 +325,11 @@ public class ProfileController {
         profile.put("postIds", postIds);
         if (!postIds.isEmpty()) {
             List<PostDO> posts = postMapper.selectBatchIds(postIds);
-            profile.put("postNames", posts.stream().map(PostDO::getPostName).collect(Collectors.toList()));
+            if (posts != null) {
+                profile.put("postNames", posts.stream().map(PostDO::getPostName).collect(Collectors.toList()));
+            } else {
+                profile.put("postNames", Collections.emptyList());
+            }
         } else {
             profile.put("postNames", Collections.emptyList());
         }

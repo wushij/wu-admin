@@ -2,6 +2,7 @@ package cn.rbac.server.framework.quartz.util;
 
 import cn.rbac.server.modules.system.dal.dataobject.job.SysJobDO;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.lang.NonNull;
 import org.springframework.util.StringUtils;
 
 import java.lang.reflect.Method;
@@ -35,11 +36,13 @@ public final class JobInvokeUtil {
         }
     }
 
-    private static String getBeanName(String invokeTarget) {
+    @SuppressWarnings("null")
+    private static @NonNull String getBeanName(String invokeTarget) {
         return invokeTarget.substring(0, invokeTarget.indexOf('.'));
     }
 
-    private static String getMethodName(String invokeTarget) {
+    @SuppressWarnings("null")
+    private static @NonNull String getMethodName(String invokeTarget) {
         String methodName = invokeTarget.substring(invokeTarget.indexOf('.') + 1);
         if (methodName.contains("(")) {
             methodName = methodName.substring(0, methodName.indexOf('('));

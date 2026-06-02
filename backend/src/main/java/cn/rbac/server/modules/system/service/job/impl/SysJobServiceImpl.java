@@ -109,6 +109,7 @@ public class SysJobServiceImpl extends ServiceImpl<SysJobMapper, SysJobDO> imple
         PageResult<SysJobDO> page = page(pageNo, pageSize, jobName, jobGroup, status);
         List<SysJobVO> voList = new ArrayList<>();
         for (SysJobDO job : page.getList()) {
+            if (job == null) continue;
             SysJobVO vo = new SysJobVO();
             BeanUtils.copyProperties(job, vo);
             vo.setCronHint(CronUtils.hint(job.getCronExpression()));

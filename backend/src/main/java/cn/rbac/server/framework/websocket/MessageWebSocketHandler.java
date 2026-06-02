@@ -2,6 +2,7 @@ package cn.rbac.server.framework.websocket;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
@@ -20,7 +21,7 @@ public class MessageWebSocketHandler extends TextWebSocketHandler {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Override
-    public void afterConnectionEstablished(WebSocketSession session) {
+    public void afterConnectionEstablished(@NonNull WebSocketSession session) {
         Long userId = getUserId(session);
         if (userId == null) {
             return;
@@ -32,7 +33,7 @@ public class MessageWebSocketHandler extends TextWebSocketHandler {
     }
 
     @Override
-    protected void handleTextMessage(WebSocketSession session, TextMessage message) {
+    protected void handleTextMessage(@NonNull WebSocketSession session, @NonNull TextMessage message) {
         try {
             var node = objectMapper.readTree(message.getPayload());
             String type = node.path("type").asText();
@@ -53,7 +54,7 @@ public class MessageWebSocketHandler extends TextWebSocketHandler {
     }
 
     @Override
-    public void afterConnectionClosed(WebSocketSession session, CloseStatus status) {
+    public void afterConnectionClosed(@NonNull WebSocketSession session, @NonNull CloseStatus status) {
         Long userId = getUserId(session);
         if (userId != null) {
             ONLINE_SESSIONS.remove(userId, session);
@@ -127,7 +128,7 @@ public class MessageWebSocketHandler extends TextWebSocketHandler {
         ONLINE_SESSIONS.values().forEach(s -> sendRaw(s, json));
     }
 
-    private void sendJson(WebSocketSession session, Map<String, Object> map) {
+    private void sendJson(WebSocketSession session, Map<String, ?> map) {
         try {
             sendRaw(session, objectMapper.writeValueAsString(map));
         } catch (Exception ignored) {
@@ -135,7 +136,7 @@ public class MessageWebSocketHandler extends TextWebSocketHandler {
     }
 
     private void sendRaw(WebSocketSession session, String json) {
-        if (session != null && session.isOpen()) {
+        if (session != null && session.isOpen() && json != null) {
             try {
                 session.sendMessage(new TextMessage(json));
             } catch (IOException e) {

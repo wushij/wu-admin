@@ -1,7 +1,6 @@
 package cn.rbac.server.modules.system.pay;
 
 import cn.hutool.json.JSONObject;
-import cn.rbac.server.modules.system.service.config.SystemConfigHelper;
 import com.alipay.api.internal.util.AlipaySignature;
 import com.wechat.pay.java.core.notification.AutoCertificateNotificationConfig;
 import com.wechat.pay.java.core.notification.NotificationParser;
@@ -20,11 +19,11 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class PayNotifyService {
 
-    private final SystemConfigHelper configHelper;
     private final PayOrderStore payOrderStore;
     private final WechatPayService wechatPayService;
     private final AlipayService alipayService;
 
+    @SuppressWarnings("deprecation")
     public Map<String, String> handleWechatNotify(String serial, String nonce, String timestamp,
                                                    String signature, String body) {
         Map<String, String> fail = new HashMap<>();
@@ -125,6 +124,7 @@ public class PayNotifyService {
         return payOrderStore.get(orderNo);
     }
 
+    @SuppressWarnings("deprecation")
     private AutoCertificateNotificationConfig buildWechatNotificationConfig(JSONObject config) {
         String mchId = config.getStr("mchId", "");
         String apiV3Key = config.getStr("apiV3Key", "");

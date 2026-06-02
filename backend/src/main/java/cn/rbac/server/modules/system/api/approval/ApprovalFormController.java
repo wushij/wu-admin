@@ -32,6 +32,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import jakarta.annotation.Resource;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -279,6 +280,7 @@ public class ApprovalFormController {
         noticeMapper.insert(notice);
     }
 
+    @SuppressWarnings("deprecation")
     private void fillUserName(List<ApprovalFormDO> forms) {
         Set<Long> userIds = forms.stream()
                 .flatMap(form -> java.util.stream.Stream.of(form.getApplicantUserId(), form.getApproverUserId()))
@@ -287,7 +289,8 @@ public class ApprovalFormController {
         if (userIds.isEmpty()) {
             return;
         }
-        Map<Long, String> userMap = userMapper.selectBatchIds(userIds).stream()
+        List<UserDO> users = userMapper.selectBatchIds(userIds);
+        Map<Long, String> userMap = (users != null ? users : Collections.<UserDO>emptyList()).stream()
                 .collect(Collectors.toMap(UserDO::getId, UserDO::getUsername, (a, b) -> a));
         forms.forEach(form -> {
             form.setApplicantName(userMap.getOrDefault(form.getApplicantUserId(), "-"));
@@ -295,6 +298,7 @@ public class ApprovalFormController {
         });
     }
 
+    @SuppressWarnings("deprecation")
     private void fillRecordOperator(List<ApprovalRecordDO> records) {
         Set<Long> userIds = records.stream()
                 .map(ApprovalRecordDO::getOperatorUserId)
@@ -303,7 +307,8 @@ public class ApprovalFormController {
         if (userIds.isEmpty()) {
             return;
         }
-        Map<Long, String> userMap = userMapper.selectBatchIds(userIds).stream()
+        List<UserDO> users = userMapper.selectBatchIds(userIds);
+        Map<Long, String> userMap = (users != null ? users : Collections.<UserDO>emptyList()).stream()
                 .collect(Collectors.toMap(UserDO::getId, UserDO::getUsername, (a, b) -> a));
         records.forEach(record -> record.setOperatorName(userMap.getOrDefault(record.getOperatorUserId(), "-")));
     }

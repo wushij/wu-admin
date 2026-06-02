@@ -146,7 +146,7 @@ public class TicketController {
         ticket.setPriority(reqVO.getPriority() == null ? "MEDIUM" : reqVO.getPriority());
         ticket.setStatus("OPEN");
         ticket.setCreatorUserId(userId);
-        ticket.setAssigneeUserId(allUsers ? 0L : assigneeUserId);
+        ticket.setAssigneeUserId(allUsers ? Long.valueOf(0L) : assigneeUserId);
         ticket.setDeadline(reqVO.getDeadline());
         ticketMapper.insert(ticket);
         if (allUsers) {
@@ -171,7 +171,7 @@ public class TicketController {
         ticket.setDescription(reqVO.getDescription());
         ticket.setPriority(reqVO.getPriority());
         Long oldAssigneeUserId = ticket.getAssigneeUserId();
-        ticket.setAssigneeUserId(allUsers ? 0L : newAssigneeUserId);
+        ticket.setAssigneeUserId(allUsers ? Long.valueOf(0L) : newAssigneeUserId);
         ticket.setDeadline(reqVO.getDeadline());
         ticketMapper.updateById(ticket);
         if (allUsers) {
@@ -337,6 +337,7 @@ public class TicketController {
     }
 
     @Operation(summary = "下载工单附件")
+    @SuppressWarnings("all")
     @GetMapping("/attachment/download/{id}")
     public ResponseEntity<byte[]> downloadAttachment(@PathVariable Long id) throws IOException {
         TicketAttachmentDO attachment = ticketAttachmentMapper.selectById(id);
@@ -349,9 +350,10 @@ public class TicketController {
         }
         byte[] bytes = Files.readAllBytes(filePath);
         String encodedName = URLEncoder.encode(attachment.getFileName(), StandardCharsets.UTF_8.name()).replace("+", "%20");
+        org.springframework.http.MediaType mediaType = MediaType.APPLICATION_OCTET_STREAM;
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename*=UTF-8''" + encodedName)
-                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .contentType(mediaType != null ? mediaType : MediaType.APPLICATION_JSON)
                 .body(bytes);
     }
 
@@ -371,6 +373,7 @@ public class TicketController {
         return Long.parseLong(principal.toString());
     }
 
+    @SuppressWarnings("deprecation")
     private void fillUserName(List<TicketDO> tickets) {
         Set<Long> userIds = tickets.stream()
                 .flatMap(ticket -> java.util.stream.Stream.of(ticket.getCreatorUserId(), ticket.getAssigneeUserId()))
@@ -379,7 +382,8 @@ public class TicketController {
         if (userIds.isEmpty()) {
             return;
         }
-        Map<Long, String> userMap = userMapper.selectBatchIds(userIds).stream()
+        List<UserDO> userList = userMapper.selectBatchIds(userIds);
+        Map<Long, String> userMap = (userList != null ? userList : Collections.<UserDO>emptyList()).stream()
                 .collect(Collectors.toMap(UserDO::getId, UserDO::getUsername, (a, b) -> a));
         tickets.forEach(ticket -> {
             if (ticket.getCreatorUserId() != null) {
@@ -395,22 +399,26 @@ public class TicketController {
         });
     }
 
+    @SuppressWarnings("deprecation")
     private void fillCommentUsername(List<TicketCommentDO> comments) {
         Set<Long> userIds = comments.stream().map(TicketCommentDO::getUserId).collect(Collectors.toSet());
         if (userIds.isEmpty()) {
             return;
         }
-        Map<Long, String> userMap = userMapper.selectBatchIds(userIds).stream()
+        List<UserDO> userList = userMapper.selectBatchIds(userIds);
+        Map<Long, String> userMap = (userList != null ? userList : Collections.<UserDO>emptyList()).stream()
                 .collect(Collectors.toMap(UserDO::getId, UserDO::getUsername, (a, b) -> a));
         comments.forEach(comment -> comment.setUsername(userMap.getOrDefault(comment.getUserId(), "-")));
     }
 
+    @SuppressWarnings("deprecation")
     private void fillAttachmentUploader(List<TicketAttachmentDO> attachments) {
         Set<Long> userIds = attachments.stream().map(TicketAttachmentDO::getUploaderUserId).collect(Collectors.toSet());
         if (userIds.isEmpty()) {
             return;
         }
-        Map<Long, String> userMap = userMapper.selectBatchIds(userIds).stream()
+        List<UserDO> userList = userMapper.selectBatchIds(userIds);
+        Map<Long, String> userMap = (userList != null ? userList : Collections.<UserDO>emptyList()).stream()
                 .collect(Collectors.toMap(UserDO::getId, UserDO::getUsername, (a, b) -> a));
         attachments.forEach(attachment -> attachment.setUploaderName(userMap.getOrDefault(attachment.getUploaderUserId(), "-")));
     }
