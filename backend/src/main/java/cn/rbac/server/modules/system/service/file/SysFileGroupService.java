@@ -7,7 +7,7 @@ import java.util.Map;
 
 public interface SysFileGroupService extends IService<SysFileGroupDO> {
 
-    Map<String, Object> listWithUngroupedCount();
+    Map<String, Object> listWithUngroupedCount(String fileCategory);
 
     void create(SysFileGroupDO group);
 

@@ -21,8 +21,9 @@ public class SysFileGroupController {
 
     @GetMapping("/list")
     @PreAuthorize("@ss.hasRead('sys:file:list')")
-    public CommonResult<Map<String, Object>> list() {
-        return CommonResult.success(fileGroupService.listWithUngroupedCount());
+    public CommonResult<Map<String, Object>> list(
+            @RequestParam(required = false) String fileCategory) {
+        return CommonResult.success(fileGroupService.listWithUngroupedCount(fileCategory));
     }
 
     @Log(title = "文件分组", businessType = Log.BusinessType.INSERT)

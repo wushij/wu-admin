@@ -88,8 +88,8 @@ export function validateFileBeforeUpload(file?: File | null): string | null {
   return null
 }
 
-export function getFileGroupList() {
-  return get<FileGroupListResult>('/system/file-group/list')
+export function getFileGroupList(fileCategory?: string) {
+  return get<FileGroupListResult>('/system/file-group/list', fileCategory ? { fileCategory } : undefined)
 }
 
 export interface FileGroupSaveDTO {

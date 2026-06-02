@@ -12,7 +12,7 @@
             v-for="tab in typeTabs"
             :key="tab.value"
             :class="['type-tab', { active: activeType === tab.value }]"
-            @click="activeType = tab.value; loadFiles()"
+            @click="switchTypeTab(tab.value)"
           >
             {{ tab.label }}
           </div>
@@ -466,9 +466,16 @@ async function loadUploadPolicy() {
 }
 
 async function loadGroups() {
-  const res = await getFileGroupList()
+  const res = await getFileGroupList(activeType.value)
   groups.value = res.data?.groups || []
   ungroupedCount.value = res.data?.ungroupedCount || 0
+}
+
+function switchTypeTab(type: string) {
+  activeType.value = type
+  pageNo.value = 1
+  loadGroups()
+  loadFiles()
 }
 
 async function loadFiles() {
@@ -489,8 +496,21 @@ async function loadFiles() {
     const res = await pageFileByGroup(params)
     files.value = res.data?.list || []
     total.value = Number(res.data?.total) || 0
+    syncSidebarCountFromList()
   } finally {
     loading.value = false
+  }
+}
+
+/** 侧栏数量与当前列表 total 对齐，避免统计口径不一致 */
+function syncSidebarCountFromList() {
+  if (activeGroupId.value === null) {
+    ungroupedCount.value = total.value
+    return
+  }
+  if (typeof activeGroupId.value === 'number' && activeGroupId.value > 0) {
+    const group = groups.value.find((g) => g.id === activeGroupId.value)
+    if (group) group.fileCount = total.value
   }
 }
 
