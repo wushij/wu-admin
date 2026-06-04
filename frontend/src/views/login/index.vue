@@ -243,6 +243,11 @@ import {
   authParticleOptions3,
 } from '@/constants/authParticles'
 import { getErrorMessage } from '@/utils/axiosError'
+import {
+  clearLoginRemember,
+  loadLoginRemember,
+  saveLoginRemember,
+} from '@/utils/loginRemember'
 import SliderCaptcha from '@/components/SliderCaptcha.vue'
 import Earth3D from '@/components/earth/Earth3D.vue'
 
@@ -307,12 +312,12 @@ function switchLoginMode(mode: LoginMode) {
   if (loginMode.value === mode) return
   loginMode.value = mode
   submitAttempted.value = false
-  formData.code = ''
+  // 仅清空当前模式下的字段；账号密码在切到短信时保留，切回账号登录无需重填
   if (mode === 'account') {
     formData.phone = ''
+    formData.code = ''
   } else {
-    formData.username = ''
-    formData.password = ''
+    formData.code = ''
   }
   rebuildFormRules()
   nextTick(() => formRef.value?.clearValidate())
@@ -339,6 +344,45 @@ function startSmsCountdown(seconds = 60) {
       smsCountdown.value -= 1
     }
   }, 1000)
+}
+
+function restoreLoginRemember() {
+  if (!rememberMeEnabled.value) return
+  const saved = loadLoginRemember()
+  if (!saved) return
+
+  formData.rememberMe = true
+  if (saved.mode === 'account') {
+    loginMode.value = 'account'
+    if (saved.username) formData.username = saved.username
+    if (saved.password) formData.password = saved.password
+  } else if (saved.mode === 'sms' && saved.phone && smsLoginEnabled.value && smsEnabled.value) {
+    loginMode.value = 'sms'
+    formData.phone = saved.phone
+  }
+}
+
+function persistLoginRemember() {
+  if (!rememberMeEnabled.value || !formData.rememberMe) {
+    clearLoginRemember()
+    return
+  }
+  if (loginMode.value === 'account') {
+    saveLoginRemember({
+      mode: 'account',
+      rememberMe: true,
+      username: formData.username.trim(),
+      password: formData.password,
+    })
+    return
+  }
+  if (loginMode.value === 'sms') {
+    saveLoginRemember({
+      mode: 'sms',
+      rememberMe: true,
+      phone: formData.phone.trim(),
+    })
+  }
 }
 
 async function loadConfig() {
@@ -514,6 +558,7 @@ async function doLogin() {
     }
     const result = await userStore.loginAction(loginData)
     if (result.code === 200) {
+      persistLoginRemember()
       ElMessage.success('登录成功')
       setTimeout(() => router.push('/'), 500)
     } else {
@@ -550,6 +595,7 @@ function goRegister() {
 
 onMounted(async () => {
   await loadConfig()
+  restoreLoginRemember()
   if (loginMode.value === 'account' && captchaEnabled.value && captchaType.value === 'image') {
     loadCaptcha()
   }
