@@ -69,12 +69,17 @@
           <template #default="{ row }">
             <div class="action-cell">
               <el-button size="small" @click="handleDetail(row)">详情</el-button>
-              <el-dropdown v-if="canTransitionRow(row)" trigger="click" @command="(command) => handleStatusCommand(command, row)">
+              <el-dropdown
+                v-if="canTransitionRow(row)"
+                trigger="click"
+                teleported
+                @command="(command) => handleStatusCommand(command, row)"
+              >
                 <el-button size="small" type="primary">流转状态</el-button>
                 <template #dropdown>
                   <el-dropdown-menu>
                     <el-dropdown-item
-                      v-for="opt in statusOptions"
+                      v-for="opt in transitionOptions(row)"
                       :key="String(opt.value)"
                       :command="opt.value"
                     >{{ opt.label }}</el-dropdown-item>
@@ -237,7 +242,7 @@ import DictTag from '@/components/DictTag.vue'
 import { DICT_TYPE } from '@/constants/dict'
 import { useDict, getDictDefaultValue, preloadDicts } from '@/composables/useDict'
 
-const { options: statusOptions } = useDict(DICT_TYPE.TICKET_STATUS, { valueType: 'string' })
+const { options: statusOptions, load: loadStatusOptions } = useDict(DICT_TYPE.TICKET_STATUS, { valueType: 'string' })
 
 const loading = ref(false)
 const route = useRoute()
@@ -302,6 +307,10 @@ const canTransitionRow = (row: TicketVO) => {
   return !!currentUserId && row?.assigneeUserId === currentUserId
 }
 
+/** 可流转的目标状态（排除当前状态） */
+const transitionOptions = (row: TicketVO) =>
+  statusOptions.value.filter((opt) => String(opt.value) !== String(row.status))
+
 const getList = async () => {
   loading.value = true
   try {
@@ -343,8 +352,9 @@ const resetForm = () => {
   form.deadline = null
 }
 
-const handleCreate = () => {
+const handleCreate = async () => {
   resetForm()
+  await loadUsers()
   formVisible.value = true
 }
 
@@ -486,10 +496,15 @@ const submitComment = async () => {
   comments.value = commentRes.data || []
 }
 
-onMounted(() => {
-  preloadDicts([DICT_TYPE.TICKET_STATUS, DICT_TYPE.TICKET_PRIORITY])
+onMounted(async () => {
   getList()
   loadUsers()
+  try {
+    await preloadDicts([DICT_TYPE.TICKET_STATUS, DICT_TYPE.TICKET_PRIORITY])
+  } catch (e) {
+    console.error('预加载工单字典失败', e)
+  }
+  await loadStatusOptions()
 })
 </script>
 

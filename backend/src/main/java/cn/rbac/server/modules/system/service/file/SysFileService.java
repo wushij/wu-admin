@@ -27,4 +27,7 @@ public interface SysFileService extends IService<SysFileDO> {
     void moveToGroup(Long[] fileIds, Long groupId);
 
     void rename(Long id, String newName);
+
+    /** 分组侧栏数量（与文件列表相同的分类、排除聊天目录） */
+    long countForGroupSidebar(Long groupId, Boolean ungrouped, String fileCategory);
 }

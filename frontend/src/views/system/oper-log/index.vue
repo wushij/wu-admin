@@ -44,7 +44,7 @@
         :cell-style="{ textAlign: 'center' }"
       >
         <el-table-column prop="id" label="ID" width="80" />
-        <el-table-column prop="title" label="模块" width="120" show-overflow-tooltip />
+        <el-table-column prop="title" label="模块" min-width="120" show-overflow-tooltip />
         <el-table-column label="业务类型" width="90">
           <template #default="{ row }">{{ businessTypeLabel(row.businessType) }}</template>
         </el-table-column>

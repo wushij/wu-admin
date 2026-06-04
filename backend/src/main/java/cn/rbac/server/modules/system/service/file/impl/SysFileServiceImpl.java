@@ -38,6 +38,19 @@ public class SysFileServiceImpl extends ServiceImpl<SysFileMapper, SysFileDO> im
     public PageResult<SysFileDO> pageByGroup(Integer pageNo, Integer pageSize, Long groupId, Boolean ungrouped,
                                              String fileCategory, String originalName) {
         Page<SysFileDO> pageParam = new Page<>(pageNo, pageSize);
+        LambdaQueryWrapper<SysFileDO> wrapper = buildGroupListQuery(groupId, ungrouped, fileCategory, null);
+        wrapper.orderByDesc(SysFileDO::getCreateTime);
+        Page<SysFileDO> result = page(pageParam, wrapper);
+        return PageResult.of(result.getRecords(), result.getTotal());
+    }
+
+    @Override
+    public long countForGroupSidebar(Long groupId, Boolean ungrouped, String fileCategory) {
+        return count(buildGroupListQuery(groupId, ungrouped, fileCategory, null));
+    }
+
+    private LambdaQueryWrapper<SysFileDO> buildGroupListQuery(Long groupId, Boolean ungrouped,
+                                                              String fileCategory, String originalName) {
         LambdaQueryWrapper<SysFileDO> wrapper = new LambdaQueryWrapper<>();
         excludeChatInternalFiles(wrapper);
         if (Boolean.TRUE.equals(ungrouped)) {
@@ -45,26 +58,29 @@ public class SysFileServiceImpl extends ServiceImpl<SysFileMapper, SysFileDO> im
         } else if (groupId != null) {
             wrapper.eq(SysFileDO::getGroupId, groupId);
         }
-        if (StringUtils.hasText(fileCategory)) {
-            if ("image".equals(fileCategory)) {
-                wrapper.likeRight(SysFileDO::getFileType, "image/");
-            } else if ("video".equals(fileCategory)) {
-                wrapper.likeRight(SysFileDO::getFileType, "video/");
-            } else if ("audio".equals(fileCategory)) {
-                wrapper.likeRight(SysFileDO::getFileType, "audio/");
-            } else if ("other".equals(fileCategory)) {
-                wrapper.and(w -> w
-                        .notLike(SysFileDO::getFileType, "image/")
-                        .notLike(SysFileDO::getFileType, "video/")
-                        .notLike(SysFileDO::getFileType, "audio/"));
-            }
-        }
+        applyFileCategory(wrapper, fileCategory);
         if (StringUtils.hasText(originalName)) {
             wrapper.like(SysFileDO::getOriginalName, originalName);
         }
-        wrapper.orderByDesc(SysFileDO::getCreateTime);
-        Page<SysFileDO> result = page(pageParam, wrapper);
-        return PageResult.of(result.getRecords(), result.getTotal());
+        return wrapper;
+    }
+
+    private void applyFileCategory(LambdaQueryWrapper<SysFileDO> wrapper, String fileCategory) {
+        if (!StringUtils.hasText(fileCategory)) {
+            return;
+        }
+        if ("image".equals(fileCategory)) {
+            wrapper.likeRight(SysFileDO::getFileType, "image/");
+        } else if ("video".equals(fileCategory)) {
+            wrapper.likeRight(SysFileDO::getFileType, "video/");
+        } else if ("audio".equals(fileCategory)) {
+            wrapper.likeRight(SysFileDO::getFileType, "audio/");
+        } else if ("other".equals(fileCategory)) {
+            wrapper.and(w -> w
+                    .notLike(SysFileDO::getFileType, "image/")
+                    .notLike(SysFileDO::getFileType, "video/")
+                    .notLike(SysFileDO::getFileType, "audio/"));
+        }
     }
 
     @Override
