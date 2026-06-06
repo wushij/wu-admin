@@ -52,7 +52,7 @@
   background: #f7f7f7;
 }
 
-.sidebar-search :deep(.el-input__wrapper) {
+.sidebar-search .el-input__wrapper {
   border-radius: 8px;
   background: #ededed;
   box-shadow: none;
@@ -286,14 +286,14 @@
   gap: 2px;
 }
 
-.header-actions :deep(.el-button) {
+.header-actions .el-button {
   width: 36px;
   height: 36px;
   border-radius: 8px;
   color: #576b95;
 }
 
-.header-actions :deep(.el-button:hover) {
+.header-actions .el-button:hover {
   background: rgba(0, 0, 0, 0.05);
 }
 
@@ -480,7 +480,7 @@
   word-break: break-all;
 }
 
-.msg-bubble :deep(.msg-mention) {
+.msg-bubble .msg-mention {
   color: #576b95;
   font-weight: 500;
 }
@@ -587,7 +587,7 @@
   padding: 6px 10px 0;
 }
 
-.input-toolbar :deep(.el-upload) {
+.input-toolbar .el-upload {
   display: inline-flex;
   align-items: center;
   vertical-align: middle;
@@ -615,14 +615,18 @@
   padding: 4px 12px 0;
 }
 
-.chat-textarea :deep(.el-textarea__inner) {
-  border: none;
-  box-shadow: none;
+.chat-textarea .el-textarea__inner {
+  border: none !important;
+  box-shadow: none !important;
   padding: 8px 0 10px;
   font-size: 15px;
   line-height: 1.5;
   background: transparent;
   resize: none;
+}
+
+.chat-textarea .el-textarea__inner:focus {
+  box-shadow: none !important;
 }
 
 .chat-input-footer {

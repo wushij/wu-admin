@@ -709,6 +709,13 @@ export function useChatPage() {
       // 撤回由 messageStore + recallTick watch 统一处理，此处不可再 push 消息
       if (data.recall) return
   
+      if (data.type === 'presence' && data.userId != null) {
+        onlineMap.value[data.userId] = !!data.online
+        const u = users.value.find((x) => x.id === data.userId)
+        if (u) u.online = !!data.online
+        return
+      }
+
       if (data.type === 'typing' && data.fromUserId != null) {
         if (selectedUser.value?.id === data.fromUserId) {
           typingFromUserId.value = data.fromUserId

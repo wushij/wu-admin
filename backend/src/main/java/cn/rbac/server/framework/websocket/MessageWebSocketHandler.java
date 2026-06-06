@@ -30,6 +30,7 @@ public class MessageWebSocketHandler extends TextWebSocketHandler {
         WebSocketSession old = ONLINE_SESSIONS.put(userId, session);
         closeQuietly(old);
         sendJson(session, Map.of("type", "connected", "content", "ok"));
+        broadcastPresence(userId, true);
         log.info("WS connected userId={}, online={}", userId, ONLINE_SESSIONS.size());
     }
 
@@ -59,6 +60,9 @@ public class MessageWebSocketHandler extends TextWebSocketHandler {
         Long userId = getUserId(session);
         if (userId != null) {
             ONLINE_SESSIONS.remove(userId, session);
+            if (!ONLINE_SESSIONS.containsKey(userId)) {
+                broadcastPresence(userId, false);
+            }
         }
     }
 
@@ -131,6 +135,24 @@ public class MessageWebSocketHandler extends TextWebSocketHandler {
 
     private void broadcast(String json) {
         ONLINE_SESSIONS.values().forEach(s -> sendRaw(s, json));
+    }
+
+    /** 通知其他在线用户：某人上线/下线（企业 IM 联系人列表实时状态） */
+    private void broadcastPresence(Long userId, boolean online) {
+        try {
+            String json = objectMapper.writeValueAsString(Map.of(
+                    "type", "presence",
+                    "userId", userId,
+                    "online", online
+            ));
+            ONLINE_SESSIONS.forEach((uid, s) -> {
+                if (!uid.equals(userId)) {
+                    sendRaw(s, json);
+                }
+            });
+        } catch (Exception e) {
+            log.warn("broadcastPresence failed userId={}", userId, e);
+        }
     }
 
     private void sendJson(WebSocketSession session, Map<String, ?> map) {

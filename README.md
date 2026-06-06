@@ -32,6 +32,71 @@
 
 以下为近期迭代的主要能力，便于对照部署与联调。
 
+### 架构与代码质量优化（2026.06）
+
+本轮对前后端做了系统性重构，在**不改变对外 API 与页面行为**的前提下提升可维护性、安全性与性能。
+
+#### 后端：瘦 Controller + Service 分层
+
+| 维度 | 改进要点 |
+|------|----------|
+| **分层** | 认证、用户、角色、工单等核心模块将业务逻辑从 Controller 下沉至 Service（`AuthService`、`UserService`、`RoleService`、`TicketService` 等）；Controller 负责参数校验、权限注解与结果封装 |
+| **异常** | 新增 `BusinessException`（可携带业务错误码）；`GlobalExceptionHandler` 统一处理校验失败、参数缺失、404 及兜底异常（共 11 种） |
+| **安全** | `UserDO.password` 添加 `@JsonIgnore`；管理端敏感接口补全 `@PreAuthorize`；CORS 改为 `app.cors.allowed-origins` 配置；URL 参数传 Token 仅限 `/files/**` |
+| **校验** | 核心 VO（登录/注册/用户/角色/工单/审批/聊天/个人中心）添加 JSR-303（`@NotBlank` / `@Pattern` / `@Size`）+ `@Validated` |
+| **事务** | 用户/工单/审批等多表写操作添加 `@Transactional(rollbackFor = Exception.class)` |
+| **性能** | 权限匹配、菜单闭包、用户列表角色填充、通知全部已读等 5 处 N+1 查询优化为批量查询；`PageParam` 限制 `pageSize` 上限 200 |
+
+依赖方向不变：**`modules/*` → `framework` → `common`**。新增业务优先在 `service/` 实现，Controller 不直接操作 Mapper。
+
+#### 前端：页面组件化拆分
+
+采用统一约定：**路由入口 `index.vue`（薄包装）→ `*Page.vue`（页面骨架）+ `composables/use*Page.ts`（状态与业务）+ `components/`（展示子组件）**。
+
+| 模块 | 路由 | 主要文件 |
+|------|------|----------|
+| 登录 / 注册 | `/login`、`/register` | `LoginPage.vue`、`RegisterPage.vue`；共享 `views/auth/components/`（`AuthSplitLayout`、`AuthCaptchaField` 等） |
+| 布局壳层 | `/`（layout） | `LayoutPage.vue` + `useLayoutMenu` / `useLayoutMessages` / `useLayoutTheme` 等 |
+| 工作台 | `/dashboard` | `WelcomeBanner`、`CoreStatsRow` 等 + `useDashboardData` |
+| 个人中心 | `/profile` | `ProfileHero`、`BasicInfoForm`、`SecuritySettings` + `useProfileInfo` / `useProfileSecurity` |
+| 系统管理 | `/system/user` · `dict` · `file` · `menu` · `org` · `config` | 各 `*Page.vue` + 对应 `use*Page.ts` 与 Tab/Dialog 子组件 |
+| 系统监控 | `/monitor/job` | `JobPage.vue` + `useJobPage.ts`（含 ECharts 图表区） |
+| 企业IM | `/message/chat` | `ChatPage.vue` + `useChatPage.ts` / `useChatRender` / `useMention` |
+
+**质量保障**：`npm run typecheck`（`vue-tsc --noEmit`）、`npm run test`（Vitest，37 用例）、`npm run build`（构建前自动类型检查）。
+
+> 待后续拆分（体量仍较大）：`approval`、`ticket`、`role` 等页面；企业 IM 聊天区可进一步拆分子面板组件。
+
+**组件化拆分注意**：样式从 Vue `<style scoped>` 抽到独立 `.css` 时，**勿使用 `:deep()`**（仅 SFC scoped 有效）；应改为 `.parent .el-textarea__inner` 等普通选择器。企业 IM 的 `chat-page.css` 已按此修正（输入框黑框问题）。
+
+### 生产部署排障实录（2026.06）
+
+以下为实际上线 `wushij.online` 时遇到的问题与处理，供同类环境对照。
+
+| 现象 | 原因 | 处理 |
+|------|------|------|
+| 登录报「网络连接失败」或 403；Network 里 `login` 的 Response 是 **`index.html`** | Nginx 未把 `/api` 反代到后端，请求落入 `try_files` → SPA 首页 | 配置 `location ^~ /api/ { proxy_pass http://127.0.0.1:8080/api/; ... }`；检查宝塔 `extension/*.conf` 无冲突；重载 Nginx。自测：`https://域名/api/auth/config` 须返回 **JSON** |
+| master 能登、dev 包不能登（已确认 Nginx 正常） | dev 将 CORS 从 `*` 改为 `application-prod.yml` 域名，**勿留占位符** `your-domain.com` | 改为实际域名，如 `https://wushij.online,https://www.wushij.online`，重新打包并重启 jar |
+| 开启「禁止前端调试」后 F12 打不开，无法排障 | `disableDevtool` 存于 `sys_config_group.security` | 执行 `sql/disable_devtool_off.sql`（**MySQL 5.6** 用 `REPLACE`，勿用 `JSON_SET`），重启后端并强刷浏览器；调试完在系统配置改回或改 SQL 还原 |
+| 企业 IM 输入框出现**黑色边框** | 拆分后 `chat-page.css` 中 `:deep()` 不生效 | 已改为 `.chat-textarea .el-textarea__inner { border: none !important; }` |
+| 联系人「在线/离线」不实时变，须刷新 | 旧版仅在 `loadUsers()` 时拉取 `online` 字段 | 已增加 WebSocket **`presence`** 推送；前后端需一并升级 |
+| 字典管理多出多个「审批类型（副本）」 | 误点「复制类型」；每点一次生成一条 `_copy_时间戳` | 在字典管理删除多余副本即可，不影响业务字典 `sys_approval_form_type` |
+
+**Nginx 反代示例**（`/api` 须写在 `location /` 之前，建议加 `^~`）：
+
+```nginx
+location ^~ /api/ {
+    proxy_pass http://127.0.0.1:8080/api/;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+}
+```
+
 ### 个人中心 · 短信绑定/更换手机号
 
 - **基本资料** 中手机号不再随 `PUT /auth/profile` 直接修改，须走 **短信验证绑定** 流程。
@@ -45,7 +110,7 @@
 | `POST /api/auth/profile/mobile/sms-code` | 发绑定验证码，body：`{ "mobile": "13800138000", "code": "slider_verified" }` |
 | `PUT /api/auth/profile/mobile` | 绑定/更换，body：`{ "mobile": "13800138000", "smsCode": "123456" }` |
 
-后端：`ProfileSmsMobileBindService`；前端：`frontend/src/views/profile/index.vue`。
+后端：`ProfileSmsMobileBindService`；前端：`frontend/src/views/profile/`（`useProfileInfo.ts`、`BasicInfoForm.vue` 等）。
 
 ### 审批单中心 · 详情页审批
 
@@ -102,7 +167,9 @@
 | `4` | 系统消息（群事件等） |
 | `5` | 已撤回 |
 
-**WebSocket 推送类型**：`notice` / `chat` / `groupChat` / `typing`；群消息可带 `atMe: true`；撤回带 `recall: true` 与 `messageId`。
+**WebSocket 推送类型**：`notice` / `chat` / `groupChat` / `typing` / **`presence`**（联系人上线/下线）；群消息可带 `atMe: true`；撤回带 `recall: true` 与 `messageId`。
+
+**在线状态**：用户 WebSocket 连接/断开时，后端向其他在线用户广播 `{ type: "presence", userId, online }`，企业 IM 联系人列表与聊天顶栏「在线/离线」**实时更新**，无需手动刷新。
 
 **数据库增量**
 
@@ -279,7 +346,10 @@ frontend/src/
 │   └── MessageNotification.vue   # 新消息浮层提示
 └── views/message/
     ├── notice/index.vue          # 系统通知管理（发布/发送日志）
-    └── chat/index.vue            # 企业IM（私聊/群聊/群组详情）
+    └── chat/
+        ├── index.vue             # 路由入口（薄包装）
+        ├── components/ChatPage.vue
+        └── composables/useChatPage.ts、useChatRender.ts、useMention.ts
 ```
 
 后端：`modules/system/api/message/`（`AnnounceController`、`ChatController`）、`framework/websocket/`（`WebSocketConfig`、`MessageWebSocketHandler`）。
@@ -404,8 +474,14 @@ wu-admin/
 ├── frontend/                   # Vue 3 + TypeScript 前端
 │   ├── src/
 │   │   ├── api/                # 接口封装（system、message、monitor 等，均为 .ts）
-│   │   ├── views/              # 页面（system、message、monitor、profile、login 等）
-│   │   ├── components/         # 公共组件（DictSelect、SliderCaptcha、MessageNotification、earth/Earth3D 等）
+│   │   ├── views/              # 页面模块（按功能分子目录）
+│   │   │   ├── login/、register/、layout/、dashboard/、profile/
+│   │   │   ├── auth/components/    # 登录注册共享（AuthSplitLayout、AuthCaptchaField 等）
+│   │   │   ├── system/{user,dict,file,menu,org,config}/  # 各含 index、*Page、composables、components
+│   │   │   ├── monitor/job/、message/chat/
+│   │   │   └── …               # approval、ticket、role 等待拆分页面
+│   │   ├── composables/        # 跨页面复用（如 useDict.ts）
+│   │   ├── components/         # 全局公共组件（DictSelect、SliderCaptcha、MessageNotification 等）
 │   │   ├── router/             # 路由与守卫
 │   │   ├── store/              # Pinia（user、message 等）
 │   │   ├── types/              # TS 类型（api、message、config）
@@ -419,7 +495,8 @@ wu-admin/
 │   ├── add2.sql                # 增量补丁 #2（登录 smsLoginSliderCaptchaEnabled）
 │   ├── add3.sql                # 增量补丁 #3（菜单「企业IM」）
 │   ├── add4.sql                # 增量补丁 #4（群消息 mention_ids）
-│   └── add3_add4_wuadmin.sql   # 生产合并补丁（库名 wuadmin）
+│   ├── add3_add4_wuadmin.sql   # 生产合并补丁（库名 wuadmin）
+│   └── disable_devtool_off.sql # 临时关闭「禁止前端调试」（MySQL 5.6 兼容）
 ├── data/                       # 本地上传目录（git 忽略，对应 file.storage.local-path）
 └── README.md
 ```
@@ -431,24 +508,26 @@ wu-admin/
 ```
 cn.rbac.server/
 ├── common/
-│   ├── pojo/                         # CommonResult、PageParam、PageResult
+│   ├── pojo/                         # CommonResult、PageParam、PageResult、BusinessException
 │   └── util/                         # ClientIpUtils、UserAgentUtils、IpLocationUtils
 ├── framework/                        # 技术基础设施（可抽公共 starter）
 │   ├── config/                       # DynamicConfigProvider、DevRedissonConfig（dev）
 │   ├── security/
 │   │   ├── api/                      # PermissionApi（SPI）
-│   │   ├── config/                   # SecurityConfig
+│   │   ├── config/                   # SecurityConfig（CORS 从 yml 读取）
 │   │   └── core/                     # TokenService、SecurityUtils
 │   ├── web/
-│   │   ├── core/                     # GlobalExceptionHandler
-│   │   └── filter/                   # SaTokenAuthenticationFilter、Knife4jIframeHeaderFilter
+│   │   ├── core/                     # GlobalExceptionHandler（含 BusinessException）
+│   │   └── filter/                   # AuthorizationQueryFilter、Knife4jIframeHeaderFilter
 │   ├── log/annotation/               # @Log
 │   ├── mybatis/、redis/、storage/
 └── modules/
     └── system/                       # 系统域业务
-        ├── api/                      # REST Controller（含 pay、auth/profile）
+        ├── api/                      # 瘦 Controller：@PreAuthorize、@Validated、委托 Service
+        │   └── */vo/                 # 请求 VO（JSR-303 校验）
         ├── pay/                      # 微信/支付宝测试下单与回调
-        ├── service/、dal/
+        ├── service/                    # 业务逻辑（auth、user、role、ticket、permission 等）
+        ├── dal/                        # DO、Mapper
         └── framework/                # 对本项目 framework SPI 的实现
             ├── config/               # SystemConfigProvider
             ├── security/             # SystemPermissionService（bean 名 ss）
@@ -459,6 +538,7 @@ cn.rbac.server/
 | 扩展场景 | 做法 |
 |----------|------|
 | 改会话/上传限制等运行时配置 | 改库表 `sys_config_group`，经 `SystemConfigHelper` → `SystemConfigProvider` |
+| 新增业务接口 | 在 `service/` 写业务逻辑，Controller 只做入参校验与 `CommonResult` 封装；业务错误抛 `BusinessException` |
 | 新增业务模块 | 增加 `modules/xxx`，在 `xxx/framework` 实现 SPI，勿让 `framework` 依赖业务 |
 | 复用基础层 | 将 `common` + `framework` 打成 jar，供其它 Spring Boot 项目依赖 |
 
@@ -643,7 +723,7 @@ npm run dev
 
 ### 操作日志
 
-在 `modules/system/api` 的 Controller 方法上添加 `@Log`（`framework.log.annotation`），由 `modules/system/framework/operlog/LogAspect` 经 `OperLogRecorder` 写入 `sys_oper_log`。
+在 `modules/system/api` 的 Controller 方法上添加 `@Log`（`framework.log.annotation`），由 `modules/system/framework/operlog/LogAspect` 经 `OperLogRecorder` 写入 `sys_oper_log`。登录、注册、工单流转、审批处理、定时任务等核心写操作已补齐 `@Log`。
 
 ### 按钮权限
 
@@ -655,8 +735,10 @@ npm run dev
 
 ### 登录 / 注册页
 
-- 路由：`/login`、`/register`；左侧为 **Three.js 3D 地球**（`frontend/src/components/earth/Earth3D.vue`），透明画布透出粒子星空，支持鼠标拖拽旋转与滚轮缩放。
+- 路由：`/login`、`/register`；页面逻辑见 `views/login/composables/useLoginForm.ts`、`views/register/composables/useRegisterForm.ts`；共享布局与验证码见 `views/auth/components/`（`AuthSplitLayout`、`AuthCaptchaField`、`AuthParticleBackground`）。
+- 左侧为 **Three.js 3D 地球**（`frontend/src/components/earth/Earth3D.vue`），透明画布透出粒子星空，支持鼠标拖拽旋转与滚轮缩放。
 - 文案与验证码等行为由公开配置驱动，见下节。
+- **记住我**：仅持久化「账号登录」模式下的用户名；切换 Tab 不会清空勾选状态。
 - **短信 Tab**：未填手机号点击「获取验证码」会提示「请输入手机号」；开启发码前滑块时先弹 `SliderCaptcha` 再发码。
 - **账号登录**：用户名或密码错误时提示「**账号或密码错误**」（不再误报「登录已过期」）；公开认证接口（`/auth/login` 等）的 401 与已登录态 token 失效区分处理。
 - **注册页**：公开接口（登录/注册/验证码/config）请求**不携带**管理员 Token，避免误报 403；软删用户名再次注册由后端自动恢复账号。
@@ -686,13 +768,55 @@ GET /auth/config  // 实际请求 /api/auth/config
 ### 构建与打包
 
 ```powershell
-cd frontend && npm run build
-cd backend && mvn clean package -DskipTests
+# 前端 → frontend/dist/
+cd frontend
+npm run build
+
+# 后端 → backend/target/backend.jar（默认 prod profile）
+cd backend
+mvn clean package -DskipTests
 ```
+
+**产物说明**
+
+| 产物 | 路径 | 说明 |
+|------|------|------|
+| 前端静态资源 | `frontend/dist/` | 部署到 Nginx 等 Web 服务器根目录 |
+| 后端可执行包 | `backend/target/backend.jar` | `java -jar backend.jar`，默认 `prod`，监听 `8080`，context-path `/api` |
+
+**生产默认连接配置**（`application-prod.yml`，部署前请修改）：
+
+| 项 | 默认值 |
+|----|--------|
+| MySQL 库名 | `wuadmin` |
+| MySQL 用户 / 密码 | `wuadmin` / `root` |
+| Redis 密码 | `root`（database `1`） |
+| CORS | `app.cors.allowed-origins` 须改为实际域名（示例：`https://wushij.online,https://www.wushij.online`） |
+
+**Nginx 反代要点**：静态资源走 `root` + `try_files`；`/api/` 反代到 `http://127.0.0.1:8080/api/`；WebSocket 需 `Upgrade` / `Connection` 头（消息推送）。
+
+启动示例：
+
+```bash
+java -jar backend.jar
+# 或覆盖敏感配置：
+java -jar backend.jar --spring.datasource.password=xxx --spring.data.redis.password=xxx
+```
+
+### 新增页面开发约定（前端）
+
+1. 在 `frontend/src/router` 注册路由，`path` 与 `sys_menu.path` 保持一致。
+2. 页面目录：`views/<模块>/index.vue` 仅作路由入口，业务放在 `*Page.vue` + `composables/use*Page.ts`。
+3. 可复用 UI 拆到同目录 `components/`；登录注册类共用 `views/auth/components/`。
+4. 列表页优先用 `DictSelect` / `DictTag`；按钮权限用 `v-permission`。
+5. 提交前执行 `npm run typecheck` 与 `npm run test`。
 
 ---
 
 ## 常见问题
+
+**Q：生产环境登录失败，接口返回 HTML 或「检查网络连接」？**  
+A：① 浏览器访问 `https://域名/api/auth/config`，若返回 `index.html` 则是 **Nginx 未反代 `/api`**（见上文「生产部署排障实录」）；② 若返回 JSON 仍失败，检查 `application-prod.yml` 中 **CORS 域名**是否为实际站点（dev 相对 master 从 `*` 改为可配域名，占位符会导致异常）；③ 验证码须填写；④ 清 `localStorage` 中旧 `token` 后重试。
 
 **Q：登录后菜单为空或 403？**  
 A：确认已导入 `admin_platform.sql` 或为角色分配菜单，然后重新登录。
@@ -748,6 +872,18 @@ A：升级后后端按扩展名返回正确 MIME 并触发下载；请重新部�
 **Q：开启「禁止前端调试」无效？**  
 A：在 **系统配置 → 安全配置** 保存后需 **整页刷新**；缺 `security` 分组时先跑 **admin_platform.sql 附录**。此为浏览器端限制，无法替代后端鉴权。
 
+**Q：生产已开「禁止前端调试」，F12 打不开如何排障？**  
+A：执行 `sql/disable_devtool_off.sql`（库名 `wuadmin`；**MySQL 5.6 勿用 JSON_SET**），重启后端并 `Ctrl+F5` 强刷；或在系统配置关闭后保存。调试完请恢复。
+
+**Q：企业 IM 联系人在线状态不实时更新？**  
+A：升级至含 **`presence` WebSocket 推送** 的版本并重启后端；双方均须已登录且 WebSocket 已连接。旧版仅进入页面时 `loadUsers()` 拉取一次在线状态。
+
+**Q：企业 IM 输入框多了一圈黑边框？**  
+A：组件化拆分时独立 CSS 中 `:deep()` 无效所致；升级至已修复的 `chat-page.css` 后重新 `npm run build` 部署前端。
+
+**Q：字典里多了好几个「××（副本）」？**  
+A：「复制类型」每点一次生成一条（`原编码_copy_时间戳`），误点多次即多条；删除多余副本并「刷新缓存」即可，业务仍用原字典类型。
+
 **Q：系统配置没有「第三方配置 / 支付配置 / 短信配置」Tab？**  
 A：对已有库：极旧库先跑 **admin_platform.sql 附录**；发版增量跑 `sql/add1.sql`；**重启后端**并刷新页面。
 
@@ -777,6 +913,12 @@ A：本地请用 **`dev` profile** 启动（`SPRING_PROFILES_ACTIVE=dev`），�
 
 **Q：登录输错密码却提示「登录已过期」？**  
 A：升级后账号/密码错误统一返回「账号或密码错误」；若仍为旧版，请更新前后端并重启后端。
+
+**Q：分页请求 pageSize 很大导致接口变慢？**  
+A：升级后 `PageParam` 自动将 `pageSize` 上限限制为 **200**；非法 `pageNo` 会修正为 1。
+
+**Q：业务错误返回格式不统一？**  
+A：Service 层应抛 `BusinessException`，由 `GlobalExceptionHandler` 统一返回 `CommonResult`；勿在 Controller 手工 catch 后吞掉异常。
 
 **Q：Git 仓库？**  
 A：https://github.com/wushij/wu-admin

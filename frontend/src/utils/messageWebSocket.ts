@@ -1,4 +1,4 @@
-export type WsMessageType = 'notice' | 'chat' | 'groupChat' | 'typing' | 'ping' | 'pong' | string
+export type WsMessageType = 'notice' | 'chat' | 'groupChat' | 'typing' | 'presence' | 'ping' | 'pong' | string
 
 export interface WsPushMessage {
   type: WsMessageType
@@ -11,6 +11,8 @@ export interface WsPushMessage {
   groupId?: number
   msgType?: number
   fromUserId?: number
+  userId?: number
+  online?: boolean
   atMe?: boolean
   mentionIds?: number[]
   recall?: boolean
