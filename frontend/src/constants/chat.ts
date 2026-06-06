@@ -9,6 +9,9 @@ export const CHAT_MSG_TYPE = {
 
 export const CHAT_PAGE_SIZE = 50
 
+/** 消息时间分隔阈值（5 分钟） */
+export const CHAT_TIME_GAP_MS = 5 * 60 * 1000
+
 export interface ChatFilePayload {
   url: string
   name: string

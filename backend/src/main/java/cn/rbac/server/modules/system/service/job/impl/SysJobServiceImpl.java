@@ -1,5 +1,6 @@
 package cn.rbac.server.modules.system.service.job.impl;
 
+import cn.rbac.server.common.pojo.BusinessException;
 import cn.rbac.server.common.pojo.PageResult;
 import cn.rbac.server.framework.quartz.util.CronUtils;
 import cn.rbac.server.framework.quartz.util.ScheduleUtils;
@@ -99,7 +100,7 @@ public class SysJobServiceImpl extends ServiceImpl<SysJobMapper, SysJobDO> imple
         try {
             result.put("nextFireTimes", CronUtils.nextFireTimes(cronExpression, 5));
         } catch (Exception e) {
-            throw new IllegalArgumentException("无法解析 Cron：" + e.getMessage(), e);
+            throw new BusinessException("无法解析 Cron：" + e.getMessage());
         }
         return result;
     }
@@ -170,7 +171,7 @@ public class SysJobServiceImpl extends ServiceImpl<SysJobMapper, SysJobDO> imple
     public void update(SysJobDO job) {
         SysJobDO existJob = getById(job.getId());
         if (existJob == null) {
-            throw new IllegalArgumentException("任务不存在");
+            throw new BusinessException("任务不存在");
         }
         CronUtils.validate(job.getCronExpression());
         updateById(job);
@@ -201,7 +202,7 @@ public class SysJobServiceImpl extends ServiceImpl<SysJobMapper, SysJobDO> imple
     public void changeStatus(Long id, Integer status) {
         SysJobDO job = getById(id);
         if (job == null) {
-            throw new IllegalArgumentException("任务不存在");
+            throw new BusinessException("任务不存在");
         }
         job.setStatus(status);
         updateById(job);
@@ -220,7 +221,7 @@ public class SysJobServiceImpl extends ServiceImpl<SysJobMapper, SysJobDO> imple
     public void run(Long id) {
         SysJobDO job = getById(id);
         if (job == null) {
-            throw new IllegalArgumentException("任务不存在");
+            throw new BusinessException("任务不存在");
         }
         try {
             ScheduleUtils.run(scheduler, job);

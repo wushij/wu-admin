@@ -41,6 +41,7 @@ public class DictTypeController {
 
     @GetMapping("/list")
     @Operation(summary = "启用字典类型列表")
+    @PreAuthorize("@ss.hasRead('system:dict:list')")
     public CommonResult<List<DictTypeDO>> list() {
         return CommonResult.success(dictTypeService.listEnabled());
     }

@@ -11,6 +11,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import org.springframework.core.io.FileSystemResource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -18,10 +19,13 @@ import org.springframework.web.multipart.MultipartFile;
 
 import jakarta.annotation.Resource;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
+import java.util.Objects;
 import java.util.UUID;
 
 @Service
@@ -155,6 +159,19 @@ public class SysFileServiceImpl extends ServiceImpl<SysFileMapper, SysFileDO> im
         } catch (IOException e) {
             throw new RuntimeException("读取文件失败", e);
         }
+    }
+
+    @Override
+    public org.springframework.core.io.Resource openFileResource(Long id) throws IOException {
+        SysFileDO record = getById(id);
+        if (record == null) {
+            throw new IllegalArgumentException("文件不存在");
+        }
+        Path path = localFileStorage.resolvePath(record.getFilePath());
+        if (!Files.isRegularFile(path)) {
+            throw new IllegalArgumentException("文件不存在");
+        }
+        return new FileSystemResource(Objects.requireNonNull(path.toAbsolutePath(), "file path"));
     }
 
     @Override

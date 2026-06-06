@@ -5,6 +5,8 @@ import cn.rbac.server.modules.system.dal.dataobject.file.SysFileDO;
 import com.baomidou.mybatisplus.extension.service.IService;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
+
 public interface SysFileService extends IService<SysFileDO> {
 
     PageResult<SysFileDO> pageByGroup(Integer pageNo, Integer pageSize, Long groupId, Boolean ungrouped,
@@ -19,6 +21,9 @@ public interface SysFileService extends IService<SysFileDO> {
     SysFileDO uploadChatFile(MultipartFile file);
 
     byte[] getFileBytes(Long id);
+
+    /** 本地文件 Resource（支持 HTTP Range 流式读取，用于预览/下载） */
+    org.springframework.core.io.Resource openFileResource(Long id) throws IOException;
 
     void delete(Long id);
 

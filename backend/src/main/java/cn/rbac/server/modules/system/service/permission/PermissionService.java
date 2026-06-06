@@ -1,13 +1,17 @@
 package cn.rbac.server.modules.system.service.permission;
 
 import cn.rbac.server.modules.system.dal.dataobject.permission.MenuDO;
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 public interface PermissionService {
     // 用户角色
     void assignUserRole(Long userId, Set<Long> roleIds);
     Set<Long> getUserRoleIdListByUserId(Long userId);
+    /** 批量获取用户角色ID映射，避免 N+1 查询 */
+    Map<Long, Set<Long>> getUserRoleIdsMapByUserIds(Collection<Long> userIds);
     
     // 角色菜单
     void assignRoleMenu(Long roleId, Set<Long> menuIds);

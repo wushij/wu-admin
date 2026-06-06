@@ -62,6 +62,10 @@ public class LocalFileStorage {
         return "/api/files/" + storagePath + "/" + fileName;
     }
 
+    public Path resolvePath(String filePath) {
+        return resolveSafe(filePath);
+    }
+
     public byte[] readBytes(String filePath) throws IOException {
         Path full = resolveSafe(filePath);
         return Files.readAllBytes(full);

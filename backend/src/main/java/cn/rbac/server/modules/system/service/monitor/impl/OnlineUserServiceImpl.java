@@ -65,17 +65,19 @@ public class OnlineUserServiceImpl implements OnlineUserService {
 
     @Override
     public void recordLoginSession(Long userId, String username, String nickname, HttpServletRequest request) {
-        String ip = ClientIpUtils.resolve(request);
-        String userAgent = request.getHeader("User-Agent");
+        recordLoginSession(userId, username, nickname, ClientIpUtils.resolve(request), request.getHeader("User-Agent"));
+    }
 
+    @Override
+    public void recordLoginSession(Long userId, String username, String nickname, String clientIp, String userAgent) {
         OnlineDetail detail = new OnlineDetail();
         detail.setUserId(userId);
         detail.setUsername(username);
         detail.setNickname(nickname);
-        detail.setIpaddr(ip);
-        detail.setLoginLocation(resolveLocation(ip));
+        detail.setIpaddr(clientIp);
+        detail.setLoginLocation(resolveLocation(clientIp));
         detail.setBrowser(UserAgentUtils.parseBrowser(userAgent));
-        detail.setOs(UserAgentUtils.parseOs(request));
+        detail.setOs(UserAgentUtils.parseOsFromUserAgent(userAgent));
         long now = System.currentTimeMillis();
         detail.setLoginTime(now);
         detail.setLastAccessTime(now);

@@ -48,7 +48,8 @@ public class TokenService {
         if (!concurrent) {
             try {
                 StpUtil.logout(userId);
-            } catch (Exception ignored) {
+            } catch (Exception e) {
+                log.debug("logout previous session for user {} failed: {}", userId, e.getMessage());
             }
         }
         SaLoginModel model = new SaLoginModel()
@@ -124,14 +125,16 @@ public class TokenService {
                     }
                 }
             }
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            log.debug("getTokenValueListByLoginId({}) failed: {}", userId, e.getMessage());
         }
         try {
             String token = StpUtil.getTokenValueByLoginId(userId);
             if (StringUtils.hasText(token)) {
                 return token;
             }
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            log.debug("getTokenValueByLoginId({}) failed: {}", userId, e.getMessage());
         }
         return null;
     }
@@ -139,7 +142,8 @@ public class TokenService {
     public void removeToken(Long userId) {
         try {
             StpUtil.logout(userId);
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            log.debug("removeToken for user {} failed: {}", userId, e.getMessage());
         }
     }
 

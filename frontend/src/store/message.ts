@@ -24,6 +24,7 @@ export interface PushNotification {
   time: number | string
   senderId?: number
   groupId?: number
+  announceId?: number
 }
 
 export type InboxNoticeItem = NoticeVO
@@ -106,6 +107,7 @@ export const useMessageStore = defineStore('message', () => {
       time: msg.time ?? Date.now(),
       senderId: msg.senderId,
       groupId: msg.groupId,
+      announceId: msg.announceId,
     }
     currentNotification.value = notification
     showNotification.value = true

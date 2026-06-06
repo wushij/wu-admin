@@ -31,6 +31,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.validation.annotation.Validated;
 
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
@@ -87,7 +88,7 @@ public class ProfileController {
     @Operation(summary = "更新当前用户资料")
     @Log(title = "个人中心", businessType = Log.BusinessType.UPDATE)
     @PutMapping
-    public CommonResult<Boolean> updateProfile(@RequestBody ProfileUpdateReqVO reqVO) {
+    public CommonResult<Boolean> updateProfile(@Validated @RequestBody ProfileUpdateReqVO reqVO) {
         Long userId = StpUtil.getLoginIdAsLong();
         UserDO user = userMapper.selectById(userId);
         if (user == null) {
@@ -137,7 +138,7 @@ public class ProfileController {
     @Operation(summary = "短信验证绑定/更换手机号")
     @Log(title = "个人中心", businessType = Log.BusinessType.UPDATE)
     @PutMapping("/mobile")
-    public CommonResult<Boolean> bindMobile(@RequestBody ProfileMobileBindReqVO reqVO) {
+    public CommonResult<Boolean> bindMobile(@Validated @RequestBody ProfileMobileBindReqVO reqVO) {
         StpUtil.checkLogin();
         Long userId = StpUtil.getLoginIdAsLong();
         UserDO user = userMapper.selectById(userId);
@@ -155,7 +156,7 @@ public class ProfileController {
     @Operation(summary = "修改当前用户密码")
     @Log(title = "个人中心", businessType = Log.BusinessType.UPDATE, isSaveRequestData = false, isSaveResponseData = false)
     @PutMapping("/password")
-    public CommonResult<Boolean> changePassword(@RequestBody ChangePasswordReqVO reqVO) {
+    public CommonResult<Boolean> changePassword(@Validated @RequestBody ChangePasswordReqVO reqVO) {
         if (!StringUtils.hasText(reqVO.getOldPassword()) || !StringUtils.hasText(reqVO.getNewPassword())) {
             return CommonResult.error(400, "请填写原密码和新密码");
         }
@@ -207,7 +208,7 @@ public class ProfileController {
     @Operation(summary = "短信验证重置当前用户密码")
     @Log(title = "个人中心", businessType = Log.BusinessType.UPDATE, isSaveRequestData = false, isSaveResponseData = false)
     @PutMapping("/password/sms-reset")
-    public CommonResult<Boolean> resetPasswordBySms(@RequestBody ProfilePasswordSmsResetReqVO reqVO) {
+    public CommonResult<Boolean> resetPasswordBySms(@Validated @RequestBody ProfilePasswordSmsResetReqVO reqVO) {
         StpUtil.checkLogin();
         Long userId = StpUtil.getLoginIdAsLong();
         UserDO user = userMapper.selectById(userId);

@@ -33,9 +33,21 @@ public class SystemPermissionService implements PermissionApi {
         if (hasPermission(permission)) {
             return true;
         }
+        // 工作台：前端固定路由，凡已登录用户均可查看统计（无需单独菜单权限）
+        if ("dashboard:stats:view".equals(permission)) {
+            return SecurityUtils.getLoginUserId() != null;
+        }
         if (permission != null && permission.endsWith(":list")) {
             String prefix = permission.substring(0, permission.length() - 5);
-            return hasPermission(prefix + ":query") || hasPermission(prefix + ":upload");
+            if (hasPermission(prefix + ":query") || hasPermission(prefix + ":upload")) {
+                return true;
+            }
+            // 用户管理页岗位下拉：有用户读/写权限即可拉取启用岗位列表
+            if ("system:post".equals(prefix)) {
+                return hasPermission("system:user:query")
+                        || hasPermission("system:user:create")
+                        || hasPermission("system:user:update");
+            }
         }
         return false;
     }

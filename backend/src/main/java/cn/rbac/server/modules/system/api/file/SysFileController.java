@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import jakarta.annotation.Resource;
+import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
@@ -80,30 +81,37 @@ public class SysFileController {
 
     @GetMapping("/download/{id}")
     @PreAuthorize("@ss.hasRead('sys:file:list')")
-    public ResponseEntity<byte[]> download(@PathVariable Long id) {
+    public ResponseEntity<org.springframework.core.io.Resource> download(@PathVariable Long id) throws IOException {
         SysFileDO file = fileService.getById(id);
         if (file == null) {
             return ResponseEntity.notFound().build();
         }
-        byte[] bytes = fileService.getFileBytes(id);
+        org.springframework.core.io.Resource resource = fileService.openFileResource(id);
         String encoded = URLEncoder.encode(file.getOriginalName(), StandardCharsets.UTF_8).replace("+", "%20");
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename*=UTF-8''" + encoded)
-                .header(HttpHeaders.CONTENT_TYPE, file.getFileType() != null ? file.getFileType() : "application/octet-stream")
-                .body(bytes);
+                .header(HttpHeaders.CONTENT_TYPE, contentTypeOf(file))
+                .header(HttpHeaders.ACCEPT_RANGES, "bytes")
+                .body(resource);
     }
 
     @GetMapping("/preview/{id}")
     @PreAuthorize("@ss.hasRead('sys:file:list')")
-    public ResponseEntity<byte[]> preview(@PathVariable Long id) {
+    public ResponseEntity<org.springframework.core.io.Resource> preview(@PathVariable Long id) throws IOException {
         SysFileDO file = fileService.getById(id);
         if (file == null) {
             return ResponseEntity.notFound().build();
         }
-        byte[] bytes = fileService.getFileBytes(id);
+        org.springframework.core.io.Resource resource = fileService.openFileResource(id);
         return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_TYPE, file.getFileType() != null ? file.getFileType() : "application/octet-stream")
-                .body(bytes);
+                .header(HttpHeaders.CONTENT_TYPE, contentTypeOf(file))
+                .header(HttpHeaders.ACCEPT_RANGES, "bytes")
+                .header(HttpHeaders.CACHE_CONTROL, "private, max-age=3600")
+                .body(resource);
+    }
+
+    private static String contentTypeOf(SysFileDO file) {
+        return file.getFileType() != null ? file.getFileType() : "application/octet-stream";
     }
 
     @GetMapping("/text/{id}")

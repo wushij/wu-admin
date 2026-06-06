@@ -3,6 +3,7 @@ package cn.rbac.server.modules.system.service.config.impl;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
+import cn.rbac.server.common.pojo.BusinessException;
 import cn.rbac.server.modules.system.dal.dataobject.config.SysConfigGroupDO;
 import cn.rbac.server.modules.system.dal.mysql.config.SysConfigGroupMapper;
 import cn.rbac.server.modules.system.framework.cache.SysConfigCacheService;
@@ -48,13 +49,13 @@ public class SysConfigGroupServiceImpl implements SysConfigGroupService {
     @Override
     public void updateConfig(String groupCode, String configValue) {
         if (!JSONUtil.isTypeJSON(configValue)) {
-            throw new IllegalArgumentException("配置内容必须是合法 JSON");
+            throw new BusinessException("配置内容必须是合法 JSON");
         }
         JSONObject json = JSONUtil.parseObj(configValue);
         validateGroupConfig(groupCode, json);
         SysConfigGroupDO row = getByGroupCode(groupCode);
         if (row == null) {
-            throw new IllegalArgumentException("配置分组不存在: " + groupCode);
+            throw new BusinessException("配置分组不存在: " + groupCode);
         }
         row.setConfigValue(json.toString());
         configGroupMapper.updateById(row);
@@ -91,25 +92,25 @@ public class SysConfigGroupServiceImpl implements SysConfigGroupService {
 
     private void validateSiteConfig(JSONObject json) {
         if (StrUtil.isBlank(json.getStr("platformName"))) {
-            throw new IllegalArgumentException("平台名称不能为空");
+            throw new BusinessException("平台名称不能为空");
         }
     }
 
     private void validateSessionConfig(JSONObject json) {
         int hours = json.getInt("tokenExpireHours", 24);
         if (hours < 1 || hours > 720) {
-            throw new IllegalArgumentException("Token 有效期须在 1～720 小时之间");
+            throw new BusinessException("Token 有效期须在 1～720 小时之间");
         }
     }
 
     private void validateFileConfig(JSONObject json) {
         int mb = json.getInt("maxSizeMb", 50);
         if (mb < 1 || mb > SystemConfigHelper.PLATFORM_MAX_FILE_MB) {
-            throw new IllegalArgumentException(
+            throw new BusinessException(
                     "文件大小上限须在 1～" + SystemConfigHelper.PLATFORM_MAX_FILE_MB + " MB 之间");
         }
         if (StrUtil.isBlank(json.getStr("allowedExtensions"))) {
-            throw new IllegalArgumentException("允许扩展名不能为空");
+            throw new BusinessException("允许扩展名不能为空");
         }
     }
 
@@ -120,7 +121,7 @@ public class SysConfigGroupServiceImpl implements SysConfigGroupService {
         validateRate(json.getInt("smsPerIpMinute", 5), "短信发送");
         int interval = json.getInt("smsSendIntervalSeconds", 60);
         if (interval < 30 || interval > 300) {
-            throw new IllegalArgumentException("短信发送间隔须在 30～300 秒之间");
+            throw new BusinessException("短信发送间隔须在 30～300 秒之间");
         }
         validateDailyLimit(json.getInt("smsPerPhoneDaily", 10), "手机号每日短信");
         validateDailyLimit(json.getInt("smsPerIpDaily", 30), "IP 每日短信");
@@ -128,13 +129,13 @@ public class SysConfigGroupServiceImpl implements SysConfigGroupService {
 
     private void validateDailyLimit(int n, String label) {
         if (n < 0 || n > 500) {
-            throw new IllegalArgumentException(label + "上限须在 0～500 之间（0 表示不限制）");
+            throw new BusinessException(label + "上限须在 0～500 之间（0 表示不限制）");
         }
     }
 
     private void validateRate(int n, String label) {
         if (n < 0 || n > 200) {
-            throw new IllegalArgumentException(label + "每分钟限流须在 0～200 之间（0 表示不限制）");
+            throw new BusinessException(label + "每分钟限流须在 0～200 之间（0 表示不限制）");
         }
     }
 
@@ -143,27 +144,27 @@ public class SysConfigGroupServiceImpl implements SysConfigGroupService {
         if (captchaEnabled) {
             String type = json.getStr("captchaType", SystemConfigHelper.CAPTCHA_TYPE_IMAGE);
             if (SystemConfigHelper.CAPTCHA_TYPE_SMS.equals(type)) {
-                throw new IllegalArgumentException("短信登录请使用「短信验证码登录」开关，验证码类型仅支持 image 或 slider");
+                throw new BusinessException("短信登录请使用「短信验证码登录」开关，验证码类型仅支持 image 或 slider");
             }
             if (StrUtil.isBlank(type) || !LOGIN_CAPTCHA_TYPES.contains(type)) {
-                throw new IllegalArgumentException("验证码类型仅支持 image 或 slider");
+                throw new BusinessException("验证码类型仅支持 image 或 slider");
             }
         }
         boolean smsLoginEnabled = json.getBool("smsLoginEnabled", false);
         if (smsLoginEnabled && !systemConfigHelper.isSmsEnabled()) {
-            throw new IllegalArgumentException("启用短信验证码登录须先在短信配置中开启短信功能");
+            throw new BusinessException("启用短信验证码登录须先在短信配置中开启短信功能");
         }
         boolean smsLoginSliderCaptchaEnabled = json.getBool("smsLoginSliderCaptchaEnabled", false);
         if (smsLoginSliderCaptchaEnabled && !smsLoginEnabled) {
-            throw new IllegalArgumentException("启用短信发送前滑块验证须先开启短信验证码登录");
+            throw new BusinessException("启用短信发送前滑块验证须先开启短信验证码登录");
         }
         int maxRetry = json.getInt("maxRetryCount", 5);
         if (maxRetry < 1 || maxRetry > 20) {
-            throw new IllegalArgumentException("最大重试次数须在 1～20 之间");
+            throw new BusinessException("最大重试次数须在 1～20 之间");
         }
         int lockTime = json.getInt("lockTime", 10);
         if (lockTime < 1 || lockTime > 120) {
-            throw new IllegalArgumentException("锁定时长须在 1～120 分钟之间");
+            throw new BusinessException("锁定时长须在 1～120 分钟之间");
         }
     }
 
@@ -172,18 +173,18 @@ public class SysConfigGroupServiceImpl implements SysConfigGroupService {
         if (captchaEnabled) {
             String type = json.getStr("captchaType", SystemConfigHelper.CAPTCHA_TYPE_IMAGE);
             if (StrUtil.isBlank(type) || !REGISTER_CAPTCHA_TYPES.contains(type)) {
-                throw new IllegalArgumentException("注册验证码类型仅支持 image 或 slider");
+                throw new BusinessException("注册验证码类型仅支持 image 或 slider");
             }
         }
         if (json.containsKey("defaultRoleCode")) {
             String code = json.getStr("defaultRoleCode");
             if (StrUtil.isBlank(code)) {
-                throw new IllegalArgumentException("默认角色编码不能为空");
+                throw new BusinessException("默认角色编码不能为空");
             }
         }
         int minLen = json.getInt("minPasswordLength", 6);
         if (minLen < 6 || minLen > 32) {
-            throw new IllegalArgumentException("密码最小长度须在 6～32 之间");
+            throw new BusinessException("密码最小长度须在 6～32 之间");
         }
     }
 
@@ -194,7 +195,7 @@ public class SysConfigGroupServiceImpl implements SysConfigGroupService {
             provider = "aliyunAuth";
         }
         if (StrUtil.isBlank(provider) || (!"aliyunAuth".equals(provider) && !"tencent".equals(provider))) {
-            throw new IllegalArgumentException("短信服务商仅支持 aliyunAuth 或 tencent");
+            throw new BusinessException("短信服务商仅支持 aliyunAuth 或 tencent");
         }
     }
 }

@@ -29,6 +29,7 @@ public class PostController {
 
     @GetMapping("/list")
     @Operation(summary = "启用岗位扁平列表")
+    @PreAuthorize("@ss.hasRead('system:post:list')")
     public CommonResult<List<PostDO>> list() {
         return CommonResult.success(postService.listEnabled());
     }

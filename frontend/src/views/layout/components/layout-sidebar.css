@@ -1,0 +1,184 @@
+.sidebar {
+  width: 220px;
+  background: var(--theme-sidebar-bg, #ffffff);
+  border-right: 1px solid var(--theme-border, #e2e8f0);
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 2px 0 12px rgba(15, 23, 42, 0.04);
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar.is-collapse { width: 72px; }
+
+.logo {
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 16px;
+  background: linear-gradient(135deg, var(--theme-primary, #010710) 0%, var(--theme-logo-end, var(--theme-primary-active, #0f172a)) 100%);
+  gap: 12px;
+  position: relative;
+  overflow: hidden;
+}
+
+.logo::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  right: -50%;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.logo-icon {
+  width: 36px;
+  height: 36px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  backdrop-filter: blur(10px);
+  flex-shrink: 0;
+  transition: all 0.3s;
+}
+
+.logo:hover .logo-icon {
+  transform: rotate(360deg);
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.logo-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.logo-title {
+  color: #fff;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.logo-subtitle {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 11px;
+}
+
+.menu-wrapper {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 8px;
+}
+
+.menu-wrapper::-webkit-scrollbar { width: 4px; }
+.menu-wrapper::-webkit-scrollbar-thumb { background: #d0d5dd; border-radius: 4px; }
+
+.sidebar-menu {
+  border-right: none;
+  background: transparent;
+}
+
+.sidebar-menu:not(.el-menu--collapse) { width: 204px; }
+
+:deep(.el-menu) {
+  border-right: none;
+  background: transparent;
+}
+
+:deep(.el-menu--inline) {
+  background: var(--theme-primary-muted, rgba(30, 41, 59, 0.06));
+  border-radius: 8px;
+  margin: 4px 0;
+  padding: 2px 0;
+  overflow: hidden;
+}
+
+/* 关闭子菜单展开高度动画，避免子项「跳一下」 */
+:deep(.el-sub-menu .el-collapse-transition),
+:deep(.el-sub-menu .horizontal-collapse-transition),
+:deep(.el-sub-menu .vertical-collapse-transition) {
+  transition: none !important;
+}
+
+:deep(.el-sub-menu__title),
+:deep(.el-menu-item) {
+  color: var(--theme-text-secondary, #64748b);
+  border-radius: 8px;
+  margin: 2px 0;
+  transition: background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+  font-weight: 500;
+}
+
+:deep(.el-sub-menu__title) { height: 44px; line-height: 44px; }
+:deep(.el-menu-item) {
+  height: 40px;
+  line-height: 40px;
+  box-sizing: border-box;
+}
+
+:deep(.el-menu--inline .el-menu-item) {
+  margin-left: 8px !important;
+  margin-right: 8px !important;
+  width: calc(100% - 16px);
+}
+
+:deep(.el-menu-item-dashboard) {
+  margin: 8px 0 16px 0;
+  height: 48px;
+  line-height: 48px;
+  font-weight: 600;
+}
+
+:deep(.el-menu-item-dashboard .dashboard-menu-icon) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin-right: 8px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, var(--theme-primary, #010710) 0%, var(--theme-logo-end, var(--theme-primary-hover, #334155)) 100%);
+  color: #fff;
+}
+
+:deep(.el-sub-menu__title:hover),
+:deep(.el-menu-item:hover) {
+  background: var(--theme-primary-muted, rgba(30, 41, 59, 0.08));
+  color: var(--theme-primary, #010710);
+}
+
+:deep(.el-menu-item.is-active) {
+  color: var(--theme-primary, #010710);
+  background: var(--theme-primary-muted, rgba(30, 41, 59, 0.1));
+  font-weight: 500;
+  box-shadow: inset 3px 0 0 var(--theme-primary, #010710);
+}
+
+:deep(.el-sub-menu.is-opened > .el-sub-menu__title) {
+  color: var(--theme-primary, #010710);
+  background: var(--theme-primary-muted-strong, rgba(30, 41, 59, 0.12));
+}
+
+:deep(.el-menu--collapse .el-menu-item),
+:deep(.el-menu--collapse .el-sub-menu__title) {
+  margin-left: 0 !important;
+  justify-content: center;
+}
+
+:deep(.sidebar-menu .el-icon.is-spin-once) {
+  animation: sidebar-menu-icon-spin 0.52s ease;
+}
+
+@keyframes sidebar-menu-icon-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}

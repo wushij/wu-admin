@@ -10,3 +10,8 @@ spring:
       port: 6379
       password: root
       database: 1
+
+# 生产环境 CORS：配置具体域名，逗号分隔
+app:
+  cors:
+    allowed-origins: "https://your-domain.com,https://admin.your-domain.com"

@@ -27,6 +27,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import org.redisson.api.RBucket;
 import org.redisson.api.RedissonClient;
 import cn.dev33.satoken.stp.StpUtil;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -74,6 +75,7 @@ public class DashboardController {
 
     @Operation(summary = "工作台统计数据")
     @GetMapping("/stats")
+    @PreAuthorize("@ss.hasRead('dashboard:stats:view')")
     public CommonResult<Map<String, Object>> getStats() {
         if (StpUtil.isLogin()) {
             onlineUserService.touchLastAccess(StpUtil.getLoginIdAsLong());
@@ -142,6 +144,7 @@ public class DashboardController {
 
     @Operation(summary = "最近登录记录")
     @GetMapping("/recent-logins")
+    @PreAuthorize("@ss.hasRead('dashboard:stats:view')")
     public CommonResult<List<LoginLogDO>> recentLogins() {
         List<LoginLogDO> list = loginLogMapper.selectList(new LambdaQueryWrapper<LoginLogDO>()
                 .orderByDesc(LoginLogDO::getLoginTime)
@@ -151,6 +154,7 @@ public class DashboardController {
 
     @Operation(summary = "记录工作台访问")
     @GetMapping("/visit")
+    @PreAuthorize("@ss.hasRead('dashboard:stats:view')")
     public CommonResult<Void> recordVisit() {
         if (StpUtil.isLogin()) {
             onlineUserService.touchLastAccess(StpUtil.getLoginIdAsLong());

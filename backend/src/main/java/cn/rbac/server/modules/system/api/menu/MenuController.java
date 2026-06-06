@@ -38,6 +38,7 @@ public class MenuController {
 
     @Operation(summary = "获取菜单全量列表（角色分配等，扁平）")
     @GetMapping("/simple-list")
+    @PreAuthorize("@ss.hasRead('system:menu:list')")
     public CommonResult<List<MenuDO>> simpleList() {
         return CommonResult.success(menuMapper.selectList(
                 new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<MenuDO>()
@@ -95,12 +96,8 @@ public class MenuController {
     @DeleteMapping("/delete")
     @PreAuthorize("@ss.hasPermission('system:menu:delete')")
     public CommonResult<Boolean> delete(@RequestParam Long id) {
-        try {
-            menuService.deleteMenu(id);
-            return CommonResult.success(true);
-        } catch (IllegalArgumentException e) {
-            return CommonResult.error(400, e.getMessage());
-        }
+        menuService.deleteMenu(id);
+        return CommonResult.success(true);
     }
 
     @Operation(summary = "菜单回收站分页")

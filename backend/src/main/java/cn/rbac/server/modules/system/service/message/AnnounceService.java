@@ -149,7 +149,7 @@ public class AnnounceService {
                 ua.setCreateTime(LocalDateTime.now());
                 userAnnounceMapper.insert(ua);
             }
-            webSocketHandler.sendNotice(uid, announce.getTitle(), announce.getContent());
+            webSocketHandler.sendNotice(uid, id, announce.getTitle(), announce.getContent());
             success++;
         }
         AnnounceSendLogDO log = new AnnounceSendLogDO();

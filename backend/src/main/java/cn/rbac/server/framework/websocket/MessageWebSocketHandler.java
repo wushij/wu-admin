@@ -10,6 +10,7 @@ import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 
 import java.io.IOException;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -68,13 +69,17 @@ public class MessageWebSocketHandler extends TextWebSocketHandler {
         }
     }
 
-    public void sendNotice(Long userId, String title, String content) {
+    public void sendNotice(Long userId, Long announceId, String title, String content) {
         try {
-            String json = objectMapper.writeValueAsString(Map.of(
-                    "type", "notice",
-                    "title", title,
-                    "content", content,
-                    "time", System.currentTimeMillis()));
+            Map<String, Object> payload = new LinkedHashMap<>();
+            payload.put("type", "notice");
+            payload.put("title", title != null ? title : "");
+            payload.put("content", content != null ? content : "");
+            payload.put("time", System.currentTimeMillis());
+            if (announceId != null) {
+                payload.put("announceId", announceId);
+            }
+            String json = objectMapper.writeValueAsString(payload);
             if (userId == null) {
                 broadcast(json);
             } else {

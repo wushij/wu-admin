@@ -3,6 +3,7 @@ package cn.rbac.server.modules.system.dal.dataobject.user;
 import cn.rbac.server.common.mybatis.BaseEntity;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import java.util.Set;
@@ -12,6 +13,7 @@ import java.util.Set;
 @TableName("sys_user")
 public class UserDO extends BaseEntity {
     private String username;
+    @JsonIgnore
     private String password;
     private String nickname;
     private String mobile;

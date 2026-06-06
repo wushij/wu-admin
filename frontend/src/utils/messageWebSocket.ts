@@ -16,6 +16,8 @@ export interface WsPushMessage {
   recall?: boolean
   messageId?: number
   id?: number
+  /** 系统通知 ID（发布推送时携带，用于已读与详情） */
+  announceId?: number
 }
 
 type WsHandler = (msg: WsPushMessage) => void
