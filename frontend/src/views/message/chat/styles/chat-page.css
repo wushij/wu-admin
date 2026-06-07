@@ -351,12 +351,8 @@
   display: flex;
   gap: 10px;
   max-width: min(72%, 520px);
-  margin-bottom: 4px;
+  margin-bottom: 14px;
   align-items: flex-start;
-}
-
-.message-item.is-continued {
-  margin-bottom: 2px;
 }
 
 .message-item.self {
@@ -373,10 +369,6 @@
 .message-avatar {
   flex-shrink: 0;
   width: 40px;
-}
-
-.message-avatar.is-placeholder {
-  visibility: hidden;
 }
 
 .message-body {
@@ -430,11 +422,6 @@
   top: 12px;
   border: 6px solid transparent;
   border-left-color: #95ec69;
-}
-
-.message-item.is-continued:not(.self) .msg-bubble::before,
-.message-item.is-continued.self .msg-bubble::after {
-  display: none;
 }
 
 .msg-image {
@@ -698,11 +685,36 @@
 .group-btns {
   display: flex;
   justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
   gap: 10px;
+}
+
+.group-btns .el-button {
+  margin: 0;
 }
 
 .group-form {
   padding-top: 4px;
+}
+
+.group-form .el-textarea__inner {
+  resize: none;
+  overflow: hidden;
+}
+
+.group-announcement-readonly {
+  width: 100%;
+  min-height: 72px;
+  padding: 8px 12px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #606266;
+  background: #f5f7fa;
+  border: 1px solid #e4e7ed;
+  border-radius: 4px;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .group-log-panel {
@@ -824,4 +836,147 @@
 
 .member-select-popper .el-select-dropdown__wrap {
   max-height: 200px;
+}
+
+.group-announcement-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 16px 10px;
+  padding: 9px 12px;
+  background: linear-gradient(135deg, #faf9f6 0%, #f3f1ec 100%);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  border-radius: 10px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.group-announcement-bar:hover {
+  background: linear-gradient(135deg, #f5f3ee 0%, #ebe8e1 100%);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+}
+
+.announcement-bar-icon-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: rgba(184, 134, 11, 0.12);
+  color: #b8860b;
+  flex-shrink: 0;
+  font-size: 15px;
+}
+
+.announcement-bar-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.announcement-bar-prefix {
+  flex-shrink: 0;
+  font-weight: 600;
+  color: #9a7b4f;
+  letter-spacing: 0.02em;
+}
+
+.announcement-bar-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #4a4a4a;
+}
+
+.announcement-bar-arrow {
+  flex-shrink: 0;
+  font-size: 14px;
+  color: #c0c0c0;
+}
+
+.announcement-detail-dialog .el-dialog__header {
+  margin-right: 0;
+  padding: 20px 28px 12px;
+}
+
+.announcement-detail-dialog .el-dialog__body {
+  padding: 8px 28px 20px;
+}
+
+.announcement-detail-dialog .el-dialog__title {
+  font-size: 17px;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.announcement-detail-body {
+  padding: 0;
+}
+
+.announcement-detail-meta {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 18px;
+  padding: 16px 18px;
+  background: #fafafa;
+  border: 1px solid #eee;
+  border-radius: 10px;
+}
+
+.announcement-publisher-avatar {
+  flex-shrink: 0;
+  color: #5c4a32;
+  font-weight: 600;
+  background: #e8e0d4;
+}
+
+.announcement-publisher-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1a1a1a;
+  line-height: 1.3;
+}
+
+.announcement-publish-time {
+  margin-top: 4px;
+  font-size: 12px;
+  color: #999;
+}
+
+.announcement-detail-content {
+  font-size: 15px;
+  line-height: 1.7;
+  color: #333;
+  white-space: pre-wrap;
+  word-break: break-word;
+  padding: 18px 20px;
+  background: #fff;
+  border: 1px solid #e8e8e8;
+  border-radius: 10px;
+}
+
+.announcement-detail-dialog .el-dialog__footer {
+  padding: 12px 28px 24px;
+}
+
+.announcement-done-btn {
+  width: 100%;
+  height: 40px;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.group-form .group-notify-item .el-form-item__label {
+  white-space: nowrap;
 }

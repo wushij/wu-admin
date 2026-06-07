@@ -163,18 +163,14 @@
                   v-else-if="item.kind === 'message'"
                   :data-msg-id="item.message.id"
                   class="message-item"
-                  :class="{
-                    self: item.message.senderId === currentUserId,
-                    'is-continued': !item.showAvatar,
-                  }"
+                  :class="{ self: item.message.senderId === currentUserId }"
                   @contextmenu.prevent="openMessageMenu($event, item.message, 'private')"
                 >
-                  <div v-if="item.showAvatar" class="message-avatar">
+                  <div class="message-avatar">
                     <el-avatar :size="40" :src="messageAvatar(item.message)">
                       {{ avatarFallback(item.message.senderName) }}
                     </el-avatar>
                   </div>
-                  <div v-else class="message-avatar is-placeholder" aria-hidden="true" />
                   <div class="message-body">
                     <div
                       v-if="item.message.msgType === CHAT_MSG_TYPE.IMAGE"
@@ -265,6 +261,23 @@
               </div>
             </div>
             <div
+              v-if="showGroupAnnouncementBar"
+              class="group-announcement-bar"
+              role="button"
+              tabindex="0"
+              @click="openAnnouncementDetail"
+              @keydown.enter="openAnnouncementDetail"
+            >
+              <span class="announcement-bar-icon-wrap" aria-hidden="true">
+                <el-icon><Bell /></el-icon>
+              </span>
+              <div class="announcement-bar-content">
+                <span class="announcement-bar-prefix">群公告</span>
+                <span class="announcement-bar-text">{{ selectedGroup?.announcement }}</span>
+              </div>
+              <el-icon class="announcement-bar-arrow"><ArrowRight /></el-icon>
+            </div>
+            <div
               ref="groupListRef"
               class="message-list"
               v-loading="loadingHistory && !loadingMore"
@@ -284,21 +297,17 @@
                   v-else-if="item.kind === 'message'"
                   :data-msg-id="item.message.id"
                   class="message-item"
-                  :class="{
-                    self: item.message.senderId === currentUserId,
-                    'is-continued': !item.showAvatar,
-                  }"
+                  :class="{ self: item.message.senderId === currentUserId }"
                   @contextmenu.prevent="openMessageMenu($event, item.message, 'group')"
                 >
-                  <div v-if="item.showAvatar" class="message-avatar">
+                  <div class="message-avatar">
                     <el-avatar :size="40" :src="messageAvatar(item.message)">
                       {{ avatarFallback(item.message.senderName) }}
                     </el-avatar>
                   </div>
-                  <div v-else class="message-avatar is-placeholder" aria-hidden="true" />
                   <div class="message-body">
                     <div
-                      v-if="item.message.senderId !== currentUserId && item.showAvatar"
+                      v-if="item.message.senderId !== currentUserId"
                       class="sender-name"
                     >
                       {{ item.message.senderName }}
@@ -335,9 +344,9 @@
                   @mousedown.prevent="pickMention(m)"
                 >
                   <el-avatar :size="28" :src="resolveChatAvatar(m.userId, userAvatarMap, m.avatar)">
-                    {{ avatarFallback(m.nickname || m.username) }}
+                    {{ avatarFallback(groupMemberDisplayName(m)) }}
                   </el-avatar>
-                  <span>{{ m.nickname || m.username }}</span>
+                  <span>{{ groupMemberDisplayName(m) }}</span>
                 </li>
                 <li v-if="!mentionCandidates.length" class="mention-empty">无匹配成员</li>
               </ul>
@@ -419,19 +428,56 @@
         <el-button type="primary" @click="handleCreateGroup">确定</el-button>
       </template>
     </el-dialog>
+    <el-dialog
+      v-model="showAnnouncementDetail"
+      title="群公告"
+      width="520px"
+      class="announcement-detail-dialog"
+      align-center
+      destroy-on-close
+    >
+      <div class="announcement-detail-body">
+        <div class="announcement-detail-meta">
+          <el-avatar :size="40" :src="announcementPublisherAvatar" class="announcement-publisher-avatar">
+            {{ avatarFallback(announcementPublisherDisplay) }}
+          </el-avatar>
+          <div class="announcement-detail-meta-text">
+            <div class="announcement-publisher-name">{{ announcementPublisherDisplay }}</div>
+            <div v-if="announcementPublishTimeDisplay" class="announcement-publish-time">
+              {{ announcementPublishTimeDisplay }}
+            </div>
+          </div>
+        </div>
+        <div class="announcement-detail-content">{{ selectedGroup?.announcement }}</div>
+      </div>
+      <template #footer>
+        <el-button type="primary" class="announcement-done-btn" @click="dismissGroupAnnouncement">
+          完成
+        </el-button>
+      </template>
+    </el-dialog>
     <el-dialog v-model="showGroupDetail" title="群组详情" width="600px" destroy-on-close @closed="groupLogs = []">
       <div v-if="selectedGroup" class="group-detail">
         <el-tabs v-model="groupTab" @tab-change="handleGroupTabChange">
           <el-tab-pane label="基本信息" name="info">
-            <el-form label-width="80px" class="group-form">
+            <el-form label-width="96px" class="group-form">
               <el-form-item label="群名称">
                 <el-input v-model="editGroupName" :disabled="!canEditGroup" />
               </el-form-item>
               <el-form-item label="群公告">
-                <el-input v-model="editGroupAnnouncement" type="textarea" :rows="3" :disabled="!canEditGroup" />
+                <el-input
+                  v-if="canEditGroup"
+                  v-model="editGroupAnnouncement"
+                  type="textarea"
+                  :autosize="{ minRows: 3 }"
+                  resize="none"
+                />
+                <div v-else class="group-announcement-readonly">
+                  {{ editGroupAnnouncement || '暂无公告' }}
+                </div>
               </el-form-item>
-              <el-form-item v-if="canEditGroup">
-                <el-button type="primary" size="small" @click="handleUpdateGroup">保存修改</el-button>
+              <el-form-item label="消息免打扰" class="group-notify-item">
+                <el-switch :model-value="groupNotifyMuted" @change="handleGroupNotifyMutedChange" />
               </el-form-item>
             </el-form>
           </el-tab-pane>
@@ -463,7 +509,7 @@
             <div class="member-list" v-loading="membersLoading">
               <div v-for="m in groupMembers" :key="m.id" class="member-row">
                 <div class="member-row-left">
-                  <span class="member-name">{{ m.nickname || m.userNickname || m.username }}</span>
+                  <span class="member-name">{{ groupMemberDisplayName(m) }}</span>
                   <el-tag v-if="m.role === 2" size="small" type="warning">群主</el-tag>
                   <el-tag v-else-if="m.role === 1" size="small" type="info">管理员</el-tag>
                   <el-tag v-if="m.muted" size="small" type="danger">禁言</el-tag>
@@ -502,7 +548,8 @@
           </el-tab-pane>
         </el-tabs>
         <el-divider />
-        <div class="group-btns action-buttons">
+        <div class="group-btns">
+          <el-button v-if="canEditGroup" type="primary" size="small" @click="handleUpdateGroup">保存修改</el-button>
           <el-button v-if="isGroupOwner" type="danger" size="small" @click="handleDissolve">解散群组</el-button>
           <el-button v-else type="warning" size="small" @click="handleQuit">退出群组</el-button>
         </div>
@@ -514,6 +561,7 @@
 <script setup lang="ts">
 import ChatToolbarIcons from '@/components/chat/ChatToolbarIcons.vue'
 import EmojiPicker from '@/components/EmojiPicker.vue'
+import { groupMemberDisplayName } from '@/utils/chat-message'
 import { useChatPage } from '../composables/useChatPage'
 import '../styles/chat-page.css'
 
@@ -574,6 +622,12 @@ const {
   userOptions,
   isGroupOwner,
   canEditGroup,
+  showGroupAnnouncementBar,
+  showAnnouncementDetail,
+  announcementPublisherDisplay,
+  announcementPublisherAvatar,
+  announcementPublishTimeDisplay,
+  groupNotifyMuted,
   availableAddUsers,
   selectUser,
   selectGroup,
@@ -593,6 +647,9 @@ const {
   handleDissolve,
   handlePrivateAction,
   handleUpdateGroup,
+  openAnnouncementDetail,
+  dismissGroupAnnouncement,
+  handleGroupNotifyMutedChange,
   handleAddMembers,
   canManageMember,
   handleMemberAction,
@@ -615,6 +672,8 @@ const {
   Setting,
   ChatDotRound,
   Document,
+  Bell,
+  ArrowRight,
   formatSearchPreview,
   renderTextContent,
   fileDisplayName,

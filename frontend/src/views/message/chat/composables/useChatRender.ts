@@ -9,7 +9,7 @@ export type ChatRenderItem =
   | { kind: 'time'; id: string; text: string }
   | { kind: 'system'; id: string; text: string }
   | { kind: 'recall'; id: string; text: string }
-  | { kind: 'message'; id: string; message: ChatMessage; showAvatar: boolean }
+  | { kind: 'message'; id: string; message: ChatMessage }
 
 const GROUP_AVATAR_COLORS = ['#576b95', '#10aeff', '#07c160', '#fa9d3b', '#6467f0', '#354b70']
 
@@ -70,9 +70,7 @@ export function buildChatRenderItems(list: ChatMessage[], currentUserId: number,
     if (!prev || (withSystem && prev.msgType === CHAT_MSG_TYPE.SYSTEM) || isRecalledMessage(prev) || shouldSplitMessageTime(prev, message)) {
       items.push({ kind: 'time', id: `time-${message.id}`, text: formatTimeDivider(message.sendTime) })
     }
-    const prevMsg = prev && !isRecalledMessage(prev) && (!withSystem || prev.msgType !== CHAT_MSG_TYPE.SYSTEM) ? prev : undefined
-    const showAvatar = !prevMsg || prevMsg.senderId !== message.senderId || shouldSplitMessageTime(prevMsg, message)
-    items.push({ kind: 'message', id: `msg-${message.id}`, message, showAvatar })
+    items.push({ kind: 'message', id: `msg-${message.id}`, message })
     prev = message
   }
   return items

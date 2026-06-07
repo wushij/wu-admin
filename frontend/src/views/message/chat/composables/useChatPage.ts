@@ -3,15 +3,17 @@ import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { InputInstance } from 'element-plus'
 import {
-  Search, Plus, MoreFilled, FullScreen, Setting, ChatDotRound, Document,
+  Search, Plus, MoreFilled, FullScreen, Setting, ChatDotRound, Document, Bell, ArrowRight,
 } from '@element-plus/icons-vue'
+import { groupMemberDisplayName } from '@/utils/chat-message'
 import {
   sendChat, getChatHistory, getChatUsers, readChat,
   clearChatHistory, blockUser, unblockUser,
   createChatGroup, getChatGroups, sendGroupMessage, getGroupMessages,
-  getGroupMembers, getGroupLogs, quitGroup, dissolveGroup,
+  getGroupMembers, getGroupLogs, getGroupDetail, quitGroup, dissolveGroup,
   updateChatGroup, addGroupMembers, removeGroupMember,
   setGroupAdmin, setGroupMuted, transferGroupOwner,
+  markGroupAnnouncementRead, setGroupNotifyMuted,
   uploadChatImage, uploadChatFile, recallPrivateMessage, recallGroupMessage,
   sendTypingSignal, canCreateChatGroup,
 } from '@/api/message/index'
@@ -86,6 +88,25 @@ export function useChatPage() {
   const typingFromUserId = ref<number | null>(null)
   let typingHideTimer: ReturnType<typeof setTimeout> | null = null
   let typingSendTimer: ReturnType<typeof setTimeout> | null = null
+  /** 收到对方消息后短时间内忽略迟到的 typing 包，避免「已发消息仍显示输入中」 */
+  let lastChatFromPeerAt = 0
+  const TYPING_HIDE_MS = 2000
+  const TYPING_IGNORE_AFTER_CHAT_MS = 1200
+
+  function clearTypingIndicator() {
+    typingFromUserId.value = null
+    if (typingHideTimer) {
+      clearTimeout(typingHideTimer)
+      typingHideTimer = null
+    }
+  }
+
+  function cancelTypingSend() {
+    if (typingSendTimer) {
+      clearTimeout(typingSendTimer)
+      typingSendTimer = null
+    }
+  }
   
   const groupInputRef = ref<InputInstance | null>(null)
   
@@ -170,8 +191,60 @@ export function useChatPage() {
   )
   
   const canEditGroup = computed(() => {
-    const role = myGroupMember.value?.role
+    const role = myGroupMember.value?.role ?? selectedGroup.value?.myRole
     return role != null && role >= 1
+  })
+
+  const showGroupAnnouncementBar = computed(() => {
+    const g = selectedGroup.value
+    return !!g?.announcement?.trim() && !!g.announcementUnread
+  })
+
+  const groupNotifyMuted = ref(false)
+  const showAnnouncementDetail = ref(false)
+
+  const announcementPublisherDisplay = computed(() => {
+    const g = selectedGroup.value
+    if (!g) return ''
+    const resolveById = (userId?: number) => {
+      if (!userId) return ''
+      const member = groupMembers.value.find(m => m.userId === userId)
+      if (member) return groupMemberDisplayName(member)
+      const user = users.value.find(u => u.id === userId)
+      if (user) return (user.nickname || user.username || '').trim()
+      return ''
+    }
+    const fromId = resolveById(g.announcementPublisherId)
+    if (fromId) return fromId
+    if (g.announcementPublisherName?.trim()) return g.announcementPublisherName.trim()
+    const fromOwner = resolveById(g.ownerId)
+    if (fromOwner) return fromOwner
+    return ''
+  })
+
+  const announcementPublisherUserId = computed(() => {
+    const g = selectedGroup.value
+    return g?.announcementPublisherId ?? g?.ownerId
+  })
+
+  const announcementPublisherAvatar = computed(() => {
+    const g = selectedGroup.value
+    const userId = announcementPublisherUserId.value
+    if (!g || !userId) {
+      return g?.announcementPublisherAvatar
+        ? resolveChatAvatar(undefined, userAvatarMap.value, g.announcementPublisherAvatar)
+        : undefined
+    }
+    const member = groupMembers.value.find(m => m.userId === userId)
+    const user = users.value.find(u => u.id === userId)
+    const raw = member?.avatar || user?.avatar || g.announcementPublisherAvatar
+    return resolveChatAvatar(userId, userAvatarMap.value, raw)
+  })
+
+  const announcementPublishTimeDisplay = computed(() => {
+    const g = selectedGroup.value
+    const t = g?.announcementPublishTime || g?.updateTime
+    return t ? formatTime(t) : ''
   })
   
   const availableAddUsers = computed(() => {
@@ -190,6 +263,33 @@ export function useChatPage() {
   async function loadGroups() {
     const res = await getChatGroups()
     groups.value = res.data ?? []
+    messageStore.syncGroupNotifySettings(groups.value)
+  }
+
+  function mergeGroupContext(groupId: number, ctx: ChatGroup) {
+    if (selectedGroup.value?.id === groupId) {
+      Object.assign(selectedGroup.value, ctx)
+      groupNotifyMuted.value = !!ctx.notifyMuted
+    }
+    const g = groups.value.find(x => x.id === groupId)
+    if (g) {
+      g.name = ctx.name
+      g.announcement = ctx.announcement
+      g.updateTime = ctx.updateTime
+      g.myRole = ctx.myRole
+      g.notifyMuted = ctx.notifyMuted
+      g.announcementUnread = ctx.announcementUnread
+      g.announcementPublisherId = ctx.announcementPublisherId
+      g.announcementPublisherName = ctx.announcementPublisherName
+      g.announcementPublisherAvatar = ctx.announcementPublisherAvatar
+      g.announcementPublishTime = ctx.announcementPublishTime
+    }
+  }
+
+  async function refreshSelectedGroupContext() {
+    if (!selectedGroup.value) return
+    const res = await getGroupDetail(selectedGroup.value.id)
+    if (res.data) mergeGroupContext(selectedGroup.value.id, res.data)
   }
   
   async function selectUser(user: ChatUser) {
@@ -200,7 +300,7 @@ export function useChatPage() {
     messages.value = []
     privatePageNo.value = 1
     privateTotal.value = 0
-    typingFromUserId.value = null
+    clearTypingIndicator()
     await loadMessages()
     await readChat(user.id)
     user.unreadCount = 0
@@ -261,7 +361,9 @@ export function useChatPage() {
     groupPageNo.value = 1
     groupTotal.value = 0
     resetMention()
+    groupNotifyMuted.value = !!group.notifyMuted
     await loadGroupMessages()
+    await refreshSelectedGroupContext()
     await loadGroupMembersList()
   }
   
@@ -338,6 +440,7 @@ export function useChatPage() {
   
   async function handleSend() {
     if (!inputContent.value.trim() || !selectedUser.value || selectedUser.value.isBlocked) return
+    cancelTypingSend()
     const res = await sendChat({
       receiverId: selectedUser.value.id,
       content: inputContent.value.trim(),
@@ -463,12 +566,14 @@ export function useChatPage() {
   }
   
   async function openGroupDetail() {
-    editGroupName.value = selectedGroup.value?.name || ''
-    editGroupAnnouncement.value = selectedGroup.value?.announcement || ''
     addMemberIds.value = []
     groupTab.value = 'info'
     showGroupDetail.value = true
     await loadGroupMembersList()
+    await refreshSelectedGroupContext()
+    editGroupName.value = selectedGroup.value?.name || ''
+    editGroupAnnouncement.value = selectedGroup.value?.announcement || ''
+    groupNotifyMuted.value = !!selectedGroup.value?.notifyMuted
   }
   
   async function handleQuit() {
@@ -522,16 +627,76 @@ export function useChatPage() {
   }
   
   async function handleUpdateGroup() {
-    if (!selectedGroup.value) return
+    if (!selectedGroup.value || !canEditGroup.value) return
     await updateChatGroup({
       id: selectedGroup.value.id,
       name: editGroupName.value,
       announcement: editGroupAnnouncement.value,
     })
-    selectedGroup.value.name = editGroupName.value
+    const res = await getGroupDetail(selectedGroup.value.id)
+    if (res.data) {
+      mergeGroupContext(selectedGroup.value.id, res.data)
+      if (editGroupAnnouncement.value.trim()) {
+        selectedGroup.value.announcementUnread = true
+      }
+    }
+    editGroupName.value = selectedGroup.value.name || ''
+    editGroupAnnouncement.value = selectedGroup.value.announcement || ''
     ElMessage.success('群组信息已更新')
     await loadGroups()
     if (groupTab.value === 'logs') await loadGroupLogs()
+  }
+
+  function sameGroupId(a?: number, b?: number | null) {
+    return a != null && b != null && Number(a) === Number(b)
+  }
+
+  function applyGroupAnnouncementPush(data: WsPushMessage) {
+    if (data.type !== 'groupAnnouncement' || data.groupId == null) return
+    const groupId = Number(data.groupId)
+    const patch: Partial<ChatGroup> = {
+      announcementUnread: true,
+      announcementPublisherId: data.senderId,
+      announcementPublisherName: data.senderName,
+    }
+    if (data.announcement != null) patch.announcement = data.announcement
+    const g = groups.value.find(x => sameGroupId(x.id, groupId))
+    if (g) Object.assign(g, patch)
+    if (selectedGroup.value && sameGroupId(selectedGroup.value.id, groupId)) {
+      Object.assign(selectedGroup.value, patch)
+      void refreshSelectedGroupContext()
+    }
+  }
+
+  async function openAnnouncementDetail() {
+    await loadGroupMembersList()
+    await refreshSelectedGroupContext()
+    showAnnouncementDetail.value = true
+  }
+
+  async function dismissGroupAnnouncement() {
+    if (!selectedGroup.value) return
+    await markGroupAnnouncementRead(selectedGroup.value.id)
+    selectedGroup.value.announcementUnread = false
+    const g = groups.value.find(x => x.id === selectedGroup.value!.id)
+    if (g) g.announcementUnread = false
+    showAnnouncementDetail.value = false
+  }
+
+  async function handleGroupNotifyMutedChange(val: string | number | boolean) {
+    const muted = !!val
+    if (!selectedGroup.value) return
+    const prev = groupNotifyMuted.value
+    groupNotifyMuted.value = muted
+    try {
+      await setGroupNotifyMuted(selectedGroup.value.id, muted)
+      selectedGroup.value.notifyMuted = muted
+      messageStore.setGroupNotifyMutedLocal(selectedGroup.value.id, muted)
+      const g = groups.value.find(x => x.id === selectedGroup.value!.id)
+      if (g) g.notifyMuted = muted
+    } catch {
+      groupNotifyMuted.value = prev
+    }
   }
   
   async function handleAddMembers() {
@@ -651,10 +816,11 @@ export function useChatPage() {
   
   function onPrivateInput() {
     if (!selectedUser.value || selectedUser.value.isBlocked) return
-    if (typingSendTimer) clearTimeout(typingSendTimer)
+    cancelTypingSend()
     typingSendTimer = setTimeout(() => {
+      typingSendTimer = null
       sendTypingSignal(selectedUser.value!.id).catch(() => {})
-    }, 400)
+    }, 300)
   }
   
   function onGroupEnterKeydown(e: Event | KeyboardEvent) {
@@ -718,11 +884,16 @@ export function useChatPage() {
 
       if (data.type === 'typing' && data.fromUserId != null) {
         if (selectedUser.value?.id === data.fromUserId) {
+          if (data.active === false) {
+            clearTypingIndicator()
+            return
+          }
+          if (Date.now() - lastChatFromPeerAt < TYPING_IGNORE_AFTER_CHAT_MS) {
+            return
+          }
           typingFromUserId.value = data.fromUserId
           if (typingHideTimer) clearTimeout(typingHideTimer)
-          typingHideTimer = setTimeout(() => {
-            typingFromUserId.value = null
-          }, 3000)
+          typingHideTimer = setTimeout(clearTypingIndicator, TYPING_HIDE_MS)
         }
         return
       }
@@ -734,6 +905,8 @@ export function useChatPage() {
           u.unreadCount = (u.unreadCount || 0) + 1
         }
         if (selectedUser.value?.id === senderId) {
+          lastChatFromPeerAt = Date.now()
+          clearTypingIndicator()
           messages.value.push({
             id: data.id || data.messageId || Date.now(),
             senderId,
@@ -746,6 +919,9 @@ export function useChatPage() {
           nextTick(() => scrollBottom(messageListRef))
           readChat(senderId).then(() => messageStore.refreshSummary())
         }
+      }
+      if (data.type === 'groupAnnouncement') {
+        return
       }
       if (data.type === 'groupChat' && data.groupId != null) {
         const groupId = data.groupId
@@ -792,6 +968,14 @@ export function useChatPage() {
       if (data) handleRecallWs(data)
     },
   )
+
+  watch(
+    () => messageStore.groupAnnouncementTick,
+    () => {
+      const data = messageStore.lastGroupAnnouncement
+      if (data) applyGroupAnnouncementPush(data)
+    },
+  )
   
   watch(
     () => [route.query.userId, route.query.groupId],
@@ -822,8 +1006,8 @@ export function useChatPage() {
   
   onUnmounted(() => {
     document.removeEventListener('click', closeMessageMenu)
-    if (typingHideTimer) clearTimeout(typingHideTimer)
-    if (typingSendTimer) clearTimeout(typingSendTimer)
+    clearTypingIndicator()
+    cancelTypingSend()
     offWs?.()
     messageStore.setActiveChatTarget(null)
   })
@@ -841,14 +1025,17 @@ export function useChatPage() {
     editGroupAnnouncement, addMemberIds, filteredUsers, filteredGroups,
     privateTabUnread, groupTabUnread, searchMessageResults, privateChatItems,
     groupChatItems, userOptions, isGroupOwner, canEditGroup, availableAddUsers,
+    showGroupAnnouncementBar, showAnnouncementDetail, groupNotifyMuted,
+    announcementPublisherDisplay, announcementPublisherAvatar, announcementPublishTimeDisplay,
     selectUser, selectGroup, loadMorePrivate, loadMoreGroup, onPrivateListScroll,
     onGroupListScroll, handleSend, handleGroupSend, handleUploadImage, handleUploadGroupImage,
     handleUploadFile, handleUploadGroupFile, handleCreateGroup, openGroupDetail,
     handleQuit, handleDissolve, handlePrivateAction, handleUpdateGroup, handleAddMembers,
+    openAnnouncementDetail, dismissGroupAnnouncement, handleGroupNotifyMutedChange,
     canManageMember, handleMemberAction, handleGroupTabChange, openChatFile,
     openMessageMenu, handleRecallMessage, onPrivateInput, onGroupEnterKeydown,
     scrollToMessage, openImagePreview, formatTime, formatListTime, startResize,
-    CHAT_MSG_TYPE, Search, Plus, MoreFilled, FullScreen, Setting, ChatDotRound, Document,
+    CHAT_MSG_TYPE, Search, Plus, MoreFilled, FullScreen, Setting, ChatDotRound, Document, Bell, ArrowRight,
     formatSearchPreview, renderTextContent, fileDisplayName, groupAvatarStyle, avatarFallback, resolveChatAvatar,
   }
 }

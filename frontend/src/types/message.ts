@@ -18,6 +18,19 @@ export interface ChatGroup {
   ownerId?: number
   memberCount?: number
   announcement?: string
+  /** 群信息/公告更新时间 */
+  updateTime?: string
+  /** 当前用户在该群的角色 0成员 1管理员 2群主 */
+  myRole?: number
+  /** 免打扰：仅 @ 我时提醒 */
+  notifyMuted?: boolean
+  /** 是否有未读群公告（需置顶展示） */
+  announcementUnread?: boolean
+  /** 最近更新群公告的操作人 */
+  announcementPublisherId?: number
+  announcementPublisherName?: string
+  announcementPublisherAvatar?: string
+  announcementPublishTime?: string
   lastMessage?: string
   lastMessageTime?: string
   unreadCount?: number
@@ -47,6 +60,7 @@ export interface GroupMember {
   avatar?: string
   role?: number
   muted?: boolean
+  notifyMuted?: boolean
 }
 
 /** 群聊操作日志 */

@@ -1,4 +1,4 @@
-export type WsMessageType = 'notice' | 'chat' | 'groupChat' | 'typing' | 'presence' | 'ping' | 'pong' | string
+export type WsMessageType = 'notice' | 'chat' | 'groupChat' | 'groupAnnouncement' | 'typing' | 'presence' | 'ping' | 'pong' | string
 
 export interface WsPushMessage {
   type: WsMessageType
@@ -9,8 +9,13 @@ export interface WsPushMessage {
   senderName?: string
   senderAvatar?: string
   groupId?: number
+  groupName?: string
+  /** 群公告全文（groupAnnouncement 推送） */
+  announcement?: string
   msgType?: number
   fromUserId?: number
+  /** typing 事件：false 表示对方已停止输入（如已发送消息） */
+  active?: boolean
   userId?: number
   online?: boolean
   atMe?: boolean

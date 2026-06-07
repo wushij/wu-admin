@@ -117,12 +117,22 @@ public class MessageWebSocketHandler extends TextWebSocketHandler {
     }
 
     public void sendTypingPayload(Long toUserId, Long fromUserId) {
+        sendTypingPayload(toUserId, fromUserId, true);
+    }
+
+    /** active=false 时通知对方停止显示「正在输入」 */
+    public void sendTypingStopPayload(Long toUserId, Long fromUserId) {
+        sendTypingPayload(toUserId, fromUserId, false);
+    }
+
+    private void sendTypingPayload(Long toUserId, Long fromUserId, boolean active) {
         try {
-            String json = objectMapper.writeValueAsString(Map.of(
-                    "type", "typing",
-                    "fromUserId", fromUserId,
-                    "time", System.currentTimeMillis()));
-            sendToUser(toUserId, json);
+            Map<String, Object> payload = new LinkedHashMap<>();
+            payload.put("type", "typing");
+            payload.put("fromUserId", fromUserId);
+            payload.put("active", active);
+            payload.put("time", System.currentTimeMillis());
+            sendToUser(toUserId, objectMapper.writeValueAsString(payload));
         } catch (Exception e) {
             log.error("sendTypingPayload failed", e);
         }

@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { resolvePushTitle, shouldNotifyChat } from '@/utils/message-push'
+import {
+  resolvePushTitle,
+  shouldNotifyChat,
+  shouldNotifyGroupChat,
+  shouldCountGroupUnread,
+} from '@/utils/message-push'
 import type { WsPushMessage } from '@/utils/messageWebSocket'
 
 describe('resolvePushTitle', () => {
@@ -35,5 +40,33 @@ describe('shouldNotifyChat', () => {
     const msg: WsPushMessage = { type: 'groupChat', groupId: 5 }
     expect(shouldNotifyChat({ type: 'group', id: 5 }, msg)).toBe(false)
     expect(shouldNotifyChat({ type: 'group', id: 6 }, msg)).toBe(true)
+  })
+
+  it('suppresses group announcement when viewing the same group', () => {
+    const msg: WsPushMessage = { type: 'groupAnnouncement', groupId: 5 }
+    expect(shouldNotifyChat({ type: 'group', id: 5 }, msg)).toBe(false)
+    expect(shouldNotifyChat({ type: 'group', id: 6 }, msg)).toBe(true)
+  })
+})
+
+describe('group notify muted', () => {
+  const muted = { 5: true }
+
+  it('blocks normal group chat when muted', () => {
+    const msg: WsPushMessage = { type: 'groupChat', groupId: 5 }
+    expect(shouldNotifyGroupChat(msg, muted)).toBe(false)
+    expect(shouldCountGroupUnread(msg, muted)).toBe(false)
+  })
+
+  it('allows @ me when muted', () => {
+    const msg: WsPushMessage = { type: 'groupChat', groupId: 5, atMe: true }
+    expect(shouldNotifyGroupChat(msg, muted)).toBe(true)
+    expect(shouldCountGroupUnread(msg, muted)).toBe(true)
+  })
+
+  it('always allows group announcement', () => {
+    const msg: WsPushMessage = { type: 'groupAnnouncement', groupId: 5 }
+    expect(shouldNotifyGroupChat(msg, muted)).toBe(true)
+    expect(shouldCountGroupUnread(msg, muted)).toBe(true)
   })
 })

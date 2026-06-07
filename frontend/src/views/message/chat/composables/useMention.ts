@@ -1,12 +1,9 @@
 import { ref, computed } from 'vue'
 import type { GroupMember } from '@/types/message'
+import { groupMemberDisplayName } from '@/utils/chat-message'
 
 function escapeRegExp(s: string) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-}
-
-function memberDisplayName(m: GroupMember) {
-  return m.nickname || m.userNickname || m.username || ''
 }
 
 export function useMention(getGroupMembers: () => GroupMember[], getGroupInput: () => string, setGroupInput: (v: string) => void, getCurrentUserId: () => number) {
@@ -20,7 +17,7 @@ export function useMention(getGroupMembers: () => GroupMember[], getGroupInput: 
     return getGroupMembers()
       .filter(m => m.userId !== getCurrentUserId())
       .filter(m => {
-        const name = (m.nickname || m.userNickname || m.username || '').toLowerCase()
+        const name = groupMemberDisplayName(m).toLowerCase()
         return !kw || name.includes(kw)
       })
       .slice(0, 10)
@@ -42,7 +39,7 @@ export function useMention(getGroupMembers: () => GroupMember[], getGroupInput: 
   }
 
   function pickMention(m: GroupMember) {
-    const name = memberDisplayName(m)
+    const name = groupMemberDisplayName(m)
     const val = getGroupInput()
     const at = val.lastIndexOf('@')
     if (at < 0) return
@@ -54,7 +51,7 @@ export function useMention(getGroupMembers: () => GroupMember[], getGroupInput: 
   function parseMentionIds(text: string): number[] {
     const ids: number[] = []
     for (const m of getGroupMembers()) {
-      const name = memberDisplayName(m)
+      const name = groupMemberDisplayName(m)
       if (!name) continue
       const re = new RegExp(`@${escapeRegExp(name)}(?:\\s|$|[，。！？,.!?])`)
       if (re.test(text)) ids.push(m.userId)

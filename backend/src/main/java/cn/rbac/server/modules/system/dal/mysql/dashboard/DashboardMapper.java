@@ -31,7 +31,8 @@ public interface DashboardMapper {
             "  (SELECT COUNT(*) FROM sys_login_log WHERE status = 0 AND login_time >= #{todayStart}) AS today_login_success,",
             "  (SELECT COUNT(*) FROM sys_login_log WHERE status = 1 AND login_time >= #{todayStart}) AS today_login_fail,",
             "  (SELECT COUNT(*) FROM sys_login_log WHERE status = 0 AND login_time >= #{yesterdayStart} AND login_time < #{todayStart}) AS yesterday_login_success,",
-            "  (SELECT COUNT(*) FROM sys_file WHERE file_path NOT LIKE CONCAT(#{chatImagePrefix}, '%')) AS file_count,",
+            "  (SELECT COUNT(*) FROM sys_file WHERE file_path NOT LIKE CONCAT(#{chatImagePrefix}, '%')",
+            "    AND file_path NOT LIKE CONCAT(#{chatFilePrefix}, '%')) AS file_count,",
             "  (SELECT COUNT(*) FROM sys_ticket WHERE deleted = 0 AND status = 'OPEN') AS ticket_open_count,",
             "  (SELECT COUNT(*) FROM sys_ticket WHERE deleted = 0 AND status IN ('OPEN','IN_PROGRESS') AND deadline IS NOT NULL AND deadline < #{now}) AS ticket_overdue_count,",
             "  (SELECT COUNT(*) FROM sys_approval_form WHERE deleted = 0 AND status = 'SUBMITTED') AS approval_pending_count"
@@ -39,5 +40,6 @@ public interface DashboardMapper {
     DashboardStatsRow selectAggregateStats(@Param("todayStart") LocalDateTime todayStart,
                                            @Param("yesterdayStart") LocalDateTime yesterdayStart,
                                            @Param("now") LocalDateTime now,
-                                           @Param("chatImagePrefix") String chatImagePrefix);
+                                           @Param("chatImagePrefix") String chatImagePrefix,
+                                           @Param("chatFilePrefix") String chatFilePrefix);
 }

@@ -57,7 +57,7 @@
 |------|------|----------|
 | **工作台分层** | `DashboardController` 不再直接注入 9 个 Mapper；统计、最近登录、访问计数下沉至 `DashboardService` / `DashboardServiceImpl` | `api/dashboard/DashboardController.java`、`service/dashboard/` |
 | **消息汇总分层** | `MessageCenterController` 站内消息未读数改调 `NoticeService.unreadCount`，与 `AnnounceService`、`ChatService` 一致 | `service/message/NoticeService.java` |
-| **工作台统计性能** | `/dashboard/stats` 由约 20 次 `selectCount` 改为 `DashboardMapper.selectAggregateStats()` **单条 SQL**（标量子查询聚合）；计数类结果 Redis 缓存 **2 分钟**（key：`dashboard:stats:aggregate:yyyy-MM-dd`）；`onlineCount`、今日/昨日访问量仍每次实时读取 | `dal/mysql/dashboard/DashboardMapper.java`、`service/dashboard/vo/DashboardStatsRow.java` |
+| **工作台统计性能** | `/dashboard/stats` 由约 20 次 `selectCount` 改为 `DashboardMapper.selectAggregateStats()` **单条 SQL**（标量子查询聚合）；`fileCount` 排除聊天路径（`images/chat/`、`files/chat/`），与文件管理列表一致；计数类结果 Redis 缓存 **2 分钟**（key：`dashboard:stats:aggregate:yyyy-MM-dd`）；`onlineCount`、今日/昨日访问量仍每次实时读取 | `dal/mysql/dashboard/DashboardMapper.java`、`service/dashboard/vo/DashboardStatsRow.java` |
 | **用户下拉列表** | `GET /system/user/list` 不再全量 `selectList(null)`；`UserMapper.selectListForOptions` 仅返回**启用**用户（`status=1`）、字段精简，**上限 2000 条**（供通知定向、审批指派人等下拉；管理列表仍用 `/page` 分页） | `UserServiceImpl.listAll()`、`UserMapper.selectListForOptions` |
 
 > 统计缓存默认 2 分钟延迟，适合首页/大屏场景；若需更实时可调整 `DashboardServiceImpl` 中的 `STATS_CACHE_MINUTES`。
@@ -211,6 +211,42 @@ location ^~ /api/ {
 | **正在输入…** | 私聊输入时向对方推送 typing 事件，顶栏显示「对方正在输入…」 |
 | **图片预览** | 聊天图片点击后使用 Element Plus 全屏查看器居中预览 |
 
+### 企业IM · 群公告与免打扰（2026.06）
+
+群聊体验与通知策略增强，前后端 + WebSocket + 数据库增量（`sql/add9.sql`）需一并升级并 **重启后端**。
+
+| 能力 | 说明 |
+|------|------|
+| **群名称 / 群公告编辑** | 仅 **群主 / 群管理员** 可改；普通成员在群组详情中只读 |
+| **群公告持久化** | 保存后写入 `sys_chat_group.announcement`；公告变更时重置全员 `announcement_read_time`，全员视为未读 |
+| **群公告置顶条** | 有未读公告时，聊天区顶部展示摘要条；点击进入详情（发布者昵称/头像、发布时间、全文） |
+| **标记已读** | 详情内点「完成」调用 `POST .../announcement/read`，收起置顶条并记录 `announcement_read_time` |
+| **公告实时推送** | 保存后向**全部成员** WebSocket 推送 `type: groupAnnouncement`（含公告全文 `announcement`）；正在该群聊天页时同步置顶条，不重复弹窗 |
+| **群聊免打扰** | 成员可对本群开启 `notifyMuted`；**普通群消息**不弹窗、**不计入**群未读角标 |
+| **免打扰例外** | **@ 我**、**群公告** 始终提醒并计入未读；顶栏浮层标题为 `[有人@你]` 或「xxx 发布了新公告」 |
+| **消息展示** | 群聊每条消息独立头像 + 气泡，连发不合并 |
+| **群组详情 UI** | 「保存修改」底部居中（「解散群组」左侧）；群公告编辑区 `autosize` 无内嵌滚动条 |
+
+**WebSocket 新增类型**：`groupAnnouncement`（字段含 `groupId`、`groupName`、`announcement`、`senderId`、`senderName`、`title`、`content` 摘要）。
+
+**主要 API（前缀 `/api/system/chat/group`）**
+
+| 路径 | 说明 |
+|------|------|
+| `PUT /update` | 更新群名称/公告（body：`id`、`name`、`announcement`）；仅群主/管理员 |
+| `POST /{groupId}/announcement/read` | 当前用户标记群公告已读 |
+| `POST /{groupId}/notify-muted?muted=true\|false` | 设置本群免打扰 |
+| `GET /{groupId}` | 群详情上下文，含 `announcement`、`announcementUnread`、`notifyMuted`、发布者信息 |
+
+**数据库字段**（`sys_chat_group_member`）
+
+| 字段 | 说明 |
+|------|------|
+| `notify_muted` | `0` 正常；`1` 免打扰（仅 @ / 群公告提醒） |
+| `announcement_read_time` | 群公告已读时间；`NULL` 或早于群 `update_time` 视为未读 |
+
+**前端关键逻辑**：`utils/message-push.ts`（`shouldNotifyGroupChat`、`shouldCountGroupUnread`）、`store/message.ts`（群免打扰映射、`groupAnnouncementTick`）、`views/message/chat/composables/useChatPage.ts`（置顶条、详情、保存）。
+
 **消息类型（`msgType`）**
 
 | 值 | 含义 |
@@ -221,7 +257,7 @@ location ^~ /api/ {
 | `4` | 系统消息（群事件等） |
 | `5` | 已撤回 |
 
-**WebSocket 推送类型**：`notice` / `chat` / `groupChat` / `typing` / **`presence`**（联系人上线/下线）；群消息可带 `atMe: true`；撤回带 `recall: true` 与 `messageId`。
+**WebSocket 推送类型**：`notice` / `chat` / `groupChat` / **`groupAnnouncement`** / `typing` / **`presence`**（联系人上线/下线）；群消息可带 `atMe: true`；撤回带 `recall: true` 与 `messageId`。
 
 **在线状态**：用户 WebSocket 连接/断开时，后端向其他在线用户广播 `{ type: "presence", userId, online }`，企业 IM 联系人列表与聊天顶栏「在线/离线」**实时更新**，无需手动刷新。
 
@@ -231,15 +267,20 @@ location ^~ /api/ {
 |------|------|------|
 | `sql/add3.sql` | 本地 dev（`wu-admin`） | 菜单更名为「企业IM」 |
 | `sql/add4.sql` | 本地 dev | 群消息表 `mention_ids` 字段 |
-| `sql/add6_7_wuadmin.sql` | **生产**（`wuadmin`） | 合并 add6（流程中心）+ add7（缓存监控）+ add8（服务监控） |
+| `sql/add9.sql` | 本地 dev | 群成员 `notify_muted`、`announcement_read_time`（群公告已读 / 免打扰） |
+| `sql/add6_7_wuadmin.sql` | **生产**（`wuadmin`） | 合并 add6～add8 + **add9**（流程中心、缓存/服务监控、群公告免打扰字段） |
+| `sql/add9_wuadmin.sql` | **生产**（`wuadmin`） | 仅 add9 字段（已跑过 `add6_7_wuadmin` 可跳过） |
 
 ```bash
 # 本地（按版本依次）
 mysql -u root -p wu-admin < sql/add3.sql
 mysql -u root -p wu-admin < sql/add4.sql
+mysql -u root -p wu-admin < sql/add9.sql
 
 # 生产（库名 wuadmin；若尚未执行 add3/add4，可先改脚本 USE 或逐条执行 add3、add4 后再跑）
 mysql -u wuadmin -p wuadmin < sql/add6_7_wuadmin.sql
+# 或仅补 add9：
+mysql -u wuadmin -p wuadmin < sql/add9_wuadmin.sql
 ```
 
 ---
@@ -349,9 +390,9 @@ mysql -u wuadmin -p wuadmin < sql/add6_7_wuadmin.sql
 |------|------|
 | **业务消息** | 顶栏铃铛「业务消息」Tab，数据表 `sys_notice`，点击跳转工单/审批 |
 | **系统通知** | 管理员在「系统通知」页发布广播/定向公告（`sys_announce`），用户顶栏「系统通知」Tab 查看 |
-| **企业IM** | 私聊 + 群聊；文本/表情/图片/**文件**；在线状态；拉黑；群管（邀请/移除/禁言/转让/解散）；**@ 提醒**；**2 分钟内撤回**；**正在输入** |
+| **企业IM** | 私聊 + 群聊；文本/表情/图片/**文件**；在线状态；拉黑；群管（邀请/移除/禁言/转让/解散）；**群公告**（置顶/已读/推送）；**群免打扰**（仅 @ 与公告提醒）；**@ 提醒**；**2 分钟内撤回**；**正在输入** |
 | **群聊日志** | 群组详情 →「群聊日志」Tab，记录建群、邀请、退群等操作（`sys_chat_group_log`） |
-| **实时推送** | WebSocket 推送新通知、私聊、群聊、**@ 强提醒**、**撤回**、**正在输入**；顶栏角标与聊天页联动刷新 |
+| **实时推送** | WebSocket 推送新通知、私聊、群聊、**群公告**、**@ 强提醒**、**撤回**、**正在输入**；免打扰群普通消息不弹窗不计角标；顶栏与聊天页联动 |
 
 ### 菜单与页面
 
@@ -380,9 +421,12 @@ mysql -u wuadmin -p wuadmin < sql/add6_7_wuadmin.sql
 | 群聊 | `POST /system/chat/group/{groupId}/message/{messageId}/recall` | 撤回群消息 |
 | 群聊 | `GET /system/chat/group/{groupId}/logs` | 群操作日志 |
 | 群聊 | `GET /system/chat/can-create-group` | 是否可建群（仅 `super_admin` 为 true） |
+| 群聊 | `PUT /system/chat/group/update` | 更新群名称/公告（群主/管理员） |
+| 群聊 | `POST /system/chat/group/{groupId}/announcement/read` | 标记群公告已读 |
+| 群聊 | `POST /system/chat/group/{groupId}/notify-muted?muted=` | 设置本群免打扰 |
 | 聊天图片 | `POST /system/chat/upload/image` | 上传至 `images/chat/`，**不出现在文件管理列表** |
 | 聊天文件 | `POST /system/chat/upload/file` | 上传至 `files/chat/`，受文件配置大小/扩展名约束 |
-| WebSocket | `ws(s)://{host}/api/ws/message?token=...` | 推送：`notice` / `chat` / `groupChat` / `typing`；群聊可带 `atMe`；撤回带 `recall` + `messageId` |
+| WebSocket | `ws(s)://{host}/api/ws/message?token=...` | 推送：`notice` / `chat` / `groupChat` / **`groupAnnouncement`** / `typing` / `presence`；群聊可带 `atMe`；撤回带 `recall` + `messageId` |
 
 ### 前端关键文件
 
@@ -391,7 +435,8 @@ frontend/src/
 ├── api/message/index.ts          # 通知、聊天、群聊 API
 ├── constants/chat.ts             # 消息类型、分页大小
 ├── utils/chat-message.ts         # 文件 payload、撤回文案、@ 渲染
-├── store/message.ts              # 未读汇总、WebSocket、群未读角标、撤回事件
+├── utils/message-push.ts         # 免打扰过滤、群公告/@ 提醒策略
+├── store/message.ts              # 未读汇总、WebSocket、群未读角标、撤回、群公告 tick
 ├── types/message.ts              # 消息相关类型
 ├── utils/messageWebSocket.ts     # WS 连接封装
 ├── components/
@@ -426,13 +471,13 @@ frontend/src/
 |------|------|------|
 | **全新安装（空库）** | `sql/admin_platform.sql` | `mysql -u root -p < sql/admin_platform.sql`（空库自动放行） |
 | **极旧库首次升级** | `admin_platform.sql` **附录段**（约 910 行起） | 补全缺表/菜单/索引，可重复执行 |
-| **发版增量** | **`sql/add1.sql`** … **`add8.sql`** | 见下表；生产合并见 **`add6_7_wuadmin.sql`** |
+| **发版增量** | **`sql/add1.sql`** … **`add9.sql`** | 见下表；生产合并见 **`add6_7_wuadmin.sql`**（含 add9） |
 
 > 切勿对生产库直接跑 `admin_platform.sql` 全文（Part A 含 DROP，默认会被熔断拦截）。
 
 正文已含：消息中心表（§11b）、`sys_chat_group_log`、群消息 `mention_ids`、分级组织示例、定时任务、短信配置与 `sys_sms_log`、性能索引（含清理任务相关时间索引）。升级后涉及菜单变更时请 **重新登录**；WebSocket 与新接口需 **重启后端**。
 
-> 说明：历史聊天图片若曾走通用文件上传，可能仍出现在文件列表；升级后新发的聊天图片走 `images/chat/`、文件走 `files/chat/`，列表会自动排除。
+> 说明：历史聊天图片若曾走通用文件上传，可能仍出现在文件列表；升级后新发的聊天图片走 `images/chat/`、文件走 `files/chat/`，列表会自动排除。群公告/免打扰需执行 **`add9.sql`**（生产见 `add6_7_wuadmin.sql` 或 `add9_wuadmin.sql`）。
 
 ## 定时任务（系统监控 → 定时任务）
 
@@ -553,7 +598,9 @@ wu-admin/
 │   ├── add6.sql                # 增量补丁 #6（流程中心菜单）
 │   ├── add7.sql                # 增量补丁 #7（缓存监控菜单）
 │   ├── add8.sql                # 增量补丁 #8（服务监控菜单）
-│   ├── add6_7_wuadmin.sql      # 生产合并补丁 add6+7+8（库名 wuadmin）
+│   ├── add9.sql                # 增量补丁 #9（群成员 notify_muted、announcement_read_time）
+│   ├── add6_7_wuadmin.sql      # 生产合并补丁 add6+7+8+9（库名 wuadmin）
+│   ├── add9_wuadmin.sql        # 生产仅 add9 字段（库名 wuadmin）
 │   └── disable_devtool_off.sql # 临时关闭「禁止前端调试」（MySQL 5.6 兼容）
 ├── data/                       # 本地上传目录（git 忽略，对应 file.storage.local-path）
 └── README.md
@@ -633,8 +680,9 @@ mysql -u root -p wu-admin < sql/add5.sql
 mysql -u root -p wu-admin < sql/add6.sql
 mysql -u root -p wu-admin < sql/add7.sql
 mysql -u root -p wu-admin < sql/add8.sql
+mysql -u root -p wu-admin < sql/add9.sql
 
-# 生产服务器（库名 wuadmin；合并 add6+7+8，含流程中心/缓存/服务监控菜单）
+# 生产服务器（库名 wuadmin；合并 add6+7+8+9，含流程中心/缓存/服务监控/群公告免打扰）
 mysql -u wuadmin -p wuadmin < sql/add6_7_wuadmin.sql
 
 # 极旧库首次补全（缺表/菜单时，执行 admin_platform.sql 附录段，约 910 行起）
@@ -734,13 +782,13 @@ npm run dev
 
 ## 数据库脚本
 
-维护 **`sql/admin_platform.sql`**（全量 + 附录）与 **`sql/add1.sql` … `add8.sql`** 等增量补丁：
+维护 **`sql/admin_platform.sql`**（全量 + 附录）与 **`sql/add1.sql` … `add9.sql`** 等增量补丁：
 
 | 场景 | 做法 |
 |------|------|
 | **全新安装** | 空库直接 `mysql -u root -p < sql/admin_platform.sql` |
 | **极旧库首次升级** | 执行 `admin_platform.sql` 文末 **附录**（约 910 行起） |
-| **发版增量（本地 dev）** | 依次 `mysql -u root -p wu-admin < sql/add1.sql` … **`add8.sql`** |
+| **发版增量（本地 dev）** | 依次 `mysql -u root -p wu-admin < sql/add1.sql` … **`add9.sql`** |
 | **发版增量（生产）** | 按已执行版本补跑；**流程中心 + 缓存/服务监控** 见 **`add6_7_wuadmin.sql`** |
 
 `addN.sql` 体量应保持在几十行量级；全量补丁逻辑在 `admin_platform.sql` 附录。
@@ -755,7 +803,9 @@ npm run dev
 | `add6.sql` | 菜单 id=8「业务中心」→「**流程中心**」（path `/workflow`）；排序至消息中心与开发工具之间；本地库 `wu-admin` |
 | `add7.sql` | 系统监控新增「**缓存监控**」菜单与权限；本地库 `wu-admin` |
 | `add8.sql` | 系统监控新增「**服务监控**」菜单（本机 JMX）；本地库 `wu-admin` |
-| `add6_7_wuadmin.sql` | **生产库 `wuadmin`** 合并 add6 + add7 + add8 |
+| `add9.sql` | 群成员 `notify_muted`、`announcement_read_time`（群公告已读 / 免打扰）；本地库 `wu-admin` |
+| `add6_7_wuadmin.sql` | **生产库 `wuadmin`** 合并 add6 + add7 + add8 + **add9** |
+| `add9_wuadmin.sql` | **生产库 `wuadmin`** 仅 add9 字段（已跑过合并脚本可跳过） |
 
 > 生产环境若尚未执行 add3/add4，可将 `add3.sql`、`add4.sql` 中 `USE` 改为 `wuadmin` 后逐条执行，或直接依赖已更新的 `admin_platform.sql` 全量/附录。仓库内**无**单独的 `add3_add4_wuadmin.sql` 文件。
 
@@ -933,6 +983,15 @@ A：确认 WebSocket 已连接（登录后自动初始化）；在顶栏铃铛�
 
 **Q：聊天图片出现在文件管理里？**  
 A：升级后新图片走 `/system/chat/upload/image`（`images/chat/`）、新文件走 `/system/chat/upload/file`（`files/chat/`），文件列表已排除；历史旧数据可手动删除。
+
+**Q：群公告保存后别人看不到置顶条，或没有弹窗提醒？**  
+A：① 执行 `sql/add9.sql`（生产 `add9_wuadmin.sql` 或 `add6_7_wuadmin.sql`）；② **重启后端**；③ 前后端一并升级（需 `groupAnnouncement` WebSocket）；④ 公告变更会重置全员已读，成员进入群聊或收到推送后应显示置顶条。
+
+**Q：开了群免打扰仍收到所有消息提醒？**  
+A：确认 `sys_chat_group_member.notify_muted` 字段已入库（add9）；升级含 `message-push.ts` 的前端后，仅 **@ 我** 与 **群公告** 会弹窗并计角标，普通群消息应被过滤。
+
+**Q：普通成员能改群名称或群公告吗？**  
+A：不能。仅 **群主 / 群管理员** 可编辑；普通成员群组详情中为只读，保存按钮对其不可见或无权限。
 
 **Q：企业IM 升级后 @ / 撤回 / 文件发送不可用？**  
 A：① 已有库执行 `sql/add4.sql`（生产改 `USE wuadmin`）；② **重启后端**；③ 重新登录刷新菜单名「企业IM」；④ 确认角色有 `system:chat:list`。

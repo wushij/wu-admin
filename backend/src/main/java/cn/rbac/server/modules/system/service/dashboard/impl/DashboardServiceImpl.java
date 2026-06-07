@@ -93,7 +93,8 @@ public class DashboardServiceImpl implements DashboardService {
                 todayStart,
                 yesterdayStart,
                 LocalDateTime.now(),
-                SysFileServiceImpl.CHAT_IMAGE_PATH_PREFIX);
+                SysFileServiceImpl.CHAT_IMAGE_PATH_PREFIX,
+                SysFileServiceImpl.CHAT_FILE_PATH_PREFIX);
         setWithTtl(cacheBucket, JSONUtil.toJsonStr(row), STATS_CACHE_MINUTES, TimeUnit.MINUTES);
         return row;
     }

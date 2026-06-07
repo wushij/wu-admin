@@ -484,6 +484,8 @@ CREATE TABLE sys_chat_group_member (
     nickname VARCHAR(50) DEFAULT NULL,
     role TINYINT DEFAULT 0 COMMENT '0成员 1管理员 2群主',
     muted TINYINT DEFAULT 0,
+    notify_muted TINYINT DEFAULT 0 COMMENT '0正常 1免打扰仅@提醒',
+    announcement_read_time DATETIME DEFAULT NULL COMMENT '群公告已读时间',
     join_time DATETIME DEFAULT CURRENT_TIMESTAMP,
     UNIQUE KEY uk_group_user (group_id, user_id),
     INDEX idx_user_id (user_id)
@@ -1120,6 +1122,8 @@ CREATE TABLE IF NOT EXISTS sys_chat_group_member (
     nickname VARCHAR(50) DEFAULT NULL,
     role TINYINT DEFAULT 0 COMMENT '0成员 1管理员 2群主',
     muted TINYINT DEFAULT 0,
+    notify_muted TINYINT DEFAULT 0 COMMENT '0正常 1免打扰仅@提醒',
+    announcement_read_time DATETIME DEFAULT NULL COMMENT '群公告已读时间',
     join_time DATETIME DEFAULT CURRENT_TIMESTAMP,
     UNIQUE KEY uk_group_user (group_id, user_id),
     INDEX idx_user_id (user_id)
@@ -1692,6 +1696,33 @@ CALL sp_add_index_if_missing('sys_user_post', 'uk_user_post',
 
 CALL sp_add_index_if_missing('sys_oper_log', 'idx_oper_time_status',
     'ALTER TABLE sys_oper_log ADD INDEX idx_oper_time_status (oper_time, status)');
+
+-- [附录·群成员] add9：免打扰、群公告已读时间（可重复执行）
+SET @col_exists := (
+    SELECT COUNT(*) FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'sys_chat_group_member'
+      AND COLUMN_NAME = 'notify_muted'
+);
+SET @sql := IF(@col_exists = 0,
+    'ALTER TABLE sys_chat_group_member ADD COLUMN notify_muted TINYINT DEFAULT 0 COMMENT ''0正常 1免打扰仅@提醒'' AFTER muted',
+    'SELECT ''notify_muted exists'' AS info');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @col_exists := (
+    SELECT COUNT(*) FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'sys_chat_group_member'
+      AND COLUMN_NAME = 'announcement_read_time'
+);
+SET @sql := IF(@col_exists = 0,
+    'ALTER TABLE sys_chat_group_member ADD COLUMN announcement_read_time DATETIME NULL COMMENT ''群公告已读时间'' AFTER notify_muted',
+    'SELECT ''announcement_read_time exists'' AS info');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
 
 CALL sp_add_index_if_missing('sys_chat_group_member', 'idx_user_id',
     'ALTER TABLE sys_chat_group_member ADD INDEX idx_user_id (user_id)');

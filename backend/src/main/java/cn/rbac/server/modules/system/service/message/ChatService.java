@@ -85,6 +85,7 @@ public class ChatService {
         payload.put("content", msg.getContent());
         payload.put("msgType", msg.getMsgType());
         webSocketHandler.sendChatPayload(receiverId, payload);
+        webSocketHandler.sendTypingStopPayload(receiverId, senderId);
         return msg;
     }
 
@@ -226,10 +227,7 @@ public class ChatService {
             if (g == null || g.getStatus() == null || g.getStatus() != 1) {
                 continue;
             }
-            Map<String, Object> item = new HashMap<>();
-            item.put("id", g.getId());
-            item.put("name", g.getName());
-            item.put("ownerId", g.getOwnerId());
+            Map<String, Object> item = buildGroupSummary(g, m);
             long count = groupMemberMapper.selectCount(new LambdaQueryWrapper<ChatGroupMemberDO>()
                     .eq(ChatGroupMemberDO::getGroupId, g.getId()));
             item.put("memberCount", count);
@@ -241,6 +239,7 @@ public class ChatService {
                 item.put("lastMessage", ChatMsgType.previewLabel(last.getMsgType(), last.getContent()));
                 item.put("lastMessageTime", last.getSendTime());
             }
+            enrichAnnouncementPublisher(item, g.getId());
             list.add(item);
         }
         return list;
@@ -294,9 +293,9 @@ public class ChatService {
         payload.put("mentionIds", atIds);
         for (ChatGroupMemberDO m : members) {
             if (!m.getUserId().equals(senderId)) {
-                boolean atMe = atIds.contains(m.getUserId());
-                payload.put("atMe", atMe);
-                webSocketHandler.sendGroupChatPayload(m.getUserId(), payload);
+                Map<String, Object> memberPayload = new LinkedHashMap<>(payload);
+                memberPayload.put("atMe", atIds.contains(m.getUserId()));
+                webSocketHandler.sendGroupChatPayload(m.getUserId(), memberPayload);
             }
         }
         return msg;
@@ -455,37 +454,84 @@ public class ChatService {
         return chatGroupMapper.selectById(groupId);
     }
 
+    public Map<String, Object> getGroupContext(Long groupId, Long userId) {
+        ChatGroupDO group = chatGroupMapper.selectById(groupId);
+        if (group == null || group.getStatus() == null || group.getStatus() != 1) {
+            throw new IllegalStateException("群不存在或已解散");
+        }
+        ChatGroupMemberDO member = groupMemberMapper.selectOne(new LambdaQueryWrapper<ChatGroupMemberDO>()
+                .eq(ChatGroupMemberDO::getGroupId, groupId)
+                .eq(ChatGroupMemberDO::getUserId, userId));
+        if (member == null) {
+            throw new IllegalStateException("不在该群");
+        }
+        Map<String, Object> item = buildGroupSummary(group, member);
+        long count = groupMemberMapper.selectCount(new LambdaQueryWrapper<ChatGroupMemberDO>()
+                .eq(ChatGroupMemberDO::getGroupId, groupId));
+        item.put("memberCount", count);
+        enrichAnnouncementPublisher(item, groupId);
+        return item;
+    }
+
     @Transactional(rollbackFor = Exception.class)
     public void updateGroup(Long groupId, Long userId, String name, String announcement) {
-        ChatGroupMemberDO operator = requireGroupAdmin(groupId, userId);
-        if (operator.getRole() == null || operator.getRole() < 1) {
-            throw new IllegalStateException("没有权限修改群信息");
-        }
+        requireGroupAdmin(groupId, userId);
         ChatGroupDO group = chatGroupMapper.selectById(groupId);
         if (group == null || group.getStatus() == null || group.getStatus() != 1) {
             throw new IllegalStateException("群不存在或已解散");
         }
         StringBuilder detail = new StringBuilder();
+        boolean announcementChanged = false;
         if (StringUtils.hasText(name) && !name.equals(group.getName())) {
             detail.append("群名称改为「").append(name).append("」");
+            group.setName(name);
         }
-        if (announcement != null && !announcement.equals(group.getAnnouncement())) {
+        if (announcement != null && !Objects.equals(announcement, group.getAnnouncement())) {
             if (detail.length() > 0) {
                 detail.append("；");
             }
             detail.append("更新了群公告");
-        }
-        if (StringUtils.hasText(name)) {
-            group.setName(name);
-        }
-        if (announcement != null) {
             group.setAnnouncement(announcement);
+            announcementChanged = true;
+        }
+        if (detail.isEmpty()) {
+            return;
         }
         group.setUpdateTime(LocalDateTime.now());
         chatGroupMapper.updateById(group);
-        if (detail.length() > 0) {
-            saveGroupLog(groupId, "UPDATE", userId, null, null, detail.toString());
+        if (announcementChanged) {
+            groupMemberMapper.update(null, new LambdaUpdateWrapper<ChatGroupMemberDO>()
+                    .eq(ChatGroupMemberDO::getGroupId, groupId)
+                    .set(ChatGroupMemberDO::getAnnouncementReadTime, null));
         }
+        saveGroupLog(groupId, "UPDATE", userId, null, null, detail.toString());
+        if (announcementChanged) {
+            pushGroupAnnouncement(groupId, userId, group.getName(), group.getAnnouncement());
+        }
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public void markAnnouncementRead(Long groupId, Long userId) {
+        ChatGroupMemberDO member = groupMemberMapper.selectOne(new LambdaQueryWrapper<ChatGroupMemberDO>()
+                .eq(ChatGroupMemberDO::getGroupId, groupId)
+                .eq(ChatGroupMemberDO::getUserId, userId));
+        if (member == null) {
+            throw new IllegalStateException("不在该群");
+        }
+        member.setAnnouncementReadTime(LocalDateTime.now());
+        groupMemberMapper.updateById(member);
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public void setNotifyMuted(Long groupId, Long userId, boolean notifyMuted) {
+        ChatGroupMemberDO member = groupMemberMapper.selectOne(new LambdaQueryWrapper<ChatGroupMemberDO>()
+                .eq(ChatGroupMemberDO::getGroupId, groupId)
+                .eq(ChatGroupMemberDO::getUserId, userId));
+        if (member == null) {
+            throw new IllegalStateException("不在该群");
+        }
+        member.setNotifyMuted(notifyMuted ? 1 : 0);
+        groupMemberMapper.updateById(member);
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -598,6 +644,103 @@ public class ChatService {
         group.setUpdateTime(LocalDateTime.now());
         chatGroupMapper.updateById(group);
         saveGroupLog(groupId, "TRANSFER_OWNER", operatorId, newOwnerId, null, null);
+    }
+
+    private Map<String, Object> buildGroupSummary(ChatGroupDO g, ChatGroupMemberDO m) {
+        Map<String, Object> item = new HashMap<>();
+        item.put("id", g.getId());
+        item.put("name", g.getName());
+        item.put("ownerId", g.getOwnerId());
+        item.put("announcement", g.getAnnouncement());
+        item.put("updateTime", g.getUpdateTime());
+        if (m != null) {
+            item.put("myRole", m.getRole());
+            item.put("notifyMuted", m.getNotifyMuted() != null && m.getNotifyMuted() == 1);
+            item.put("announcementUnread", isAnnouncementUnread(g, m));
+        }
+        return item;
+    }
+
+    private void enrichAnnouncementPublisher(Map<String, Object> item, Long groupId) {
+        Object announcement = item.get("announcement");
+        if (!(announcement instanceof String text) || !StringUtils.hasText(text)) {
+            return;
+        }
+        ChatGroupLogDO log = groupLogMapper.selectOne(new LambdaQueryWrapper<ChatGroupLogDO>()
+                .eq(ChatGroupLogDO::getGroupId, groupId)
+                .eq(ChatGroupLogDO::getActionType, "UPDATE")
+                .like(ChatGroupLogDO::getDetail, "群公告")
+                .orderByDesc(ChatGroupLogDO::getCreateTime)
+                .last("LIMIT 1"));
+        Long publisherId = log != null ? log.getOperatorId() : null;
+        LocalDateTime publishTime = log != null ? log.getCreateTime() : null;
+        if (publisherId == null) {
+            ChatGroupLogDO lastUpdate = groupLogMapper.selectOne(new LambdaQueryWrapper<ChatGroupLogDO>()
+                    .eq(ChatGroupLogDO::getGroupId, groupId)
+                    .eq(ChatGroupLogDO::getActionType, "UPDATE")
+                    .orderByDesc(ChatGroupLogDO::getCreateTime)
+                    .last("LIMIT 1"));
+            if (lastUpdate != null) {
+                publisherId = lastUpdate.getOperatorId();
+                publishTime = lastUpdate.getCreateTime();
+            }
+        }
+        if (publisherId == null) {
+            Object ownerId = item.get("ownerId");
+            if (ownerId instanceof Number n) {
+                publisherId = n.longValue();
+            }
+            Object updateTime = item.get("updateTime");
+            if (updateTime instanceof LocalDateTime ut) {
+                publishTime = ut;
+            }
+        }
+        if (publisherId != null) {
+            UserDO publisher = userMapper.selectById(publisherId);
+            item.put("announcementPublisherId", publisherId);
+            item.put("announcementPublisherName", displayUserName(publisher));
+            if (publisher != null) {
+                item.put("announcementPublisherAvatar", publisher.getAvatar());
+            }
+            item.put("announcementPublishTime", publishTime);
+        }
+    }
+
+    private void pushGroupAnnouncement(Long groupId, Long publisherId, String groupName, String announcement) {
+        UserDO publisher = userMapper.selectById(publisherId);
+        String publisherName = displayUserName(publisher);
+        String preview = announcement != null ? announcement : "";
+        if (preview.length() > 80) {
+            preview = preview.substring(0, 80) + "…";
+        }
+        List<ChatGroupMemberDO> members = groupMemberMapper.selectList(
+                new LambdaQueryWrapper<ChatGroupMemberDO>().eq(ChatGroupMemberDO::getGroupId, groupId));
+        for (ChatGroupMemberDO m : members) {
+            Map<String, Object> payload = new LinkedHashMap<>();
+            payload.put("type", "groupAnnouncement");
+            payload.put("groupId", groupId);
+            payload.put("groupName", groupName);
+            payload.put("senderId", publisherId);
+            payload.put("senderName", publisherName);
+            payload.put("title", (groupName != null ? groupName : "群聊") + " 发布了新公告");
+            payload.put("content", preview);
+            payload.put("announcement", announcement);
+            webSocketHandler.sendGroupChatPayload(m.getUserId(), payload);
+        }
+    }
+
+    private boolean isAnnouncementUnread(ChatGroupDO group, ChatGroupMemberDO member) {
+        if (!StringUtils.hasText(group.getAnnouncement())) {
+            return false;
+        }
+        if (member.getAnnouncementReadTime() == null) {
+            return true;
+        }
+        LocalDateTime updated = group.getUpdateTime();
+        if (updated == null) {
+            return false;
+        }
+        return member.getAnnouncementReadTime().isBefore(updated);
     }
 
     private ChatGroupMemberDO requireGroupAdmin(Long groupId, Long userId) {

@@ -233,6 +233,14 @@ export function transferGroupOwner(groupId: number, newOwnerId: number) {
   return post(`/system/chat/group/${groupId}/transfer/${newOwnerId}`)
 }
 
+export function markGroupAnnouncementRead(groupId: number) {
+  return post(`/system/chat/group/${groupId}/announcement/read`)
+}
+
+export function setGroupNotifyMuted(groupId: number, muted = true) {
+  return post(`/system/chat/group/${groupId}/notify-muted`, null, { params: { muted } })
+}
+
 export function quitGroup(groupId: number) {
   return post(`/system/chat/group/${groupId}/quit`)
 }

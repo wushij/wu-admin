@@ -163,8 +163,25 @@ class ChatGroupController {
 
     @GetMapping("/{groupId}")
     @PreAuthorize("@ss.hasRead('system:chat:list')")
-    public CommonResult<ChatGroupDO> detail(@PathVariable Long groupId) {
-        return CommonResult.success(chatService.getGroupDetail(groupId));
+    public CommonResult<Map<String, Object>> detail(@PathVariable Long groupId) {
+        return CommonResult.success(chatService.getGroupContext(groupId, SecurityUtils.getLoginUserId()));
+    }
+
+    @PostMapping("/{groupId}/announcement/read")
+    @PreAuthorize("@ss.hasRead('system:chat:list')")
+    @Operation(summary = "标记群公告已读（收起置顶）")
+    public CommonResult<Boolean> readAnnouncement(@PathVariable Long groupId) {
+        chatService.markAnnouncementRead(groupId, SecurityUtils.getLoginUserId());
+        return CommonResult.success(true);
+    }
+
+    @PostMapping("/{groupId}/notify-muted")
+    @PreAuthorize("@ss.hasRead('system:chat:list')")
+    @Operation(summary = "设置本群免打扰（仅 @ 我时提醒）")
+    public CommonResult<Boolean> setNotifyMuted(@PathVariable Long groupId,
+            @RequestParam(defaultValue = "true") boolean muted) {
+        chatService.setNotifyMuted(groupId, SecurityUtils.getLoginUserId(), muted);
+        return CommonResult.success(true);
     }
 
     @PutMapping("/update")
@@ -189,7 +206,7 @@ class ChatGroupController {
 
     @PostMapping("/{groupId}/message")
     @PreAuthorize("@ss.hasRead('system:chat:list')")
-    public CommonResult<ChatGroupMessageDO> send(@PathVariable Long groupId, @Validated @RequestBody ChatController.SendReq req) {
+    public CommonResult<ChatGroupMessageDO> send(@PathVariable Long groupId, @Validated @RequestBody GroupSendReq req) {
         return CommonResult.success(chatService.sendGroupMessage(
                 groupId, SecurityUtils.getLoginUserId(), req.getContent(), req.getMsgType(), req.getMentionIds()));
     }
@@ -297,6 +314,15 @@ class ChatGroupController {
     public static class MemberIdsReq {
         @NotNull(message = "成员ID不能为空")
         private List<Long> userIds;
+    }
+
+    /** 群消息发送（无 receiverId，与私聊 SendReq 区分） */
+    @Data
+    public static class GroupSendReq {
+        @NotBlank(message = "消息内容不能为空")
+        private String content;
+        private Integer msgType;
+        private List<Long> mentionIds;
     }
 }
 

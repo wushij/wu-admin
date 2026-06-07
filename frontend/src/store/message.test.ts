@@ -6,6 +6,7 @@ import { getMyNoticeList } from '@/api/system/notice'
 
 vi.mock('@/api/message', () => ({
   getMessageSummary: vi.fn(),
+  getChatGroups: vi.fn().mockResolvedValue({ code: 200, data: [] }),
 }))
 
 vi.mock('@/api/system/notice', () => ({
@@ -66,6 +67,37 @@ describe('useMessageStore', () => {
     store.handleWsMessage({ type: 'groupChat', groupId: 7, content: 'hi' })
     expect(store.getGroupUnread(7)).toBe(1)
     expect(store.showNotification).toBe(true)
+  })
+
+  it('handleWsMessage skips muted group unless @ me', () => {
+    const store = useMessageStore()
+    store.setGroupNotifyMutedLocal(7, true)
+    store.setActiveChatTarget({ type: 'user', id: 99 })
+    store.handleWsMessage({ type: 'groupChat', groupId: 7, content: 'hi' })
+    expect(store.getGroupUnread(7)).toBe(0)
+    expect(store.showNotification).toBe(false)
+    store.handleWsMessage({ type: 'groupChat', groupId: 7, content: '@me', atMe: true })
+    expect(store.getGroupUnread(7)).toBe(1)
+    expect(store.showNotification).toBe(true)
+  })
+
+  it('handleWsMessage always notifies group announcement', () => {
+    const store = useMessageStore()
+    store.setGroupNotifyMutedLocal(7, true)
+    store.setActiveChatTarget({ type: 'user', id: 99 })
+    store.handleWsMessage({ type: 'groupAnnouncement', groupId: 7, senderId: 2, title: '新公告', content: '内容' })
+    expect(store.getGroupUnread(7)).toBe(1)
+    expect(store.showNotification).toBe(true)
+    expect(store.groupAnnouncementTick).toBe(1)
+  })
+
+  it('handleWsMessage syncs announcement tick when viewing same group', () => {
+    const store = useMessageStore()
+    store.setActiveChatTarget({ type: 'group', id: 7 })
+    store.handleWsMessage({ type: 'groupAnnouncement', groupId: 7, senderId: 2, content: '公告' })
+    expect(store.groupAnnouncementTick).toBe(1)
+    expect(store.showNotification).toBe(false)
+    expect(store.getGroupUnread(7)).toBe(0)
   })
 
   it('handleWsMessage skips popup for active group chat', () => {

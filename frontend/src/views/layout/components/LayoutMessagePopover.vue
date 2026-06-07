@@ -1,5 +1,5 @@
 <template>
-  <el-popover trigger="click" placement="bottom-end" :width="340" @show="$emit('show')">
+  <el-popover v-model:visible="popoverVisible" trigger="click" placement="bottom-end" :width="340" @show="$emit('show')">
     <template #reference>
       <el-badge :value="messageStore.totalUnread" :hidden="!messageStore.totalUnread" class="notice-badge">
         <el-icon class="notice-icon" :size="20"><component :is="ElementPlusIconsVue.Bell" /></el-icon>
@@ -64,7 +64,7 @@
         </template>
         <div class="chat-tab-body">
           <p class="chat-hint">企业IM 未读 {{ messageStore.chatCount }} 条</p>
-          <el-button type="primary" @click="router.push('/message/chat')">进入企业IM</el-button>
+          <el-button type="primary" @click="goChat">进入企业IM</el-button>
         </div>
       </el-tab-pane>
     </el-tabs>
@@ -72,6 +72,7 @@
 </template>
 
 <script setup lang="ts">
+import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import * as ElementPlusIconsVue from '@element-plus/icons-vue'
 import { useMessageStore, type InboxNoticeItem } from '@/store/message'
@@ -94,6 +95,12 @@ defineEmits<{
 
 const router = useRouter()
 const messageStore = useMessageStore()
+const popoverVisible = ref(false)
+
+function goChat() {
+  popoverVisible.value = false
+  router.push('/message/chat')
+}
 </script>
 
 <style scoped>

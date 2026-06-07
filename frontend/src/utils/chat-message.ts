@@ -1,5 +1,10 @@
 import { CHAT_MSG_TYPE, type ChatFilePayload } from '@/constants/chat'
-import type { ChatMessage } from '@/types/message'
+import type { ChatMessage, GroupMember } from '@/types/message'
+
+/** 群成员展示名：优先用户昵称，其次群内昵称，最后用户名 */
+export function groupMemberDisplayName(m: Pick<GroupMember, 'userNickname' | 'nickname' | 'username'>): string {
+  return (m.userNickname || m.nickname || m.username || '').trim()
+}
 
 export function parseFilePayload(content?: string): ChatFilePayload | null {
   if (!content?.trim()) return null
