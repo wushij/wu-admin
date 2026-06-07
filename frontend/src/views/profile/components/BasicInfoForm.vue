@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div class="tab-pane-fill">
     <div class="tab-intro"><el-icon><User /></el-icon><span>维护您的昵称与联系方式，便于同事识别与系统通知触达。</span></div>
     <el-form ref="infoFormRef" :model="infoForm" :rules="infoRules" label-width="88px" class="info-form" @submit.prevent>
       <el-form-item label="用户名"><el-input :model-value="profile.username" disabled /></el-form-item>
@@ -33,10 +33,10 @@
       <el-form-item label="邮箱" prop="email"><el-input v-model="infoForm.email" placeholder="请输入邮箱" maxlength="100" clearable /></el-form-item>
       <el-form-item label="所属部门"><el-input :model-value="profile.deptName || '未分配'" disabled /></el-form-item>
       <el-form-item label="岗位"><el-input :model-value="postDisplay" disabled /></el-form-item>
-      <el-form-item>
+      <div class="info-form-actions">
         <el-button type="primary" :loading="savingInfo" @click="$emit('handleSaveInfo')">保存资料</el-button>
         <el-button @click="$emit('resetInfoForm')">重置</el-button>
-      </el-form-item>
+      </div>
     </el-form>
   </div>
 </template>

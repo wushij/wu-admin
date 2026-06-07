@@ -2,6 +2,7 @@ import { onMounted, onUnmounted } from 'vue'
 import { useUserStore } from '@/store/user'
 import { useMessageStore } from '@/store/message'
 import { preloadDicts } from '@/composables/useDict'
+import { startMonitorBackground } from '@/composables/useMonitorBackground'
 import { COMMON_DICT_TYPES } from '@/constants/dict'
 
 export function useLayoutBootstrap(options: {
@@ -26,6 +27,7 @@ export function useLayoutBootstrap(options: {
     messageStore.initWebSocket()
     options.loadSiteConfig()
     preloadDicts(COMMON_DICT_TYPES).catch(() => {})
+    startMonitorBackground(userStore)
   })
 
   onUnmounted(() => {

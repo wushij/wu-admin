@@ -850,6 +850,11 @@ INSERT INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, c
 (182, '任务新增', 'monitor:job:add', 3, 2, 180, '', '', '', 1),
 (183, '任务编辑', 'monitor:job:edit', 3, 3, 180, '', '', '', 1),
 (184, '任务删除', 'monitor:job:delete', 3, 4, 180, '', '', '', 1),
+-- 缓存监控
+(185, '缓存监控', 'monitor:cache:list', 2, 4, 100, '/monitor/cache', 'Coin', 'monitor/cache/index', 1),
+(186, '缓存删除', 'monitor:cache:delete', 3, 1, 185, '', '', '', 1),
+-- 服务监控
+(187, '服务监控', 'monitor:server:list', 2, 5, 100, '/monitor/server', 'Cpu', 'monitor/server/index', 1),
 -- 系统日志目录
 (120, '系统日志', '', 1, 4, 0, '/log', 'Notebook', '', 1),
 (121, '操作日志', 'system:operLog:list', 2, 1, 120, '/system/oper-log', 'EditPen', 'system/oper-log/index', 1),
@@ -898,7 +903,7 @@ INSERT INTO sys_role_menu (role_id, menu_id) VALUES
 (1, 50), (1, 51), (1, 52),
 (1, 60), (1, 61), (1, 62), (1, 63), (1, 64), (1, 65),
 (1, 70), (1, 71), (1, 72), (1, 73), (1, 74),
-(1, 100), (1, 101), (1, 102), (1, 103), (1, 104), (1, 180), (1, 181), (1, 182), (1, 183), (1, 184),
+(1, 100), (1, 101), (1, 102), (1, 103), (1, 104), (1, 180), (1, 181), (1, 182), (1, 183), (1, 184), (1, 185), (1, 186), (1, 187),
 (1, 105), (1, 110), (1, 111), (1, 112), (1, 113),
 (1, 150), (1, 151),
 (1, 170), (1, 171), (1, 172), (1, 173), (1, 174), (1, 175), (1, 176), (1, 177), (1, 178);
@@ -1429,10 +1434,13 @@ INSERT IGNORE INTO sys_menu (id, name, permission, type, sort, parent_id, path, 
 (181, '任务查询', 'monitor:job:query', 3, 1, 180, '', '', '', 1),
 (182, '任务新增', 'monitor:job:add', 3, 2, 180, '', '', '', 1),
 (183, '任务编辑', 'monitor:job:edit', 3, 3, 180, '', '', '', 1),
-(184, '任务删除', 'monitor:job:delete', 3, 4, 180, '', '', '', 1);
+(184, '任务删除', 'monitor:job:delete', 3, 4, 180, '', '', '', 1),
+(185, '缓存监控', 'monitor:cache:list', 2, 4, 100, '/monitor/cache', 'Coin', 'monitor/cache/index', 1),
+(186, '缓存删除', 'monitor:cache:delete', 3, 1, 185, '', '', '', 1),
+(187, '服务监控', 'monitor:server:list', 2, 5, 100, '/monitor/server', 'Cpu', 'monitor/server/index', 1);
 
 INSERT IGNORE INTO sys_role_menu (role_id, menu_id) VALUES
-(1, 180), (1, 181), (1, 182), (1, 183), (1, 184);
+(1, 180), (1, 181), (1, 182), (1, 183), (1, 184), (1, 185), (1, 186), (1, 187);
 
 -- 移除已废弃的内置任务；迁移旧版字典/配置缓存任务为聊天清理
 DELETE FROM sys_job WHERE invoke_target IN (

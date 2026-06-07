@@ -120,6 +120,18 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '定时任务', icon: 'Timer', permission: 'monitor:job:list' }
       },
       {
+        path: 'monitor/cache',
+        name: 'MonitorCache',
+        component: () => import('@/views/monitor/cache/index.vue'),
+        meta: { title: '缓存监控', icon: 'Coin', permission: 'monitor:cache:list' }
+      },
+      {
+        path: 'monitor/server',
+        name: 'MonitorServer',
+        component: () => import('@/views/monitor/server/index.vue'),
+        meta: { title: '服务监控', icon: 'Cpu', permission: 'monitor:server:list' }
+      },
+      {
         path: 'tool/api-doc',
         name: 'ToolApiDoc',
         component: () => import('@/views/tool/api-doc/index.vue'),

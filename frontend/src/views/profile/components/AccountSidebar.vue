@@ -1,5 +1,6 @@
 <template>
-  <el-card class="side-card account-card" shadow="never">
+  <div class="profile-sidebar">
+    <el-card class="side-card account-card" shadow="never">
     <template #header>
       <div class="side-card-header"><el-icon><Postcard /></el-icon><span>账号概览</span></div>
     </template>
@@ -20,7 +21,8 @@
       <li>发现陌生登录记录时，请立即修改密码并联系管理员。</li>
       <li>部门、岗位、角色由管理员分配，如需调整请联系系统管理员。</li>
     </ul>
-  </el-card>
+    </el-card>
+  </div>
 </template>
 
 <script setup lang="ts">

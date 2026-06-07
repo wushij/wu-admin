@@ -6,7 +6,7 @@
 -- 组织部门「业务中心」(sys_dept) 不变，仅改菜单 sys_menu id=8 / id=150。
 --
 -- 用法: mysql -u root -p wu-admin < sql/add6.sql
--- 生产/服务器（库名 wuadmin）: mysql -u wuadmin -p wuadmin < sql/add6_wuadmin.sql
+-- 生产/服务器（库名 wuadmin）: mysql -u wuadmin -p wuadmin < sql/add6_7_wuadmin.sql
 -- 执行后请重新登录以刷新侧栏菜单。
 -- =============================================================================
 

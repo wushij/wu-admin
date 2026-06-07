@@ -17,7 +17,7 @@
 | **回收站** | 用户、角色、菜单、部门、工单、审批单逻辑删除，支持恢复与彻底删除 |
 | **开发工具** | 内嵌 Knife4j 接口文档（`doc.html`） |
 | **系统日志** | 操作日志（AOP，含详情）；登录日志（**ip2region IP 归属地**、浏览器解析） |
-| **系统监控** | API 访问统计（ECharts 图表 + 日志列表）、在线用户与强退、**定时任务**（Quartz 调度、内置清理任务，默认暂停） |
+| **系统监控** | API 访问统计（ECharts 图表 + 日志列表）、在线用户与强退、**定时任务**（Quartz 调度、内置清理任务，默认暂停）、**缓存监控**（Redis 内存/QPS/命中率/连接数趋势 + SCAN 键管理与详情）、**服务监控**（本机 JMX：CPU/内存/JVM/磁盘） |
 | **文件管理** | 分组 CRUD、按类型筛选；图片/PDF/Office 预览；大小与扩展名受**系统配置**约束 |
 | **流程中心** | **工单**：优先级、截止/超时、评论附件、指派与全员通知（非超管仅看本人相关）；**审批**：请假/采购/报销/用印/合同/通用 + `REGISTER` 注册审核，**详情抽屉内可直接通过/驳回**，支持归档 |
 | **消息中心** | **业务消息**（`sys_notice`，工单/审批触达）、系统通知（全员/用户/部门定向、发送日志）、**企业IM**（私聊/群聊、文件、@、撤回、正在输入等）、WebSocket |
@@ -73,14 +73,55 @@
 | 工作台 | `/dashboard` | `WelcomeBanner`、`CoreStatsRow` 等 + `useDashboardData` |
 | 个人中心 | `/profile` | `ProfileHero`、`BasicInfoForm`、`SecuritySettings` + `useProfileInfo` / `useProfileSecurity` |
 | 系统管理 | `/system/user` · `dict` · `file` · `menu` · `org` · `config` | 各 `*Page.vue` + 对应 `use*Page.ts` 与 Tab/Dialog 子组件 |
-| 系统监控 | `/monitor/job` | `JobPage.vue` + `useJobPage.ts`（含 ECharts 图表区） |
+| 系统监控 | `/monitor/job` · `/monitor/cache` · `/monitor/server` | `JobPage.vue` + `useJobPage.ts`；`CacheMonitorPage.vue` + `cacheMonitorChart.ts` + `useCacheMonitorPage.ts`；`ServerMonitorPage.vue` + `serverMonitorChart.ts` + `useServerMonitorPage.ts` |
 | 企业IM | `/message/chat` | `ChatPage.vue` + `useChatPage.ts` / `useChatRender` / `useMention` |
 
 **质量保障**：`npm run typecheck`（`vue-tsc --noEmit`）、`npm run test`（Vitest，37 用例）、`npm run build`（构建前自动类型检查）。
 
 > 待后续拆分（体量仍较大）：`approval`、`ticket`、`role` 等页面；企业 IM 聊天区可进一步拆分子面板组件。
 
-**组件化拆分注意**：样式从 Vue `<style scoped>` 抽到独立 `.css` 时，**勿使用 `:deep()`**（仅 SFC scoped 有效）；应改为 `.parent .el-textarea__inner` 等普通选择器。企业 IM 的 `chat-page.css` 已按此修正（输入框黑框问题）。
+**组件化拆分注意**：样式从 Vue `<style scoped>` 抽到独立 `.css` / `.scss` 时，**勿使用 `:deep()`**（仅 SFC scoped 有效）；应改为 `.parent .el-textarea__inner` 等普通选择器。企业 IM 的 `chat-page.css` 已按此修正（输入框黑框问题）。个人中心样式见独立 `profile-page.scss`（由 `index.vue` 非 scoped 引入），子组件无需再套 scoped。
+
+### 系统监控 · 缓存/服务监控（2026.06）
+
+新增 **缓存监控**（Redis）与 **服务监控**（本机 JMX），前后端与菜单增量见 `sql/add7.sql`、`add8.sql`；生产合并脚本 **`sql/add6_7_wuadmin.sql`**（含流程中心 rename + 缓存 + 服务监控）。
+
+#### 能力一览
+
+| 页面 | 路由 | 权限 | 说明 |
+|------|------|------|------|
+| 缓存监控 | `/monitor/cache` | `monitor:cache:list` / `monitor:cache:delete` | Redis 概览、内存/QPS/命中率/连接数四宫格图表、SCAN 键列表与详情/删除 |
+| 服务监控 | `/monitor/server` | `monitor:server:list` | CPU/物理内存/JVM/磁盘、CPU 与 JVM 堆折线趋势 |
+
+#### 后端
+
+| 模块 | 路径 | 要点 |
+|------|------|------|
+| 缓存监控 | `CacheMonitorController` / `CacheMonitorServiceImpl` | `INFO` 统计、SCAN 键、`GET/DELETE` 键详情；删除键**前缀黑名单**（`Authorization:`、`satoken:`、`captcha:` 等） |
+| 服务监控 | `ServerMonitorController` / `ServerMonitorServiceImpl` | JMX 采集 CPU、堆/物理内存、磁盘；JDK 21+ 反射 `getCpuLoad()`，JDK 17 回退 `getSystemCpuLoad()` |
+
+主要 API：`GET /api/monitor/cache/info|stats|keys|value`、`DELETE /api/monitor/cache/key`；`GET /api/monitor/server/info`。
+
+#### 前端 · 折线图与后台采样
+
+登录进入布局后，若角色具备对应 `monitor:*:list` 权限，**无需打开监控页**即开始后台轮询（缓存 **3s**、服务 **5s**），折线采样写入 **`sessionStorage`**（同一标签页 **F5 刷新仍保留**，最多 **20** 个点）。切到其他菜单再返回，历史趋势不丢失。
+
+| 行为 | 说明 |
+|------|------|
+| 全局采样 | `useLayoutBootstrap` → `startMonitorBackground`（`composables/useMonitorBackground.ts`） |
+| 图表状态 | `cacheMonitorChart.ts`、`serverMonitorChart.ts`（模块级 + sessionStorage） |
+| 「自动」开关 | 关闭后停止轮询；状态持久化，刷新后仍生效 |
+| 退出登录 | 停止采样并清空 session 中的监控折线数据 |
+| 浏览器标签隐藏 | 暂停轮询；切回标签页后继续 |
+
+> **平均负载**：来自 Linux `load average`；**Windows 上 JMX 返回不可用**，界面显示 `-` 属正常，请参考 **系统 CPU / 进程 CPU** 与折线图。
+
+> **Redis 内存环图**：未配置 `maxmemory` 时仅展示当前占用（如 1.22M），外圈绿环非占比；配额环需在 Redis 服务端配置 `maxmemory` + `maxmemory-policy`。
+
+### 个人中心 · 布局与样式（2026.06）
+
+- 路由 `/profile` 拆为 `ProfileHero`、`BasicInfoForm`、`SecuritySettings`、`AccountSidebar` 等子组件 + `useProfileInfo` / `useProfileSecurity`。
+- 样式集中在 **`profile-page.scss`**（`index.vue` 非 scoped `@import`），避免子组件 scoped 穿透失效；大屏下左右列底部对齐、基本资料「保存」按钮与表单 label 左对齐。
 
 ### 生产部署排障实录（2026.06）
 
@@ -190,15 +231,15 @@ location ^~ /api/ {
 |------|------|------|
 | `sql/add3.sql` | 本地 dev（`wu-admin`） | 菜单更名为「企业IM」 |
 | `sql/add4.sql` | 本地 dev | 群消息表 `mention_ids` 字段 |
-| `sql/add3_add4_wuadmin.sql` | **生产**（`wuadmin`） | 合并 add3 + add4 |
+| `sql/add6_7_wuadmin.sql` | **生产**（`wuadmin`） | 合并 add6（流程中心）+ add7（缓存监控）+ add8（服务监控） |
 
 ```bash
-# 本地
+# 本地（按版本依次）
 mysql -u root -p wu-admin < sql/add3.sql
 mysql -u root -p wu-admin < sql/add4.sql
 
-# 服务器（库名 wuadmin，与 application-prod.yml 一致）
-mysql -u wuadmin -p wuadmin < sql/add3_add4_wuadmin.sql
+# 生产（库名 wuadmin；若尚未执行 add3/add4，可先改脚本 USE 或逐条执行 add3、add4 后再跑）
+mysql -u wuadmin -p wuadmin < sql/add6_7_wuadmin.sql
 ```
 
 ---
@@ -385,7 +426,7 @@ frontend/src/
 |------|------|------|
 | **全新安装（空库）** | `sql/admin_platform.sql` | `mysql -u root -p < sql/admin_platform.sql`（空库自动放行） |
 | **极旧库首次升级** | `admin_platform.sql` **附录段**（约 910 行起） | 补全缺表/菜单/索引，可重复执行 |
-| **发版增量** | **`sql/add1.sql`** … **`sql/add4.sql`** | 见下表；生产库名 `wuadmin` 可用 `add3_add4_wuadmin.sql` |
+| **发版增量** | **`sql/add1.sql`** … **`add8.sql`** | 见下表；生产合并见 **`add6_7_wuadmin.sql`** |
 
 > 切勿对生产库直接跑 `admin_platform.sql` 全文（Part A 含 DROP，默认会被熔断拦截）。
 
@@ -491,9 +532,9 @@ wu-admin/
 │   │   │   ├── login/、register/、layout/、dashboard/、profile/
 │   │   │   ├── auth/components/    # 登录注册共享（AuthSplitLayout、AuthCaptchaField 等）
 │   │   │   ├── system/{user,dict,file,menu,org,config}/  # 各含 index、*Page、composables、components
-│   │   │   ├── monitor/job/、message/chat/
+│   │   │   ├── monitor/job/、monitor/cache/、monitor/server/、message/chat/
 │   │   │   └── …               # approval、ticket、role 等待拆分页面
-│   │   ├── composables/        # 跨页面复用（如 useDict.ts）
+│   │   ├── composables/        # 跨页面复用（useDict、useMonitorBackground 等）
 │   │   ├── components/         # 全局公共组件（DictSelect、SliderCaptcha、MessageNotification 等）
 │   │   ├── router/             # 路由与守卫
 │   │   ├── store/              # Pinia（user、message 等）
@@ -508,7 +549,11 @@ wu-admin/
 │   ├── add2.sql                # 增量补丁 #2（登录 smsLoginSliderCaptchaEnabled）
 │   ├── add3.sql                # 增量补丁 #3（菜单「企业IM」）
 │   ├── add4.sql                # 增量补丁 #4（群消息 mention_ids）
-│   ├── add3_add4_wuadmin.sql   # 生产合并补丁（库名 wuadmin）
+│   ├── add5.sql                # 增量补丁 #5（工单字典）
+│   ├── add6.sql                # 增量补丁 #6（流程中心菜单）
+│   ├── add7.sql                # 增量补丁 #7（缓存监控菜单）
+│   ├── add8.sql                # 增量补丁 #8（服务监控菜单）
+│   ├── add6_7_wuadmin.sql      # 生产合并补丁 add6+7+8（库名 wuadmin）
 │   └── disable_devtool_off.sql # 临时关闭「禁止前端调试」（MySQL 5.6 兼容）
 ├── data/                       # 本地上传目录（git 忽略，对应 file.storage.local-path）
 └── README.md
@@ -579,14 +624,18 @@ cn.rbac.server/
 # 空库全新安装（直接执行即可）
 mysql -u root -p < sql/admin_platform.sql
 
-# 已有库发版增量（按版本依次执行）
+# 已有库发版增量（按版本依次执行，本地库 wu-admin）
 mysql -u root -p wu-admin < sql/add1.sql
 mysql -u root -p wu-admin < sql/add2.sql
 mysql -u root -p wu-admin < sql/add3.sql
 mysql -u root -p wu-admin < sql/add4.sql
+mysql -u root -p wu-admin < sql/add5.sql
+mysql -u root -p wu-admin < sql/add6.sql
+mysql -u root -p wu-admin < sql/add7.sql
+mysql -u root -p wu-admin < sql/add8.sql
 
-# 生产服务器（库名 wuadmin，合并 add3+add4）
-mysql -u wuadmin -p wuadmin < sql/add3_add4_wuadmin.sql
+# 生产服务器（库名 wuadmin；合并 add6+7+8，含流程中心/缓存/服务监控菜单）
+mysql -u wuadmin -p wuadmin < sql/add6_7_wuadmin.sql
 
 # 极旧库首次补全（缺表/菜单时，执行 admin_platform.sql 附录段，约 910 行起）
 ```
@@ -677,7 +726,7 @@ npm run dev
 | `/api/system/**` | 用户、角色、菜单、组织、字典、**config-group**（含 test-payment）、审批、工单、**announce/chat** 等 |
 | `/api/pay/**` | 支付回调（`/notify/*` 公开）、测试订单查单 |
 | `/api/files/**` | 文件上传与访问 |
-| `/api/monitor/**` | API 访问、在线用户、**定时任务** |
+| `/api/monitor/**` | API 访问、在线用户、**定时任务**、**Redis 缓存监控**（`/monitor/cache/*`）、**服务监控**（`/monitor/server/info`） |
 | `/api/dashboard/**` | 工作台统计（含配置摘要、待审核用户数）；计数类指标单 SQL 聚合 + Redis 缓存（约 2 分钟） |
 | `/api/system/user/list` | 用户下拉选项（启用用户、最多 2000 条）；管理列表请用 `/api/system/user/page` |
 
@@ -685,14 +734,14 @@ npm run dev
 
 ## 数据库脚本
 
-维护 **`sql/admin_platform.sql`**（全量 + 附录）与 **`sql/add1.sql` … `add4.sql`** 等增量补丁：
+维护 **`sql/admin_platform.sql`**（全量 + 附录）与 **`sql/add1.sql` … `add8.sql`** 等增量补丁：
 
 | 场景 | 做法 |
 |------|------|
 | **全新安装** | 空库直接 `mysql -u root -p < sql/admin_platform.sql` |
 | **极旧库首次升级** | 执行 `admin_platform.sql` 文末 **附录**（约 910 行起） |
-| **发版增量（本地 dev）** | 依次 `mysql -u root -p wu-admin < sql/add1.sql` … `add6.sql` |
-| **发版增量（生产）** | `mysql -u wuadmin -p wuadmin < sql/add3_add4_wuadmin.sql` 等；菜单更名见 `add6_wuadmin.sql` |
+| **发版增量（本地 dev）** | 依次 `mysql -u root -p wu-admin < sql/add1.sql` … **`add8.sql`** |
+| **发版增量（生产）** | 按已执行版本补跑；**流程中心 + 缓存/服务监控** 见 **`add6_7_wuadmin.sql`** |
 
 `addN.sql` 体量应保持在几十行量级；全量补丁逻辑在 `admin_platform.sql` 附录。
 
@@ -704,8 +753,11 @@ npm run dev
 | `add4.sql` | `sys_chat_group_message.mention_ids`（群 @ 提醒，可重复执行） |
 | `add5.sql` | 补全工单字典类型 `sys_ticket_status` / `sys_ticket_priority` |
 | `add6.sql` | 菜单 id=8「业务中心」→「**流程中心**」（path `/workflow`）；排序至消息中心与开发工具之间；本地库 `wu-admin` |
-| `add6_wuadmin.sql` | 同上；**生产库 `wuadmin`** |
-| `add3_add4_wuadmin.sql` | **生产库 `wuadmin`** 合并 add3 + add4 |
+| `add7.sql` | 系统监控新增「**缓存监控**」菜单与权限；本地库 `wu-admin` |
+| `add8.sql` | 系统监控新增「**服务监控**」菜单（本机 JMX）；本地库 `wu-admin` |
+| `add6_7_wuadmin.sql` | **生产库 `wuadmin`** 合并 add6 + add7 + add8 |
+
+> 生产环境若尚未执行 add3/add4，可将 `add3.sql`、`add4.sql` 中 `USE` 改为 `wuadmin` 后逐条执行，或直接依赖已更新的 `admin_platform.sql` 全量/附录。仓库内**无**单独的 `add3_add4_wuadmin.sql` 文件。
 
 **附录 / 增量行为（可重复执行、尽量非破坏性）：**
 
@@ -812,6 +864,8 @@ mvn clean package -DskipTests
 
 **Nginx 反代要点**：静态资源走 `root` + `try_files`；`/api/` 反代到 `http://127.0.0.1:8080/api/`；WebSocket 需 `Upgrade` / `Connection` 头（消息推送）。
 
+**仅前端发版**（如监控折线、个人中心样式）：覆盖 `frontend/dist/` 并强刷浏览器即可，**不必重启 jar**。涉及菜单/SQL/后端接口时须同步后端与数据库增量。
+
 启动示例：
 
 ```bash
@@ -863,7 +917,16 @@ A：已配置 OpenAPI 默认服务 `http://localhost:3000/api`；重启后端与
 A：在 **系统配置 → 文件存储** 调整；单文件上限不得超过 500MB。
 
 **Q：消息中心菜单不显示或聊天 403？**  
-A：对已有库：极旧库先跑 **admin_platform.sql 附录**；发版增量依次跑 `sql/add1.sql` … `add4.sql`（生产可用 `add3_add4_wuadmin.sql`），**重启后端**后 **重新登录**。普通用户需角色分配菜单 170/172；只读权限用户访问 `:list` 接口时会映射为 `:query`。
+A：对已有库：极旧库先跑 **admin_platform.sql 附录**；发版增量依次跑 `sql/add1.sql` … `add4.sql`（生产改 `USE wuadmin` 后执行 add3/add4），**重启后端**后 **重新登录**。普通用户需角色分配菜单 170/172；只读权限用户访问 `:list` 接口时会映射为 `:query`。
+
+**Q：缓存/服务监控菜单不显示？**  
+A：已有库执行 `sql/add7.sql`、`add8.sql`（本地）或生产 **`sql/add6_7_wuadmin.sql`**，**重新登录**刷新侧栏；确认角色已分配 `monitor:cache:list` / `monitor:server:list`。
+
+**Q：监控折线图一切页或 F5 就清空？**  
+A：升级至含 **全局后台采样 + sessionStorage** 的前端后，登录即有权限则后台持续采样；同一标签页 F5 仍保留最近 20 个点。关闭标签页或退出登录会清空。仅更新前端 `dist` 即可，**无需改后端 jar**。
+
+**Q：服务监控「平均负载」显示 `-`？**  
+A：**Windows** 不提供 Linux 式 load average，JMX 返回不可用，界面显示 `-` 属正常；请参考 **系统 CPU / 进程 CPU** 及 CPU 折线图。Linux 部署会显示数值。
 
 **Q：顶栏有通知角标但列表为空？**  
 A：确认 WebSocket 已连接（登录后自动初始化）；在顶栏铃铛打开「系统通知」Tab 会拉取列表。管理员发布通知需 `system:announce:publish`。
@@ -872,7 +935,7 @@ A：确认 WebSocket 已连接（登录后自动初始化）；在顶栏铃铛�
 A：升级后新图片走 `/system/chat/upload/image`（`images/chat/`）、新文件走 `/system/chat/upload/file`（`files/chat/`），文件列表已排除；历史旧数据可手动删除。
 
 **Q：企业IM 升级后 @ / 撤回 / 文件发送不可用？**  
-A：① 已有库执行 `sql/add4.sql`（或生产 `add3_add4_wuadmin.sql`）；② **重启后端**；③ 重新登录刷新菜单名「企业IM」；④ 确认角色有 `system:chat:list`。
+A：① 已有库执行 `sql/add4.sql`（生产改 `USE wuadmin`）；② **重启后端**；③ 重新登录刷新菜单名「企业IM」；④ 确认角色有 `system:chat:list`。
 
 **Q：群聊 @ 没有强提醒或角标？**  
 A：确认 `mention_ids` 字段已入库（add4）；被 @ 时 WebSocket 推送带 `atMe: true`，顶栏通知标题为 `[有人@你]`。
