@@ -10,6 +10,8 @@ import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 import org.apache.ibatis.annotations.Delete;
 
+import java.util.List;
+
 @Mapper
 public interface UserMapper extends BaseMapper<UserDO> {
     @Select({
@@ -46,4 +48,11 @@ public interface UserMapper extends BaseMapper<UserDO> {
     /** 含已软删记录，用于注册重名判断 */
     @Select("SELECT * FROM sys_user WHERE username = #{username} LIMIT 1")
     UserDO selectByUsernameRaw(@Param("username") String username);
+
+    /**
+     * 下拉选项等场景：仅返回启用中的未删除用户，限制条数防止全量加载
+     */
+    @Select("SELECT id, username, nickname, dept_id, status FROM sys_user "
+            + "WHERE deleted = 0 AND status = 1 ORDER BY id ASC LIMIT #{limit}")
+    List<UserDO> selectListForOptions(@Param("limit") int limit);
 }

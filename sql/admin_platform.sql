@@ -759,7 +759,7 @@ INSERT INTO sys_config_group (group_code, group_name, config_value, remark) VALU
 ('sms', '短信配置', '{"enabled":false,"provider":"aliyunAuth","accessKeyId":"","accessKeySecret":"","signName":"","tencentAppId":"","templateVerifyCode":"100001","templateModifyPhone":"100002","templateResetPassword":"100003","templateBindPhone":"100004","templateVerifyBindPhone":"100005","schemeName":"","codeExpireMinutes":5}', '阿里云短信认证/腾讯云'),
 ('security', '安全配置', '{"disableDevtool":false,"isConcurrent":false}', '前端安全与会话：禁止调试、禁止多端同时在线');
 
--- 菜单与按钮（一级目录 sort：系统管理 1 / 业务 2 / 监控 3 / 日志 4 / 文件 5 / 消息 6 / 工具 7）
+-- 菜单与按钮（一级目录 sort：系统管理 1 / 监控 3 / 日志 4 / 文件 5 / 消息 6 / 流程 7 / 工具 8）
 INSERT INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, component, status) VALUES
 -- 系统管理目录
 (1, '系统管理', '', 1, 1, 0, '/system', 'Setting', '', 1),
@@ -774,11 +774,11 @@ INSERT INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, c
 -- 字典管理
 (130, '字典管理', 'system:dict:list', 2, 5, 1, '/system/dict', 'Collection', 'system/dict/index', 1),
 (160, '系统配置', 'system:config:list', 2, 6, 1, '/system/config', 'Tools', 'system/config/index', 1),
--- 业务中心目录
-(8, '业务中心', '', 1, 2, 0, '/business', 'Suitcase', '', 1),
+-- 流程中心目录（审批 + 工单）
+(8, '流程中心', '', 1, 7, 0, '/workflow', 'Operation', '', 1),
 -- 审批单中心
 (9, '审批单中心', 'system:approval:list', 2, 1, 8, '/system/approval', 'Checked', 'system/approval/index', 1),
--- 工单管理（隶属业务中心）
+-- 工单管理（隶属流程中心）
 (7, '工单管理', 'system:ticket:list', 2, 2, 8, '/system/ticket', 'Tickets', 'system/ticket/index', 1),
 -- 用户管理按钮
 (10, '用户查询', 'system:user:query', 3, 1, 2, '', '', '', 1),
@@ -859,7 +859,7 @@ INSERT INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, c
 -- 登录日志（隶属系统日志）
 (6, '登录日志', 'system:loginLog:list', 2, 2, 120, '/system/login-log', 'Promotion', 'system/login-log/index', 1),
 -- 开发工具
-(150, '开发工具', '', 1, 7, 0, '/tool', 'Tools', '', 1),
+(150, '开发工具', '', 1, 8, 0, '/tool', 'Tools', '', 1),
 (151, '接口文档', 'tool:apiDoc:view', 2, 1, 150, '/tool/api-doc', 'Document', '/doc.html', 1),
 -- 消息中心
 (170, '消息中心', '', 1, 6, 0, '/message', 'Bell', '', 1),

@@ -19,7 +19,7 @@
 | **系统日志** | 操作日志（AOP，含详情）；登录日志（**ip2region IP 归属地**、浏览器解析） |
 | **系统监控** | API 访问统计（ECharts 图表 + 日志列表）、在线用户与强退、**定时任务**（Quartz 调度、内置清理任务，默认暂停） |
 | **文件管理** | 分组 CRUD、按类型筛选；图片/PDF/Office 预览；大小与扩展名受**系统配置**约束 |
-| **业务中心** | **工单**：优先级、截止/超时、评论附件、指派与全员通知（非超管仅看本人相关）；**审批**：请假/采购/报销/用印/合同/通用 + `REGISTER` 注册审核，**详情抽屉内可直接通过/驳回**，支持归档 |
+| **流程中心** | **工单**：优先级、截止/超时、评论附件、指派与全员通知（非超管仅看本人相关）；**审批**：请假/采购/报销/用印/合同/通用 + `REGISTER` 注册审核，**详情抽屉内可直接通过/驳回**，支持归档 |
 | **消息中心** | **业务消息**（`sys_notice`，工单/审批触达）、系统通知（全员/用户/部门定向、发送日志）、**企业IM**（私聊/群聊、文件、@、撤回、正在输入等）、WebSocket |
 | **认证安全** | 图片/滑块验证码、**短信验证码登录**（独立开关，与账号验证码分离）、**短信发码前滑块**（可选）、登录失败锁定（用户+IP）、记住我、登录/注册/短信**限流防刷**；账号密码错误统一提示「账号或密码错误」；Sa-Token 会话（Redis db=1） |
 | **界面体验** | 主题色切换；登录/注册页 Three.js 地球 + 粒子背景；顶栏消息铃铛三 Tab |
@@ -40,14 +40,27 @@
 
 | 维度 | 改进要点 |
 |------|----------|
-| **分层** | 认证、用户、角色、工单等核心模块将业务逻辑从 Controller 下沉至 Service（`AuthService`、`UserService`、`RoleService`、`TicketService` 等）；Controller 负责参数校验、权限注解与结果封装 |
+| **分层** | 认证、用户、角色、工单、**工作台**、**消息汇总**等模块将业务逻辑从 Controller 下沉至 Service（`AuthService`、`UserService`、`RoleService`、`TicketService`、`DashboardService`、`NoticeService` 等）；Controller 负责参数校验、权限注解与结果封装 |
 | **异常** | 新增 `BusinessException`（可携带业务错误码）；`GlobalExceptionHandler` 统一处理校验失败、参数缺失、404 及兜底异常（共 11 种） |
 | **安全** | `UserDO.password` 添加 `@JsonIgnore`；管理端敏感接口补全 `@PreAuthorize`；CORS 改为 `app.cors.allowed-origins` 配置；URL 参数传 Token 仅限 `/files/**` |
 | **校验** | 核心 VO（登录/注册/用户/角色/工单/审批/聊天/个人中心）添加 JSR-303（`@NotBlank` / `@Pattern` / `@Size`）+ `@Validated` |
 | **事务** | 用户/工单/审批等多表写操作添加 `@Transactional(rollbackFor = Exception.class)` |
-| **性能** | 权限匹配、菜单闭包、用户列表角色填充、通知全部已读等 5 处 N+1 查询优化为批量查询；`PageParam` 限制 `pageSize` 上限 200 |
+| **性能** | 权限匹配、菜单闭包、用户列表角色填充、通知全部已读等 5 处 N+1 查询优化为批量查询；`PageParam` 限制 `pageSize` 上限 200；工作台 `/dashboard/stats` 聚合为单条 SQL + Redis 缓存；`/system/user/list` 限制下拉返回条数 |
 
 依赖方向不变：**`modules/*` → `framework` → `common`**。新增业务优先在 `service/` 实现，Controller 不直接操作 Mapper。
+
+#### 工作台与用户列表（2026.06 续）
+
+针对代码质量审计中的架构与性能项，在**不改变对外 API 路径与响应字段**的前提下完成：
+
+| 项 | 改进 | 主要文件 |
+|------|------|----------|
+| **工作台分层** | `DashboardController` 不再直接注入 9 个 Mapper；统计、最近登录、访问计数下沉至 `DashboardService` / `DashboardServiceImpl` | `api/dashboard/DashboardController.java`、`service/dashboard/` |
+| **消息汇总分层** | `MessageCenterController` 站内消息未读数改调 `NoticeService.unreadCount`，与 `AnnounceService`、`ChatService` 一致 | `service/message/NoticeService.java` |
+| **工作台统计性能** | `/dashboard/stats` 由约 20 次 `selectCount` 改为 `DashboardMapper.selectAggregateStats()` **单条 SQL**（标量子查询聚合）；计数类结果 Redis 缓存 **2 分钟**（key：`dashboard:stats:aggregate:yyyy-MM-dd`）；`onlineCount`、今日/昨日访问量仍每次实时读取 | `dal/mysql/dashboard/DashboardMapper.java`、`service/dashboard/vo/DashboardStatsRow.java` |
+| **用户下拉列表** | `GET /system/user/list` 不再全量 `selectList(null)`；`UserMapper.selectListForOptions` 仅返回**启用**用户（`status=1`）、字段精简，**上限 2000 条**（供通知定向、审批指派人等下拉；管理列表仍用 `/page` 分页） | `UserServiceImpl.listAll()`、`UserMapper.selectListForOptions` |
+
+> 统计缓存默认 2 分钟延迟，适合首页/大屏场景；若需更实时可调整 `DashboardServiceImpl` 中的 `STATS_CACHE_MINUTES`。
 
 #### 前端：页面组件化拆分
 
@@ -263,7 +276,7 @@ mysql -u wuadmin -p wuadmin < sql/add3_add4_wuadmin.sql
 
 1. 用户注册成功，账号 `status = 2`（待审核），分配配置中的默认角色；
 2. 自动创建类型为 `REGISTER` 的审批单，并通知**首位可用的超级管理员**（`super_admin` 角色，站内通知 `sys_notice`）；
-3. 管理员在 **业务中心 → 审批单中心** 通过或驳回（列表「处理」下拉，或打开 **详情** 抽屉底部 **通过 / 驳回**）；
+3. 管理员在 **流程中心 → 审批单中心** 通过或驳回（列表「处理」下拉，或打开 **详情** 抽屉底部 **通过 / 驳回**）；
 4. **通过** → `status = 1`，用户出现在 **用户管理** 默认列表，可登录；
 5. **驳回** → 逻辑删除账号并清理角色/岗位关联，**不出现在用户管理**；申请人收到审核结果通知；
 6. 若该用户名曾在回收站（软删），**同用户名再次注册**会自动恢复账号并重新走审核流程。
@@ -665,7 +678,8 @@ npm run dev
 | `/api/pay/**` | 支付回调（`/notify/*` 公开）、测试订单查单 |
 | `/api/files/**` | 文件上传与访问 |
 | `/api/monitor/**` | API 访问、在线用户、**定时任务** |
-| `/api/dashboard/**` | 工作台统计（含配置摘要、待审核用户数） |
+| `/api/dashboard/**` | 工作台统计（含配置摘要、待审核用户数）；计数类指标单 SQL 聚合 + Redis 缓存（约 2 分钟） |
+| `/api/system/user/list` | 用户下拉选项（启用用户、最多 2000 条）；管理列表请用 `/api/system/user/page` |
 
 ---
 
@@ -677,8 +691,8 @@ npm run dev
 |------|------|
 | **全新安装** | 空库直接 `mysql -u root -p < sql/admin_platform.sql` |
 | **极旧库首次升级** | 执行 `admin_platform.sql` 文末 **附录**（约 910 行起） |
-| **发版增量（本地 dev）** | 依次 `mysql -u root -p wu-admin < sql/add1.sql` … `add4.sql` |
-| **发版增量（生产）** | `mysql -u wuadmin -p wuadmin < sql/add3_add4_wuadmin.sql`（或按需单独执行 add3/add4 并改库名） |
+| **发版增量（本地 dev）** | 依次 `mysql -u root -p wu-admin < sql/add1.sql` … `add6.sql` |
+| **发版增量（生产）** | `mysql -u wuadmin -p wuadmin < sql/add3_add4_wuadmin.sql` 等；菜单更名见 `add6_wuadmin.sql` |
 
 `addN.sql` 体量应保持在几十行量级；全量补丁逻辑在 `admin_platform.sql` 附录。
 
@@ -688,6 +702,9 @@ npm run dev
 | `add2.sql` | 登录配置 `smsLoginSliderCaptchaEnabled`（短信发码前滑块，默认 `false`） |
 | `add3.sql` | 菜单 id=172「即时聊天」→「**企业IM**」 |
 | `add4.sql` | `sys_chat_group_message.mention_ids`（群 @ 提醒，可重复执行） |
+| `add5.sql` | 补全工单字典类型 `sys_ticket_status` / `sys_ticket_priority` |
+| `add6.sql` | 菜单 id=8「业务中心」→「**流程中心**」（path `/workflow`）；排序至消息中心与开发工具之间；本地库 `wu-admin` |
+| `add6_wuadmin.sql` | 同上；**生产库 `wuadmin`** |
 | `add3_add4_wuadmin.sql` | **生产库 `wuadmin`** 合并 add3 + add4 |
 
 **附录 / 增量行为（可重复执行、尽量非破坏性）：**

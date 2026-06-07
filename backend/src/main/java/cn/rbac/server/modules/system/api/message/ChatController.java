@@ -8,14 +8,12 @@ import cn.rbac.server.framework.websocket.MessageWebSocketHandler;
 import cn.rbac.server.modules.system.dal.dataobject.message.ChatGroupDO;
 import cn.rbac.server.modules.system.dal.dataobject.message.ChatGroupMessageDO;
 import cn.rbac.server.modules.system.dal.dataobject.message.ChatMessageDO;
-import cn.rbac.server.modules.system.dal.dataobject.notice.NoticeDO;
-import cn.rbac.server.modules.system.dal.mysql.notice.NoticeMapper;
 import cn.rbac.server.modules.system.service.message.AnnounceService;
+import cn.rbac.server.modules.system.service.message.NoticeService;
 import cn.rbac.server.modules.system.dal.dataobject.file.SysFileDO;
 import cn.rbac.server.modules.system.service.message.ChatService;
 import cn.rbac.server.modules.system.service.message.vo.ChatGroupLogVO;
 import cn.rbac.server.modules.system.service.file.SysFileService;
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -312,15 +310,13 @@ class MessageCenterController {
     @Resource
     private ChatService chatService;
     @Resource
-    private NoticeMapper noticeMapper;
+    private NoticeService noticeService;
 
     @GetMapping("/summary")
     @Operation(summary = "未读汇总")
     public CommonResult<Map<String, Long>> summary() {
         Long userId = SecurityUtils.getLoginUserId();
-        long inbox = noticeMapper.selectCount(new LambdaQueryWrapper<NoticeDO>()
-                .eq(NoticeDO::getUserId, userId)
-                .eq(NoticeDO::getReadStatus, 0));
+        long inbox = noticeService.unreadCount(userId);
         long announce = announceService.unreadCount(userId);
         long chat = chatService.unreadCount(userId);
         Map<String, Long> map = new HashMap<>();

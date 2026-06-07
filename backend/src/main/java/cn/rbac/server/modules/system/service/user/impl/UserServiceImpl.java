@@ -33,6 +33,9 @@ import java.util.stream.Collectors;
 @Service
 public class UserServiceImpl implements UserService {
 
+    /** /list 接口最大返回条数（供下拉选择，非管理列表） */
+    private static final int LIST_ALL_MAX = 2000;
+
     @Resource
     private UserMapper userMapper;
     @Resource
@@ -50,7 +53,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public List<UserDO> listAll() {
-        return userMapper.selectList(null);
+        return userMapper.selectListForOptions(LIST_ALL_MAX);
     }
 
     @Override
