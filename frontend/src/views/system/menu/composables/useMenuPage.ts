@@ -11,6 +11,7 @@ import {
   type MenuListQuery,
 } from '@/api/system/menu'
 import {
+  applyMenuAdminDisplayTree,
   buildParentMenuOptions,
   countMenuTypes,
   flattenMenuTree,
@@ -27,6 +28,7 @@ export function useMenuPage() {
   const formRef = ref<FormInstance | null>(null)
   const tableRef = ref<TableInstance | null>(null)
   const expandAll = ref(false)
+  const tableKey = ref(0)
 
   const queryParams = reactive<MenuListQuery>({
     name: '',
@@ -60,8 +62,9 @@ export function useMenuPage() {
     loading.value = true
     try {
       const res = await getMenuList(queryParams)
-      menuList.value = res.data || []
+      menuList.value = applyMenuAdminDisplayTree(res.data || [])
       parentOptions.value = buildParentMenuOptions(menuList.value)
+      tableKey.value += 1
     } finally {
       loading.value = false
     }
@@ -144,6 +147,7 @@ export function useMenuPage() {
       if (row.id == null || row.status == null) return
       await updateMenuStatus(row.id, row.status)
       ElMessage.success(`${text}成功`)
+      await getList()
     } catch {
       row.status = row.status === 1 ? 0 : 1
     }
@@ -223,6 +227,7 @@ export function useMenuPage() {
     formRef,
     tableRef,
     expandAll,
+    tableKey,
     queryParams,
     form,
     rules,

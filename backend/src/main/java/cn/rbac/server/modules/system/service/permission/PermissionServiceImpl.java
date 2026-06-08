@@ -82,7 +82,7 @@ public class PermissionServiceImpl implements PermissionService {
         if (CollUtil.isEmpty(ids)) {
             return ids;
         }
-        List<MenuDO> menus = listMenusByIds(ids);
+        List<MenuDO> menus = listMenusByIds(ids, true);
         Set<Long> parentIdsInAssigned = menus.stream()
                 .map(MenuDO::getId)
                 .filter(id -> menus.stream().anyMatch(m -> id.equals(m.getParentId())))
@@ -184,10 +184,18 @@ public class PermissionServiceImpl implements PermissionService {
     }
 
     private List<MenuDO> listMenusByIds(Collection<Long> ids) {
+        return listMenusByIds(ids, false);
+    }
+
+    private List<MenuDO> listMenusByIds(Collection<Long> ids, boolean includeDisabled) {
         if (CollUtil.isEmpty(ids)) {
             return Collections.emptyList();
         }
-        return menuMapper.selectList(new LambdaQueryWrapper<MenuDO>().in(MenuDO::getId, ids));
+        LambdaQueryWrapper<MenuDO> wrapper = new LambdaQueryWrapper<MenuDO>().in(MenuDO::getId, ids);
+        if (!includeDisabled) {
+            wrapper.eq(MenuDO::getStatus, 1);
+        }
+        return menuMapper.selectList(wrapper);
     }
 
     @Override
@@ -218,11 +226,33 @@ public class PermissionServiceImpl implements PermissionService {
             return new ArrayList<>();
         }
         menuIds = expandMenuClosure(menuIds);
-        List<MenuDO> menus = listMenusByIds(menuIds);
+        List<MenuDO> allMenus = menuMapper.selectList(new LambdaQueryWrapper<MenuDO>()
+                .orderByAsc(MenuDO::getSort)
+                .orderByAsc(MenuDO::getId));
+        Map<Long, MenuDO> allById = allMenus.stream()
+                .collect(Collectors.toMap(MenuDO::getId, m -> m, (a, b) -> a));
+        List<MenuDO> menus = listMenusByIds(menuIds).stream()
+                .filter(m -> !hasDisabledAncestor(m.getParentId(), allById))
+                .collect(Collectors.toList());
         menus.sort(Comparator
                 .comparing(MenuDO::getSort, Comparator.nullsLast(Integer::compareTo))
                 .thenComparing(MenuDO::getId, Comparator.nullsLast(Long::compareTo)));
         return menus;
+    }
+
+    private boolean hasDisabledAncestor(Long parentId, Map<Long, MenuDO> allById) {
+        Long pid = parentId == null ? 0L : parentId;
+        while (pid != 0L) {
+            MenuDO parent = allById.get(pid);
+            if (parent == null) {
+                break;
+            }
+            if (parent.getStatus() != null && parent.getStatus() == 0) {
+                return true;
+            }
+            pid = parent.getParentId() == null ? 0L : parent.getParentId();
+        }
+        return false;
     }
 
     /**

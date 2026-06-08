@@ -1,5 +1,21 @@
 <template>
-  <div class="app-container menu-page">
+  <div class="app-container module-page menu-page">
+    <el-card class="search-card module-hero-card" shadow="never">
+      <div class="module-hero-row">
+        <div class="module-hero-text">
+          <div class="module-hero-title">
+            <ModulePageIcon :icon="MODULE_PAGE_ICON.menu" />
+            <span>菜单管理</span>
+          </div>
+          <p class="module-hero-desc">维护目录、菜单与按钮权限；禁用的菜单仍在此列表显示，侧栏需重新登录后更新</p>
+        </div>
+        <div class="module-hero-stats">
+          <div class="stat-num">{{ menuStats.total }}</div>
+          <div class="stat-label">菜单项</div>
+        </div>
+      </div>
+    </el-card>
+
     <el-card class="menu-card" shadow="never">
       <MenuSearchToolbar
         :query-params="queryParams"
@@ -13,6 +29,7 @@
 
       <MenuTreeTable
         ref="tableComponentRef"
+        :table-key="tableKey"
         :menu-list="menuList"
         :loading="loading"
         :expand-all="expandAll"
@@ -41,6 +58,8 @@
 
 <script setup lang="ts">
 import { ref, watchEffect } from 'vue'
+import ModulePageIcon from '@/components/ModulePageIcon.vue'
+import { MODULE_PAGE_ICON } from '@/constants/module-page-icons'
 import MenuSearchToolbar from './MenuSearchToolbar.vue'
 import MenuTreeTable from './MenuTreeTable.vue'
 import MenuFormDialog from './MenuFormDialog.vue'
@@ -59,6 +78,7 @@ const {
   formRef,
   tableRef,
   expandAll,
+  tableKey,
   queryParams,
   form,
   rules,
@@ -89,6 +109,7 @@ watchEffect(() => {
 
 .menu-card {
   border-radius: 8px;
+  margin-bottom: 0;
 }
 
 .menu-card :deep(.el-card__body) {

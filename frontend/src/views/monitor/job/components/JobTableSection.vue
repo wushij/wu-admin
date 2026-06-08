@@ -1,5 +1,5 @@
 <template>
-  <el-card shadow="never" class="table-card">
+  <el-card shadow="never" class="search-card module-search-card table-card">
     <template #header>
       <div class="card-header-row">
         <span>任务列表</span>
@@ -12,7 +12,7 @@
       </div>
     </template>
 
-    <el-form :model="queryParams" inline class="search-form">
+    <el-form :model="queryParams" inline class="module-search-form">
       <el-form-item label="任务名称">
         <el-input
           v-model="queryParams.jobName"
@@ -35,8 +35,8 @@
         </el-select>
       </el-form-item>
       <el-form-item>
-        <el-button type="primary" @click="$emit('search')">搜索</el-button>
-        <el-button @click="$emit('reset')">重置</el-button>
+        <el-button type="primary" :icon="Search" @click="$emit('search')">搜索</el-button>
+        <el-button :icon="Refresh" @click="$emit('reset')">重置</el-button>
       </el-form-item>
     </el-form>
 
@@ -108,7 +108,7 @@
       </el-table-column>
     </el-table>
 
-    <div class="pagination-container">
+    <div class="table-pagination">
       <el-pagination
         v-model:current-page="queryParams.pageNo"
         v-model:page-size="queryParams.pageSize"
@@ -124,7 +124,7 @@
 </template>
 
 <script setup lang="ts">
-import { Plus, List, Refresh } from '@element-plus/icons-vue'
+import { Plus, List, Refresh, Search } from '@element-plus/icons-vue'
 import RecycleCenterLink from '@/components/RecycleCenterLink.vue'
 import type { SysJob } from '@/api/monitor/job'
 import { groupTagType } from '../constants/cronPresets'
@@ -167,9 +167,6 @@ defineEmits<{
   align-items: center;
   gap: 8px;
 }
-.search-form {
-  margin-bottom: 4px;
-}
 .table-toolbar {
   margin-bottom: 12px;
   display: flex;
@@ -208,11 +205,6 @@ defineEmits<{
 }
 .text-muted {
   color: #c0c4cc;
-}
-.pagination-container {
-  margin-top: 16px;
-  display: flex;
-  justify-content: flex-end;
 }
 .action-buttons {
   display: flex;

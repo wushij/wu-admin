@@ -1,11 +1,11 @@
 -- =============================================================================
--- add13.sql  本地增量补丁 #13（可重复执行，MySQL 8+）
+-- add13_wuadmin.sql  生产/服务器增量补丁 #13（可重复执行，MySQL 5.6+）
 -- =============================================================================
 -- gen_table 软删除 + 回收中心支持；唯一索引改为 (table_name, deleted)
--- 用法: mysql -u root -p wu-admin < sql/add13.sql
+-- 用法: mysql -u wuadmin -p wuadmin < sql/add13_wuadmin.sql
 -- =============================================================================
 
-USE `wu-admin`;
+USE `wuadmin`;
 SET NAMES utf8mb4;
 
 SET @col_exists := (
@@ -78,4 +78,4 @@ CALL sp_add_unique_index_if_not_exists('gen_table', 'uk_gen_table_name_deleted',
 DROP PROCEDURE IF EXISTS sp_drop_index_if_exists;
 DROP PROCEDURE IF EXISTS sp_add_unique_index_if_not_exists;
 
-SELECT '[OK] add13.sql finished (#13 gen recycle)' AS result;
+SELECT '[OK] add13_wuadmin.sql finished (#13 gen recycle)' AS result;

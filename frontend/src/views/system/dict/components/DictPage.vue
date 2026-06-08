@@ -1,5 +1,21 @@
 <template>
-  <div class="app-container dict-page">
+  <div class="app-container module-page dict-page">
+    <el-card class="search-card module-hero-card" shadow="never">
+      <div class="module-hero-row">
+        <div class="module-hero-text">
+          <div class="module-hero-title">
+            <ModulePageIcon :icon="MODULE_PAGE_ICON.dict" />
+            <span>字典管理</span>
+          </div>
+          <p class="module-hero-desc">左侧选择字典类型，右侧维护选项；业务表单通过 DictSelect / DictTag 引用类型编码</p>
+        </div>
+        <div class="module-hero-stats">
+          <div class="stat-num">{{ total }}</div>
+          <div class="stat-label">字典类型</div>
+        </div>
+      </div>
+    </el-card>
+
     <DictSearchCard :query-params="queryParams" @query="handleQuery" @reset="resetQuery" />
 
     <div class="dict-layout">
@@ -54,6 +70,8 @@
 
 <script setup lang="ts">
 import { ref, watchEffect } from 'vue'
+import ModulePageIcon from '@/components/ModulePageIcon.vue'
+import { MODULE_PAGE_ICON } from '@/constants/module-page-icons'
 import DictSearchCard from './DictSearchCard.vue'
 import DictTypePanel from './DictTypePanel.vue'
 import DictDataPanel from './DictDataPanel.vue'

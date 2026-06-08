@@ -1,5 +1,5 @@
 <template>
-  <div class="app-container server-monitor-page">
+  <div class="app-container module-page server-monitor-page">
     <el-alert
       v-if="!canList"
       type="warning"
@@ -10,7 +10,23 @@
     />
 
     <template v-if="canList">
-      <div class="hero-row">
+      <el-card class="search-card module-hero-card" shadow="never">
+        <div class="module-hero-row">
+          <div class="module-hero-text">
+            <div class="module-hero-title">
+              <ModulePageIcon :icon="MODULE_PAGE_ICON.server" />
+              <span>服务器监控</span>
+            </div>
+            <p class="module-hero-desc">JMX 实时采集本机 CPU、内存、磁盘与 JVM 运行状态</p>
+          </div>
+          <div class="module-hero-stats">
+            <div class="stat-num">{{ cpuDisplay }}</div>
+            <div class="stat-label">CPU 使用率</div>
+          </div>
+        </div>
+      </el-card>
+
+      <div class="stat-row">
         <el-card shadow="never" class="stat-card stat-cpu">
           <div class="stat-label">CPU</div>
           <div class="stat-value">{{ cpuDisplay }}</div>
@@ -205,6 +221,8 @@
 
 <script setup lang="ts">
 import { Coin, Cpu, Loading, Monitor, Platform } from '@element-plus/icons-vue'
+import ModulePageIcon from '@/components/ModulePageIcon.vue'
+import { MODULE_PAGE_ICON } from '@/constants/module-page-icons'
 import { useServerMonitorPage } from '../composables/useServerMonitorPage'
 
 const {
@@ -245,7 +263,8 @@ function formatLoad(val?: number | null) {
     margin-bottom: 16px;
   }
 
-  .hero-row {
+  .hero-row,
+  .stat-row {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     gap: 16px;

@@ -1,9 +1,9 @@
-package com.admin.server.modules.${moduleName}.service.${businessName}.impl;
+package cn.rbac.server.modules.system.service.${businessName}.impl;
 
-import com.admin.server.common.core.PageResult;
-import com.admin.server.modules.${moduleName}.dal.dataobject.${businessName}.${className}DO;
-import com.admin.server.modules.${moduleName}.dal.mysql.${businessName}.${className}Mapper;
-import com.admin.server.modules.${moduleName}.service.${businessName}.${className}Service;
+import cn.rbac.server.common.pojo.PageResult;
+import cn.rbac.server.modules.system.dal.dataobject.${businessName}.${className}DO;
+import cn.rbac.server.modules.system.dal.mysql.${businessName}.${className}Mapper;
+import cn.rbac.server.modules.system.service.${businessName}.${className}Service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;

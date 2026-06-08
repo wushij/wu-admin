@@ -1,20 +1,20 @@
 -- =============================================================================
--- add11.sql  本地增量补丁 #11 + #12（可重复执行）
+-- add11_wuadmin.sql  生产/服务器增量补丁 #11 + #12（可重复执行，MySQL 5.6+）
 -- =============================================================================
--- #11 代码生成：gen_table / gen_table_column + 开发工具菜单
--- #12 gen_table.table_name 唯一约束（防重复导入；兼容旧版仅普通索引）
+-- #11 代码生成：gen_table / gen_table_column + 开发工具菜单（164-169,179）
+-- #12 gen_table.table_name 唯一约束（防重复导入；兼容旧版 add11 仅普通索引）
 --
--- 用法: mysql -u root -p wu-admin < sql/add11.sql
--- 生产(MySQL 5.6+): mysql -u wuadmin -p wuadmin < sql/add11_wuadmin.sql
+-- 用法: mysql -u wuadmin -p wuadmin < sql/add11_wuadmin.sql
+-- 执行后请重新登录以刷新侧栏菜单与权限。
 -- =============================================================================
 
-USE `wu-admin`;
+USE `wuadmin`;
 SET NAMES utf8mb4;
 
 -- ---------- add11：代码生成表 ----------
 CREATE TABLE IF NOT EXISTS gen_table (
   id BIGINT NOT NULL AUTO_INCREMENT COMMENT '编号',
-  table_name VARCHAR(200) DEFAULT '' COMMENT '表名称',
+  table_name VARCHAR(191) DEFAULT '' COMMENT '表名称（191 适配 MySQL5.6 utf8mb4 唯一索引 767 字节上限）',
   table_comment VARCHAR(500) DEFAULT '' COMMENT '表描述',
   class_name VARCHAR(100) DEFAULT '' COMMENT '实体类名称',
   package_name VARCHAR(100) DEFAULT '' COMMENT '生成包路径',
@@ -148,4 +148,4 @@ CALL sp_add_unique_index_if_not_exists('gen_table', 'uk_gen_table_name', 'table_
 DROP PROCEDURE IF EXISTS sp_drop_index_if_exists;
 DROP PROCEDURE IF EXISTS sp_add_unique_index_if_not_exists;
 
-SELECT '[OK] add11.sql finished (#11+#12)' AS result;
+SELECT '[OK] add11_wuadmin.sql finished (#11+#12)' AS result;

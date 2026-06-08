@@ -7,9 +7,14 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import org.springframework.stereotype.Service;
 
 import jakarta.annotation.Resource;
+
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 @Service
@@ -20,19 +25,27 @@ public class MenuServiceImpl implements MenuService {
 
     @Override
     public List<MenuDO> listTree(String name, Integer status, Integer type) {
-        LambdaQueryWrapper<MenuDO> wrapper = new LambdaQueryWrapper<>();
-        if (name != null && !name.isEmpty()) {
-            wrapper.like(MenuDO::getName, name);
-        }
-        if (status != null) {
-            wrapper.eq(MenuDO::getStatus, status);
-        }
-        if (type != null) {
-            wrapper.eq(MenuDO::getType, type);
-        }
-        wrapper.orderByAsc(MenuDO::getSort).orderByAsc(MenuDO::getId);
-        List<MenuDO> list = menuMapper.selectList(wrapper);
-        return buildTree(list);
+        List<MenuDO> allMenus = menuMapper.selectList(new LambdaQueryWrapper<MenuDO>()
+                .orderByAsc(MenuDO::getSort)
+                .orderByAsc(MenuDO::getId));
+        Map<Long, MenuDO> allById = allMenus.stream()
+                .collect(Collectors.toMap(MenuDO::getId, m -> m, (a, b) -> a));
+
+        Predicate<MenuDO> matchesFilter = menu -> {
+            if (name != null && !name.isEmpty() && (menu.getName() == null || !menu.getName().contains(name))) {
+                return false;
+            }
+            if (status != null && !Objects.equals(status, menu.getStatus())) {
+                return false;
+            }
+            if (type != null && !Objects.equals(type, menu.getType())) {
+                return false;
+            }
+            return !hasDisabledAncestor(menu.getParentId(), allById);
+        };
+
+        List<MenuDO> filtered = allMenus.stream().filter(matchesFilter).toList();
+        return buildTree(filtered, allById);
     }
 
     @Override
@@ -45,13 +58,64 @@ public class MenuServiceImpl implements MenuService {
         menuMapper.deleteById(id);
     }
 
-    private List<MenuDO> buildTree(List<MenuDO> menus) {
+    private List<MenuDO> buildTree(List<MenuDO> menus, Map<Long, MenuDO> allById) {
+        Set<Long> idSet = menus.stream().map(MenuDO::getId).collect(Collectors.toSet());
         Map<Long, List<MenuDO>> parentMap = menus.stream()
                 .collect(Collectors.groupingBy(m -> m.getParentId() == null ? 0L : m.getParentId()));
-        menus.forEach(m -> {
-            List<MenuDO> children = parentMap.get(m.getId());
-            m.setChildren(children == null || children.isEmpty() ? null : children);
-        });
-        return parentMap.getOrDefault(0L, new ArrayList<>());
+        for (MenuDO menu : menus) {
+            attachVisibleChildren(menu, parentMap, allById);
+        }
+        List<MenuDO> roots = new ArrayList<>(parentMap.getOrDefault(0L, List.of()));
+        for (MenuDO menu : menus) {
+            Long parentId = menu.getParentId() == null ? 0L : menu.getParentId();
+            if (parentId != 0L && !idSet.contains(parentId)) {
+                roots.add(menu);
+            }
+        }
+        roots.sort(Comparator
+                .comparing(MenuDO::getSort, Comparator.nullsLast(Integer::compareTo))
+                .thenComparing(MenuDO::getId, Comparator.nullsLast(Long::compareTo)));
+        return roots;
+    }
+
+    private void attachVisibleChildren(MenuDO node, Map<Long, List<MenuDO>> parentMap,
+                                       Map<Long, MenuDO> allById) {
+        if (isDisabled(node)) {
+            node.setChildren(null);
+            return;
+        }
+        List<MenuDO> rawChildren = parentMap.get(node.getId());
+        if (rawChildren == null || rawChildren.isEmpty()) {
+            node.setChildren(null);
+            return;
+        }
+        List<MenuDO> visibleChildren = new ArrayList<>();
+        for (MenuDO child : rawChildren) {
+            if (hasDisabledAncestor(child.getParentId(), allById)) {
+                continue;
+            }
+            visibleChildren.add(child);
+            attachVisibleChildren(child, parentMap, allById);
+        }
+        node.setChildren(visibleChildren.isEmpty() ? null : visibleChildren);
+    }
+
+    private boolean hasDisabledAncestor(Long parentId, Map<Long, MenuDO> allById) {
+        Long pid = parentId == null ? 0L : parentId;
+        while (pid != 0L) {
+            MenuDO parent = allById.get(pid);
+            if (parent == null) {
+                break;
+            }
+            if (isDisabled(parent)) {
+                return true;
+            }
+            pid = parent.getParentId() == null ? 0L : parent.getParentId();
+        }
+        return false;
+    }
+
+    private boolean isDisabled(MenuDO menu) {
+        return menu != null && menu.getStatus() != null && menu.getStatus() == 0;
     }
 }

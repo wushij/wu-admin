@@ -1,6 +1,6 @@
-package com.admin.server.modules.${moduleName}.dal.mysql.${businessName};
+package cn.rbac.server.modules.system.dal.mysql.${businessName};
 
-import com.admin.server.modules.${moduleName}.dal.dataobject.${businessName}.${className}DO;
+import cn.rbac.server.modules.system.dal.dataobject.${businessName}.${className}DO;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import org.apache.ibatis.annotations.Mapper;
 

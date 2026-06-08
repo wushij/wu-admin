@@ -16,5 +16,6 @@ public class RecycleSummaryVO {
     private long announce;
     private long job;
     private long file;
+    private long gen;
     private long total;
 }

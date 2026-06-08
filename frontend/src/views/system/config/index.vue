@@ -1,9 +1,25 @@
 <template>
-  <div class="app-container">
+  <div class="app-container module-page config-page">
+    <el-card class="search-card module-hero-card" shadow="never">
+      <div class="module-hero-row">
+        <div class="module-hero-text">
+          <div class="module-hero-title">
+            <ModulePageIcon :icon="MODULE_PAGE_ICON.config" />
+            <span>系统配置</span>
+          </div>
+          <p class="module-hero-desc">平台运行参数集中维护，修改后请点击底部「保存全部」生效</p>
+        </div>
+        <div class="module-hero-stats">
+          <div class="stat-num">{{ configTabCount }}</div>
+          <div class="stat-label">配置分组</div>
+        </div>
+      </div>
+    </el-card>
+
     <el-card v-loading="loading">
       <template #header>
         <div class="card-header">
-          <span>系统配置</span>
+          <span>配置详情</span>
           <span v-if="isDirty" class="dirty-hint">有未保存的修改</span>
         </div>
       </template>
@@ -119,7 +135,11 @@
 <script setup lang="ts">
 import { computed, watch, onMounted } from 'vue'
 import { onBeforeRouteLeave } from 'vue-router'
+import ModulePageIcon from '@/components/ModulePageIcon.vue'
+import { MODULE_PAGE_ICON } from '@/constants/module-page-icons'
 import { ElMessageBox } from 'element-plus'
+
+const configTabCount = 10
 import SiteConfigTab from './components/SiteConfigTab.vue'
 import SessionConfigTab from './components/SessionConfigTab.vue'
 import FileConfigTab from './components/FileConfigTab.vue'

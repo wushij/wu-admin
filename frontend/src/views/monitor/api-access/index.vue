@@ -1,5 +1,5 @@
 <template>
-  <div class="app-container api-access-page">
+  <div class="app-container module-page api-access-page">
     <el-alert
       v-if="!canQuery"
       type="warning"
@@ -10,6 +10,18 @@
     />
 
     <template v-if="canQuery">
+      <el-card class="search-card module-hero-card" shadow="never">
+        <div class="module-hero-row">
+          <div class="module-hero-text">
+            <div class="module-hero-title">
+              <ModulePageIcon :icon="MODULE_PAGE_ICON.apiAccess" />
+              <span>API 访问统计</span>
+            </div>
+            <p class="module-hero-desc">近 7 日接口访问概览，支持路径、方法与用户维度分析</p>
+          </div>
+        </div>
+      </el-card>
+
       <el-row :gutter="16" class="stats-cards">
         <el-col :span="8">
           <el-card shadow="hover" class="stat-card">
@@ -61,30 +73,19 @@
           border
           stripe
           empty-text="暂无用户访问记录"
-          :header-cell-style="{ textAlign: 'center' }"
-          :cell-style="{ textAlign: 'center' }"
+          :header-cell-style="tableHeaderStyle"
+          :cell-style="tableCellStyle"
         >
-          <el-table-column label="排名" width="80">
+          <el-table-column label="排名" width="80" align="center" header-align="center">
             <template #default="{ $index }">{{ $index + 1 }}</template>
           </el-table-column>
-          <el-table-column prop="username" label="用户名" min-width="140" show-overflow-tooltip />
-          <el-table-column prop="count" label="访问次数" width="120" sortable />
+          <el-table-column prop="username" label="用户名" min-width="140" align="center" header-align="center" show-overflow-tooltip />
+          <el-table-column prop="count" label="访问次数" width="120" align="center" header-align="center" sortable />
         </el-table>
       </el-card>
 
-      <el-card class="table-card">
-        <template #header>
-          <div class="card-header">
-            <span>访问日志明细</span>
-            <ListExportButton
-              module="api-access"
-              :query-params="queryParams"
-              :extra-params="exportExtraParams"
-              permission="monitor:apiAccess:query"
-            />
-          </div>
-        </template>
-        <el-form :model="queryParams" inline class="search-form">
+      <el-card class="search-card module-search-card" shadow="never">
+        <el-form :model="queryParams" inline class="module-search-form">
           <el-form-item label="用户">
             <el-select
               v-model="queryParams.userId"
@@ -130,27 +131,48 @@
             />
           </el-form-item>
           <el-form-item>
-            <el-button type="primary" @click="handleQuery">搜索</el-button>
-            <el-button @click="resetQuery">重置</el-button>
+            <el-button type="primary" :icon="Search" @click="handleQuery">搜索</el-button>
+            <el-button :icon="Refresh" @click="resetQuery">重置</el-button>
           </el-form-item>
         </el-form>
+      </el-card>
 
-        <el-table :data="tableData" v-loading="loading" border stripe>
-          <el-table-column prop="id" label="ID" width="70" align="center" />
-          <el-table-column prop="username" label="用户名" width="120" align="center" show-overflow-tooltip />
-          <el-table-column prop="apiPath" label="API 路径" min-width="220" show-overflow-tooltip />
-          <el-table-column prop="method" label="方法" width="80" align="center" />
-          <el-table-column prop="statusCode" label="状态码" width="90" align="center" />
-          <el-table-column prop="success" label="成功" width="80" align="center">
+      <el-card class="table-card">
+        <template #header>
+          <div class="card-header">
+            <span>访问日志明细</span>
+            <ListExportButton
+              module="api-access"
+              :query-params="queryParams"
+              :extra-params="exportExtraParams"
+              permission="monitor:apiAccess:query"
+            />
+          </div>
+        </template>
+
+        <el-table
+          :data="tableData"
+          v-loading="loading"
+          border
+          stripe
+          :header-cell-style="tableHeaderStyle"
+          :cell-style="tableCellStyle"
+        >
+          <el-table-column prop="id" label="ID" width="70" align="center" header-align="center" />
+          <el-table-column prop="username" label="用户名" width="120" align="center" header-align="center" show-overflow-tooltip />
+          <el-table-column prop="apiPath" label="API 路径" min-width="220" align="center" header-align="center" show-overflow-tooltip />
+          <el-table-column prop="method" label="方法" width="80" align="center" header-align="center" />
+          <el-table-column prop="statusCode" label="状态码" width="90" align="center" header-align="center" />
+          <el-table-column prop="success" label="成功" width="80" align="center" header-align="center">
             <template #default="{ row }">
               <el-tag :type="row.success === 1 ? 'success' : 'danger'" size="small">
                 {{ row.success === 1 ? '是' : '否' }}
               </el-tag>
             </template>
           </el-table-column>
-          <el-table-column prop="costTime" label="耗时(ms)" width="100" align="center" />
-          <el-table-column prop="ip" label="IP" width="130" align="center" />
-          <el-table-column prop="startTime" label="请求时间" width="180" align="center" />
+          <el-table-column prop="costTime" label="耗时(ms)" width="100" align="center" header-align="center" />
+          <el-table-column prop="ip" label="IP" width="130" align="center" header-align="center" />
+          <el-table-column prop="startTime" label="请求时间" width="180" align="center" header-align="center" />
         </el-table>
 
         <el-pagination
@@ -159,7 +181,7 @@
           :total="total"
           :page-sizes="[10, 20, 50, 100]"
           layout="total, sizes, prev, pager, next, jumper"
-          class="pagination"
+          class="table-pagination"
           @size-change="loadPage"
           @current-change="loadPage"
         />
@@ -170,6 +192,9 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { Search, Refresh } from '@element-plus/icons-vue'
+import ModulePageIcon from '@/components/ModulePageIcon.vue'
+import { MODULE_PAGE_ICON } from '@/constants/module-page-icons'
 import ListExportButton from '@/components/ListExportButton.vue'
 import type { ECharts } from 'echarts'
 import type { CallbackDataParams } from 'echarts/types/dist/shared'
@@ -186,6 +211,9 @@ import {
   type ApiAccessStatsView,
   type ApiAccessTopUser,
 } from '@/api/monitor/api-access'
+
+const tableHeaderStyle = { textAlign: 'center' as const }
+const tableCellStyle = { textAlign: 'center' as const }
 
 const userStore = useUserStore()
 const canQuery = computed(() => hasMenuPermission(userStore.menus, 'monitor:apiAccess:query'))
@@ -446,20 +474,6 @@ onUnmounted(() => {
   }
   .user-rank-card {
     margin-bottom: 16px;
-  }
-  .table-card {
-    .card-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    .search-form {
-      margin-bottom: 12px;
-    }
-    .pagination {
-      margin-top: 16px;
-      justify-content: flex-end;
-    }
   }
 }
 </style>
