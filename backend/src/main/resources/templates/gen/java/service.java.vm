@@ -1,0 +1,17 @@
+package cn.rbac.server.modules.system.service.${businessName};
+
+import cn.rbac.server.common.pojo.PageResult;
+import cn.rbac.server.modules.system.dal.dataobject.${businessName}.${className}DO;
+
+public interface ${className}Service {
+
+    PageResult<${className}DO> page(Integer pageNo, Integer pageSize#foreach($column in $columns)#if($column.isQuery == 1), $column.javaType $column.javaField#end#end);
+
+    ${className}DO getById(${pkColumn.javaType} id);
+
+    void create(${className}DO entity);
+
+    void update(${className}DO entity);
+
+    void delete(${pkColumn.javaType} id);
+}

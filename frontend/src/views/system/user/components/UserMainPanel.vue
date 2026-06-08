@@ -1,6 +1,6 @@
 <template>
-  <el-card class="search-card">
-    <el-form :model="queryParams" inline>
+  <el-card class="search-card module-search-card" shadow="never">
+    <el-form :model="queryParams" inline class="module-search-form">
       <el-form-item label="用户名">
         <el-input v-model="queryParams.username" placeholder="请输入用户名" clearable />
       </el-form-item>
@@ -17,8 +17,8 @@
         />
       </el-form-item>
       <el-form-item>
-        <el-button type="primary" @click="$emit('query')">搜索</el-button>
-        <el-button @click="$emit('reset-query')">重置</el-button>
+        <el-button type="primary" :icon="Search" @click="$emit('query')">搜索</el-button>
+        <el-button :icon="RefreshIcon" @click="$emit('reset-query')">重置</el-button>
       </el-form-item>
     </el-form>
   </el-card>
@@ -39,16 +39,16 @@
       v-loading="loading"
       border
       stripe
-      :header-cell-style="{ textAlign: 'center' }"
-      :cell-style="{ textAlign: 'center' }"
+      :header-cell-style="tableHeaderStyle"
+      :cell-style="tableCellStyle"
     >
-      <el-table-column prop="id" label="ID" width="80" />
-      <el-table-column prop="username" label="用户名" width="120" />
-      <el-table-column prop="nickname" label="昵称" width="120" />
-      <el-table-column prop="mobile" label="手机号" width="130" />
-      <el-table-column prop="deptName" label="部门" width="120" show-overflow-tooltip />
-      <el-table-column prop="postNames" label="岗位" min-width="140" show-overflow-tooltip />
-      <el-table-column prop="status" label="状态" width="110">
+      <el-table-column prop="id" label="ID" width="80" align="center" header-align="center" />
+      <el-table-column prop="username" label="用户名" width="120" align="center" header-align="center" />
+      <el-table-column prop="nickname" label="昵称" width="120" align="center" header-align="center" />
+      <el-table-column prop="mobile" label="手机号" width="130" align="center" header-align="center" />
+      <el-table-column prop="deptName" label="部门" width="120" align="center" header-align="center" show-overflow-tooltip />
+      <el-table-column prop="postNames" label="岗位" min-width="140" align="center" header-align="center" show-overflow-tooltip />
+      <el-table-column prop="status" label="状态" width="110" align="center" header-align="center">
         <template #default="{ row }">
           <el-tag v-if="row.status === 2" type="warning">待审核</el-tag>
           <el-tag v-else-if="row.status === 3" type="danger">审核驳回</el-tag>
@@ -62,8 +62,8 @@
           />
         </template>
       </el-table-column>
-      <el-table-column prop="createTime" label="创建时间" width="180" />
-      <el-table-column label="操作" width="180" fixed="right" align="center">
+      <el-table-column prop="createTime" label="创建时间" width="180" align="center" header-align="center" />
+      <el-table-column label="操作" width="180" fixed="right" align="center" header-align="center">
         <template #default="{ row }">
           <div class="action-buttons">
             <el-button type="primary" size="small" v-permission="'system:user:update'" @click="$emit('edit', row)">
@@ -77,7 +77,7 @@
               <el-button type="primary" size="small">更多</el-button>
               <template #dropdown>
                 <el-dropdown-menu>
-                  <el-dropdown-item v-permission="'system:user:update'" command="resetPwd" :icon="Refresh">
+                  <el-dropdown-item v-permission="'system:user:update'" command="resetPwd" :icon="RefreshIcon">
                     重置密码
                   </el-dropdown-item>
                   <el-dropdown-item v-permission="'system:user:update'" command="assignRole" :icon="User">
@@ -104,6 +104,7 @@
       :total="total"
       :page-sizes="[10, 20, 50, 100]"
       layout="total, sizes, prev, pager, next, jumper"
+      class="table-pagination"
       @size-change="$emit('load')"
       @current-change="$emit('load')"
     />
@@ -111,7 +112,10 @@
 </template>
 
 <script setup lang="ts">
-import { Refresh, User, Delete } from '@element-plus/icons-vue'
+import { Search, Refresh as RefreshIcon, User, Delete } from '@element-plus/icons-vue'
+
+const tableHeaderStyle = { textAlign: 'center' as const }
+const tableCellStyle = { textAlign: 'center' as const }
 import ListExportButton from '@/components/ListExportButton.vue'
 import RecycleCenterLink from '@/components/RecycleCenterLink.vue'
 import type { UserVO, UserPageQuery } from '@/api/system/user'
@@ -135,32 +139,6 @@ defineEmits<{
 </script>
 
 <style scoped>
-.search-card {
-  margin-bottom: 20px;
-}
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-.header-actions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.el-pagination {
-  margin-top: 20px;
-  justify-content: flex-end;
-}
-.action-buttons {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-}
-.action-buttons .el-button {
-  margin: 0;
-}
 :deep(.dropdown-item-danger) {
   color: #f56c6c !important;
 }

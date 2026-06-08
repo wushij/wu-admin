@@ -152,6 +152,83 @@
   margin: 0;
 }
 
+/* 模块页：代码生成 / 审批单 / 工单等统一头图与搜索区 */
+.module-page {
+  .module-hero-card {
+    margin-bottom: var(--admin-page-gap);
+    background: linear-gradient(135deg, var(--theme-primary, #111827) 0%, #374151 100%);
+    border: none !important;
+    color: #fff;
+
+    .el-card__body {
+      padding: 20px 24px;
+    }
+  }
+
+  .module-hero-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+  }
+
+  .module-hero-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+
+  .module-hero-desc {
+    margin: 0;
+    font-size: 13px;
+    opacity: 0.85;
+  }
+
+  .module-hero-stats {
+    text-align: center;
+    min-width: 88px;
+  }
+
+  .module-hero-stats .stat-num {
+    font-size: 28px;
+    font-weight: 700;
+    line-height: 1.2;
+  }
+
+  .module-hero-stats .stat-label {
+    margin-top: 4px;
+    font-size: 12px;
+    opacity: 0.8;
+  }
+
+  .module-search-card .el-card__body {
+    padding: 8px 16px;
+  }
+
+  .module-search-form .el-form-item {
+    margin-bottom: 0;
+  }
+
+  .card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .header-actions {
+    display: flex;
+    gap: 8px;
+  }
+
+  .table-pagination {
+    margin-top: 16px;
+    justify-content: flex-end;
+  }
+}
+
 /* 统计卡片（API 访问等） */
 .api-access-page .stat-card {
   border-radius: var(--admin-radius-lg) !important;

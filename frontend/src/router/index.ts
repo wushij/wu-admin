@@ -47,7 +47,7 @@ const routes: RouteRecordRaw[] = [
         path: 'system/menu',
         name: 'SystemMenu',
         component: () => import('@/views/system/menu/index.vue'),
-        meta: { title: '菜单管理', icon: 'tree-table', permission: 'system:menu:list' }
+        meta: { title: '菜单管理', icon: 'Menu', permission: 'system:menu:list' }
       },
       {
         path: 'system/org',
@@ -93,13 +93,13 @@ const routes: RouteRecordRaw[] = [
         path: 'system/file',
         name: 'SystemFile',
         component: () => import('@/views/system/file/index.vue'),
-        meta: { title: '文件列表', icon: 'Folder', permission: 'sys:file:list' }
+        meta: { title: '文件列表', icon: 'Document', permission: 'sys:file:list' }
       },
       {
         path: 'system/ticket',
         name: 'SystemTicket',
         component: () => import('@/views/system/ticket/index.vue'),
-        meta: { title: '工单管理', icon: 'Document', permission: 'system:ticket:list' }
+        meta: { title: '工单管理', icon: 'Tickets', permission: 'system:ticket:list' }
       },
       {
         path: 'system/approval',
@@ -142,6 +142,12 @@ const routes: RouteRecordRaw[] = [
         name: 'ToolApiDoc',
         component: () => import('@/views/tool/api-doc/index.vue'),
         meta: { title: '接口文档', icon: 'Document', permission: 'tool:apiDoc:view' }
+      },
+      {
+        path: 'tool/gen',
+        name: 'ToolGen',
+        component: () => import('@/views/tool/gen/index.vue'),
+        meta: { title: '代码生成', icon: 'DocumentCopy', permission: 'tool:gen:list' }
       },
       {
         path: 'message/notice',

@@ -1,0 +1,22 @@
+/** module-page 头图图标，与 sys_menu.icon 保持一致 */
+export const MODULE_PAGE_ICON = {
+  user: 'User',
+  role: 'UserFilled',
+  menu: 'Menu',
+  org: 'OfficeBuilding',
+  dict: 'Collection',
+  config: 'Tools',
+  recycle: 'Delete',
+  approval: 'Checked',
+  ticket: 'Tickets',
+  file: 'Document',
+  operLog: 'EditPen',
+  loginLog: 'Promotion',
+  notice: 'Notification',
+  apiAccess: 'DataLine',
+  online: 'User',
+  job: 'Timer',
+  cache: 'Coin',
+  server: 'Cpu',
+  gen: 'DocumentCopy',
+} as const

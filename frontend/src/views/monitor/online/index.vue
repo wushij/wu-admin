@@ -1,14 +1,25 @@
 <template>
-  <div class="app-container online-page">
+  <div class="app-container module-page online-page">
+    <el-card class="search-card module-hero-card" shadow="never">
+      <div class="module-hero-row">
+        <div class="module-hero-text">
+          <div class="module-hero-title">
+            <ModulePageIcon :icon="MODULE_PAGE_ICON.online" />
+            <span>在线用户</span>
+          </div>
+          <p class="module-hero-desc">查看当前在线会话，支持强制下线异常或闲置连接</p>
+        </div>
+        <div class="module-hero-stats">
+          <div class="stat-num">{{ total }}</div>
+          <div class="stat-label">当前在线</div>
+        </div>
+      </div>
+    </el-card>
+
     <el-card>
       <template #header>
         <div class="card-header">
-          <div class="header-title">
-            <span>在线用户</span>
-            <el-tag type="success" effect="plain" round size="small">
-              {{ total }} 人在线
-            </el-tag>
-          </div>
+          <span>在线用户列表</span>
           <div class="header-actions">
             <ListExportButton
               module="online-user"
@@ -17,14 +28,13 @@
             />
             <el-button
               type="primary"
+              :icon="Refresh"
               class="refresh-btn"
               :class="{ 'is-refreshing': refreshing }"
+              :loading="refreshing"
               @click="refreshByUser"
             >
-              <span class="refresh-label-wrap">
-                <el-icon v-if="refreshing" class="is-loading refresh-spinner"><Loading /></el-icon>
-                刷新
-              </span>
+              刷新
             </el-button>
           </div>
         </div>
@@ -35,26 +45,26 @@
         v-loading="tableLoading"
         border
         stripe
-        :header-cell-style="{ textAlign: 'center' }"
-        :cell-style="{ textAlign: 'center' }"
+        :header-cell-style="tableHeaderStyle"
+        :cell-style="tableCellStyle"
       >
-        <el-table-column type="index" label="序号" width="60" :index="indexMethod" />
-        <el-table-column prop="loginName" label="用户名" width="120" />
-        <el-table-column prop="deptName" label="部门/昵称" min-width="120" show-overflow-tooltip />
-        <el-table-column prop="ipaddr" label="主机" width="130" />
-        <el-table-column prop="loginLocation" label="登录地点" width="120" />
-        <el-table-column prop="browser" label="浏览器" width="120" show-overflow-tooltip />
-        <el-table-column prop="os" label="操作系统" width="120" show-overflow-tooltip />
-        <el-table-column prop="status" label="会话状态" width="100">
+        <el-table-column type="index" label="序号" width="60" align="center" header-align="center" :index="indexMethod" />
+        <el-table-column prop="loginName" label="用户名" width="120" align="center" header-align="center" />
+        <el-table-column prop="deptName" label="部门/昵称" min-width="120" align="center" header-align="center" show-overflow-tooltip />
+        <el-table-column prop="ipaddr" label="主机" width="130" align="center" header-align="center" />
+        <el-table-column prop="loginLocation" label="登录地点" width="120" align="center" header-align="center" show-overflow-tooltip />
+        <el-table-column prop="browser" label="浏览器" width="120" align="center" header-align="center" show-overflow-tooltip />
+        <el-table-column prop="os" label="操作系统" width="120" align="center" header-align="center" show-overflow-tooltip />
+        <el-table-column prop="status" label="会话状态" width="100" align="center" header-align="center">
           <template #default="{ row }">
             <el-tag :type="row.status === 1 ? 'success' : 'info'" size="small">
               {{ row.status === 1 ? '在线' : '离线' }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="loginTime" label="登录时间" width="180" />
-        <el-table-column prop="lastAccessTime" label="最后访问时间" width="180" />
-        <el-table-column label="操作" width="100" fixed="right" align="center">
+        <el-table-column prop="loginTime" label="登录时间" width="180" align="center" header-align="center" />
+        <el-table-column prop="lastAccessTime" label="最后访问时间" width="180" align="center" header-align="center" />
+        <el-table-column label="操作" width="100" fixed="right" align="center" header-align="center">
           <template #default="{ row }">
             <div class="action-buttons">
               <el-button
@@ -76,7 +86,7 @@
         :total="total"
         :page-sizes="[10, 20, 50, 100]"
         layout="total, sizes, prev, pager, next, jumper"
-        class="pagination"
+        class="table-pagination"
       />
     </el-card>
   </div>
@@ -85,11 +95,16 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Loading } from '@element-plus/icons-vue'
+import { Refresh } from '@element-plus/icons-vue'
+import ModulePageIcon from '@/components/ModulePageIcon.vue'
+import { MODULE_PAGE_ICON } from '@/constants/module-page-icons'
 import ListExportButton from '@/components/ListExportButton.vue'
 import { getOnlineUserList, forceLogoutOnlineUser, type OnlineUser } from '@/api/monitor/online'
 import { useUserStore } from '@/store/user'
 import router from '@/router'
+
+const tableHeaderStyle = { textAlign: 'center' as const }
+const tableCellStyle = { textAlign: 'center' as const }
 
 const userStore = useUserStore()
 const allData = ref<OnlineUser[]>([])
@@ -171,26 +186,7 @@ onMounted(() => loadData(true))
 
 <style scoped lang="scss">
 .online-page {
-  .card-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-  }
-
-  .header-title {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    font-weight: 600;
-  }
-
   .header-actions {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    flex-shrink: 0;
-
     :deep(.list-export-btn) {
       margin: 0;
     }
@@ -198,31 +194,7 @@ onMounted(() => loadData(true))
     .refresh-btn {
       min-width: 80px;
       margin: 0;
-
-      .refresh-label-wrap {
-        position: relative;
-        display: inline-block;
-        line-height: 1;
-      }
-
-      .refresh-spinner {
-        position: absolute;
-        right: calc(100% + 4px);
-        top: 0;
-        bottom: 0;
-        height: 14px;
-        margin: auto 0;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 14px;
-      }
     }
-  }
-
-  .pagination {
-    margin-top: 16px;
-    justify-content: flex-end;
   }
 }
 </style>

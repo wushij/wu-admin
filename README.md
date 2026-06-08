@@ -16,14 +16,14 @@
 | **个人中心** | 顶栏入口 `/profile`：资料编辑、头像上传、**短信验证绑定/更换手机号**（发码前强制滑块）、自助改密、**短信验证重置密码**（忘记当前密码时）、我的登录记录 |
 | **回收中心** | **系统管理 → 回收中心**（`/system/recycle`）：12 类软删数据统一汇总、分页、恢复与彻底删除（见下文） |
 | **列表导出** | 用户、登录/操作日志、工单、审批、API 访问、在线用户等列表支持 **Excel / CSV** 导出（当前筛选 / 全部） |
-| **开发工具** | 内嵌 Knife4j 接口文档（`doc.html`） |
+| **开发工具** | 内嵌 Knife4j 接口文档（`doc.html`）；**代码生成**（导入表结构、字段配置、预览/下载 ZIP、生成至项目并建菜单） |
 | **系统日志** | 操作日志（AOP，含详情）；登录日志（**ip2region IP 归属地**、浏览器解析） |
 | **系统监控** | API 访问统计（ECharts 图表 + 日志列表）、在线用户与强退、**定时任务**（Quartz 调度、内置清理任务，默认暂停）、**缓存监控**（Redis 内存/QPS/命中率/连接数趋势 + SCAN 键管理与详情）、**服务监控**（本机 JMX：CPU/内存/JVM/磁盘） |
 | **文件管理** | 分组 CRUD、按类型筛选；图片/PDF/Office 预览；大小与扩展名受**系统配置**约束 |
 | **流程中心** | **工单**：优先级、截止/超时、评论附件、指派与全员通知（非超管仅看本人相关）；**审批**：请假/采购/报销/用印/合同/通用 + `REGISTER` 注册审核，**详情抽屉内可直接通过/驳回**，支持归档 |
 | **消息中心** | **业务消息**（`sys_notice`，工单/审批触达）、系统通知（全员/用户/部门定向、发送日志）、**企业IM**（私聊/群聊、文件、@、撤回、正在输入等）、WebSocket |
 | **认证安全** | 图片/滑块验证码、**短信验证码登录**（独立开关，与账号验证码分离）、**短信发码前滑块**（可选）、登录失败锁定（用户+IP）、记住我、登录/注册/短信**限流防刷**；账号密码错误统一提示「账号或密码错误」；Sa-Token 会话（Redis db=1） |
-| **界面体验** | 主题色切换；登录/注册页 Three.js 地球 + 粒子背景；顶栏消息铃铛三 Tab |
+| **界面体验** | 主题色切换；登录/注册页 Three.js 地球 + 粒子背景；顶栏消息铃铛三 Tab；管理页统一 **module-page** 头图/搜索/表格样式，Hero 图标与侧栏菜单一致 |
 
 侧栏菜单由 `sys_menu` 按角色动态渲染（超级管理员默认全部）；页面路由在 `frontend/src/router` **静态注册**，新增菜单时需保证 `path` 与路由一致。修改菜单或角色后需**重新登录**刷新侧栏。
 
@@ -76,6 +76,43 @@
 | `ServerMonitorServiceImpl` | 多余的 `@SuppressWarnings("removal")` | 仅在调用 `getSystemCpuLoad()` 的回退方法保留 `@SuppressWarnings("deprecation")` |
 | `SysJobServiceImpl` | 缺少 `PageParam` import 导致启动失败 | 补全 import |
 
+### 代码生成（2026.06）
+
+**开发工具 → 代码生成**（`/tool/gen`，菜单 id=164–169、179），从当前库导入物理表，配置生成信息后一键产出前后端 CRUD 代码。
+
+| 项 | 说明 |
+|------|------|
+| **路由 / 权限** | `/tool/gen`；`tool:gen:list`（列表）、`import` / `edit` / `remove` / `preview` / `code`（导入、改配置、删、预览、执行生成） |
+| **后端** | `GenController`（`/api/tool/gen/*`）、`GenTableServiceImpl`；**Velocity** 模板 `backend/src/main/resources/templates/gen/`（Java DO/Mapper/Service/Controller + Vue API/页面） |
+| **前端** | `frontend/src/views/tool/gen/`（`GenPage.vue` + `useGenPage.ts`）、`frontend/src/api/tool/gen.ts` |
+| **数据表** | `gen_table`、`gen_table_column`；`table_name` **唯一索引**防重复导入（服务层校验 + 库约束） |
+| **生成能力** | 预览（标记新建/覆盖）、ZIP 下载、写入项目目录、自动创建菜单与超管权限；`moduleName` 驱动 API 路径与权限前缀 |
+| **类名规则** | 仅剥离配置前缀（`sys` / `system` / `t` / `tb` / `biz` / `app`），不再误剥 `user`、`data` 等业务段 |
+
+**数据库**
+
+| 场景 | 脚本 |
+|------|------|
+| 本地已有库 | `sql/add11.sql`（#11 建表/菜单 + #12 唯一索引迁移，可重复执行） |
+| 生产已有库（MySQL 5.6+） | `sql/add11_wuadmin.sql`（同上；`table_name VARCHAR(191)` 适配 5.6 utf8mb4 索引 767 字节上限） |
+| 本地空库全量 | `sql/admin_platform.sql` Part A §17 + Part B 菜单已含 |
+| 生产空库全量 | `sql/admin_platform_mysql56.sql`（库名 `wuadmin`，§17 同上） |
+
+执行增量后 **重新登录** 刷新侧栏。`sql/add12.sql` 已合并进 `add11.sql`，单独执行仅提示 SKIP。
+
+### 管理页 UI 统一（2026.06）
+
+各业务列表页采用统一 **module-page** 布局（`frontend/src/styles/admin-page.scss`）：
+
+| 区块 | 类名 | 说明 |
+|------|------|------|
+| 头图 | `module-hero-card` | 深色 Hero：标题、简述、右侧统计；图标与 `sys_menu.icon` 一致 |
+| 搜索 | `module-search-card` | 左对齐紧凑筛选区 |
+| 表格 | `table-card` + `table-pagination` | 圆角卡片内表格与分页 |
+
+- 公共组件 **`ModulePageIcon`**（`components/ModulePageIcon.vue`）+ 常量 **`MODULE_PAGE_ICON`**（`constants/module-page-icons.ts`），经 `resolveMenuIcon` 与侧栏同源解析。
+- 已统一：用户/角色/菜单/组织/字典/配置/回收、审批/工单、操作/登录日志、文件、通知、API 访问/在线/缓存/服务监控、代码生成等；回收中心 Hero 改为与其他页同高的 `module-hero-card`；定时任务保留 `JobHeroOverview` 统计区。
+
 ### 回收中心与列表导出（2026.06）
 
 各业务模块删除改为**逻辑删除**后，原分散在各列表页的回收 Dialog / Drawer 已移除，统一由 **系统管理 → 回收中心** 管理。
@@ -114,13 +151,18 @@
 |------|------|------|
 | `sql/add10.sql` | 本地 `wu-admin` | 回收中心菜单 id=163 + `sys_file` 的 `update_time`、`deleted`、索引 `idx_deleted_update` |
 | `sql/add10_wuadmin.sql` | 生产 `wuadmin` | 同上 |
-| `sql/add11.sql` / `add11_wuadmin.sql` | — | **已合并至 add10**，执行时仅输出 SKIP 提示 |
+| `sql/add11.sql` | 本地 `wu-admin` | 代码生成表/菜单 + `table_name` 唯一索引（#11+#12） |
+| `sql/add11_wuadmin.sql` | 生产 `wuadmin` | 同上（MySQL 5.6 兼容） |
 
 ```bash
-# 本地
+# 本地回收中心
 mysql -u root -p wu-admin < sql/add10.sql
-# 生产
+# 本地代码生成（在 add10 之后）
+mysql -u root -p wu-admin < sql/add11.sql
+# 生产回收中心
 mysql -u wuadmin -p wuadmin < sql/add10_wuadmin.sql
+# 生产代码生成
+mysql -u wuadmin -p wuadmin < sql/add11_wuadmin.sql
 ```
 
 执行后 **重新登录** 刷新侧栏。`add10` 先加 `update_time` 再加 `deleted`（`AFTER update_time`），可重复执行。
@@ -153,13 +195,15 @@ mysql -u wuadmin -p wuadmin < sql/add10_wuadmin.sql
 | 布局壳层 | `/`（layout） | `LayoutPage.vue` + `useLayoutMenu` / `useLayoutMessages` / `useLayoutTheme` 等 |
 | 工作台 | `/dashboard` | `WelcomeBanner`、`CoreStatsRow` 等 + `useDashboardData` |
 | 个人中心 | `/profile` | `ProfileHero`、`BasicInfoForm`、`SecuritySettings` + `useProfileInfo` / `useProfileSecurity` |
-| 系统管理 | `/system/user` · `dict` · `file` · `menu` · `org` · `config` · **`recycle`** | 各 `*Page.vue` + 对应 `use*Page.ts` 与 Tab/Dialog 子组件；回收中心见 `recycle/recycle-config.ts` |
-| 系统监控 | `/monitor/job` · `/monitor/cache` · `/monitor/server` | `JobPage.vue` + `useJobPage.ts`；`CacheMonitorPage.vue` + `cacheMonitorChart.ts` + `useCacheMonitorPage.ts`；`ServerMonitorPage.vue` + `serverMonitorChart.ts` + `useServerMonitorPage.ts` |
+| 系统管理 | `/system/user` · `dict` · `file` · `menu` · `org` · `config` · **`recycle`** · `approval` · `ticket` · `oper-log` · `login-log` | 各 `*Page.vue` + `use*Page.ts`；统一 `module-page` 样式；回收中心 `recycle-config.ts` 驱动 Tab |
+| 开发工具 | `/tool/gen` | `GenPage.vue` + `useGenPage.ts` |
+| 系统监控 | `/monitor/job` · `cache` · `server` · `api-access` · `online` | `JobPage.vue` + `useJobPage.ts`；`CacheMonitorPage` / `ServerMonitorPage` / `api-access` / `online` 均 `module-page` |
+| 消息 | `/message/notice` | `notice/index.vue`，`module-page` |
 | 企业IM | `/message/chat` | `ChatPage.vue` + `useChatPage.ts` / `useChatRender` / `useMention` |
 
 **质量保障**：`npm run typecheck`（`vue-tsc --noEmit`）、`npm run test`（Vitest，37 用例）、`npm run build`（构建前自动类型检查）。
 
-> 待后续拆分（体量仍较大）：`approval`、`ticket`、`role` 等页面；企业 IM 聊天区可进一步拆分子面板组件。
+> 企业 IM 聊天区可进一步拆分子面板组件；`role` 等页已接入 `module-page`，逻辑 composable 拆分可继续做。
 
 **组件化拆分注意**：样式从 Vue `<style scoped>` 抽到独立 `.css` / `.scss` 时，**勿使用 `:deep()`**（仅 SFC scoped 有效）；应改为 `.parent .el-textarea__inner` 等普通选择器。企业 IM 的 `chat-page.css` 已按此修正（输入框黑框问题）。个人中心样式见独立 `profile-page.scss`（由 `index.vue` 非 scoped 引入），子组件无需再套 scoped。
 
@@ -550,9 +594,9 @@ frontend/src/
 
 | 场景 | 脚本 | 命令 |
 |------|------|------|
-| **全新安装（空库）** | `sql/admin_platform.sql` | `mysql -u root -p < sql/admin_platform.sql`（空库自动放行） |
-| **极旧库首次升级** | `admin_platform.sql` **附录段**（约 910 行起） | 补全缺表/菜单/索引，可重复执行 |
-| **发版增量** | **`sql/add1.sql`** … **`add10.sql`** | 见下表；`add11` 已合并进 `add10`；生产合并见 **`add6_7_wuadmin.sql`**（含 add9） |
+| **全新安装（空库）** | 本地 `sql/admin_platform.sql`；生产 **MySQL 5.6** `sql/admin_platform_mysql56.sql`（库名 `wuadmin`） | 空库直接执行全文 |
+| **极旧库首次升级** | `admin_platform.sql` **附录段**（约 990 行起） | 补全缺表/菜单/索引（含代码生成与唯一索引迁移），可重复执行 |
+| **发版增量** | **`sql/add1.sql`** … **`add11.sql`** | 生产见 **`add6_7_wuadmin.sql`**、**`add10_wuadmin.sql`**、**`add11_wuadmin.sql`** |
 
 > 切勿对生产库直接跑 `admin_platform.sql` 全文（Part A 含 DROP，默认会被熔断拦截）。
 
@@ -650,18 +694,22 @@ wu-admin/
 │   └── src/main/resources/
 │       ├── application.yml          # 公共配置；默认 profile=prod
 │       ├── application-dev.yml      # 本地开发（wu-admin 库、无 Redis 密码）
-│       └── application-prod.yml     # 生产（wuadmin 库、Redis 密码等）
+│       ├── application-prod.yml     # 生产（wuadmin 库、Redis 密码等）
+│       └── templates/gen/           # 代码生成 Velocity 模板
 ├── frontend/                   # Vue 3 + TypeScript 前端
 │   ├── src/
 │   │   ├── api/                # 接口封装（system、message、monitor 等，均为 .ts）
 │   │   ├── views/              # 页面模块（按功能分子目录）
 │   │   │   ├── login/、register/、layout/、dashboard/、profile/
 │   │   │   ├── auth/components/    # 登录注册共享（AuthSplitLayout、AuthCaptchaField 等）
-│   │   │   ├── system/{user,dict,file,menu,org,config,recycle}/  # 各含 index、*Page、composables、components
-│   │   │   ├── monitor/job/、monitor/cache/、monitor/server/、message/chat/
-│   │   │   └── …               # approval、ticket、role 等待拆分页面
+│   │   │   ├── system/{user,dict,file,menu,org,config,recycle,approval,ticket}/  # index、*Page、composables
+│   │   │   ├── tool/gen/       # 代码生成 GenPage + useGenPage
+│   │   │   ├── monitor/job/、cache/、server/、api-access/、online/
+│   │   │   └── message/{notice,chat}/
+│   │   ├── styles/admin-page.scss  # module-page 统一视觉
 │   │   ├── composables/        # 跨页面复用（useDict、useMonitorBackground 等）
-│   │   ├── components/         # 全局公共组件（DictSelect、SliderCaptcha、MessageNotification 等）
+│   │   ├── components/         # DictSelect、ModulePageIcon、SliderCaptcha 等
+│   │   ├── constants/module-page-icons.ts  # Hero 图标与 sys_menu 对齐
 │   │   ├── router/             # 路由与守卫
 │   │   ├── store/              # Pinia（user、message 等）
 │   │   ├── types/              # TS 类型（api、message、config）
@@ -670,7 +718,8 @@ wu-admin/
 │   ├── tsconfig.json
 │   └── vite.config.ts          # 开发代理 /api → localhost:8080
 ├── sql/
-│   ├── admin_platform.sql      # 全量安装 + 文末附录（旧库首次补丁）
+│   ├── admin_platform.sql      # 本地全量（wu-admin，MySQL 8）+ 附录
+│   ├── admin_platform_mysql56.sql  # 生产空库全量（wuadmin，MySQL 5.6.5+）
 │   ├── add1.sql                # 增量补丁 #1
 │   ├── add2.sql                # 增量补丁 #2（登录 smsLoginSliderCaptchaEnabled）
 │   ├── add3.sql                # 增量补丁 #3（菜单「企业IM」）
@@ -680,12 +729,13 @@ wu-admin/
 │   ├── add7.sql                # 增量补丁 #7（缓存监控菜单）
 │   ├── add8.sql                # 增量补丁 #8（服务监控菜单）
 │   ├── add9.sql                # 增量补丁 #9（群成员 notify_muted、announcement_read_time）
-│   ├── add10.sql               # 增量补丁 #10（回收中心菜单 + sys_file 软删字段）
-│   ├── add11.sql               # 已合并至 add10（SKIP 提示）
-│   ├── add6_7_wuadmin.sql      # 生产合并补丁 add6+7+8+9（库名 wuadmin）
-│   ├── add9_wuadmin.sql        # 生产仅 add9 字段（库名 wuadmin）
-│   ├── add10_wuadmin.sql       # 生产 add10（回收中心 + 文件软删）
-│   ├── add11_wuadmin.sql       # 已合并至 add10_wuadmin（SKIP 提示）
+│   ├── add10.sql               # 增量 #10（回收中心 + sys_file 软删）
+│   ├── add11.sql               # 增量 #11+#12（代码生成 + 唯一索引，本地）
+│   ├── add12.sql               # 已合并至 add11（SKIP 提示）
+│   ├── add6_7_wuadmin.sql      # 生产合并 add6+7+8+9
+│   ├── add9_wuadmin.sql        # 生产仅 add9 字段
+│   ├── add10_wuadmin.sql       # 生产 add10
+│   ├── add11_wuadmin.sql       # 生产 #11+#12（代码生成，5.6 兼容）
 │   └── disable_devtool_off.sql # 临时关闭「禁止前端调试」（MySQL 5.6 兼容）
 ├── data/                       # 本地上传目录（git 忽略，对应 file.storage.local-path）
 └── README.md
@@ -714,7 +764,9 @@ cn.rbac.server/
 └── modules/
     └── system/                       # 系统域业务
         ├── api/                      # 瘦 Controller：@PreAuthorize、@Validated、委托 Service
+        │   ├── tool/GenController    # 代码生成 /tool/gen
         │   └── */vo/                 # 请求 VO（JSR-303 校验）
+        ├── service/gen/              # GenTableServiceImpl、Velocity 渲染与写文件
         ├── pay/                      # 微信/支付宝测试下单与回调
         ├── service/                    # 业务逻辑（auth、user、role、ticket、permission 等）
         ├── dal/                        # DO、Mapper
@@ -743,7 +795,7 @@ cn.rbac.server/
 | JDK | 17 |
 | Spring Boot | **3.5.13** |
 | Springdoc / Knife4j | 2.8.9 / 4.5.0（见上文接口文档说明） |
-| MySQL | 8.0 |
+| MySQL | 本地 **8.0**；生产常见 **5.6.5+**（空库用 `admin_platform_mysql56.sql`） |
 | Redis | 7.x |
 
 ---
@@ -767,11 +819,15 @@ mysql -u root -p wu-admin < sql/add7.sql
 mysql -u root -p wu-admin < sql/add8.sql
 mysql -u root -p wu-admin < sql/add9.sql
 mysql -u root -p wu-admin < sql/add10.sql
+mysql -u root -p wu-admin < sql/add11.sql
 
-# 生产服务器（库名 wuadmin；合并 add6+7+8+9，含流程中心/缓存/服务监控/群公告免打扰）
-mysql -u wuadmin -p wuadmin < sql/add6_7_wuadmin.sql
-# 回收中心 + 文件软删（add10；add11 已合并，勿单独执行）
+# 生产空库全新安装（MySQL 5.6，库名 wuadmin）
+mysql -u wuadmin -p wuadmin < sql/admin_platform_mysql56.sql
+
+# 生产已有库增量
+mysql -u wuadmin -p wuadmin < sql/add6_7_wuadmin.sql   # 若未跑过 add6–9
 mysql -u wuadmin -p wuadmin < sql/add10_wuadmin.sql
+mysql -u wuadmin -p wuadmin < sql/add11_wuadmin.sql
 
 # 极旧库首次补全（缺表/菜单时，执行 admin_platform.sql 附录段，约 910 行起）
 ```
@@ -867,19 +923,21 @@ npm run dev
 | `/api/system/user/list` | 用户下拉选项（启用用户、最多 2000 条）；管理列表请用 `/api/system/user/page` |
 | `/api/system/recycle/summary` | 回收中心 12 类软删数量汇总 |
 | `/api/system/export/*` | 列表 Excel/CSV 导出（用户、日志、工单、审批等） |
+| `/api/tool/gen/**` | 代码生成：可导入表列表、导入、配置、预览、ZIP、写入项目、建菜单 |
 
 ---
 
 ## 数据库脚本
 
-维护 **`sql/admin_platform.sql`**（全量 + 附录）与 **`sql/add1.sql` … `add10.sql`** 等增量补丁：
+维护 **`sql/admin_platform.sql`**（本地全量 + 附录）、**`sql/admin_platform_mysql56.sql`**（生产空库）与 **`sql/add1.sql` … `add11.sql`** 等增量：
 
 | 场景 | 做法 |
 |------|------|
-| **全新安装** | 空库直接 `mysql -u root -p < sql/admin_platform.sql` |
-| **极旧库首次升级** | 执行 `admin_platform.sql` 文末 **附录**（约 910 行起） |
-| **发版增量（本地 dev）** | 依次 `mysql -u root -p wu-admin < sql/add1.sql` … **`add10.sql`** |
-| **发版增量（生产）** | 按已执行版本补跑；**流程中心 + 缓存/服务监控** 见 **`add6_7_wuadmin.sql`**；**回收中心** 见 **`add10_wuadmin.sql`** |
+| **全新安装（本地）** | 空库 `mysql -u root -p < sql/admin_platform.sql` |
+| **全新安装（生产 5.6）** | 空库 `mysql -u wuadmin -p wuadmin < sql/admin_platform_mysql56.sql` |
+| **极旧库首次升级** | 执行 `admin_platform.sql` 文末 **附录**（约 990 行起） |
+| **发版增量（本地）** | 依次 `add1.sql` … **`add11.sql`** |
+| **发版增量（生产）** | 按已执行版本补跑 **`add6_7_wuadmin.sql`** / **`add10_wuadmin.sql`** / **`add11_wuadmin.sql`** |
 
 `addN.sql` 体量应保持在几十行量级；全量补丁逻辑在 `admin_platform.sql` 附录。
 
@@ -894,12 +952,14 @@ npm run dev
 | `add7.sql` | 系统监控新增「**缓存监控**」菜单与权限；本地库 `wu-admin` |
 | `add8.sql` | 系统监控新增「**服务监控**」菜单（本机 JMX）；本地库 `wu-admin` |
 | `add9.sql` | 群成员 `notify_muted`、`announcement_read_time`（群公告已读 / 免打扰）；本地库 `wu-admin` |
-| `add10.sql` | **回收中心**菜单 id=163；`sys_file` 增加 `update_time`、`deleted` 及索引；本地库 `wu-admin` |
-| `add11.sql` | **已合并至 add10**，单独执行仅输出 SKIP |
-| `add6_7_wuadmin.sql` | **生产库 `wuadmin`** 合并 add6 + add7 + add8 + **add9** |
-| `add9_wuadmin.sql` | **生产库 `wuadmin`** 仅 add9 字段（已跑过合并脚本可跳过） |
-| `add10_wuadmin.sql` | **生产库 `wuadmin`** 回收中心 + 文件软删（与 add10 等价） |
-| `add11_wuadmin.sql` | **已合并至 add10_wuadmin**，单独执行仅输出 SKIP |
+| `add10.sql` | **回收中心**菜单 id=163；`sys_file` 软删字段；本地 `wu-admin` |
+| `add11.sql` | **代码生成** `gen_table` / `gen_table_column`、菜单 164–169/179、**`table_name` 唯一索引**（#11+#12）；本地 `wu-admin` |
+| `add12.sql` | 已合并至 `add11.sql`，单独执行仅 SKIP |
+| `add6_7_wuadmin.sql` | 生产 `wuadmin`：add6 + add7 + add8 + add9 |
+| `add9_wuadmin.sql` | 生产仅 add9 字段 |
+| `add10_wuadmin.sql` | 生产 add10 |
+| `add11_wuadmin.sql` | 生产 add11+#12（`table_name VARCHAR(191)` 适配 MySQL 5.6） |
+| `admin_platform_mysql56.sql` | 生产**空库全量**（38 表 + 初始数据，无附录 JSON 函数依赖） |
 
 > 生产环境若尚未执行 add3/add4，可将 `add3.sql`、`add4.sql` 中 `USE` 改为 `wuadmin` 后逐条执行，或直接依赖已更新的 `admin_platform.sql` 全量/附录。仓库内**无**单独的 `add3_add4_wuadmin.sql` 文件。
 
@@ -1049,7 +1109,13 @@ A：升级后默认列表已排除待审核/驳回用户；待审用户仅在审
 A：① 确认 **注册认证** 已开启开放注册；② 升级后软删用户名可自动恢复再注册；③ 若 **回收中心** 仍有该用户，可「彻底删除」后再试；④ 注册/登录请求勿带管理员 Token（新版前端已自动跳过）。
 
 **Q：回收中心菜单不显示，或文件列表报 `Unknown column 'deleted'`？**  
-A：对已有库执行 **`sql/add10.sql`**（生产 **`add10_wuadmin.sql`**），**重新登录**；`add11` 已合并进 `add10`，勿重复找旧脚本。全量新库请用已含菜单 163 与 `sys_file` 字段的 `admin_platform.sql`。
+A：对已有库执行 **`sql/add10.sql`**（生产 **`add10_wuadmin.sql`**），**重新登录**。全量新库已含菜单 163 与 `sys_file` 软删字段。
+
+**Q：代码生成菜单不显示，或导入报「表已导入」/ 表不存在？**  
+A：已有库执行 **`sql/add11.sql`**（生产 **`add11_wuadmin.sql`**），**重新登录**。空库请用已含 §17 的 `admin_platform.sql` 或 `admin_platform_mysql56.sql`。生产 MySQL 5.6 勿用本地 `admin_platform.sql` 全文（附录含 5.7+ JSON 函数）。
+
+**Q：生产导入 gen_table 报 `Specified key was too long`（1071）？**  
+A：MySQL 5.6 + utf8mb4 唯一索引上限 767 字节，请用 **`add11_wuadmin.sql`** 或 **`admin_platform_mysql56.sql`**（`table_name VARCHAR(191)`），勿对生产库套用本地 `VARCHAR(200)` 建表语句。
 
 **Q：回收中心某个 Tab 看不到（如岗位）？**  
 A：Tab 按各模块 **列表权限** 显示（如岗位需 `system:post:list`）；无权限的类别不会展示，但汇总接口仍可能返回计数。

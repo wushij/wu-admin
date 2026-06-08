@@ -1,8 +1,23 @@
 <template>
-  <div class="app-container">
-    <!-- 搜索区域 -->
-    <el-card class="search-card">
-      <el-form :model="queryParams" inline>
+  <div class="app-container module-page">
+    <el-card class="search-card module-hero-card" shadow="never">
+      <div class="module-hero-row">
+        <div class="module-hero-text">
+          <div class="module-hero-title">
+            <ModulePageIcon :icon="MODULE_PAGE_ICON.org" />
+            <span>部门管理</span>
+          </div>
+          <p class="module-hero-desc">维护组织部门树结构，支持负责人与联系方式配置</p>
+        </div>
+        <div class="module-hero-stats">
+          <div class="stat-num">{{ deptCount }}</div>
+          <div class="stat-label">部门总数</div>
+        </div>
+      </div>
+    </el-card>
+
+    <el-card class="search-card module-search-card" shadow="never">
+      <el-form :model="queryParams" inline class="module-search-form">
         <el-form-item label="部门名称">
           <el-input v-model="queryParams.name" placeholder="请输入部门名称" clearable />
         </el-form-item>
@@ -16,8 +31,8 @@
           />
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" @click="handleQuery">搜索</el-button>
-          <el-button @click="resetQuery">重置</el-button>
+          <el-button type="primary" :icon="Search" @click="handleQuery">搜索</el-button>
+          <el-button :icon="Refresh" @click="resetQuery">重置</el-button>
         </el-form-item>
       </el-form>
     </el-card>
@@ -39,15 +54,15 @@
         row-key="id"
         border
         :tree-props="{ children: 'children' }"
-        :header-cell-style="{ textAlign: 'center' }"
-        :cell-style="{ textAlign: 'center' }"
+        :header-cell-style="tableHeaderStyle"
+        :cell-style="tableCellStyle"
       >
-        <el-table-column prop="name" label="部门名称" width="200" />
-        <el-table-column prop="leaderName" label="负责人" width="120" />
-        <el-table-column prop="phone" label="联系电话" width="150" />
-        <el-table-column prop="email" label="邮箱" show-overflow-tooltip />
-        <el-table-column prop="sort" label="排序" width="80" />
-        <el-table-column prop="status" label="状态" width="100">
+        <el-table-column prop="name" label="部门名称" width="200" align="center" header-align="center" />
+        <el-table-column prop="leaderName" label="负责人" width="120" align="center" header-align="center" />
+        <el-table-column prop="phone" label="联系电话" width="150" align="center" header-align="center" />
+        <el-table-column prop="email" label="邮箱" align="center" header-align="center" show-overflow-tooltip />
+        <el-table-column prop="sort" label="排序" width="80" align="center" header-align="center" />
+        <el-table-column prop="status" label="状态" width="100" align="center" header-align="center">
           <template #default="{ row }">
             <el-switch
               v-model="row.status"
@@ -58,7 +73,7 @@
             />
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="220" fixed="right" align="center">
+        <el-table-column label="操作" width="220" fixed="right" align="center" header-align="center">
           <template #default="{ row }">
             <div class="action-buttons">
               <el-button 
@@ -175,10 +190,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, computed } from 'vue'
+import { Search, Refresh } from '@element-plus/icons-vue'
+import ModulePageIcon from '@/components/ModulePageIcon.vue'
+import { MODULE_PAGE_ICON } from '@/constants/module-page-icons'
 import { ElMessage, ElMessageBox, type FormInstance } from 'element-plus'
 import type { DeptVO, DeptSaveDTO, DeptRecycleQuery, DeptTreeQuery } from '@/api/system/dept'
 import { getDeptList, createDept, updateDept, deleteDept, updateDeptStatus, getRecycleDeptPage, restoreDept, deleteDeptPermanent } from '@/api/system/dept'
+
+const tableHeaderStyle = { textAlign: 'center' as const }
+const tableCellStyle = { textAlign: 'center' as const }
 
 const loading = ref(false)
 const deptList = ref<DeptVO[]>([])
@@ -216,6 +237,11 @@ const form = reactive<DeptSaveDTO>({
 const rules = {
   name: [{ required: true, message: '请输入部门名称', trigger: 'blur' }]
 }
+
+const countDeptNodes = (list: DeptVO[]): number =>
+  list.reduce((sum, item) => sum + 1 + countDeptNodes(item.children || []), 0)
+
+const deptCount = computed(() => countDeptNodes(deptList.value))
 
 const getList = async () => {
   loading.value = true
@@ -341,33 +367,3 @@ onMounted(() => {
 })
 </script>
 
-<style scoped>
-.app-container {
-  padding: 0;
-}
-.search-card {
-  margin-bottom: 20px;
-}
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-.header-actions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-/* 操作按钮样式 */
-.action-buttons {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-}
-
-.action-buttons .el-button {
-  margin: 0;
-}
-</style>

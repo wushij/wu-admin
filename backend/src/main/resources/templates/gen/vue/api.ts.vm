@@ -1,0 +1,48 @@
+#set($dollar = '$')
+import { get, post, put, del } from '@/utils/request'
+import type { PageQuery, PageResult } from '@/types/api'
+
+export interface ${className}VO {
+  id?: number
+#foreach($column in $columns)
+#if($baseFields.contains($column.javaField) && $column.javaField != 'id' && ($column.isList == 1 || $column.isEdit == 1))
+  ${column.javaField}?: #if($column.javaField == 'createTime' || $column.javaField == 'updateTime')string#elseif($column.javaType == 'Integer' || $column.javaType == 'Long')number#elseif($column.javaType == 'Boolean')boolean#else string#end
+
+#end
+#end
+#foreach($column in $columns)
+#if(!$baseFields.contains($column.javaField))
+  ${column.javaField}?: #if($column.javaType == 'Integer' || $column.javaType == 'Long')number#elseif($column.javaType == 'Boolean')boolean#else string#end
+
+#end
+#end
+}
+
+export interface ${className}PageQuery extends PageQuery {
+#foreach($column in $columns)
+#if($column.isQuery == 1)
+  ${column.javaField}?: #if($column.javaType == 'Integer' || $column.javaType == 'Long')number | null#elseif($column.javaType == 'Boolean')boolean | null#else string#end
+
+#end
+#end
+}
+
+export function page${className}(params: ${className}PageQuery) {
+  return get<PageResult<${className}VO>>('/${moduleName}/${businessName}/page', params)
+}
+
+export function get${className}(id: number) {
+  return get<${className}VO>(`/${moduleName}/${businessName}/${dollar}{id}`)
+}
+
+export function create${className}(data: ${className}VO) {
+  return post<boolean>('/${moduleName}/${businessName}', data)
+}
+
+export function update${className}(data: ${className}VO) {
+  return put<boolean>('/${moduleName}/${businessName}', data)
+}
+
+export function delete${className}(id: number) {
+  return del<boolean>(`/${moduleName}/${businessName}/${dollar}{id}`)
+}

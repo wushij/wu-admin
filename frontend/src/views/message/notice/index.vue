@@ -1,7 +1,23 @@
 <template>
-  <div class="app-container">
-    <el-card class="search-card">
-      <el-form :model="query" inline>
+  <div class="app-container module-page">
+    <el-card class="search-card module-hero-card" shadow="never">
+      <div class="module-hero-row">
+        <div class="module-hero-text">
+          <div class="module-hero-title">
+            <ModulePageIcon :icon="MODULE_PAGE_ICON.notice" />
+            <span>系统通知</span>
+          </div>
+          <p class="module-hero-desc">发布与管理通知公告，支持站内信推送与发送日志查看</p>
+        </div>
+        <div class="module-hero-stats">
+          <div class="stat-num">{{ total }}</div>
+          <div class="stat-label">通知总数</div>
+        </div>
+      </div>
+    </el-card>
+
+    <el-card class="search-card module-search-card" shadow="never">
+      <el-form :model="query" inline class="module-search-form">
         <el-form-item label="标题">
           <el-input v-model="query.title" placeholder="请输入标题" clearable />
         </el-form-item>
@@ -18,8 +34,8 @@
           </el-select>
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" @click="loadData">查询</el-button>
-          <el-button @click="resetQuery">重置</el-button>
+          <el-button type="primary" :icon="Search" @click="loadData">搜索</el-button>
+          <el-button :icon="Refresh" @click="resetQuery">重置</el-button>
         </el-form-item>
       </el-form>
     </el-card>
@@ -39,25 +55,25 @@
         v-loading="loading"
         border
         stripe
-        :header-cell-style="{ textAlign: 'center' }"
-        :cell-style="{ textAlign: 'center' }"
+        :header-cell-style="tableHeaderStyle"
+        :cell-style="tableCellStyle"
       >
-        <el-table-column prop="title" label="标题" min-width="180" show-overflow-tooltip />
-        <el-table-column label="类型" width="90">
+        <el-table-column prop="title" label="标题" min-width="180" align="center" header-align="center" show-overflow-tooltip />
+        <el-table-column label="类型" width="90" align="center" header-align="center">
           <template #default="{ row }">
             <el-tag size="small">{{ row.noticeType === 2 ? '公告' : '通知' }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="状态" width="90">
+        <el-table-column label="状态" width="90" align="center" header-align="center">
           <template #default="{ row }">
             <el-tag :type="row.status === 1 ? 'success' : 'info'" size="small">
               {{ row.status === 1 ? '已发布' : '草稿' }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="createName" label="创建人" width="110" />
-        <el-table-column prop="createTime" label="创建时间" width="170" />
-        <el-table-column label="操作" width="320" fixed="right" align="center">
+        <el-table-column prop="createName" label="创建人" width="110" align="center" header-align="center" />
+        <el-table-column prop="createTime" label="创建时间" width="170" align="center" header-align="center" />
+        <el-table-column label="操作" width="320" fixed="right" align="center" header-align="center">
           <template #default="{ row }">
             <div class="action-buttons">
               <el-button size="small" @click="showDetail(row)">详情</el-button>
@@ -69,15 +85,16 @@
           </template>
         </el-table-column>
       </el-table>
-      <div class="pagination-wrap">
-        <el-pagination
-          v-model:current-page="pageNo"
-          v-model:page-size="pageSize"
-          :total="total"
-          layout="total, prev, pager, next"
-          @current-change="loadData"
-        />
-      </div>
+      <el-pagination
+        v-model:current-page="pageNo"
+        v-model:page-size="pageSize"
+        :total="total"
+        :page-sizes="[10, 20, 50]"
+        layout="total, sizes, prev, pager, next, jumper"
+        class="table-pagination"
+        @size-change="loadData"
+        @current-change="loadData"
+      />
     </el-card>
 
     <el-dialog v-model="formVisible" :title="form.id ? '编辑通知' : '新增通知'" width="680px" destroy-on-close>
@@ -174,6 +191,9 @@
 
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
+import { Search, Refresh } from '@element-plus/icons-vue'
+import ModulePageIcon from '@/components/ModulePageIcon.vue'
+import { MODULE_PAGE_ICON } from '@/constants/module-page-icons'
 import type { FormInstance, FormRules } from 'element-plus'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
@@ -192,6 +212,9 @@ import {
 import { getUserList, type UserVO } from '@/api/system/user/index'
 import { getDeptTree, type DeptVO } from '@/api/system/dept/index'
 import RecycleCenterLink from '@/components/RecycleCenterLink.vue'
+
+const tableHeaderStyle = { textAlign: 'center' as const }
+const tableCellStyle = { textAlign: 'center' as const }
 
 const tableData = ref<AnnounceVO[]>([])
 const pageNo = ref(1)
@@ -350,31 +373,6 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-.header-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.pagination-wrap {
-  margin-top: 16px;
-  display: flex;
-  justify-content: flex-end;
-}
-.action-buttons {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-.action-buttons .el-button {
-  margin: 0;
-}
 .detail-content {
   white-space: pre-wrap;
   line-height: 1.6;

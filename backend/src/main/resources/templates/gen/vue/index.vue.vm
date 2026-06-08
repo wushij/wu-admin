@@ -1,0 +1,253 @@
+<template>
+  <div class="app-container">
+    <el-card class="search-card">
+      <el-form :model="queryParams" inline>
+#foreach($column in $columns)
+#if($column.isQuery == 1)
+#if($column.htmlType == 'select' && $column.dictType && $column.dictType != '')
+        <el-form-item label="${column.columnComment}">
+          <DictSelect v-model="queryParams.${column.javaField}" dict-type="${column.dictType}" clearable style="width: 140px" />
+        </el-form-item>
+#elseif($column.htmlType == 'datetime')
+        <el-form-item label="${column.columnComment}">
+          <el-date-picker v-model="queryParams.${column.javaField}" type="datetime" value-format="YYYY-MM-DD HH:mm:ss" clearable />
+        </el-form-item>
+#else
+        <el-form-item label="${column.columnComment}">
+          <el-input v-model="queryParams.${column.javaField}" placeholder="请输入${column.columnComment}" clearable />
+        </el-form-item>
+#end
+#end
+#end
+        <el-form-item>
+          <el-button type="primary" @click="handleQuery">搜索</el-button>
+          <el-button @click="resetQuery">重置</el-button>
+        </el-form-item>
+      </el-form>
+    </el-card>
+
+    <el-card>
+      <template #header>
+        <div class="card-header">
+          <span>${functionName}列表</span>
+          <el-button type="primary" v-permission="'${permPrefix}:create'" @click="handleAdd">新增</el-button>
+        </div>
+      </template>
+
+      <el-table :data="tableData" v-loading="loading" border stripe>
+#foreach($column in $columns)
+#if($column.isList == 1)
+#if($column.htmlType == 'select' && $column.dictType && $column.dictType != '')
+        <el-table-column prop="${column.javaField}" label="${column.columnComment}" min-width="120">
+          <template #default="{ row }">
+            <DictTag :value="row.${column.javaField}" dict-type="${column.dictType}" />
+          </template>
+        </el-table-column>
+#else
+        <el-table-column prop="${column.javaField}" label="${column.columnComment}" min-width="120" show-overflow-tooltip />
+#end
+#end
+#end
+        <el-table-column label="操作" width="160" fixed="right" align="center">
+          <template #default="{ row }">
+            <el-button type="primary" link v-permission="'${permPrefix}:update'" @click="handleEdit(row)">编辑</el-button>
+            <el-button type="danger" link v-permission="'${permPrefix}:delete'" @click="handleDelete(row)">删除</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+
+      <el-pagination
+        v-model:current-page="queryParams.pageNo"
+        v-model:page-size="queryParams.pageSize"
+        :total="total"
+        :page-sizes="[10, 20, 50, 100]"
+        layout="total, sizes, prev, pager, next, jumper"
+        @size-change="loadData"
+        @current-change="loadData"
+      />
+    </el-card>
+
+    <el-dialog v-model="dialogVisible" :title="dialogTitle" width="#if($formLayout == 'grid')760px#else 560px#end" destroy-on-close>
+      <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
+#if($formLayout == 'grid')
+        <el-row :gutter="16">
+#foreach($column in $columns)
+#if($column.isInsert == 1 || $column.isEdit == 1)
+          <el-col :span="12">
+#if($column.htmlType == 'textarea')
+            <el-form-item label="${column.columnComment}" prop="${column.javaField}">
+              <el-input v-model="form.${column.javaField}" type="textarea" :rows="3" />
+            </el-form-item>
+#elseif($column.htmlType == 'select' && $column.dictType && $column.dictType != '')
+            <el-form-item label="${column.columnComment}" prop="${column.javaField}">
+              <DictSelect v-model="form.${column.javaField}" dict-type="${column.dictType}" />
+            </el-form-item>
+#elseif($column.htmlType == 'datetime')
+            <el-form-item label="${column.columnComment}" prop="${column.javaField}">
+              <el-date-picker v-model="form.${column.javaField}" type="datetime" value-format="YYYY-MM-DD HH:mm:ss" style="width: 100%" />
+            </el-form-item>
+#else
+            <el-form-item label="${column.columnComment}" prop="${column.javaField}">
+              <el-input v-model="form.${column.javaField}" />
+            </el-form-item>
+#end
+          </el-col>
+#end
+#end
+        </el-row>
+#else
+#foreach($column in $columns)
+#if($column.isInsert == 1 || $column.isEdit == 1)
+#if($column.htmlType == 'textarea')
+        <el-form-item label="${column.columnComment}" prop="${column.javaField}">
+          <el-input v-model="form.${column.javaField}" type="textarea" :rows="3" />
+        </el-form-item>
+#elseif($column.htmlType == 'select' && $column.dictType && $column.dictType != '')
+        <el-form-item label="${column.columnComment}" prop="${column.javaField}">
+          <DictSelect v-model="form.${column.javaField}" dict-type="${column.dictType}" />
+        </el-form-item>
+#elseif($column.htmlType == 'datetime')
+        <el-form-item label="${column.columnComment}" prop="${column.javaField}">
+          <el-date-picker v-model="form.${column.javaField}" type="datetime" value-format="YYYY-MM-DD HH:mm:ss" style="width: 100%" />
+        </el-form-item>
+#else
+        <el-form-item label="${column.columnComment}" prop="${column.javaField}">
+          <el-input v-model="form.${column.javaField}" />
+        </el-form-item>
+#end
+#end
+#end
+#end
+      </el-form>
+      <template #footer>
+        <el-button @click="dialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="submitting" @click="submitForm">确定</el-button>
+      </template>
+    </el-dialog>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref, reactive, onMounted } from 'vue'
+import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
+import DictSelect from '@/components/DictSelect.vue'
+import DictTag from '@/components/DictTag.vue'
+import { preloadDicts } from '@/composables/useDict'
+import {
+  page${className}, create${className}, update${className}, delete${className},
+  type ${className}VO, type ${className}PageQuery,
+} from '@/api/${moduleName}/${businessName}'
+
+const loading = ref(false)
+const submitting = ref(false)
+const total = ref(0)
+const tableData = ref<${className}VO[]>([])
+const dialogVisible = ref(false)
+const dialogTitle = ref('')
+const formRef = ref<FormInstance>()
+
+const queryParams = reactive<${className}PageQuery>({
+  pageNo: 1,
+  pageSize: 10,
+#foreach($column in $columns)
+#if($column.isQuery == 1)
+  ${column.javaField}: #if($column.javaType == 'Integer' || $column.javaType == 'Long')null#else ''#end,
+#end
+#end
+})
+
+const form = reactive<${className}VO>({})
+const rules: FormRules = {
+#foreach($column in $columns)
+#if(($column.isInsert == 1 || $column.isEdit == 1) && $column.isRequired == 1)
+  ${column.javaField}: [{ required: true, message: '请输入${column.columnComment}', trigger: 'blur' }],
+#end
+#end
+}
+
+async function loadData() {
+  loading.value = true
+  try {
+    const res = await page${className}(queryParams)
+    tableData.value = res.data?.list || []
+    total.value = res.data?.total || 0
+  } finally {
+    loading.value = false
+  }
+}
+
+function handleQuery() {
+  queryParams.pageNo = 1
+  loadData()
+}
+
+function resetQuery() {
+#foreach($column in $columns)
+#if($column.isQuery == 1)
+  queryParams.${column.javaField} = #if($column.javaType == 'Integer' || $column.javaType == 'Long')null#else ''#end
+#end
+#end
+  handleQuery()
+}
+
+function resetForm() {
+  Object.keys(form).forEach((k) => delete (form as Record<string, unknown>)[k])
+}
+
+function handleAdd() {
+  resetForm()
+  dialogTitle.value = '新增${functionName}'
+  dialogVisible.value = true
+}
+
+function handleEdit(row: ${className}VO) {
+  resetForm()
+  Object.assign(form, row)
+  dialogTitle.value = '编辑${functionName}'
+  dialogVisible.value = true
+}
+
+async function submitForm() {
+  await formRef.value?.validate()
+  submitting.value = true
+  try {
+    if (form.id) {
+      await update${className}(form)
+      ElMessage.success('修改成功')
+    } else {
+      await create${className}(form)
+      ElMessage.success('新增成功')
+    }
+    dialogVisible.value = false
+    loadData()
+  } finally {
+    submitting.value = false
+  }
+}
+
+async function handleDelete(row: ${className}VO) {
+  await ElMessageBox.confirm('确认删除该记录？', '提示', { type: 'warning' })
+  await delete${className}(row.id!)
+  ElMessage.success('删除成功')
+  loadData()
+}
+
+onMounted(async () => {
+  await preloadDicts([
+#foreach($column in $columns)
+#if($column.dictType && $column.dictType != '')
+    '${column.dictType}',
+#end
+#end
+  ])
+  loadData()
+})
+</script>
+
+<style scoped>
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+</style>

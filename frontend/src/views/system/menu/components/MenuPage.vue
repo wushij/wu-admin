@@ -1,5 +1,21 @@
 <template>
-  <div class="app-container menu-page">
+  <div class="app-container module-page menu-page">
+    <el-card class="search-card module-hero-card" shadow="never">
+      <div class="module-hero-row">
+        <div class="module-hero-text">
+          <div class="module-hero-title">
+            <ModulePageIcon :icon="MODULE_PAGE_ICON.menu" />
+            <span>菜单管理</span>
+          </div>
+          <p class="module-hero-desc">维护目录、菜单与按钮权限；修改后需重新登录侧栏才会更新</p>
+        </div>
+        <div class="module-hero-stats">
+          <div class="stat-num">{{ menuStats.total }}</div>
+          <div class="stat-label">菜单项</div>
+        </div>
+      </div>
+    </el-card>
+
     <el-card class="menu-card" shadow="never">
       <MenuSearchToolbar
         :query-params="queryParams"
@@ -41,6 +57,8 @@
 
 <script setup lang="ts">
 import { ref, watchEffect } from 'vue'
+import ModulePageIcon from '@/components/ModulePageIcon.vue'
+import { MODULE_PAGE_ICON } from '@/constants/module-page-icons'
 import MenuSearchToolbar from './MenuSearchToolbar.vue'
 import MenuTreeTable from './MenuTreeTable.vue'
 import MenuFormDialog from './MenuFormDialog.vue'
@@ -89,6 +107,7 @@ watchEffect(() => {
 
 .menu-card {
   border-radius: 8px;
+  margin-bottom: 0;
 }
 
 .menu-card :deep(.el-card__body) {

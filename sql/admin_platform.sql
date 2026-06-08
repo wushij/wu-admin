@@ -6,14 +6,14 @@
 -- 【使用方式】
 --   全新安装（空库）  直接执行全文即可（自动检测空库放行 Part A/B）
 --                     示例: mysql -u root -p < sql/admin_platform.sql
---   已有库（有表）    勿跑全文 Part A/B；执行文末「附录」或 sql/add1.sql
+--   已有库（有表）    勿跑全文 Part A/B；执行文末「附录」或 sql/add1.sql 等增量
 --   强制重装         SET @WU_ADMIN_ALLOW_DROP=1; 后再执行全文（会 DROP 清库）
 --
 -- 【正文结构】
---   Part A  建表      §1 用户 ~ §16 系统配置（DROP 后 CREATE）
---   Part B  初始数据  组织/用户/字典/配置/菜单/定时任务/角色权限
+--   Part A  建表      §1 用户 ~ §17 代码生成（gen_table 含 uk_gen_table_name 唯一索引）
+--   Part B  初始数据  组织/用户/字典/配置/菜单（含代码生成 164-169,179）/定时任务/角色权限
 --
--- 【附录】旧库补丁（缺表/缺菜单/迁移）；发版增量见 sql/add1.sql 等
+-- 【附录】旧库补丁（含代码生成表/菜单/唯一索引迁移）；发版增量见 sql/add1.sql 等
 -- =============================================================================
 
 -- 建库并切换
@@ -656,6 +656,54 @@ CREATE TABLE sys_config_group (
     UNIQUE KEY uk_group_code (group_code)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='系统配置分组';
 
+-- §17 代码生成（gen_table / gen_table_column）
+DROP TABLE IF EXISTS gen_table_column;
+DROP TABLE IF EXISTS gen_table;
+CREATE TABLE gen_table (
+    id BIGINT NOT NULL AUTO_INCREMENT COMMENT '编号',
+    table_name VARCHAR(200) DEFAULT '' COMMENT '表名称',
+    table_comment VARCHAR(500) DEFAULT '' COMMENT '表描述',
+    class_name VARCHAR(100) DEFAULT '' COMMENT '实体类名称',
+    package_name VARCHAR(100) DEFAULT '' COMMENT '生成包路径',
+    module_name VARCHAR(30) DEFAULT '' COMMENT '生成模块名',
+    business_name VARCHAR(30) DEFAULT '' COMMENT '生成业务名',
+    function_name VARCHAR(50) DEFAULT '' COMMENT '生成功能名',
+    author VARCHAR(50) DEFAULT '' COMMENT '作者',
+    gen_type VARCHAR(10) DEFAULT 'crud' COMMENT '生成类型',
+    gen_path VARCHAR(200) DEFAULT '/' COMMENT '生成路径',
+    front_type VARCHAR(30) DEFAULT 'element-plus' COMMENT '前端模板',
+    form_layout VARCHAR(20) DEFAULT 'vertical' COMMENT '表单布局',
+    parent_menu_id BIGINT DEFAULT NULL COMMENT '上级菜单ID',
+    remark VARCHAR(500) DEFAULT NULL,
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+    update_time DATETIME DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE INDEX uk_gen_table_name (table_name)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='代码生成业务表';
+
+CREATE TABLE gen_table_column (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    table_id BIGINT DEFAULT NULL,
+    column_name VARCHAR(200) DEFAULT '',
+    column_comment VARCHAR(500) DEFAULT '',
+    column_type VARCHAR(100) DEFAULT '',
+    java_type VARCHAR(50) DEFAULT '',
+    java_field VARCHAR(200) DEFAULT '',
+    is_pk TINYINT DEFAULT 0,
+    is_increment TINYINT DEFAULT 0,
+    is_required TINYINT DEFAULT 0,
+    is_insert TINYINT DEFAULT 0,
+    is_edit TINYINT DEFAULT 0,
+    is_list TINYINT DEFAULT 0,
+    is_query TINYINT DEFAULT 0,
+    query_type VARCHAR(20) DEFAULT 'EQ',
+    html_type VARCHAR(50) DEFAULT '',
+    dict_type VARCHAR(100) DEFAULT '',
+    sort INT DEFAULT 0,
+    PRIMARY KEY (id),
+    INDEX idx_gen_col_table (table_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='代码生成字段表';
+
 -- =============================================================================
 -- Part B  初始化数据
 -- =============================================================================
@@ -872,6 +920,13 @@ INSERT INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, c
 -- 开发工具
 (150, '开发工具', '', 1, 8, 0, '/tool', 'Tools', '', 1),
 (151, '接口文档', 'tool:apiDoc:view', 2, 1, 150, '/tool/api-doc', 'Document', '/doc.html', 1),
+(164, '代码生成', 'tool:gen:list', 2, 2, 150, '/tool/gen', 'DocumentCopy', 'tool/gen/index', 1),
+(165, '代码生成查询', 'tool:gen:query', 3, 1, 164, '', '', '', 1),
+(166, '代码生成导入', 'tool:gen:import', 3, 2, 164, '', '', '', 1),
+(167, '代码生成修改', 'tool:gen:edit', 3, 3, 164, '', '', '', 1),
+(168, '代码生成删除', 'tool:gen:remove', 3, 4, 164, '', '', '', 1),
+(169, '代码生成预览', 'tool:gen:preview', 3, 5, 164, '', '', '', 1),
+(179, '代码生成执行', 'tool:gen:code', 3, 6, 164, '', '', '', 1),
 -- 消息中心
 (170, '消息中心', '', 1, 6, 0, '/message', 'Bell', '', 1),
 (171, '系统通知', 'system:announce:list', 2, 1, 170, '/message/notice', 'Notification', 'message/notice/index', 1),
@@ -911,7 +966,7 @@ INSERT INTO sys_role_menu (role_id, menu_id) VALUES
 (1, 70), (1, 71), (1, 72), (1, 73), (1, 74),
 (1, 100), (1, 101), (1, 102), (1, 103), (1, 104), (1, 180), (1, 181), (1, 182), (1, 183), (1, 184), (1, 185), (1, 186), (1, 187),
 (1, 105), (1, 110), (1, 111), (1, 112), (1, 113),
-(1, 150), (1, 151),
+(1, 150), (1, 151), (1, 164), (1, 165), (1, 166), (1, 167), (1, 168), (1, 169), (1, 179),
 (1, 170), (1, 171), (1, 172), (1, 173), (1, 174), (1, 175), (1, 176), (1, 177), (1, 178);
 
 -- 普通用户默认权限（页面+查询按钮；侧栏父级由 getUserMenuList 自动补齐）
@@ -1018,6 +1073,136 @@ INSERT IGNORE INTO sys_menu (id, name, permission, type, sort, parent_id, path, 
 
 INSERT IGNORE INTO sys_role_menu (role_id, menu_id) VALUES
 (1, 160), (1, 161), (1, 162), (1, 163);
+
+-- [附录·菜单] 代码生成 164-169,179（开发工具下；179 避开消息中心 170）
+INSERT IGNORE INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, component, status) VALUES
+(164, '代码生成', 'tool:gen:list', 2, 2, 150, '/tool/gen', 'DocumentCopy', 'tool/gen/index', 1),
+(165, '代码生成查询', 'tool:gen:query', 3, 1, 164, '', '', '', 1),
+(166, '代码生成导入', 'tool:gen:import', 3, 2, 164, '', '', '', 1),
+(167, '代码生成修改', 'tool:gen:edit', 3, 3, 164, '', '', '', 1),
+(168, '代码生成删除', 'tool:gen:remove', 3, 4, 164, '', '', '', 1),
+(169, '代码生成预览', 'tool:gen:preview', 3, 5, 164, '', '', '', 1),
+(179, '代码生成执行', 'tool:gen:code', 3, 6, 164, '', '', '', 1);
+
+INSERT IGNORE INTO sys_role_menu (role_id, menu_id) VALUES
+(1, 164), (1, 165), (1, 166), (1, 167), (1, 168), (1, 169), (1, 179);
+
+-- [附录·表] 代码生成元数据表
+CREATE TABLE IF NOT EXISTS gen_table (
+    id BIGINT NOT NULL AUTO_INCREMENT COMMENT '编号',
+    table_name VARCHAR(200) DEFAULT '' COMMENT '表名称',
+    table_comment VARCHAR(500) DEFAULT '' COMMENT '表描述',
+    class_name VARCHAR(100) DEFAULT '' COMMENT '实体类名称',
+    package_name VARCHAR(100) DEFAULT '' COMMENT '生成包路径',
+    module_name VARCHAR(30) DEFAULT '' COMMENT '生成模块名',
+    business_name VARCHAR(30) DEFAULT '' COMMENT '生成业务名',
+    function_name VARCHAR(50) DEFAULT '' COMMENT '生成功能名',
+    author VARCHAR(50) DEFAULT '' COMMENT '作者',
+    gen_type VARCHAR(10) DEFAULT 'crud' COMMENT '生成类型',
+    gen_path VARCHAR(200) DEFAULT '/' COMMENT '生成路径',
+    front_type VARCHAR(30) DEFAULT 'element-plus' COMMENT '前端模板',
+    form_layout VARCHAR(20) DEFAULT 'vertical' COMMENT '表单布局',
+    parent_menu_id BIGINT DEFAULT NULL COMMENT '上级菜单ID',
+    remark VARCHAR(500) DEFAULT NULL,
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+    update_time DATETIME DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE INDEX uk_gen_table_name (table_name)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='代码生成业务表';
+
+CREATE TABLE IF NOT EXISTS gen_table_column (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    table_id BIGINT DEFAULT NULL,
+    column_name VARCHAR(200) DEFAULT '',
+    column_comment VARCHAR(500) DEFAULT '',
+    column_type VARCHAR(100) DEFAULT '',
+    java_type VARCHAR(50) DEFAULT '',
+    java_field VARCHAR(200) DEFAULT '',
+    is_pk TINYINT DEFAULT 0,
+    is_increment TINYINT DEFAULT 0,
+    is_required TINYINT DEFAULT 0,
+    is_insert TINYINT DEFAULT 0,
+    is_edit TINYINT DEFAULT 0,
+    is_list TINYINT DEFAULT 0,
+    is_query TINYINT DEFAULT 0,
+    query_type VARCHAR(20) DEFAULT 'EQ',
+    html_type VARCHAR(50) DEFAULT '',
+    dict_type VARCHAR(100) DEFAULT '',
+    sort INT DEFAULT 0,
+    PRIMARY KEY (id),
+    INDEX idx_gen_col_table (table_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='代码生成字段表';
+
+-- [附录·表] gen_table 唯一索引升级（#12；IF NOT EXISTS 无法修改已存在表的索引）
+DELETE c FROM gen_table_column c
+INNER JOIN gen_table t ON c.table_id = t.id
+INNER JOIN gen_table dup ON dup.table_name = t.table_name AND dup.id < t.id;
+
+DELETE t1 FROM gen_table t1
+INNER JOIN gen_table t2 ON t1.table_name = t2.table_name AND t1.id > t2.id;
+
+DROP PROCEDURE IF EXISTS sp_drop_index_if_exists;
+DROP PROCEDURE IF EXISTS sp_add_unique_index_if_not_exists;
+
+DELIMITER $$
+
+CREATE PROCEDURE sp_drop_index_if_exists(
+    IN p_table VARCHAR(64),
+    IN p_index VARCHAR(64)
+)
+BEGIN
+    DECLARE v_cnt INT DEFAULT 0;
+
+    SELECT COUNT(*) INTO v_cnt
+    FROM information_schema.statistics
+    WHERE table_schema = DATABASE()
+      AND table_name = p_table
+      AND index_name = p_index;
+
+    IF v_cnt > 0 THEN
+        SET @ddl_sql = CONCAT('ALTER TABLE `', p_table, '` DROP INDEX `', p_index, '`');
+        PREPARE stmt FROM @ddl_sql;
+        EXECUTE stmt;
+        DEALLOCATE PREPARE stmt;
+        SELECT CONCAT('[DROP] ', p_table, '.', p_index) AS result;
+    ELSE
+        SELECT CONCAT('[SKIP] ', p_table, '.', p_index) AS result;
+    END IF;
+END$$
+
+CREATE PROCEDURE sp_add_unique_index_if_not_exists(
+    IN p_table VARCHAR(64),
+    IN p_index VARCHAR(64),
+    IN p_columns VARCHAR(255)
+)
+BEGIN
+    DECLARE v_cnt INT DEFAULT 0;
+
+    SELECT COUNT(*) INTO v_cnt
+    FROM information_schema.statistics
+    WHERE table_schema = DATABASE()
+      AND table_name = p_table
+      AND index_name = p_index;
+
+    IF v_cnt = 0 THEN
+        SET @ddl_sql = CONCAT('ALTER TABLE `', p_table, '` ADD UNIQUE INDEX `', p_index, '` (', p_columns, ')');
+        PREPARE stmt FROM @ddl_sql;
+        EXECUTE stmt;
+        DEALLOCATE PREPARE stmt;
+        SELECT CONCAT('[ADD] ', p_table, '.', p_index) AS result;
+    ELSE
+        SELECT CONCAT('[SKIP] ', p_table, '.', p_index) AS result;
+    END IF;
+END$$
+
+DELIMITER ;
+
+CALL sp_drop_index_if_exists('gen_table', 'idx_gen_table_name');
+CALL sp_drop_index_if_exists('gen_table', 'uk_gen_table_name');
+CALL sp_add_unique_index_if_not_exists('gen_table', 'uk_gen_table_name', 'table_name');
+
+DROP PROCEDURE IF EXISTS sp_drop_index_if_exists;
+DROP PROCEDURE IF EXISTS sp_add_unique_index_if_not_exists;
 
 -- [附录·菜单] 图标修正
 UPDATE sys_menu SET icon = 'UserFilled' WHERE id = 3 AND icon IN ('Key', 'key');
@@ -1392,7 +1577,14 @@ BEGIN
         (181, '任务查询', 'monitor:job:query', 3, 1, 180, '', '', '', 1),
         (182, '任务新增', 'monitor:job:add', 3, 2, 180, '', '', '', 1),
         (183, '任务编辑', 'monitor:job:edit', 3, 3, 180, '', '', '', 1),
-        (184, '任务删除', 'monitor:job:delete', 3, 4, 180, '', '', '', 1)
+        (184, '任务删除', 'monitor:job:delete', 3, 4, 180, '', '', '', 1),
+        (164, '代码生成', 'tool:gen:list', 2, 2, 150, '/tool/gen', 'DocumentCopy', 'tool/gen/index', 1),
+        (165, '代码生成查询', 'tool:gen:query', 3, 1, 164, '', '', '', 1),
+        (166, '代码生成导入', 'tool:gen:import', 3, 2, 164, '', '', '', 1),
+        (167, '代码生成修改', 'tool:gen:edit', 3, 3, 164, '', '', '', 1),
+        (168, '代码生成删除', 'tool:gen:remove', 3, 4, 164, '', '', '', 1),
+        (169, '代码生成预览', 'tool:gen:preview', 3, 5, 164, '', '', '', 1),
+        (179, '代码生成执行', 'tool:gen:code', 3, 6, 164, '', '', '', 1)
         ON DUPLICATE KEY UPDATE
             name = VALUES(name), permission = VALUES(permission), type = VALUES(type),
             sort = VALUES(sort), parent_id = VALUES(parent_id), path = VALUES(path),

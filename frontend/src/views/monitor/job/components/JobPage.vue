@@ -1,5 +1,5 @@
 <template>
-  <div class="app-container job-page">
+  <div class="app-container module-page job-page">
     <JobHeroOverview :overview="overview" />
 
     <el-row :gutter="16" class="charts-row">
