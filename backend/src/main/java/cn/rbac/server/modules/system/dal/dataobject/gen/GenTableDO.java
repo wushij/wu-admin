@@ -32,6 +32,7 @@ public class GenTableDO implements Serializable {
     private String remark;
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
+    private Integer deleted;
 
     @TableField(exist = false)
     private List<GenTableColumnDO> columns;

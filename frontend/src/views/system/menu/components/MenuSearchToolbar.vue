@@ -1,5 +1,5 @@
 <template>
-  <el-form :model="queryParams" inline class="module-search-form search-form">
+  <el-form :model="queryParams" inline class="module-search-form search-form menu-search-form">
     <el-form-item label="菜单名称">
       <el-input
         v-model="queryParams.name"
@@ -75,10 +75,24 @@ defineEmits<{
   margin-bottom: 4px;
 }
 
+.menu-search-form {
+  justify-content: center;
+}
+
+.menu-search-form :deep(.el-form-item) {
+  margin-bottom: 12px;
+}
+
+.menu-search-form :deep(.el-form-item__label),
+.menu-search-form :deep(.el-form-item__content) {
+  align-items: center;
+}
+
 .menu-stats {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+  justify-content: center;
   gap: 12px;
   margin-bottom: 14px;
   padding: 10px 12px;

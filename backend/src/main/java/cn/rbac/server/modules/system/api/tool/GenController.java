@@ -1,6 +1,7 @@
 package cn.rbac.server.modules.system.api.tool;
 
 import cn.rbac.server.common.pojo.CommonResult;
+import cn.rbac.server.common.pojo.PageParam;
 import cn.rbac.server.common.pojo.PageResult;
 import cn.rbac.server.framework.log.annotation.Log;
 import cn.rbac.server.modules.system.dal.dataobject.gen.DatabaseTableVO;
@@ -140,6 +141,33 @@ public class GenController {
     @Log(title = "代码生成", businessType = Log.BusinessType.UPDATE)
     public CommonResult<Boolean> sync(@PathVariable Long id) {
         genTableService.syncTable(id);
+        return CommonResult.success(true);
+    }
+
+    @GetMapping("/recycle/page")
+    @Operation(summary = "代码生成回收站分页")
+    @PreAuthorize("@ss.hasPermission('tool:gen:remove')")
+    public CommonResult<PageResult<GenTableDO>> recyclePage(
+            PageParam pageParam,
+            @RequestParam(required = false) String tableName) {
+        return CommonResult.success(genTableService.recyclePage(pageParam, tableName));
+    }
+
+    @PutMapping("/restore")
+    @Operation(summary = "恢复代码生成表配置")
+    @PreAuthorize("@ss.hasPermission('tool:gen:remove')")
+    @Log(title = "代码生成", businessType = Log.BusinessType.UPDATE)
+    public CommonResult<Boolean> restore(@RequestParam Long id) {
+        genTableService.restore(id);
+        return CommonResult.success(true);
+    }
+
+    @DeleteMapping("/delete-permanent")
+    @Operation(summary = "彻底删除代码生成表配置")
+    @PreAuthorize("@ss.hasPermission('tool:gen:remove')")
+    @Log(title = "代码生成", businessType = Log.BusinessType.DELETE)
+    public CommonResult<Boolean> deletePermanent(@RequestParam Long id) {
+        genTableService.deletePermanent(id);
         return CommonResult.success(true);
     }
 }

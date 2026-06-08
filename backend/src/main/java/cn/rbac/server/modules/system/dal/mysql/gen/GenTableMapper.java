@@ -4,9 +4,13 @@ import cn.rbac.server.modules.system.dal.dataobject.gen.DatabaseColumnVO;
 import cn.rbac.server.modules.system.dal.dataobject.gen.DatabaseTableVO;
 import cn.rbac.server.modules.system.dal.dataobject.gen.GenTableDO;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import org.apache.ibatis.annotations.Delete;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
+import org.apache.ibatis.annotations.Update;
 
 import java.util.List;
 
@@ -21,7 +25,7 @@ public interface GenTableMapper extends BaseMapper<GenTableDO> {
         WHERE table_schema = (SELECT DATABASE())
           AND table_type = 'BASE TABLE'
           AND table_name NOT LIKE 'gen_%'
-          AND table_name NOT IN (SELECT table_name FROM gen_table)
+          AND table_name NOT IN (SELECT table_name FROM gen_table WHERE IFNULL(deleted, 0) = 0)
           <if test="tableName != null and tableName != ''">
             AND table_name LIKE CONCAT('%', #{tableName}, '%')
           </if>
@@ -40,7 +44,7 @@ public interface GenTableMapper extends BaseMapper<GenTableDO> {
         WHERE table_schema = (SELECT DATABASE())
           AND table_type = 'BASE TABLE'
           AND table_name NOT LIKE 'gen_%'
-          AND table_name NOT IN (SELECT table_name FROM gen_table)
+          AND table_name NOT IN (SELECT table_name FROM gen_table WHERE IFNULL(deleted, 0) = 0)
           <if test="tableName != null and tableName != ''">
             AND table_name LIKE CONCAT('%', #{tableName}, '%')
           </if>
@@ -69,4 +73,25 @@ public interface GenTableMapper extends BaseMapper<GenTableDO> {
         ORDER BY ordinal_position
         """)
     List<DatabaseColumnVO> selectDbColumnsByTableName(@Param("tableName") String tableName);
+
+    @Select({
+            "<script>",
+            "SELECT * FROM gen_table",
+            "WHERE deleted = 1",
+            "<if test='tableName != null and tableName != \"\"'>",
+            "  AND table_name LIKE CONCAT('%', #{tableName}, '%')",
+            "</if>",
+            "ORDER BY update_time DESC",
+            "</script>"
+    })
+    IPage<GenTableDO> selectDeletedPage(Page<GenTableDO> page, @Param("tableName") String tableName);
+
+    @Update("UPDATE gen_table SET deleted = 0, update_time = NOW() WHERE id = #{id} AND deleted = 1")
+    int restoreById(@Param("id") Long id);
+
+    @Update("UPDATE gen_table SET deleted = 1, update_time = NOW() WHERE id = #{id} AND IFNULL(deleted, 0) = 0")
+    int softDeleteById(@Param("id") Long id);
+
+    @Delete("DELETE FROM gen_table WHERE id = #{id} AND deleted = 1")
+    int deletePhysicalById(@Param("id") Long id);
 }

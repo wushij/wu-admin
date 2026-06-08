@@ -4,6 +4,8 @@ import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.io.IoUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.rbac.server.common.pojo.BusinessException;
+import cn.rbac.server.common.pojo.PageParam;
+import cn.rbac.server.common.pojo.PageResult;
 import cn.rbac.server.modules.system.dal.dataobject.gen.DatabaseColumnVO;
 import cn.rbac.server.modules.system.dal.dataobject.gen.DatabaseTableVO;
 import cn.rbac.server.modules.system.dal.dataobject.gen.GenTableColumnDO;
@@ -129,6 +131,7 @@ public class GenTableServiceImpl implements GenTableService {
             table.setGenType("crud");
             table.setFrontType("element-plus");
             table.setParentMenuId(DEFAULT_PARENT_MENU_ID);
+            table.setDeleted(0);
             genTableMapper.insert(table);
 
             List<DatabaseColumnVO> columns = genTableMapper.selectDbColumnsByTableName(tableName);
@@ -141,7 +144,12 @@ public class GenTableServiceImpl implements GenTableService {
 
     private boolean existsImportedTable(String tableName) {
         return genTableMapper.selectCount(new LambdaQueryWrapper<GenTableDO>()
-                .eq(GenTableDO::getTableName, tableName)) > 0;
+                .eq(GenTableDO::getTableName, tableName)
+                .and(w -> w.eq(GenTableDO::getDeleted, 0).or().isNull(GenTableDO::getDeleted))) > 0;
+    }
+
+    private boolean isDeleted(GenTableDO table) {
+        return table.getDeleted() != null && table.getDeleted() == 1;
     }
 
     private GenTableColumnDO buildColumnFromDb(Long tableId, DatabaseColumnVO col) {
@@ -178,6 +186,7 @@ public class GenTableServiceImpl implements GenTableService {
     public Page<GenTableDO> page(Integer pageNo, Integer pageSize, String tableName) {
         Page<GenTableDO> pageParam = new Page<>(pageNo, pageSize);
         LambdaQueryWrapper<GenTableDO> wrapper = new LambdaQueryWrapper<>();
+        wrapper.and(w -> w.eq(GenTableDO::getDeleted, 0).or().isNull(GenTableDO::getDeleted));
         if (StrUtil.isNotBlank(tableName)) {
             wrapper.like(GenTableDO::getTableName, tableName);
         }
@@ -188,6 +197,9 @@ public class GenTableServiceImpl implements GenTableService {
     @Override
     public GenTableDO getTableById(Long id) {
         GenTableDO table = genTableMapper.selectById(id);
+        if (table != null && isDeleted(table)) {
+            return null;
+        }
         if (table != null) {
             List<GenTableColumnDO> columns = genTableColumnMapper.selectByTableId(id);
             table.setColumns(columns);
@@ -211,9 +223,44 @@ public class GenTableServiceImpl implements GenTableService {
     @Transactional(rollbackFor = Exception.class)
     public void deleteTable(Long[] ids) {
         for (Long id : ids) {
-            genTableMapper.deleteById(id);
-            genTableColumnMapper.deleteByTableId(id);
+            int rows = genTableMapper.softDeleteById(id);
+            if (rows == 0) {
+                throw new BusinessException("表配置不存在或已删除");
+            }
         }
+    }
+
+    @Override
+    public PageResult<GenTableDO> recyclePage(PageParam pageParam, String tableName) {
+        Page<GenTableDO> page = new Page<>(pageParam.getPageNo(), pageParam.getPageSize());
+        Page<GenTableDO> deletedPage = (Page<GenTableDO>) genTableMapper.selectDeletedPage(page, tableName);
+        return PageResult.of(deletedPage.getRecords(), deletedPage.getTotal());
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void restore(Long id) {
+        GenTableDO deleted = genTableMapper.selectById(id);
+        if (deleted == null || !isDeleted(deleted)) {
+            throw new BusinessException(404, "回收站表配置不存在");
+        }
+        if (existsImportedTable(deleted.getTableName())) {
+            throw new BusinessException("表 " + deleted.getTableName() + " 已存在有效配置，无法恢复");
+        }
+        int rows = genTableMapper.restoreById(id);
+        if (rows == 0) {
+            throw new BusinessException(404, "回收站表配置不存在");
+        }
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void deletePermanent(Long id) {
+        int rows = genTableMapper.deletePhysicalById(id);
+        if (rows == 0) {
+            throw new BusinessException(404, "回收站表配置不存在");
+        }
+        genTableColumnMapper.deleteByTableId(id);
     }
 
     @Override

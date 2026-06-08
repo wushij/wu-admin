@@ -1,5 +1,7 @@
 package cn.rbac.server.modules.system.service.gen;
 
+import cn.rbac.server.common.pojo.PageParam;
+import cn.rbac.server.common.pojo.PageResult;
 import cn.rbac.server.modules.system.dal.dataobject.gen.DatabaseTableVO;
 import cn.rbac.server.modules.system.dal.dataobject.gen.GenTableDO;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -34,4 +36,10 @@ public interface GenTableService {
     List<String> removeGeneratedCode(Long tableId);
 
     void syncTable(Long tableId);
+
+    PageResult<GenTableDO> recyclePage(PageParam pageParam, String tableName);
+
+    void restore(Long id);
+
+    void deletePermanent(Long id);
 }

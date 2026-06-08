@@ -19,10 +19,6 @@
             </div>
             <p class="module-hero-desc">近 7 日接口访问概览，支持路径、方法与用户维度分析</p>
           </div>
-          <div class="module-hero-stats">
-            <div class="stat-num">{{ stats.totalCount }}</div>
-            <div class="stat-label">请求总数</div>
-          </div>
         </div>
       </el-card>
 

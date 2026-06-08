@@ -188,6 +188,7 @@ const summary = reactive<RecycleSummary>({
   announce: 0,
   job: 0,
   file: 0,
+  gen: 0,
   total: 0,
 })
 
@@ -516,6 +517,11 @@ onMounted(async () => {
   .accent-file {
     --accent-gradient: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
     --accent-shadow: rgba(99, 102, 241, 0.35);
+  }
+
+  .accent-gen {
+    --accent-gradient: linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%);
+    --accent-shadow: rgba(59, 130, 246, 0.35);
   }
 
   .table-card {

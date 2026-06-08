@@ -12,6 +12,7 @@ import {
   List,
   Timer,
   Folder,
+  DocumentCopy,
 } from '@element-plus/icons-vue'
 import { getRecycleUserPage, restoreUser, deleteUserPermanent } from '@/api/system/user'
 import { getRecycleRolePage, restoreRole, deleteRolePermanent } from '@/api/system/role'
@@ -35,6 +36,7 @@ import {
 } from '@/api/message/index'
 import { getRecycleJobPage, restoreJob, deleteJobPermanent } from '@/api/monitor/job'
 import { getRecycleFilePage, restoreFile, deleteFilePermanent } from '@/api/system/file'
+import { getRecycleGenPage, restoreGenTable, deleteGenTablePermanent } from '@/api/tool/gen'
 import type { ApiResult, PageResult } from '@/types/api'
 import type { RecycleSummary } from '@/api/system/recycle'
 
@@ -52,6 +54,7 @@ export type RecycleTypeKey = keyof Pick<
   | 'announce'
   | 'job'
   | 'file'
+  | 'gen'
 >
 
 export interface RecycleColumn {
@@ -77,6 +80,7 @@ export type RecycleAccent =
   | 'announce'
   | 'job'
   | 'file'
+  | 'gen'
 
 export interface RecycleTypeConfig {
   key: RecycleTypeKey
@@ -330,6 +334,26 @@ export const RECYCLE_TYPES: RecycleTypeConfig[] = [
     fetchPage: (p) => getRecycleFilePage(p as never) as unknown as Promise<ApiResult<PageResult<Record<string, unknown>>>>,
     restore: restoreFile,
     deletePermanent: deleteFilePermanent,
+  },
+  {
+    key: 'gen',
+    label: '代码生成',
+    icon: DocumentCopy,
+    accent: 'gen',
+    permission: 'tool:gen:list',
+    deletePermission: 'tool:gen:remove',
+    hint: '恢复后将还原表配置与字段元数据；若同名表已重新导入，需先删除或彻底清理后再恢复。',
+    columns: [
+      { prop: 'id', label: 'ID', width: 70 },
+      { prop: 'tableName', label: '表名', minWidth: 160 },
+      { prop: 'tableComment', label: '表描述', minWidth: 140 },
+      { prop: 'className', label: '类名', width: 140 },
+      { prop: 'updateTime', label: '删除时间', width: 180 },
+    ],
+    searchFields: [{ key: 'tableName', label: '表名', placeholder: '请输入表名' }],
+    fetchPage: (p) => getRecycleGenPage(p as never) as unknown as Promise<ApiResult<PageResult<Record<string, unknown>>>>,
+    restore: restoreGenTable,
+    deletePermanent: deleteGenTablePermanent,
   },
 ]
 

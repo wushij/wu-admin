@@ -33,6 +33,7 @@
         <div class="card-header">
           <span>生成配置列表</span>
           <div class="header-actions">
+            <RecycleCenterLink tab="gen" />
             <el-button type="primary" v-permission="'tool:gen:import'" :icon="Upload" @click="openImport">导入表</el-button>
             <el-button
               type="success"
@@ -71,9 +72,17 @@
         <el-table-column prop="className" label="实体类" width="140" align="center" header-align="center" />
         <el-table-column prop="businessName" label="业务名" width="120" align="center" header-align="center" />
         <el-table-column prop="createTime" label="创建时间" width="170" align="center" header-align="center" />
-        <el-table-column label="操作" width="460" fixed="right" align="center" header-align="center">
+        <el-table-column
+          label="操作"
+          width="400"
+          fixed="right"
+          align="center"
+          header-align="center"
+          class-name="gen-op-col"
+          label-class-name="gen-op-col"
+        >
           <template #default="{ row }">
-            <div class="action-buttons">
+            <div class="action-buttons gen-action-buttons">
               <el-button size="small" v-permission="'tool:gen:preview'" @click="handlePreview(row)">预览</el-button>
               <el-button size="small" type="primary" v-permission="'tool:gen:edit'" @click="openEdit(row)">配置</el-button>
               <el-button size="small" type="success" v-permission="'tool:gen:code'" @click="openGenerate(row)">生成</el-button>
@@ -389,6 +398,7 @@ import {
   Search, Refresh, Upload, Delete, Cpu,
   FolderOpened, Download,
 } from '@element-plus/icons-vue'
+import RecycleCenterLink from '@/components/RecycleCenterLink.vue'
 import ModulePageIcon from '@/components/ModulePageIcon.vue'
 import { MODULE_PAGE_ICON } from '@/constants/module-page-icons'
 import { useGenPage } from '../composables/useGenPage'
@@ -461,6 +471,17 @@ onMounted(() => loadData())
     justify-content: center;
     align-items: center;
     width: 100%;
+  }
+
+  .gen-action-buttons {
+    flex-wrap: nowrap;
+    gap: 6px;
+  }
+
+  :deep(th.gen-op-col),
+  :deep(td.gen-op-col) {
+    padding-left: 10px;
+    padding-right: 10px;
   }
 
   .mb-16 { margin-bottom: 16px; }

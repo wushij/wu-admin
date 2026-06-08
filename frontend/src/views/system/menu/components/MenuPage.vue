@@ -7,7 +7,7 @@
             <ModulePageIcon :icon="MODULE_PAGE_ICON.menu" />
             <span>菜单管理</span>
           </div>
-          <p class="module-hero-desc">维护目录、菜单与按钮权限；修改后需重新登录侧栏才会更新</p>
+          <p class="module-hero-desc">维护目录、菜单与按钮权限；禁用的菜单仍在此列表显示，侧栏需重新登录后更新</p>
         </div>
         <div class="module-hero-stats">
           <div class="stat-num">{{ menuStats.total }}</div>
@@ -29,6 +29,7 @@
 
       <MenuTreeTable
         ref="tableComponentRef"
+        :table-key="tableKey"
         :menu-list="menuList"
         :loading="loading"
         :expand-all="expandAll"
@@ -77,6 +78,7 @@ const {
   formRef,
   tableRef,
   expandAll,
+  tableKey,
   queryParams,
   form,
   rules,

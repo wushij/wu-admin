@@ -1,21 +1,5 @@
 <template>
-  <div class="app-container module-page file-page">
-    <el-card class="search-card module-hero-card" shadow="never">
-      <div class="module-hero-row">
-        <div class="module-hero-text">
-          <div class="module-hero-title">
-            <ModulePageIcon :icon="MODULE_PAGE_ICON.file" />
-            <span>文件管理</span>
-          </div>
-          <p class="module-hero-desc">按类型与分组管理上传文件，支持预览、移动与批量操作</p>
-        </div>
-        <div class="module-hero-stats">
-          <div class="stat-num">{{ fileTotalCount }}</div>
-          <div class="stat-label">文件总数</div>
-        </div>
-      </div>
-    </el-card>
-
+  <div class="app-container file-page">
     <div class="file-layout">
       <FileGroupSidebar
         :active-type="activeType"
@@ -123,9 +107,6 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
-import ModulePageIcon from '@/components/ModulePageIcon.vue'
-import { MODULE_PAGE_ICON } from '@/constants/module-page-icons'
 import FileGroupSidebar from './FileGroupSidebar.vue'
 import FileMainPanel from './FileMainPanel.vue'
 import FilePreviewDialog from './FilePreviewDialog.vue'
@@ -194,11 +175,6 @@ const {
   handlePreview,
   handleDownload,
 } = useFilePage()
-
-const fileTotalCount = computed(() => {
-  const groupSum = groups.value.reduce((sum, g) => sum + (Number(g.fileCount) || 0), 0)
-  return groupSum + (Number(ungroupedCount.value) || 0)
-})
 </script>
 
 <style scoped lang="scss">
@@ -209,7 +185,7 @@ const fileTotalCount = computed(() => {
 .file-layout {
   display: flex;
   gap: 12px;
-  height: calc(100vh - 220px);
-  min-height: 480px;
+  height: calc(100vh - 140px);
+  min-height: 520px;
 }
 </style>

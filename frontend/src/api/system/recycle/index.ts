@@ -13,6 +13,7 @@ export interface RecycleSummary {
   announce: number
   job: number
   file: number
+  gen: number
   total: number
 }
 

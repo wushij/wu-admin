@@ -41,4 +41,7 @@ public interface RecycleCenterMapper {
 
     @Select("SELECT COUNT(*) FROM sys_file WHERE deleted = 1")
     long countDeletedFiles();
+
+    @Select("SELECT COUNT(*) FROM gen_table WHERE deleted = 1")
+    long countDeletedGenTables();
 }

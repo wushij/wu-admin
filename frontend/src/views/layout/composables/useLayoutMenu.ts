@@ -1,7 +1,7 @@
 import { ref, computed, onUnmounted } from 'vue'
 import { useUserStore } from '@/store/user'
 import { resolveMenuIcon } from '@/utils/menu-icon'
-import { buildMenuTree, type MenuNode } from '@/utils/menu-tree'
+import { buildSidebarMenuTree, type MenuNode } from '@/utils/menu-tree'
 import type { Component } from 'vue'
 
 const SYSTEM_MENU_ID = '1'
@@ -20,7 +20,7 @@ export function useLayoutMenu() {
   const userMenus = computed<MenuNode[]>(() => {
     const menus = userStore.menus || []
     const filteredMenus = menus.filter((menu) => menu.type !== 3) as MenuNode[]
-    const tree = buildMenuTree(filteredMenus)
+    const tree = buildSidebarMenuTree(filteredMenus)
 
     const sortMenus = (items: MenuNode[]) => {
       items.sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0) || a.id - b.id)

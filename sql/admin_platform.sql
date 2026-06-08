@@ -10,7 +10,7 @@
 --   强制重装         SET @WU_ADMIN_ALLOW_DROP=1; 后再执行全文（会 DROP 清库）
 --
 -- 【正文结构】
---   Part A  建表      §1 用户 ~ §17 代码生成（gen_table 含 uk_gen_table_name 唯一索引）
+--   Part A  建表      §1 用户 ~ §17 代码生成（gen_table 含 uk_gen_table_name_deleted 唯一索引）
 --   Part B  初始数据  组织/用户/字典/配置/菜单（含代码生成 164-169,179）/定时任务/角色权限
 --
 -- 【附录】旧库补丁（含代码生成表/菜单/唯一索引迁移）；发版增量见 sql/add1.sql 等
@@ -677,8 +677,9 @@ CREATE TABLE gen_table (
     remark VARCHAR(500) DEFAULT NULL,
     create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
     update_time DATETIME DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
+    deleted TINYINT NOT NULL DEFAULT 0 COMMENT '是否删除',
     PRIMARY KEY (id),
-    UNIQUE INDEX uk_gen_table_name (table_name)
+    UNIQUE INDEX uk_gen_table_name_deleted (table_name, deleted)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='代码生成业务表';
 
 CREATE TABLE gen_table_column (
@@ -893,7 +894,7 @@ INSERT INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, c
 -- 系统监控目录
 (100, '系统监控', '', 1, 3, 0, '/monitor', 'Monitor', '', 1),
 -- API 访问统计
-(101, 'API访问统计', 'monitor:apiAccess:list', 2, 1, 100, '/monitor/api-access', 'DataLine', 'monitor/api-access/index', 1),
+(101, 'API访问统计', 'monitor:apiAccess:list', 2, 6, 100, '/monitor/api-access', 'DataLine', 'monitor/api-access/index', 1),
 (102, '访问统计查询', 'monitor:apiAccess:query', 3, 1, 101, '', '', '', 1),
 -- 在线用户
 (103, '在线用户', 'monitor:online:list', 2, 2, 100, '/monitor/online', 'User', 'monitor/online/index', 1),
@@ -1106,8 +1107,9 @@ CREATE TABLE IF NOT EXISTS gen_table (
     remark VARCHAR(500) DEFAULT NULL,
     create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
     update_time DATETIME DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
+    deleted TINYINT NOT NULL DEFAULT 0 COMMENT '是否删除',
     PRIMARY KEY (id),
-    UNIQUE INDEX uk_gen_table_name (table_name)
+    UNIQUE INDEX uk_gen_table_name_deleted (table_name, deleted)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='代码生成业务表';
 
 CREATE TABLE IF NOT EXISTS gen_table_column (
@@ -1200,6 +1202,70 @@ DELIMITER ;
 CALL sp_drop_index_if_exists('gen_table', 'idx_gen_table_name');
 CALL sp_drop_index_if_exists('gen_table', 'uk_gen_table_name');
 CALL sp_add_unique_index_if_not_exists('gen_table', 'uk_gen_table_name', 'table_name');
+
+DROP PROCEDURE IF EXISTS sp_drop_index_if_exists;
+DROP PROCEDURE IF EXISTS sp_add_unique_index_if_not_exists;
+
+-- [附录·表] gen_table 软删除 + 回收中心（#13）
+SET @col_exists := (
+    SELECT COUNT(*) FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'gen_table'
+      AND COLUMN_NAME = 'deleted'
+);
+SET @sql := IF(@col_exists = 0,
+    'ALTER TABLE gen_table ADD COLUMN deleted TINYINT NOT NULL DEFAULT 0 COMMENT ''是否删除'' AFTER update_time',
+    'SELECT ''deleted exists'' AS info');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+UPDATE gen_table SET deleted = 0 WHERE deleted IS NULL;
+
+DELIMITER $$
+
+DROP PROCEDURE IF EXISTS sp_drop_index_if_exists$$
+CREATE PROCEDURE sp_drop_index_if_exists(IN p_table VARCHAR(64), IN p_index VARCHAR(64))
+BEGIN
+    DECLARE v_cnt INT DEFAULT 0;
+    SELECT COUNT(*) INTO v_cnt
+    FROM information_schema.statistics
+    WHERE table_schema = DATABASE()
+      AND table_name = p_table
+      AND index_name = p_index;
+    IF v_cnt > 0 THEN
+        SET @ddl_sql = CONCAT('ALTER TABLE `', p_table, '` DROP INDEX `', p_index, '`');
+        PREPARE stmt FROM @ddl_sql;
+        EXECUTE stmt;
+        DEALLOCATE PREPARE stmt;
+    END IF;
+END$$
+
+DROP PROCEDURE IF EXISTS sp_add_unique_index_if_not_exists$$
+CREATE PROCEDURE sp_add_unique_index_if_not_exists(
+    IN p_table VARCHAR(64),
+    IN p_index VARCHAR(64),
+    IN p_columns VARCHAR(255)
+)
+BEGIN
+    DECLARE v_cnt INT DEFAULT 0;
+    SELECT COUNT(*) INTO v_cnt
+    FROM information_schema.statistics
+    WHERE table_schema = DATABASE()
+      AND table_name = p_table
+      AND index_name = p_index;
+    IF v_cnt = 0 THEN
+        SET @ddl_sql = CONCAT('ALTER TABLE `', p_table, '` ADD UNIQUE INDEX `', p_index, '` (', p_columns, ')');
+        PREPARE stmt FROM @ddl_sql;
+        EXECUTE stmt;
+        DEALLOCATE PREPARE stmt;
+    END IF;
+END$$
+
+DELIMITER ;
+
+CALL sp_drop_index_if_exists('gen_table', 'uk_gen_table_name');
+CALL sp_add_unique_index_if_not_exists('gen_table', 'uk_gen_table_name_deleted', 'table_name, deleted');
 
 DROP PROCEDURE IF EXISTS sp_drop_index_if_exists;
 DROP PROCEDURE IF EXISTS sp_add_unique_index_if_not_exists;

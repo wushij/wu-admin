@@ -205,11 +205,19 @@
   }
 
   .module-search-card .el-card__body {
-    padding: 8px 16px;
+    padding: 12px 16px;
   }
 
-  .module-search-form .el-form-item {
-    margin-bottom: 0;
+  .module-search-form.el-form--inline {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px 16px;
+
+    .el-form-item {
+      margin-right: 0;
+      margin-bottom: 0;
+    }
   }
 
   .card-header {

@@ -105,3 +105,15 @@ export function syncGenTable(id: number) {
 export function downloadGenCodeUrl(ids: number[]) {
   return `/api/tool/gen/download?ids=${ids.join(',')}`
 }
+
+export function getRecycleGenPage(params: GenPageQuery) {
+  return get<PageResult<GenTable>>('/tool/gen/recycle/page', params)
+}
+
+export function restoreGenTable(id: number) {
+  return put<boolean>('/tool/gen/restore', null, { params: { id } })
+}
+
+export function deleteGenTablePermanent(id: number) {
+  return del<boolean>('/tool/gen/delete-permanent', { params: { id } })
+}
