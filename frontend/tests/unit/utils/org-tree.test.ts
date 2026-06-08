@@ -4,7 +4,7 @@ import {
   findSingleOrgRoot,
   resolveDeptRootParentId,
   type OrgTreeNode,
-} from './org-tree'
+} from '@/utils/org-tree'
 
 describe('org-tree', () => {
   it('unwraps single root with children', () => {

@@ -103,29 +103,31 @@ public class ChatService {
         List<UserDO> users = userMapper.selectList(new LambdaQueryWrapper<UserDO>()
                 .eq(UserDO::getStatus, 1)
                 .ne(UserDO::getId, userId));
-        List<Map<String, Object>> result = new ArrayList<>();
+        if (users.isEmpty()) {
+            return List.of();
+        }
+
+        Set<Long> blockedIds = new HashSet<>(blacklistMapper.selectBlockedUserIds(userId));
+        Map<Long, ChatPeerLatestVO> latestByPeer = chatMessageMapper.selectLatestPerPeer(userId).stream()
+                .collect(Collectors.toMap(ChatPeerLatestVO::getPeerId, v -> v, (a, b) -> a));
+        Map<Long, Long> unreadBySender = chatMessageMapper.selectUnreadCountPerSender(userId).stream()
+                .collect(Collectors.toMap(ChatPeerUnreadVO::getSenderId, ChatPeerUnreadVO::getUnreadCount));
+
+        List<Map<String, Object>> result = new ArrayList<>(users.size());
         for (UserDO u : users) {
             Map<String, Object> item = new HashMap<>();
             item.put("id", u.getId());
             item.put("username", u.getUsername());
             item.put("nickname", u.getNickname());
             item.put("avatar", u.getAvatar());
-            item.put("isBlocked", isInMyBlacklist(userId, u.getId()));
+            item.put("isBlocked", blockedIds.contains(u.getId()));
             item.put("online", webSocketHandler.isOnline(u.getId()));
-            ChatMessageDO latest = chatMessageMapper.selectOne(new LambdaQueryWrapper<ChatMessageDO>()
-                    .and(q -> q.and(a -> a.eq(ChatMessageDO::getSenderId, userId).eq(ChatMessageDO::getReceiverId, u.getId()))
-                            .or(b -> b.eq(ChatMessageDO::getSenderId, u.getId()).eq(ChatMessageDO::getReceiverId, userId)))
-                    .orderByDesc(ChatMessageDO::getSendTime)
-                    .last("LIMIT 1"));
+            ChatPeerLatestVO latest = latestByPeer.get(u.getId());
             if (latest != null) {
                 item.put("lastMessage", ChatMsgType.previewLabel(latest.getMsgType(), latest.getContent()));
                 item.put("lastMessageTime", latest.getSendTime());
             }
-            long unread = chatMessageMapper.selectCount(new LambdaQueryWrapper<ChatMessageDO>()
-                    .eq(ChatMessageDO::getReceiverId, userId)
-                    .eq(ChatMessageDO::getSenderId, u.getId())
-                    .eq(ChatMessageDO::getIsRead, 0));
-            item.put("unreadCount", unread);
+            item.put("unreadCount", unreadBySender.getOrDefault(u.getId(), 0L));
             result.add(item);
         }
         result.sort((a, b) -> {
@@ -221,20 +223,32 @@ public class ChatService {
     public List<Map<String, Object>> myGroups(Long userId) {
         List<ChatGroupMemberDO> memberships = groupMemberMapper.selectList(
                 new LambdaQueryWrapper<ChatGroupMemberDO>().eq(ChatGroupMemberDO::getUserId, userId));
+        if (memberships.isEmpty()) {
+            return List.of();
+        }
+
+        List<Long> groupIds = memberships.stream().map(ChatGroupMemberDO::getGroupId).distinct().toList();
+        Map<Long, ChatGroupDO> groupMap = chatGroupMapper.selectByIds(groupIds).stream()
+                .filter(g -> g.getStatus() != null && g.getStatus() == 1)
+                .collect(Collectors.toMap(ChatGroupDO::getId, g -> g, (a, b) -> a));
+        if (groupMap.isEmpty()) {
+            return List.of();
+        }
+
+        Map<Long, Long> memberCountMap = groupMemberMapper.selectMemberCountByGroupIds(groupIds).stream()
+                .collect(Collectors.toMap(ChatGroupMemberCountVO::getGroupId, ChatGroupMemberCountVO::getMemberCount));
+        Map<Long, ChatGroupLatestVO> latestMsgMap = groupMessageMapper.selectLatestByGroupIds(groupIds).stream()
+                .collect(Collectors.toMap(ChatGroupLatestVO::getGroupId, v -> v, (a, b) -> a));
+
         List<Map<String, Object>> list = new ArrayList<>();
         for (ChatGroupMemberDO m : memberships) {
-            ChatGroupDO g = chatGroupMapper.selectById(m.getGroupId());
-            if (g == null || g.getStatus() == null || g.getStatus() != 1) {
+            ChatGroupDO g = groupMap.get(m.getGroupId());
+            if (g == null) {
                 continue;
             }
             Map<String, Object> item = buildGroupSummary(g, m);
-            long count = groupMemberMapper.selectCount(new LambdaQueryWrapper<ChatGroupMemberDO>()
-                    .eq(ChatGroupMemberDO::getGroupId, g.getId()));
-            item.put("memberCount", count);
-            ChatGroupMessageDO last = groupMessageMapper.selectOne(new LambdaQueryWrapper<ChatGroupMessageDO>()
-                    .eq(ChatGroupMessageDO::getGroupId, g.getId())
-                    .orderByDesc(ChatGroupMessageDO::getSendTime)
-                    .last("LIMIT 1"));
+            item.put("memberCount", memberCountMap.getOrDefault(g.getId(), 0L));
+            ChatGroupLatestVO last = latestMsgMap.get(g.getId());
             if (last != null) {
                 item.put("lastMessage", ChatMsgType.previewLabel(last.getMsgType(), last.getContent()));
                 item.put("lastMessageTime", last.getSendTime());

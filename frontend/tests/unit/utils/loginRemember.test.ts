@@ -1,10 +1,10 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vitest'
 import {
   LOGIN_REMEMBER_STORAGE_KEY,
+  clearLoginRemember,
   loadLoginRemember,
   saveLoginRemember,
-  clearLoginRemember,
-} from './loginRemember'
+} from '@/utils/loginRemember'
 
 describe('loginRemember', () => {
   beforeEach(() => {

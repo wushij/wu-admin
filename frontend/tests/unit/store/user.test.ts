@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { useUserStore } from '@/store/user'
-import { login, getInfo, logout as logoutApi } from '@/api/system/auth'
+import { getInfo, login, logout as logoutApi } from '@/api/system/auth'
 
 vi.mock('@/api/system/auth', () => ({
   login: vi.fn(),

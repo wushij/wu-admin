@@ -201,7 +201,7 @@ mysql -u wuadmin -p wuadmin < sql/add11_wuadmin.sql
 | 消息 | `/message/notice` | `notice/index.vue`，`module-page` |
 | 企业IM | `/message/chat` | `ChatPage.vue` + `useChatPage.ts` / `useChatRender` / `useMention` |
 
-**质量保障**：`npm run typecheck`（`vue-tsc --noEmit`）、`npm run test`（Vitest，37 用例）、`npm run build`（构建前自动类型检查）。
+**质量保障**：`npm run typecheck`（`vue-tsc --noEmit`）、`npm run test`（Vitest，约 86 用例）、`npm run build`（构建前自动类型检查）；后端 `mvn test`（JUnit 5 + Mockito，约 87 用例）。详见下文 [单元测试](#单元测试)。
 
 > 企业 IM 聊天区可进一步拆分子面板组件；`role` 等页已接入 `module-page`，逻辑 composable 拆分可继续做。
 
@@ -691,11 +691,15 @@ wu-admin/
 │   │   ├── common/             # 通用 POJO、工具类
 │   │   ├── framework/          # 安全、MyBatis、Redis、Web 过滤器等
 │   │   └── modules/system/     # 系统业务（api / service / dal）
-│   └── src/main/resources/
-│       ├── application.yml          # 公共配置；默认 profile=prod
-│       ├── application-dev.yml      # 本地开发（wu-admin 库、无 Redis 密码）
-│       ├── application-prod.yml     # 生产（wuadmin 库、Redis 密码等）
-│       └── templates/gen/           # 代码生成 Velocity 模板
+│   ├── src/main/resources/
+│   │   ├── application.yml          # 公共配置；默认 profile=prod
+│   │   ├── application-dev.yml      # 本地开发（wu-admin 库、无 Redis 密码）
+│   │   ├── application-prod.yml     # 生产（wuadmin 库、Redis 密码等）
+│   │   └── templates/gen/           # 代码生成 Velocity 模板
+│   └── src/test/java/cn/rbac/server/
+│       ├── testsupport/        # MybatisLambdaTestBase、ServiceTestFixtures、MybatisMockMatchers
+│       ├── framework/web/core/ # GlobalExceptionHandlerTest 等
+│       └── modules/system/service/  # 各 *ServiceImplTest
 ├── frontend/                   # Vue 3 + TypeScript 前端
 │   ├── src/
 │   │   ├── api/                # 接口封装（system、message、monitor 等，均为 .ts）
@@ -715,7 +719,9 @@ wu-admin/
 │   │   ├── types/              # TS 类型（api、message、config）
 │   │   ├── utils/              # request、主题、菜单、org-tree、WebSocket 工具
 │   │   └── directives/         # v-permission 等指令
-│   ├── tsconfig.json
+│   ├── tests/unit/             # Vitest 单测（store、utils、api，与 src 分离）
+│   ├── tsconfig.json           # include 含 tests/**/*.ts
+│   ├── vitest.config.ts        # 合并 vite.config 别名
 │   └── vite.config.ts          # 开发代理 /api → localhost:8080
 ├── sql/
 │   ├── admin_platform.sql      # 本地全量（wu-admin，MySQL 8）+ 附录
@@ -866,6 +872,15 @@ npm run dev
 ```
 
 访问：**http://localhost:3000**
+
+### 5. 运行单元测试（可选）
+
+```powershell
+cd frontend && npm run test
+cd backend && mvn test
+```
+
+说明见 [单元测试](#单元测试)。
 
 ---
 
@@ -1034,9 +1049,56 @@ GET /auth/config  // 实际请求 /api/auth/config
 - 业务 API（`api/system/*`、`api/message`、`api/monitor`）为各模块定义了 **VO / SaveDTO / PageQuery** 类型。
 - Pinia `store/user`、`store/message` 与 API 类型对齐（`AuthInfo`、`NoticeVO`）。
 - 类型检查：`cd frontend && npm run typecheck`（`vue-tsc --noEmit`）。
-- 单元测试：`cd frontend && npm run test`（Vitest）。
+- 单元测试：`cd frontend && npm run test`（Vitest）；开发时监听 `npm run test:watch`。
 - ESLint：`cd frontend && npm run lint`。
 - 生产构建会先跑类型检查：`npm run build`。
+
+### 单元测试
+
+项目采用**前后端分离的单测目录**，不依赖真实 MySQL/Redis，核心 Service 与工具函数用 Mock 隔离。
+
+#### 运行命令
+
+```powershell
+# 前端（Vitest + happy-dom）
+cd frontend
+npm run test          # 一次性执行
+npm run test:watch    # 监听模式
+
+# 后端（JUnit 5 + Mockito + Spring Test）
+cd backend
+mvn test              # 全量单测
+mvn test -Dtest=AuthServiceImplTest   # 指定类
+```
+
+打包仍可跳过测试：`mvn clean package -DskipTests`（见下文「构建与打包」）。
+
+#### 前端覆盖（`frontend/tests/unit/`，约 86 用例）
+
+| 目录 | 文件 | 说明 |
+|------|------|------|
+| `store/` | `user.test.ts`、`message.test.ts`、`tagsView.test.ts` | 登录态、消息 WebSocket 未读、页签缓存 |
+| `utils/` | `request.test.ts`、`menu-tree.test.ts`、`org-tree.test.ts`、`hasMenuPerm.test.ts`、`chat-message.test.ts`、`message-push.test.ts`、`loginRemember.test.ts`、`api-response.test.ts`、`axiosError.test.ts` | 拦截器、菜单/组织树、权限判断、聊天文案、推送防抖 |
+| `api/` | `system/file/with-token-query.test.ts` | 带 Token 的文件 URL |
+
+配置：`vitest.config.ts` 合并 `vite.config.ts` 的 `@` 别名；`tsconfig.json` 的 `include` 含 `tests/**/*.ts`，IDE 可正确解析测试文件中的路径别名。
+
+#### 后端覆盖（`backend/src/test/java/`，约 87 用例）
+
+| 测试类 | 覆盖要点 |
+|--------|----------|
+| `AuthServiceImplTest` | 账号登录成功/失败/限流/锁定；注册；短信登录；短信发码限流 |
+| `PermissionServiceImplTest` | 权限码匹配、菜单树过滤、角色/菜单分配 |
+| `UserServiceImplTest` / `RoleServiceImplTest` / `DeptServiceImplTest` | CRUD 校验、树操作、回收站 |
+| `RegisterApprovalServiceImplTest` | 注册审批通过/拒绝、待审去重 |
+| `ChatServiceTest` | 私聊/群聊发送、撤回、建群、成员管理、解散 |
+| `TicketServiceImplTest` | 工单创建、评论、状态流转 |
+| `MenuServiceImplTest` / `DictDataServiceImplTest` | 菜单树、字典缓存刷新 |
+| `GlobalExceptionHandlerTest` | 业务异常、参数异常、403 统一响应 |
+
+公共支撑：`testsupport/MybatisLambdaTestBase`（MyBatis-Plus `LambdaQueryWrapper` 元数据初始化）、`ServiceTestFixtures`（User/Role/Menu 等测试数据构造）。
+
+> 当前以 **Service 层单元测试** 为主，尚未接入 JaCoCo 覆盖率报告与 Controller 层 `MockMvc` 集成测试；新增核心业务逻辑时建议同步补充对应 `*Test.java` / `*.test.ts`。
 
 ### 构建与打包
 
@@ -1084,7 +1146,7 @@ java -jar backend.jar --spring.datasource.password=xxx --spring.data.redis.passw
 2. 页面目录：`views/<模块>/index.vue` 仅作路由入口，业务放在 `*Page.vue` + `composables/use*Page.ts`。
 3. 可复用 UI 拆到同目录 `components/`；登录注册类共用 `views/auth/components/`。
 4. 列表页优先用 `DictSelect` / `DictTag`；按钮权限用 `v-permission`。
-5. 提交前执行 `npm run typecheck` 与 `npm run test`。
+5. 提交前执行 `npm run typecheck` 与 `npm run test`；涉及后端 Service 变更时执行 `mvn test`。
 
 ---
 

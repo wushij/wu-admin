@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
   resolvePushTitle,
+  shouldCountGroupUnread,
   shouldNotifyChat,
   shouldNotifyGroupChat,
-  shouldCountGroupUnread,
 } from '@/utils/message-push'
 import type { WsPushMessage } from '@/utils/messageWebSocket'
 
