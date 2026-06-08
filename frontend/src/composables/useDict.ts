@@ -1,4 +1,4 @@
-import { ref, shallowRef, unref, type Ref, type MaybeRef } from 'vue'
+import { onMounted, ref, shallowRef, unref, type Ref, type MaybeRef } from 'vue'
 import { listDictDataByType, batchDictData } from '@/api/system/dict'
 import type { DictDataItem, DictOption } from '@/types/api'
 
@@ -47,6 +47,19 @@ function coerceOptions(list: DictOption[], valueType: ValueType): DictOption[] {
   }))
 }
 
+/** 字典缓存变更计数，供 computed 订阅（Map 原地更新时 shallowRef 不会触发） */
+export const dictCacheVersion = ref(0)
+
+function touchDictCache() {
+  dictCacheVersion.value++
+}
+
+/** 从内存缓存同步读取字典选项（需已 preload / load） */
+export function getDictOptions(dictType: string, valueType: ValueType = 'auto'): DictOption[] {
+  if (!dictType) return []
+  return coerceOptions(cache.get(dictType) || [], valueType)
+}
+
 export interface UseDictOptions {
   valueType?: ValueType
 }
@@ -67,6 +80,7 @@ export function useDict(dictType: MaybeRef<string>, opts: UseDictOptions = {}) {
     }
     if (!force && cache.has(type)) {
       options.value = coerceOptions(cache.get(type)!, valueType)
+      touchDictCache()
       return options.value
     }
     loading.value = true
@@ -75,6 +89,7 @@ export function useDict(dictType: MaybeRef<string>, opts: UseDictOptions = {}) {
       const list = (Array.isArray(res.data) ? res.data : []).map(mapDictItem)
       cache.set(type, list)
       options.value = coerceOptions(list, valueType)
+      touchDictCache()
       return options.value
     } finally {
       loading.value = false
@@ -88,6 +103,10 @@ export function useDict(dictType: MaybeRef<string>, opts: UseDictOptions = {}) {
   function tagTypeOf(value: unknown) {
     return listClassToTagType(getDictListClass(unref(dictType), value))
   }
+
+  onMounted(() => {
+    void load()
+  })
 
   return { options, loading, load, labelOf, tagTypeOf }
 }
@@ -118,6 +137,7 @@ export async function preloadDicts(dictTypes: string[]) {
   if (!dictTypes?.length) return {} as Record<string, DictOption[]>
   const missing = dictTypes.filter(t => t && !cache.has(t))
   if (!missing.length) {
+    touchDictCache()
     return Object.fromEntries(dictTypes.map(t => [t, cache.get(t) || []]))
   }
   const res = await batchDictData(missing)
@@ -125,6 +145,7 @@ export async function preloadDicts(dictTypes: string[]) {
   Object.keys(map).forEach(type => {
     cache.set(type, (map[type] || []).map(mapDictItem))
   })
+  touchDictCache()
   return map
 }
 
@@ -135,6 +156,7 @@ export function clearDictCache(dictType?: string) {
   } else {
     cache.clear()
   }
+  touchDictCache()
 }
 
 /** 重新拉取指定字典（清本地缓存后从服务端加载） */

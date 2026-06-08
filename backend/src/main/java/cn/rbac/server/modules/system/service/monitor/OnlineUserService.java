@@ -9,6 +9,8 @@ public interface OnlineUserService {
 
     void recordLoginSession(Long userId, String username, String nickname, HttpServletRequest request);
 
+    void recordLoginSession(Long userId, String username, String nickname, String clientIp, String userAgent);
+
     void touchLastAccess(Long userId);
 
     List<OnlineUserVO> listOnlineUsers();

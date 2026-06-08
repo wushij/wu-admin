@@ -1,4 +1,4 @@
-import { computed, nextTick, onMounted, onUnmounted, ref, watch, type Ref } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { EChartsType } from 'echarts'
 import {
@@ -20,9 +20,7 @@ import {
   setCacheAutoRefresh,
   setCacheChartRenderHandler,
   startCacheMonitorBackground,
-  stopCacheMonitorBackground,
 } from '../cacheMonitorChart'
-import { isAdmin } from '@/composables/useMonitorBackground'
 
 /** 表格固定高度，避免切换筛选时行数变化导致页面跳动 */
 const KEYS_TABLE_HEIGHT = 480
@@ -42,18 +40,10 @@ const LINE_CHART_GRID = {
   containLabel: true,
 }
 
-export interface CacheMonitorChartRefs {
-  memoryChartRef: Ref<HTMLElement | null>
-  qpsChartRef: Ref<HTMLElement | null>
-  hitRateChartRef: Ref<HTMLElement | null>
-  clientsChartRef: Ref<HTMLElement | null>
-}
-
-export function useCacheMonitorPage(chartRefs: CacheMonitorChartRefs) {
-  const { memoryChartRef, qpsChartRef, hitRateChartRef, clientsChartRef } = chartRefs
+export function useCacheMonitorPage() {
   const userStore = useUserStore()
-  const canQuery = computed(() =>
-    hasMonitorPerm(userStore.userInfo.permissions, userStore.menus, 'monitor:cache:query'),
+  const canList = computed(() =>
+    hasMonitorPerm(userStore.userInfo.permissions, userStore.menus, 'monitor:cache:list'),
   )
   const canDelete = computed(() =>
     hasMonitorPerm(userStore.userInfo.permissions, userStore.menus, 'monitor:cache:delete'),
@@ -77,6 +67,11 @@ export function useCacheMonitorPage(chartRefs: CacheMonitorChartRefs) {
     ttl: -1,
     value: null,
   })
+
+  const memoryChartRef = ref<HTMLElement | null>(null)
+  const qpsChartRef = ref<HTMLElement | null>(null)
+  const hitRateChartRef = ref<HTMLElement | null>(null)
+  const clientsChartRef = ref<HTMLElement | null>(null)
 
   let memoryChart: EChartsType | null = null
   let qpsChart: EChartsType | null = null
@@ -372,7 +367,7 @@ export function useCacheMonitorPage(chartRefs: CacheMonitorChartRefs) {
   }
 
   onMounted(async () => {
-    if (!canQuery.value) return
+    if (!canList.value) return
     startCacheMonitorBackground()
     setCacheChartRenderHandler(() => updateCharts(cacheChartHistory.lastMemoryStats ?? {}))
     await nextTick()
@@ -387,13 +382,10 @@ export function useCacheMonitorPage(chartRefs: CacheMonitorChartRefs) {
     setCacheChartRenderHandler(null)
     window.removeEventListener('resize', handleResize)
     disposeCharts()
-    if (!isAdmin(userStore)) {
-      stopCacheMonitorBackground()
-    }
   })
 
   return {
-    canQuery,
+    canList,
     canDelete,
     info,
     keysLoading,
@@ -408,6 +400,10 @@ export function useCacheMonitorPage(chartRefs: CacheMonitorChartRefs) {
     patternPresets: PATTERN_PRESETS,
     detailVisible,
     cacheDetail,
+    memoryChartRef,
+    qpsChartRef,
+    hitRateChartRef,
+    clientsChartRef,
     pagedKeys,
     pagination,
     filteredKeys,

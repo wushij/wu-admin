@@ -25,13 +25,16 @@
       <template #header>
         <div class="card-header">
           <span>操作日志列表</span>
-          <el-button
-            type="danger"
-            v-permission="'system:operLog:clear'"
-            @click="handleClean"
-          >
-            清空日志
-          </el-button>
+          <div class="header-actions">
+            <ListExportButton module="oper-log" :query-params="queryParams" permission="system:operLog:query" />
+            <el-button
+              type="danger"
+              v-permission="'system:operLog:clear'"
+              @click="handleClean"
+            >
+              清空日志
+            </el-button>
+          </div>
         </div>
       </template>
 
@@ -44,7 +47,7 @@
         :cell-style="{ textAlign: 'center' }"
       >
         <el-table-column prop="id" label="ID" width="80" />
-        <el-table-column prop="title" label="模块" width="120" show-overflow-tooltip />
+        <el-table-column prop="title" label="模块" min-width="120" show-overflow-tooltip />
         <el-table-column label="业务类型" width="90">
           <template #default="{ row }">{{ businessTypeLabel(row.businessType) }}</template>
         </el-table-column>
@@ -123,6 +126,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import ListExportButton from '@/components/ListExportButton.vue'
 import { pageOperLog, deleteOperLog, cleanOperLog, type OperLogVO, type OperLogPageQuery } from '@/api/system/oper-log'
 
 const loading = ref(false)
@@ -223,6 +227,11 @@ onMounted(() => loadData())
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 .el-pagination {
   margin-top: 16px;

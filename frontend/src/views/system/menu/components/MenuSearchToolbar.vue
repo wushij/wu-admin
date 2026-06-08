@@ -1,5 +1,5 @@
 <template>
-  <el-form :model="queryParams" inline class="module-search-form search-form menu-search-form">
+  <el-form :model="queryParams" inline class="search-form">
     <el-form-item label="菜单名称">
       <el-input
         v-model="queryParams.name"
@@ -35,7 +35,7 @@
     <span class="stat-item"><el-tag type="info" size="small">目录</el-tag> {{ menuStats.dir }}</span>
     <span class="stat-item"><el-tag type="success" size="small">菜单</el-tag> {{ menuStats.menu }}</span>
     <span class="stat-item"><el-tag type="warning" size="small">按钮</el-tag> {{ menuStats.button }}</span>
-    <span class="stat-hint">目录 {{ menuStats.dir }} · 菜单 {{ menuStats.menu }} · 按钮 {{ menuStats.button }}</span>
+    <span class="stat-hint">共 {{ menuStats.total }} 项 · 改菜单后需重新登录侧栏才会更新</span>
   </div>
 
   <div class="table-toolbar">
@@ -73,11 +73,6 @@ defineEmits<{
 <style scoped>
 .search-form {
   margin-bottom: 4px;
-}
-
-.menu-search-form :deep(.el-form-item__label),
-.menu-search-form :deep(.el-form-item__content) {
-  align-items: center;
 }
 
 .menu-stats {

@@ -72,6 +72,12 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '系统配置', icon: 'Tools', permission: 'system:config:list' }
       },
       {
+        path: 'system/recycle',
+        name: 'SystemRecycle',
+        component: () => import('@/views/system/recycle/index.vue'),
+        meta: { title: '回收中心', icon: 'Delete', permission: 'system:recycle:list' }
+      },
+      {
         path: 'system/oper-log',
         name: 'SystemOperLog',
         component: () => import('@/views/system/oper-log/index.vue'),
@@ -118,6 +124,18 @@ const routes: RouteRecordRaw[] = [
         name: 'MonitorJob',
         component: () => import('@/views/monitor/job/index.vue'),
         meta: { title: '定时任务', icon: 'Timer', permission: 'monitor:job:list' }
+      },
+      {
+        path: 'monitor/cache',
+        name: 'MonitorCache',
+        component: () => import('@/views/monitor/cache/index.vue'),
+        meta: { title: '缓存监控', icon: 'Coin', permission: 'monitor:cache:list' }
+      },
+      {
+        path: 'monitor/server',
+        name: 'MonitorServer',
+        component: () => import('@/views/monitor/server/index.vue'),
+        meta: { title: '服务监控', icon: 'Cpu', permission: 'monitor:server:list' }
       },
       {
         path: 'tool/api-doc',

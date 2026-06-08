@@ -1,6 +1,6 @@
 <template>
   <el-form :model="draft" label-width="120px" class="config-form">
-    <el-form-item label="登录人机校检">
+    <el-form-item label="启用验证码">
       <el-switch v-model="draft.captchaEnabled" :disabled="!canEdit" />
     </el-form-item>
     <el-form-item v-if="draft.captchaEnabled" label="验证码类型">
@@ -19,26 +19,11 @@
     <el-form-item v-if="draft.smsLoginEnabled && !smsEnabled" label=" ">
       <el-alert type="warning" :closable="false" show-icon title="请先在「短信配置」中开启短信功能，否则无法保存" />
     </el-form-item>
-    <el-form-item label="邮箱验证码登录">
-      <el-switch v-model="draft.emailLoginEnabled" :disabled="!canEdit" />
-    </el-form-item>
-    <el-form-item v-if="draft.emailLoginEnabled" label="邮箱发送前滑块">
-      <el-switch v-model="draft.emailLoginSliderCaptchaEnabled" :disabled="!canEdit" />
-      <span class="unit">获取邮箱登录验证码前需完成滑块验证</span>
-    </el-form-item>
-    <el-form-item v-if="draft.emailLoginEnabled && !emailEnabled" label=" ">
-      <el-alert type="warning" :closable="false" show-icon title="请先在「邮件配置」中开启邮件功能，否则无法保存" />
-    </el-form-item>
     <el-form-item label="记住我">
       <el-switch v-model="draft.rememberMe" :disabled="!canEdit" />
     </el-form-item>
-    <el-form-item label="账号最大重试">
+    <el-form-item label="最大重试次数">
       <el-input-number v-model="draft.maxRetryCount" :min="1" :max="20" :disabled="!canEdit" />
-      <span class="unit">次后锁定该账号</span>
-    </el-form-item>
-    <el-form-item label="IP 最大重试">
-      <el-input-number v-model="draft.maxRetryCountIp" :min="1" :max="50" :disabled="!canEdit" />
-      <span class="unit">次后锁定该 IP（同一出口共享计数）</span>
     </el-form-item>
     <el-form-item label="锁定时长">
       <el-input-number v-model="draft.lockTime" :min="1" :max="120" :disabled="!canEdit" />
@@ -54,6 +39,5 @@ defineProps<{
   draft: ConfigGroupMap['login']
   canEdit: boolean
   smsEnabled: boolean
-  emailEnabled?: boolean
 }>()
 </script>

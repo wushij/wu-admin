@@ -17,7 +17,7 @@
         <el-input v-model="form.name" />
       </el-form-item>
       <el-form-item label="负责人">
-        <DeptLeaderSelect v-model="form.leaderUserId" />
+        <el-input v-model="form.leaderName" />
       </el-form-item>
       <el-form-item label="联系电话">
         <el-input v-model="form.phone" />
@@ -43,7 +43,6 @@
 import { ref } from 'vue'
 import type { FormRules } from 'element-plus'
 import type { DeptSaveDTO, DeptVO } from '@/api/system/dept'
-import DeptLeaderSelect from '@/components/DeptLeaderSelect.vue'
 
 defineProps<{
   visible: boolean

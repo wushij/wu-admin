@@ -1,6 +1,6 @@
 <template>
-  <el-card class="search-card module-search-card" shadow="never">
-    <el-form :model="queryParams" inline class="module-search-form">
+  <el-card class="search-card" shadow="never">
+    <el-form :model="queryParams" inline>
       <el-form-item label="字典名称">
         <el-input v-model="queryParams.dictName" placeholder="请输入字典名称" clearable @keyup.enter="$emit('query')" />
       </el-form-item>
@@ -17,16 +17,18 @@
         />
       </el-form-item>
       <el-form-item>
-        <el-button type="primary" :icon="Search" @click="$emit('query')">搜索</el-button>
-        <el-button :icon="Refresh" @click="$emit('reset')">重置</el-button>
+        <el-button type="primary" @click="$emit('query')">搜索</el-button>
+        <el-button @click="$emit('reset')">重置</el-button>
       </el-form-item>
     </el-form>
-    <p class="dict-hint">保存后已自动同步本地缓存，其他已打开页面请刷新。</p>
+    <p class="dict-hint">
+      左侧选择字典类型，右侧维护选项；业务表单通过
+      <code>DictSelect</code> / <code>DictTag</code> 引用类型编码。保存后已自动同步本地缓存，其他已打开页面请刷新。
+    </p>
   </el-card>
 </template>
 
 <script setup lang="ts">
-import { Search, Refresh } from '@element-plus/icons-vue'
 import type { DictTypePageQuery } from '@/api/system/dict'
 import { DICT_TYPE } from '@/constants/dict'
 
@@ -35,8 +37,11 @@ defineEmits<{ query: []; reset: [] }>()
 </script>
 
 <style scoped lang="scss">
+.search-card {
+  margin-bottom: 12px;
+}
 .dict-hint {
-  margin: 8px 0 0;
+  margin: 0;
   font-size: 12px;
   color: var(--el-text-color-secondary);
   code {

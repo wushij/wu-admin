@@ -1,10 +1,7 @@
 <template>
   <div class="job-hero">
     <div class="hero-left">
-      <h2 class="hero-title">
-        <ModulePageIcon :icon="MODULE_PAGE_ICON.job" class="hero-title-icon" />
-        定时任务调度中心
-      </h2>
+      <h2 class="hero-title">定时任务调度中心</h2>
       <p class="hero-desc">基于 Quartz 管理维护任务：日志归档、聊天消息清理、通知与回收站清理等</p>
       <div class="hero-tags">
         <el-tag type="info" effect="plain">任务 {{ overview.totalJobs ?? 0 }}</el-tag>
@@ -43,8 +40,6 @@
 
 <script setup lang="ts">
 import type { JobOverview } from '@/api/monitor/job'
-import ModulePageIcon from '@/components/ModulePageIcon.vue'
-import { MODULE_PAGE_ICON } from '@/constants/module-page-icons'
 
 defineProps<{ overview: JobOverview }>()
 </script>
@@ -63,15 +58,9 @@ defineProps<{ overview: JobOverview }>()
   color: #fff;
 }
 .hero-title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
   margin: 0 0 8px;
   font-size: 22px;
   font-weight: 700;
-}
-.hero-title-icon {
-  flex-shrink: 0;
 }
 .hero-desc {
   margin: 0 0 12px;

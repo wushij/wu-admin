@@ -88,8 +88,8 @@ export function validateFileBeforeUpload(file?: File | null): string | null {
   return null
 }
 
-export function getFileGroupList() {
-  return get<FileGroupListResult>('/system/file-group/list')
+export function getFileGroupList(fileCategory?: string) {
+  return get<FileGroupListResult>('/system/file-group/list', fileCategory ? { fileCategory } : undefined)
 }
 
 export interface FileGroupSaveDTO {
@@ -135,6 +135,18 @@ export function deleteFile(id: number) {
   return del(`/system/file/${id}`)
 }
 
+export function getRecycleFilePage(params: { pageNo: number; pageSize: number; originalName?: string }) {
+  return get<PageResult<FileRecord>>('/system/file/recycle/page', params)
+}
+
+export function restoreFile(id: number) {
+  return put('/system/file/restore', null, { params: { id } })
+}
+
+export function deleteFilePermanent(id: number) {
+  return del('/system/file/delete-permanent', { params: { id } })
+}
+
 export function deleteFileBatch(ids: number[]) {
   return del('/system/file/batch', { data: ids })
 }
@@ -163,21 +175,30 @@ export function withTokenQuery(url: string): string {
   return `${url}${sep}Authorization=${encodeURIComponent(token)}`
 }
 
-/** 列表缩略图 / 视频封面 */
-export function fileDisplayUrl(file?: FileRecord | null): string {
+function normalizeFileApiUrl(url: string): string {
+  if (!url) return ''
+  if (url.startsWith('http')) return url
+  if (url.startsWith('/api')) return url
+  return url.startsWith('/') ? `/api${url}` : `/api/${url}`
+}
+
+/** 流式预览 URL（video/audio/img 直连，支持 Range，避免整文件 blob） */
+export function getStreamPreviewUrl(file?: FileRecord | null): string {
   if (!file) return ''
   const type = file.fileType || ''
-  if (file.id && (type.startsWith('image/') || type.startsWith('video/'))) {
-    return withTokenQuery(`/api/system/file/preview/${file.id}`)
+  const direct = normalizeFileApiUrl(file.url || '')
+  if (direct && (type.startsWith('video/') || type.startsWith('audio/') || type.startsWith('image/'))) {
+    return withTokenQuery(direct)
   }
-  let u = file.url || ''
-  if (u && !u.startsWith('http') && !u.startsWith('/api')) {
-    u = u.startsWith('/') ? `/api${u}` : `/api/${u}`
+  if (file.id) {
+    return getPreviewApiUrl(file.id)
   }
-  if (!u && file.id) {
-    u = `/api/system/file/preview/${file.id}`
-  }
-  return withTokenQuery(u)
+  return withTokenQuery(direct)
+}
+
+/** 列表缩略图 / 视频封面（优先 /files/ 直链流式加载） */
+export function fileDisplayUrl(file?: FileRecord | null): string {
+  return getStreamPreviewUrl(file)
 }
 
 export function getPreviewApiUrl(id: number) {

@@ -3,6 +3,8 @@ package cn.rbac.server.modules.system.api.approval;
 import cn.rbac.server.common.pojo.CommonResult;
 import cn.rbac.server.common.pojo.PageParam;
 import cn.rbac.server.common.pojo.PageResult;
+import cn.rbac.server.framework.log.annotation.Log;
+import cn.rbac.server.framework.security.core.service.SecurityUtils;
 import cn.rbac.server.modules.system.dal.dataobject.approval.ApprovalFormDO;
 import cn.rbac.server.modules.system.dal.dataobject.approval.ApprovalRecordDO;
 import cn.rbac.server.modules.system.dal.dataobject.notice.NoticeDO;
@@ -19,8 +21,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.Data;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -31,7 +32,12 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import jakarta.annotation.Resource;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+import org.springframework.validation.annotation.Validated;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -64,7 +70,7 @@ public class ApprovalFormController {
                                                           @RequestParam(required = false) String title,
                                                           @RequestParam(required = false) String formType,
                                                           @RequestParam(required = false) String status) {
-        Long userId = currentUserId();
+        Long userId = SecurityUtils.getLoginUserIdOrZero();
         boolean canQueryAll = permissionService.hasRole(userId, "super_admin")
                 || permissionService.hasPermission(userId, "system:approval:query");
         LambdaQueryWrapper<ApprovalFormDO> wrapper = new LambdaQueryWrapper<>();
@@ -111,10 +117,12 @@ public class ApprovalFormController {
         return CommonResult.success(records);
     }
 
+    @Log(title = "审批单管理", businessType = Log.BusinessType.INSERT)
     @Operation(summary = "提交审批单")
     @PostMapping("/create")
     @PreAuthorize("@ss.hasPermission('system:approval:create')")
-    public CommonResult<Long> create(@RequestBody ApprovalCreateReqVO reqVO) {
+    @Transactional(rollbackFor = Exception.class)
+    public CommonResult<Long> create(@Validated @RequestBody ApprovalCreateReqVO reqVO) {
         if (reqVO.getApproverUserId() == null || reqVO.getApproverUserId() <= 0) {
             return CommonResult.error(400, "请选择审批人");
         }
@@ -124,7 +132,7 @@ public class ApprovalFormController {
         form.setTitle(reqVO.getTitle());
         form.setContent(reqVO.getContent());
         form.setStatus("SUBMITTED");
-        form.setApplicantUserId(currentUserId());
+        form.setApplicantUserId(SecurityUtils.getLoginUserIdOrZero());
         form.setApproverUserId(reqVO.getApproverUserId());
         approvalFormMapper.insert(form);
         createRecord(form.getId(), "SUBMIT", reqVO.getContent());
@@ -133,15 +141,17 @@ public class ApprovalFormController {
         return CommonResult.success(form.getId());
     }
 
+    @Log(title = "审批单管理", businessType = Log.BusinessType.UPDATE)
     @Operation(summary = "审批操作")
     @PutMapping("/approve")
     @PreAuthorize("@ss.hasPermission('system:approval:approve')")
-    public CommonResult<Boolean> approve(@RequestBody ApprovalApproveReqVO reqVO) {
+    @Transactional(rollbackFor = Exception.class)
+    public CommonResult<Boolean> approve(@Validated @RequestBody ApprovalApproveReqVO reqVO) {
         ApprovalFormDO form = approvalFormMapper.selectById(reqVO.getId());
         if (form == null) {
             return CommonResult.error(404, "审批单不存在");
         }
-        Long userId = currentUserId();
+        Long userId = SecurityUtils.getLoginUserIdOrZero();
         boolean canApproveAny = permissionService.hasRole(userId, "super_admin");
         boolean isRegisterForm = RegisterApprovalService.FORM_TYPE_REGISTER.equals(form.getFormType());
         boolean canApproveRegister = isRegisterForm
@@ -176,10 +186,11 @@ public class ApprovalFormController {
         return CommonResult.success(true);
     }
 
+    @Log(title = "审批单管理", businessType = Log.BusinessType.UPDATE)
     @Operation(summary = "归档审批单")
     @PutMapping("/archive")
     @PreAuthorize("@ss.hasPermission('system:approval:archive')")
-    public CommonResult<Boolean> archive(@RequestBody ApprovalArchiveReqVO reqVO) {
+    public CommonResult<Boolean> archive(@Validated @RequestBody ApprovalArchiveReqVO reqVO) {
         ApprovalFormDO form = approvalFormMapper.selectById(reqVO.getId());
         if (form == null) {
             return CommonResult.error(404, "审批单不存在");
@@ -187,7 +198,7 @@ public class ApprovalFormController {
         if (!"APPROVED".equals(form.getStatus()) && !"REJECTED".equals(form.getStatus())) {
             return CommonResult.error(400, "仅审批结束单据可归档");
         }
-        Long userId = currentUserId();
+        Long userId = SecurityUtils.getLoginUserIdOrZero();
         boolean canArchiveAny = permissionService.hasRole(userId, "super_admin");
         boolean isRegisterForm = RegisterApprovalService.FORM_TYPE_REGISTER.equals(form.getFormType());
         boolean canArchiveRegister = isRegisterForm
@@ -201,9 +212,11 @@ public class ApprovalFormController {
         return CommonResult.success(true);
     }
 
+    @Log(title = "审批单管理", businessType = Log.BusinessType.DELETE)
     @Operation(summary = "删除审批单")
     @DeleteMapping("/delete")
     @PreAuthorize("@ss.hasPermission('system:approval:delete')")
+    @Transactional(rollbackFor = Exception.class)
     public CommonResult<Boolean> delete(@RequestParam Long id) {
         ApprovalFormDO form = approvalFormMapper.selectById(id);
         if (form == null) {
@@ -259,14 +272,14 @@ public class ApprovalFormController {
     private void createRecord(Long formId, String action, String remark) {
         ApprovalRecordDO record = new ApprovalRecordDO();
         record.setFormId(formId);
-        record.setOperatorUserId(currentUserId());
+        record.setOperatorUserId(SecurityUtils.getLoginUserIdOrZero());
         record.setAction(action);
         record.setRemark(remark);
         approvalRecordMapper.insert(record);
     }
 
     private void createNotice(Long userId, String title, String content, String bizType, Long bizId) {
-        if (userId == null || userId <= 0 || userId.equals(currentUserId())) {
+        if (userId == null || userId <= 0 || userId.equals(SecurityUtils.getLoginUserIdOrZero())) {
             return;
         }
         NoticeDO notice = new NoticeDO();
@@ -279,6 +292,7 @@ public class ApprovalFormController {
         noticeMapper.insert(notice);
     }
 
+    @SuppressWarnings("deprecation")
     private void fillUserName(List<ApprovalFormDO> forms) {
         Set<Long> userIds = forms.stream()
                 .flatMap(form -> java.util.stream.Stream.of(form.getApplicantUserId(), form.getApproverUserId()))
@@ -287,7 +301,8 @@ public class ApprovalFormController {
         if (userIds.isEmpty()) {
             return;
         }
-        Map<Long, String> userMap = userMapper.selectBatchIds(userIds).stream()
+        List<UserDO> users = userMapper.selectBatchIds(userIds);
+        Map<Long, String> userMap = (users != null ? users : Collections.<UserDO>emptyList()).stream()
                 .collect(Collectors.toMap(UserDO::getId, UserDO::getUsername, (a, b) -> a));
         forms.forEach(form -> {
             form.setApplicantName(userMap.getOrDefault(form.getApplicantUserId(), "-"));
@@ -295,6 +310,7 @@ public class ApprovalFormController {
         });
     }
 
+    @SuppressWarnings("deprecation")
     private void fillRecordOperator(List<ApprovalRecordDO> records) {
         Set<Long> userIds = records.stream()
                 .map(ApprovalRecordDO::getOperatorUserId)
@@ -303,40 +319,35 @@ public class ApprovalFormController {
         if (userIds.isEmpty()) {
             return;
         }
-        Map<Long, String> userMap = userMapper.selectBatchIds(userIds).stream()
+        List<UserDO> users = userMapper.selectBatchIds(userIds);
+        Map<Long, String> userMap = (users != null ? users : Collections.<UserDO>emptyList()).stream()
                 .collect(Collectors.toMap(UserDO::getId, UserDO::getUsername, (a, b) -> a));
         records.forEach(record -> record.setOperatorName(userMap.getOrDefault(record.getOperatorUserId(), "-")));
-    }
-
-    private Long currentUserId() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null || authentication.getPrincipal() == null) {
-            return 0L;
-        }
-        Object principal = authentication.getPrincipal();
-        if (principal instanceof Long) {
-            return (Long) principal;
-        }
-        return Long.parseLong(principal.toString());
     }
 
     @Data
     public static class ApprovalCreateReqVO {
         private String formType;
+        @NotBlank(message = "审批单标题不能为空")
+        @Size(max = 100, message = "标题最多 100 个字符")
         private String title;
         private String content;
+        @NotNull(message = "请选择审批人")
         private Long approverUserId;
     }
 
     @Data
     public static class ApprovalApproveReqVO {
+        @NotNull(message = "审批单ID不能为空")
         private Long id;
+        @NotBlank(message = "审批动作不能为空")
         private String action;
         private String remark;
     }
 
     @Data
     public static class ApprovalArchiveReqVO {
+        @NotNull(message = "审批单ID不能为空")
         private Long id;
         private String remark;
     }

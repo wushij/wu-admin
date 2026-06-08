@@ -42,7 +42,6 @@ public class WechatPayService extends AbstractPayService {
         String appId = config.getStr("appId", "");
         String apiV3Key = config.getStr("apiV3Key", "");
         String privateKey = config.getStr("privateKey", "");
-        String certSerialNo = config.getStr("certSerialNo", "");
         String notifyUrl = config.getStr("notifyUrl", "");
 
         if (!StringUtils.hasText(mchId) || !StringUtils.hasText(appId)

@@ -8,6 +8,7 @@ import cn.rbac.server.modules.system.dal.mysql.ticket.TicketCommentMapper;
 import cn.rbac.server.modules.system.dal.mysql.ticket.TicketMapper;
 import cn.rbac.server.modules.system.framework.cache.DictCacheService;
 import cn.rbac.server.modules.system.framework.cache.SysConfigCacheService;
+import cn.rbac.server.modules.system.service.file.SysFileService;
 import cn.rbac.server.modules.system.service.job.SysJobLogService;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
@@ -52,6 +53,8 @@ public class SystemJobTask {
     private TicketCommentMapper ticketCommentMapper;
     @Resource
     private TicketAttachmentMapper ticketAttachmentMapper;
+    @Resource
+    private SysFileService fileService;
     @Resource
     private ChatMessageMapper chatMessageMapper;
     @Resource
@@ -137,5 +140,10 @@ public class SystemJobTask {
             removed += ticketMapper.deletePhysicalById(id);
         }
         log.info("工单回收站清理：彻底删除 {} 条（早于 {}）", removed, cutoff);
+    }
+
+    /** 彻底删除回收站中超过保留期的文件记录及磁盘文件 */
+    public void purgeFileRecycleBin() {
+        fileService.purgeExpiredRecycleBin();
     }
 }

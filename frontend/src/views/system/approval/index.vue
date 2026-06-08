@@ -35,7 +35,8 @@
         <div class="card-header">
           <span>审批单列表</span>
           <div class="header-actions">
-            <el-button v-permission="'system:approval:delete'" @click="openRecycleDialog">回收站</el-button>
+            <ListExportButton module="approval" :query-params="queryParams" permission="system:approval:list" />
+            <RecycleCenterLink tab="approval" />
             <el-button type="primary" v-permission="'system:approval:create'" @click="handleCreate">提交审批单</el-button>
           </div>
         </div>
@@ -142,43 +143,6 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="recycleVisible" title="审批单回收站" width="920px" :lock-scroll="false">
-      <el-table :data="recycleList" border stripe v-loading="recycleLoading" :header-cell-style="{ textAlign: 'center' }" :cell-style="{ textAlign: 'center' }">
-        <el-table-column prop="formNo" label="单号" width="190" />
-        <el-table-column prop="title" label="标题" min-width="170" />
-        <el-table-column prop="formType" label="类型" width="110">
-          <template #default="{ row }">
-            <DictTag :value="row.formType" :dict-type="DICT_TYPE.APPROVAL_FORM_TYPE" />
-          </template>
-        </el-table-column>
-        <el-table-column prop="status" label="状态" width="110">
-          <template #default="{ row }">
-            <DictTag :value="row.status" :dict-type="DICT_TYPE.APPROVAL_STATUS" />
-          </template>
-        </el-table-column>
-        <el-table-column prop="applicantName" label="申请人" width="110" />
-        <el-table-column prop="approverName" label="审批人" width="110" />
-        <el-table-column prop="updateTime" label="删除时间" width="170" />
-        <el-table-column label="操作" width="170" fixed="right">
-          <template #default="{ row }">
-            <div class="action-cell">
-              <el-button size="small" type="success" @click="handleRestore(row)">恢复</el-button>
-              <el-button size="small" type="danger" @click="handlePermanentDelete(row)">清除</el-button>
-            </div>
-          </template>
-        </el-table-column>
-      </el-table>
-      <el-pagination
-        v-model:current-page="recycleQuery.pageNo"
-        v-model:page-size="recycleQuery.pageSize"
-        :total="recycleTotal"
-        :page-sizes="[10, 20, 50, 100]"
-        layout="total, sizes, prev, pager, next, jumper"
-        @size-change="getRecycleList"
-        @current-change="getRecycleList"
-      />
-    </el-dialog>
-
     <el-drawer v-model="detailVisible" title="审批单详情" size="45%" :lock-scroll="false">
       <el-descriptions :column="1" border v-if="current.id">
         <el-descriptions-item label="单号">{{ current.formNo }}</el-descriptions-item>
@@ -251,20 +215,18 @@ import {
   archiveApproval,
   createApproval,
   deleteApproval,
-  deleteApprovalPermanent,
   getApproval,
   getApprovalPage,
   getApprovalRecords,
-  getApprovalRecyclePage,
-  restoreApproval,
   type ApprovalVO,
   type ApprovalRecordVO,
   type ApprovalCreateDTO,
   type ApprovalPageQuery,
 } from '@/api/system/approval'
-import type { RecyclePageQuery } from '@/types/api'
 import DictSelect from '@/components/DictSelect.vue'
 import DictTag from '@/components/DictTag.vue'
+import ListExportButton from '@/components/ListExportButton.vue'
+import RecycleCenterLink from '@/components/RecycleCenterLink.vue'
 import { DICT_TYPE } from '@/constants/dict'
 import { getDictDefaultValue, preloadDicts } from '@/composables/useDict'
 
@@ -277,10 +239,6 @@ const list = ref<ApprovalVO[]>([])
 const userOptions = ref<UserVO[]>([])
 const formVisible = ref(false)
 const approveVisible = ref(false)
-const recycleVisible = ref(false)
-const recycleLoading = ref(false)
-const recycleList = ref<ApprovalVO[]>([])
-const recycleTotal = ref(0)
 const detailVisible = ref(false)
 const formRef = ref<FormInstance | null>(null)
 const current = ref<Partial<import('@/api/system/approval').ApprovalVO>>({})
@@ -302,11 +260,6 @@ const form = reactive<ApprovalCreateDTO>({
   title: '',
   approverUserId: null,
   content: '',
-})
-
-const recycleQuery = reactive<RecyclePageQuery>({
-  pageNo: 1,
-  pageSize: 10
 })
 
 const rules = {
@@ -408,23 +361,6 @@ const handleCreate = () => {
   formVisible.value = true
 }
 
-const getRecycleList = async () => {
-  recycleLoading.value = true
-  try {
-    const res = await getApprovalRecyclePage(recycleQuery)
-    recycleList.value = res.data.list || []
-    recycleTotal.value = res.data.total || 0
-  } finally {
-    recycleLoading.value = false
-  }
-}
-
-const openRecycleDialog = () => {
-  recycleVisible.value = true
-  recycleQuery.pageNo = 1
-  getRecycleList()
-}
-
 const submitForm = async () => {
   if (!formRef.value) return
   await formRef.value.validate(async (valid) => {
@@ -496,23 +432,6 @@ const handleDelete = async (row: ApprovalVO) => {
   getList()
 }
 
-const handleRestore = async (row: ApprovalVO) => {
-  await restoreApproval(row.id)
-  ElMessage.success('恢复成功')
-  getRecycleList()
-  getList()
-}
-
-const handlePermanentDelete = async (row: ApprovalVO) => {
-  await ElMessageBox.confirm(`确认彻底删除审批单【${row.formNo}】吗？该操作不可恢复。`, '警告', { type: 'warning' })
-  await deleteApprovalPermanent(row.id)
-  ElMessage.success('已彻底删除')
-  if (recycleQuery.pageNo > 1 && recycleList.value.length === 1) {
-    recycleQuery.pageNo -= 1
-  }
-  getRecycleList()
-}
-
 const openDetail = async (id: number) => {
   const [detailRes, recordRes] = await Promise.all([getApproval(id), getApprovalRecords(id)])
   current.value = detailRes.data || {}
@@ -563,7 +482,6 @@ const relayoutTable = async () => {
 watch(formVisible, relayoutTable)
 watch(approveVisible, relayoutTable)
 watch(detailVisible, relayoutTable)
-watch(recycleVisible, relayoutTable)
 </script>
 
 <style scoped>

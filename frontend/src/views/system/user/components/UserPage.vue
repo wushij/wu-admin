@@ -1,28 +1,11 @@
 <template>
-  <div class="app-container module-page user-page">
-    <el-card class="search-card module-hero-card" shadow="never">
-      <div class="module-hero-row">
-        <div class="module-hero-text">
-          <div class="module-hero-title">
-            <ModulePageIcon :icon="MODULE_PAGE_ICON.user" />
-            <span>用户管理</span>
-          </div>
-          <p class="module-hero-desc">管理系统账号，支持部门筛选、角色分配与状态控制</p>
-        </div>
-        <div class="module-hero-stats">
-          <div class="stat-num">{{ total }}</div>
-          <div class="stat-label">用户总数</div>
-        </div>
-      </div>
-    </el-card>
-
-    <div class="user-layout">
-      <aside class="user-layout__side">
+  <div class="app-container user-page">
+    <el-row :gutter="20">
+      <el-col :span="4">
         <UserDeptTree ref="deptTreeComponentRef" :dept-options="deptOptions" @dept-click="handleDeptClick" />
-      </aside>
-      <section class="user-layout__main">
+      </el-col>
+      <el-col :span="20">
         <UserMainPanel
-          v-model:status-filter="statusFilter"
           :query-params="queryParams"
           :user-list="userList"
           :loading="loading"
@@ -35,8 +18,8 @@
           @edit="handleEdit"
           @command="handleCommand"
         />
-      </section>
-    </div>
+      </el-col>
+    </el-row>
 
     <UserFormDialog
       ref="formDialogRef"
@@ -68,19 +51,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watchEffect, defineAsyncComponent } from 'vue'
-import ModulePageIcon from '@/components/ModulePageIcon.vue'
-import { MODULE_PAGE_ICON } from '@/constants/module-page-icons'
+import { ref, watchEffect } from 'vue'
 import UserDeptTree from './UserDeptTree.vue'
 import UserMainPanel from './UserMainPanel.vue'
+import UserFormDialog from './UserFormDialog.vue'
+import UserRoleDialog from './UserRoleDialog.vue'
+import UserResetPwdDialog from './UserResetPwdDialog.vue'
 import { useUserPage } from '../composables/useUserPage'
 
-const UserFormDialog = defineAsyncComponent(() => import('./UserFormDialog.vue'))
-const UserRoleDialog = defineAsyncComponent(() => import('./UserRoleDialog.vue'))
-const UserResetPwdDialog = defineAsyncComponent(() => import('./UserResetPwdDialog.vue'))
-
 const deptTreeComponentRef = ref<InstanceType<typeof UserDeptTree> | null>(null)
-const formDialogRef = ref<any>(null)
+const formDialogRef = ref<InstanceType<typeof UserFormDialog> | null>(null)
 
 const {
   loading,
@@ -99,7 +79,6 @@ const {
   deptSelectOptions,
   postOptions,
   queryParams,
-  statusFilter,
   form,
   resetPwdForm,
   rules,
@@ -122,24 +101,8 @@ watchEffect(() => {
 })
 </script>
 
-<style scoped lang="scss">
+<style scoped>
 .user-page {
   padding: 0;
-}
-
-.user-layout {
-  display: flex;
-  gap: 16px;
-  align-items: flex-start;
-}
-
-.user-layout__side {
-  width: 280px;
-  flex-shrink: 0;
-}
-
-.user-layout__main {
-  flex: 1;
-  min-width: 0;
 }
 </style>

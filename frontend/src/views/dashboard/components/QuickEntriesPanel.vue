@@ -9,10 +9,11 @@
       </div>
       <el-tag type="info" size="small" effect="plain">常用功能</el-tag>
     </div>
-    <div v-if="visibleEntries.length" class="quick-grid">
+    <div class="quick-grid">
       <div
-        v-for="item in visibleEntries"
+        v-for="item in quickEntries"
         :key="item.key"
+        v-permission="item.permission"
         class="quick-item"
         @click="goQuick(item)"
       >
@@ -26,25 +27,15 @@
         <el-icon class="quick-arrow"><ArrowRight /></el-icon>
       </div>
     </div>
-    <div v-else class="quick-empty">暂无可用快捷入口</div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { Grid, ArrowRight } from '@element-plus/icons-vue'
-import { useUserStore } from '@/store/user'
-import { hasMenuPerm } from '@/utils/hasMenuPerm'
 import { quickEntries, type QuickEntry } from '../constants/quickEntries'
 
 const router = useRouter()
-const userStore = useUserStore()
-
-/** 仅以启用菜单树为准，停用菜单不展示在工作台 */
-const visibleEntries = computed(() =>
-  quickEntries.filter((item) => hasMenuPerm(userStore.menus, item.permission)),
-)
 
 function goQuick(item: QuickEntry) {
   if (item.query) {
@@ -103,13 +94,6 @@ function goQuick(item: QuickEntry) {
   padding: 24px;
 }
 
-.quick-empty {
-  padding: 48px 24px;
-  text-align: center;
-  font-size: 14px;
-  color: var(--theme-text-secondary, #6B7280);
-}
-
 .quick-item {
   display: flex;
   align-items: center;
@@ -144,16 +128,16 @@ function goQuick(item: QuickEntry) {
 .quick-item:hover .quick-icon-wrapper { transform: scale(1.05); }
 
 .quick-icon-wrapper.user { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+.quick-icon-wrapper.role { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
 .quick-icon-wrapper.menu { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
 .quick-icon-wrapper.dict { background: linear-gradient(135deg, #6366f1 0%, #818cf8 100%); }
 .quick-icon-wrapper.config { background: linear-gradient(135deg, #64748b 0%, #475569 100%); }
 .quick-icon-wrapper.approval { background: linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%); }
+.quick-icon-wrapper.ticket { background: linear-gradient(135deg, #f7971e 0%, #ffd200 100%); }
 .quick-icon-wrapper.chat { background: linear-gradient(135deg, #f97316 0%, #fb923c 100%); }
 .quick-icon-wrapper.notice { background: linear-gradient(135deg, #ec4899 0%, #f472b6 100%); }
 .quick-icon-wrapper.job { background: linear-gradient(135deg, #14b8a6 0%, #2dd4bf 100%); }
 .quick-icon-wrapper.monitor { background: linear-gradient(135deg, #0ea5e9 0%, #38bdf8 100%); }
-.quick-icon-wrapper.server { background: linear-gradient(135deg, #8b5cf6 0%, #a78bfa 100%); }
-.quick-icon-wrapper.cache { background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%); }
 .quick-icon-wrapper.log { background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); }
 
 .quick-info { flex: 1; min-width: 0; }

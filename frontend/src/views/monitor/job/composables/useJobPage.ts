@@ -299,7 +299,7 @@ export function useJobPage(chartRefs: {
   async function handleDelete(row: SysJob) {
     await ElMessageBox.confirm(`确定删除「${row.jobName}」？`, '提示', { type: 'warning' })
     await deleteJob(row.id!)
-    ElMessage.success('已移至回收中心')
+    ElMessage.success('已删除')
     await refreshAll()
   }
 
@@ -358,22 +358,10 @@ export function useJobPage(chartRefs: {
   }
 
   function formatDuration(row: SysJobLog) {
-    if (row.durationMs != null && row.durationMs >= 0) {
-      return formatDurationMs(row.durationMs)
-    }
     if (!row.startTime || !row.stopTime) return '-'
     const ms = new Date(row.stopTime).getTime() - new Date(row.startTime).getTime()
-    return formatDurationMs(ms)
-  }
-
-  function formatDurationMs(ms: number) {
-    if (Number.isNaN(ms) || ms < 0) return '-'
-    if (ms === 0) return '<1s'
     if (ms < 1000) return `${ms}ms`
-    if (ms < 60_000) return `${(ms / 1000).toFixed(ms < 10_000 ? 1 : 0)}s`
-    const minutes = Math.floor(ms / 60_000)
-    const seconds = Math.round((ms % 60_000) / 1000)
-    return seconds > 0 ? `${minutes}分${seconds}秒` : `${minutes}分`
+    return `${(ms / 1000).toFixed(1)}s`
   }
 
   function onLogClosed() {
@@ -381,31 +369,10 @@ export function useJobPage(chartRefs: {
   }
 
   async function handleCleanLogs() {
-    const scoped = logFilter.value?.jobName
-    await ElMessageBox.confirm(
-      scoped
-        ? `将清空所有任务的调度日志（不仅「${scoped}」），是否继续？`
-        : '确定清空全部调度日志？',
-      '警告',
-      { type: 'warning' },
-    )
+    await ElMessageBox.confirm('确定清空全部调度日志？', '警告', { type: 'warning' })
     await cleanJobLogs()
-    ElMessage.success('全部日志已清空')
+    ElMessage.success('已清空')
     loadOverview()
-    if (logVisible.value) loadLogs()
-  }
-
-  async function handleCleanScopedLogs() {
-    const name = logFilter.value?.jobName
-    if (!name) return
-    await ElMessageBox.confirm(`确定清空「${name}」的全部调度日志？`, '警告', { type: 'warning' })
-    await cleanJobLogs({
-      jobName: logFilter.value?.jobName,
-      jobGroup: logFilter.value?.jobGroup,
-    })
-    ElMessage.success('本任务日志已清空')
-    loadOverview()
-    loadLogs()
   }
 
   onMounted(async () => {
@@ -465,8 +432,6 @@ export function useJobPage(chartRefs: {
     formatDuration,
     onLogClosed,
     handleCleanLogs,
-    handleCleanScopedLogs,
-    logFilter,
     resetForm,
   }
 }

@@ -2,6 +2,7 @@ package cn.rbac.server.modules.system.api.file;
 
 import cn.rbac.server.framework.storage.FileContentTypes;
 import cn.rbac.server.framework.storage.FileStorageProperties;
+import org.springframework.core.io.FileSystemResource;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -30,7 +31,7 @@ public class FileAccessController {
     private FileStorageProperties fileStorageProperties;
 
     @GetMapping("/**")
-    public ResponseEntity<byte[]> getFile(HttpServletRequest request) throws IOException {
+    public ResponseEntity<org.springframework.core.io.Resource> getFile(HttpServletRequest request) throws IOException {
         String uri = request.getRequestURI();
         int idx = uri.indexOf("/files/");
         String relative = idx >= 0 ? uri.substring(idx + "/files/".length()) : "";
@@ -45,10 +46,9 @@ public class FileAccessController {
         String basePath = fileStorageProperties.getLocalPath();
         Path base = Paths.get(basePath).normalize().toAbsolutePath();
         Path full = base.resolve(relative).normalize();
-        if (!full.startsWith(base) || !Files.exists(full)) {
+        if (!full.startsWith(base) || !Files.isRegularFile(full)) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
         }
-        byte[] bytes = Files.readAllBytes(full);
         String storageName = full.getFileName().toString();
         String probed = Files.probeContentType(full);
         String contentType = FileContentTypes.resolve(storageName, null, probed);
@@ -58,7 +58,10 @@ public class FileAccessController {
         boolean forceAttachment = "attachment".equalsIgnoreCase(dispositionParam)
                 || FileContentTypes.shouldForceDownload(contentType);
 
-        var builder = ResponseEntity.ok().header(HttpHeaders.CONTENT_TYPE, contentType);
+        var builder = ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_TYPE, contentType)
+                .header(HttpHeaders.ACCEPT_RANGES, "bytes")
+                .header(HttpHeaders.CACHE_CONTROL, "private, max-age=3600");
         if (forceAttachment) {
             String downloadName = StringUtils.hasText(filenameParam) ? filenameParam : storageName;
             ContentDisposition cd = ContentDisposition.attachment()
@@ -66,6 +69,6 @@ public class FileAccessController {
                     .build();
             builder.header(HttpHeaders.CONTENT_DISPOSITION, cd.toString());
         }
-        return builder.body(bytes);
+        return builder.body(new FileSystemResource(full));
     }
 }

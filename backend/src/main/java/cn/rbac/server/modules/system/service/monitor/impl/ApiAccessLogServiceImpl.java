@@ -96,6 +96,7 @@ public class ApiAccessLogServiceImpl extends ServiceImpl<ApiAccessLogMapper, Api
         return PageResult.of(result.getRecords(), result.getTotal());
     }
 
+    @SuppressWarnings("deprecation")
     private void fillUsername(List<ApiAccessLogDO> records) {
         if (records == null || records.isEmpty()) {
             return;
@@ -169,7 +170,7 @@ public class ApiAccessLogServiceImpl extends ServiceImpl<ApiAccessLogMapper, Api
         Map<String, Long> pathCount = new HashMap<>();
         for (ApiAccessLogDO item : list) {
             String path = item.getApiPath() != null ? item.getApiPath() : "unknown";
-            pathCount.merge(path, 1L, Long::sum);
+            pathCount.merge(path, 1L, (a, b) -> a + b);
         }
         List<Map<String, Object>> topPaths = pathCount.entrySet().stream()
                 .sorted((a, b) -> Long.compare(b.getValue(), a.getValue()))
@@ -185,14 +186,14 @@ public class ApiAccessLogServiceImpl extends ServiceImpl<ApiAccessLogMapper, Api
         Map<String, Long> methodCount = new HashMap<>();
         for (ApiAccessLogDO item : list) {
             String m = item.getMethod() != null ? item.getMethod() : "unknown";
-            methodCount.merge(m, 1L, Long::sum);
+            methodCount.merge(m, 1L, (a, b) -> a + b);
         }
 
         Map<Long, Long> userCount = new HashMap<>();
         for (ApiAccessLogDO item : list) {
             Long uid = item.getUserId();
             if (uid != null) {
-                userCount.merge(uid, 1L, Long::sum);
+                userCount.merge(uid, 1L, (a, b) -> a + b);
             }
         }
         List<ApiAccessUserRankVO> topUsers = buildTopUsers(userCount, 10);
@@ -208,6 +209,7 @@ public class ApiAccessLogServiceImpl extends ServiceImpl<ApiAccessLogMapper, Api
         return result;
     }
 
+    @SuppressWarnings("deprecation")
     private List<ApiAccessUserRankVO> buildTopUsers(Map<Long, Long> userCount, int limit) {
         if (userCount.isEmpty()) {
             return Collections.emptyList();

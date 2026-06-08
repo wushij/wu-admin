@@ -6,6 +6,7 @@ import org.apache.ibatis.annotations.Delete;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
+import java.util.Collection;
 import java.util.List;
 
 @Mapper
@@ -16,4 +17,7 @@ public interface UserRoleMapper extends BaseMapper<UserRoleDO> {
 
     @Delete("DELETE FROM sys_user_role WHERE user_id = #{userId}")
     void deleteByUserId(@Param("userId") Long userId);
+
+    @Select("<script>SELECT * FROM sys_user_role WHERE user_id IN <foreach collection='userIds' item='id' open='(' separator=',' close=')'>#{id}</foreach></script>")
+    List<UserRoleDO> selectByUserIds(@Param("userIds") Collection<Long> userIds);
 }

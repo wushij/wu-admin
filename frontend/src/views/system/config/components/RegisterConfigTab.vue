@@ -23,33 +23,16 @@
     <el-form-item label="注册需审核">
       <el-switch v-model="draft.needAudit" :disabled="!canEdit || !draft.enabled" />
     </el-form-item>
-    <el-form-item v-if="draft.needAudit" label="审核人">
-      <div class="config-auditor-field">
-        <el-select
-          v-model="draft.auditorUserIds"
-          multiple
-          filterable
-          clearable
-          class="config-auditor-select"
-          :disabled="!canEdit || !draft.enabled"
-          placeholder="请选择审核人"
-        >
-          <el-option v-for="user in userOptions" :key="user.id" :label="user.label" :value="user.id" />
-        </el-select>
-        <p class="config-auditor-field__hint">未选择时默认通知超级管理员</p>
-      </div>
-    </el-form-item>
   </el-form>
 </template>
 
 <script setup lang="ts">
 import type { ConfigGroupMap } from '@/types/config'
-import type { RoleOption, UserOption } from '../composables/useConfigDraft'
+import type { RoleOption } from '../composables/useConfigDraft'
 
 defineProps<{
   draft: ConfigGroupMap['register']
   canEdit: boolean
   roleOptions: RoleOption[]
-  userOptions: UserOption[]
 }>()
 </script>

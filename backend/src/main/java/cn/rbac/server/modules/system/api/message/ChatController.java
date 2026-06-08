@@ -8,20 +8,22 @@ import cn.rbac.server.framework.websocket.MessageWebSocketHandler;
 import cn.rbac.server.modules.system.dal.dataobject.message.ChatGroupDO;
 import cn.rbac.server.modules.system.dal.dataobject.message.ChatGroupMessageDO;
 import cn.rbac.server.modules.system.dal.dataobject.message.ChatMessageDO;
-import cn.rbac.server.modules.system.dal.dataobject.notice.NoticeDO;
-import cn.rbac.server.modules.system.dal.mysql.notice.NoticeMapper;
 import cn.rbac.server.modules.system.service.message.AnnounceService;
+import cn.rbac.server.modules.system.service.message.NoticeService;
 import cn.rbac.server.modules.system.dal.dataobject.file.SysFileDO;
 import cn.rbac.server.modules.system.service.message.ChatService;
 import cn.rbac.server.modules.system.service.message.vo.ChatGroupLogVO;
 import cn.rbac.server.modules.system.service.file.SysFileService;
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.Resource;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.Data;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.http.MediaType;
@@ -81,7 +83,7 @@ public class ChatController {
     @PostMapping("/send")
     @PreAuthorize("@ss.hasRead('system:chat:list')")
     @Operation(summary = "发送私聊")
-    public CommonResult<ChatMessageDO> send(@RequestBody SendReq req) {
+    public CommonResult<ChatMessageDO> send(@Validated @RequestBody SendReq req) {
         return CommonResult.success(chatService.sendPrivate(
                 SecurityUtils.getLoginUserId(), req.getReceiverId(), req.getContent(), req.getMsgType()));
     }
@@ -108,6 +110,7 @@ public class ChatController {
     }
 
     @GetMapping("/unread-count")
+    @PreAuthorize("@ss.hasRead('system:chat:list')")
     public CommonResult<Long> unreadCount() {
         return CommonResult.success(chatService.unreadCount(SecurityUtils.getLoginUserId()));
     }
@@ -141,7 +144,9 @@ public class ChatController {
 
     @Data
     public static class SendReq {
+        @NotNull(message = "接收者ID不能为空")
         private Long receiverId;
+        @NotBlank(message = "消息内容不能为空")
         private String content;
         private Integer msgType;
         private List<Long> mentionIds;
@@ -158,20 +163,37 @@ class ChatGroupController {
 
     @GetMapping("/{groupId}")
     @PreAuthorize("@ss.hasRead('system:chat:list')")
-    public CommonResult<ChatGroupDO> detail(@PathVariable Long groupId) {
-        return CommonResult.success(chatService.getGroupDetail(groupId));
+    public CommonResult<Map<String, Object>> detail(@PathVariable Long groupId) {
+        return CommonResult.success(chatService.getGroupContext(groupId, SecurityUtils.getLoginUserId()));
+    }
+
+    @PostMapping("/{groupId}/announcement/read")
+    @PreAuthorize("@ss.hasRead('system:chat:list')")
+    @Operation(summary = "标记群公告已读（收起置顶）")
+    public CommonResult<Boolean> readAnnouncement(@PathVariable Long groupId) {
+        chatService.markAnnouncementRead(groupId, SecurityUtils.getLoginUserId());
+        return CommonResult.success(true);
+    }
+
+    @PostMapping("/{groupId}/notify-muted")
+    @PreAuthorize("@ss.hasRead('system:chat:list')")
+    @Operation(summary = "设置本群免打扰（仅 @ 我时提醒）")
+    public CommonResult<Boolean> setNotifyMuted(@PathVariable Long groupId,
+            @RequestParam(defaultValue = "true") boolean muted) {
+        chatService.setNotifyMuted(groupId, SecurityUtils.getLoginUserId(), muted);
+        return CommonResult.success(true);
     }
 
     @PutMapping("/update")
     @PreAuthorize("@ss.hasRead('system:chat:list')")
-    public CommonResult<Boolean> update(@RequestBody UpdateGroupReq req) {
+    public CommonResult<Boolean> update(@Validated @RequestBody UpdateGroupReq req) {
         chatService.updateGroup(req.getId(), SecurityUtils.getLoginUserId(), req.getName(), req.getAnnouncement());
         return CommonResult.success(true);
     }
 
     @PostMapping("/create")
     @PreAuthorize("@ss.hasRead('system:chat:list')")
-    public CommonResult<ChatGroupDO> create(@RequestBody CreateGroupReq req) {
+    public CommonResult<ChatGroupDO> create(@Validated @RequestBody CreateGroupReq req) {
         return CommonResult.success(chatService.createGroup(
                 SecurityUtils.getLoginUserId(), req.getName(), req.getMemberIds()));
     }
@@ -184,7 +206,7 @@ class ChatGroupController {
 
     @PostMapping("/{groupId}/message")
     @PreAuthorize("@ss.hasRead('system:chat:list')")
-    public CommonResult<ChatGroupMessageDO> send(@PathVariable Long groupId, @RequestBody ChatController.SendReq req) {
+    public CommonResult<ChatGroupMessageDO> send(@PathVariable Long groupId, @Validated @RequestBody GroupSendReq req) {
         return CommonResult.success(chatService.sendGroupMessage(
                 groupId, SecurityUtils.getLoginUserId(), req.getContent(), req.getMsgType(), req.getMentionIds()));
     }
@@ -221,7 +243,7 @@ class ChatGroupController {
 
     @PostMapping("/{groupId}/members")
     @PreAuthorize("@ss.hasRead('system:chat:list')")
-    public CommonResult<Boolean> addMembers(@PathVariable Long groupId, @RequestBody MemberIdsReq req) {
+    public CommonResult<Boolean> addMembers(@PathVariable Long groupId, @Validated @RequestBody MemberIdsReq req) {
         chatService.addMembers(groupId, req.getUserIds(), SecurityUtils.getLoginUserId());
         return CommonResult.success(true);
     }
@@ -272,20 +294,35 @@ class ChatGroupController {
 
     @Data
     public static class CreateGroupReq {
+        @NotBlank(message = "群名称不能为空")
+        @Size(max = 50, message = "群名称最多 50 个字符")
         private String name;
         private List<Long> memberIds;
     }
 
     @Data
     public static class UpdateGroupReq {
+        @NotNull(message = "群ID不能为空")
         private Long id;
+        @NotBlank(message = "群名称不能为空")
+        @Size(max = 50, message = "群名称最多 50 个字符")
         private String name;
         private String announcement;
     }
 
     @Data
     public static class MemberIdsReq {
+        @NotNull(message = "成员ID不能为空")
         private List<Long> userIds;
+    }
+
+    /** 群消息发送（无 receiverId，与私聊 SendReq 区分） */
+    @Data
+    public static class GroupSendReq {
+        @NotBlank(message = "消息内容不能为空")
+        private String content;
+        private Integer msgType;
+        private List<Long> mentionIds;
     }
 }
 
@@ -299,15 +336,13 @@ class MessageCenterController {
     @Resource
     private ChatService chatService;
     @Resource
-    private NoticeMapper noticeMapper;
+    private NoticeService noticeService;
 
     @GetMapping("/summary")
     @Operation(summary = "未读汇总")
     public CommonResult<Map<String, Long>> summary() {
         Long userId = SecurityUtils.getLoginUserId();
-        long inbox = noticeMapper.selectCount(new LambdaQueryWrapper<NoticeDO>()
-                .eq(NoticeDO::getUserId, userId)
-                .eq(NoticeDO::getReadStatus, 0));
+        long inbox = noticeService.unreadCount(userId);
         long announce = announceService.unreadCount(userId);
         long chat = chatService.unreadCount(userId);
         Map<String, Long> map = new HashMap<>();

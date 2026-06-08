@@ -1,12 +1,9 @@
 import { ref, reactive, computed, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
-import { useSiteStore } from '@/store/site'
 import { getCaptcha, register, getConfig } from '@/api/system/auth'
 import type { RegisterForm } from '@/types/api'
 import { getErrorMessage } from '@/utils/axiosError'
-import { sliderVerifyToRequest } from '@/types/slider-captcha'
-import type { SliderVerifyPayload } from '@/types/slider-captcha'
 
 type CaptchaMode = 'image' | 'slider'
 
@@ -67,8 +64,8 @@ export function useRegisterForm() {
       username: [
         { required: true, message: '请输入用户名', trigger: 'blur' },
         {
-          pattern: /^[a-zA-Z0-9_]{4,12}$/,
-          message: '用户名只能包含字母、数字、下划线，长度4-12位',
+          pattern: /^[a-zA-Z0-9_]{4,20}$/,
+          message: '用户名只能包含字母、数字、下划线，长度4-20位',
           trigger: 'blur',
         },
       ],
@@ -117,11 +114,6 @@ export function useRegisterForm() {
         if (config.site.platformName) sitePlatformName.value = config.site.platformName
         if (config.site.platformSubtitle) sitePlatformSubtitle.value = config.site.platformSubtitle
         if (config.site.registerTitle) siteRegisterTitle.value = config.site.registerTitle
-        const siteStore = useSiteStore()
-        siteStore.siteConfig = {
-          ...siteStore.siteConfig,
-          ...config.site,
-        }
       }
     } catch (error) {
       console.error('加载配置失败', error)
@@ -174,7 +166,7 @@ export function useRegisterForm() {
     await doRegister()
   }
 
-  async function doRegister(sliderCaptcha?: { uuid: string; code: string }) {
+  async function doRegister() {
     loading.value = true
     try {
       const registerData: RegisterForm = {
@@ -185,9 +177,7 @@ export function useRegisterForm() {
 
       if (captchaEnabled.value) {
         if (captchaType.value === 'slider') {
-          if (!sliderCaptcha) return
-          registerData.uuid = sliderCaptcha.uuid
-          registerData.code = sliderCaptcha.code
+          registerData.code = 'slider_verified'
         } else {
           registerData.uuid = captchaUuid.value
           registerData.code = formData.code
@@ -210,10 +200,6 @@ export function useRegisterForm() {
     } finally {
       loading.value = false
     }
-  }
-
-  function onSliderSuccess(payload: SliderVerifyPayload) {
-    void doRegister(sliderVerifyToRequest(payload))
   }
 
   function goLogin() {
@@ -244,7 +230,6 @@ export function useRegisterForm() {
     agreeRowAlert,
     loading,
     showSliderModal,
-    onSliderSuccess,
     loadCaptcha,
     handleRegister,
     doRegister,

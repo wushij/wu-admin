@@ -10,16 +10,17 @@
 |------|------|
 | **工作台** | 首页统计（用户/角色/部门/文件等）、待办提醒（待审用户、工单、审批）、12 项快捷入口、最近登录；`/dashboard/*` |
 | **系统管理** | 用户、角色、菜单、组织、字典（含**类型复制**）、**系统配置**；用户列表默认仅展示**已入库**用户（启用/停用）；待审核/驳回在审批单中心处理 |
-| **组织管理** | 部门 + 岗位；左树右表、拖拽调整、岗位成员、部门回收站 |
+| **组织管理** | 部门 + 岗位；左树右表、拖拽调整、岗位成员；软删数据在 **回收中心** 统一恢复 |
 | **菜单管理** | 树形表格；目录/菜单/按钮联动；图标选择器；外链新窗口 / iframe 内嵌 |
 | **系统配置** | 十分组 Tab：基础信息、会话、文件、限流、登录/注册认证、**第三方配置**、**支付配置**、**短信配置**、安全配置；支付支持**测试订单**与异步回调；短信支持**测试发送**与发送记录 |
 | **个人中心** | 顶栏入口 `/profile`：资料编辑、头像上传、**短信验证绑定/更换手机号**（发码前强制滑块）、自助改密、**短信验证重置密码**（忘记当前密码时）、我的登录记录 |
-| **回收站** | 用户、角色、菜单、部门、工单、审批单逻辑删除，支持恢复与彻底删除 |
+| **回收中心** | **系统管理 → 回收中心**（`/system/recycle`）：12 类软删数据统一汇总、分页、恢复与彻底删除（见下文） |
+| **列表导出** | 用户、登录/操作日志、工单、审批、API 访问、在线用户等列表支持 **Excel / CSV** 导出（当前筛选 / 全部） |
 | **开发工具** | 内嵌 Knife4j 接口文档（`doc.html`） |
 | **系统日志** | 操作日志（AOP，含详情）；登录日志（**ip2region IP 归属地**、浏览器解析） |
-| **系统监控** | API 访问统计（ECharts 图表 + 日志列表）、在线用户与强退、**定时任务**（Quartz 调度、内置清理任务，默认暂停） |
+| **系统监控** | API 访问统计（ECharts 图表 + 日志列表）、在线用户与强退、**定时任务**（Quartz 调度、内置清理任务，默认暂停）、**缓存监控**（Redis 内存/QPS/命中率/连接数趋势 + SCAN 键管理与详情）、**服务监控**（本机 JMX：CPU/内存/JVM/磁盘） |
 | **文件管理** | 分组 CRUD、按类型筛选；图片/PDF/Office 预览；大小与扩展名受**系统配置**约束 |
-| **业务中心** | **工单**：优先级、截止/超时、评论附件、指派与全员通知（非超管仅看本人相关）；**审批**：请假/采购/报销/用印/合同/通用 + `REGISTER` 注册审核，**详情抽屉内可直接通过/驳回**，支持归档 |
+| **流程中心** | **工单**：优先级、截止/超时、评论附件、指派与全员通知（非超管仅看本人相关）；**审批**：请假/采购/报销/用印/合同/通用 + `REGISTER` 注册审核，**详情抽屉内可直接通过/驳回**，支持归档 |
 | **消息中心** | **业务消息**（`sys_notice`，工单/审批触达）、系统通知（全员/用户/部门定向、发送日志）、**企业IM**（私聊/群聊、文件、@、撤回、正在输入等）、WebSocket |
 | **认证安全** | 图片/滑块验证码、**短信验证码登录**（独立开关，与账号验证码分离）、**短信发码前滑块**（可选）、登录失败锁定（用户+IP）、记住我、登录/注册/短信**限流防刷**；账号密码错误统一提示「账号或密码错误」；Sa-Token 会话（Redis db=1） |
 | **界面体验** | 主题色切换；登录/注册页 Three.js 地球 + 粒子背景；顶栏消息铃铛三 Tab |
@@ -31,6 +32,205 @@
 ## 近期优化与增强
 
 以下为近期迭代的主要能力，便于对照部署与联调。
+
+### 架构与代码质量优化（2026.06）
+
+本轮对前后端做了系统性重构，在**不改变对外 API 与页面行为**的前提下提升可维护性、安全性与性能。
+
+#### 后端：瘦 Controller + Service 分层
+
+| 维度 | 改进要点 |
+|------|----------|
+| **分层** | 认证、用户、角色、工单、**工作台**、**消息汇总**等模块将业务逻辑从 Controller 下沉至 Service（`AuthService`、`UserService`、`RoleService`、`TicketService`、`DashboardService`、`NoticeService` 等）；Controller 负责参数校验、权限注解与结果封装 |
+| **异常** | 新增 `BusinessException`（可携带业务错误码）；`GlobalExceptionHandler` 统一处理校验失败、参数缺失、404 及兜底异常（共 11 种） |
+| **安全** | `UserDO.password` 添加 `@JsonIgnore`；管理端敏感接口补全 `@PreAuthorize`；CORS 改为 `app.cors.allowed-origins` 配置；URL 参数传 Token 仅限 `/files/**` |
+| **校验** | 核心 VO（登录/注册/用户/角色/工单/审批/聊天/个人中心）添加 JSR-303（`@NotBlank` / `@Pattern` / `@Size`）+ `@Validated` |
+| **事务** | 用户/工单/审批等多表写操作添加 `@Transactional(rollbackFor = Exception.class)` |
+| **性能** | 权限匹配、菜单闭包、用户列表角色填充、通知全部已读等 5 处 N+1 查询优化为批量查询；`PageParam` 限制 `pageSize` 上限 200；工作台 `/dashboard/stats` 聚合为单条 SQL + Redis 缓存；`/system/user/list` 限制下拉返回条数 |
+
+依赖方向不变：**`modules/*` → `framework` → `common`**。新增业务优先在 `service/` 实现，Controller 不直接操作 Mapper。
+
+#### 工作台与用户列表（2026.06 续）
+
+针对代码质量审计中的架构与性能项，在**不改变对外 API 路径与响应字段**的前提下完成：
+
+| 项 | 改进 | 主要文件 |
+|------|------|----------|
+| **工作台分层** | `DashboardController` 不再直接注入 9 个 Mapper；统计、最近登录、访问计数下沉至 `DashboardService` / `DashboardServiceImpl` | `api/dashboard/DashboardController.java`、`service/dashboard/` |
+| **消息汇总分层** | `MessageCenterController` 站内消息未读数改调 `NoticeService.unreadCount`，与 `AnnounceService`、`ChatService` 一致 | `service/message/NoticeService.java` |
+| **工作台统计性能** | `/dashboard/stats` 由约 20 次 `selectCount` 改为 `DashboardMapper.selectAggregateStats()` **单条 SQL**（标量子查询聚合）；`fileCount` 排除聊天路径（`images/chat/`、`files/chat/`），与文件管理列表一致；计数类结果 Redis 缓存 **2 分钟**（key：`dashboard:stats:aggregate:yyyy-MM-dd`）；`onlineCount`、今日/昨日访问量仍每次实时读取 | `dal/mysql/dashboard/DashboardMapper.java`、`service/dashboard/vo/DashboardStatsRow.java` |
+| **用户下拉列表** | `GET /system/user/list` 不再全量 `selectList(null)`；`UserMapper.selectListForOptions` 仅返回**启用**用户（`status=1`）、字段精简，**上限 2000 条**（供通知定向、审批指派人等下拉；管理列表仍用 `/page` 分页） | `UserServiceImpl.listAll()`、`UserMapper.selectListForOptions` |
+
+> 统计缓存默认 2 分钟延迟，适合首页/大屏场景；若需更实时可调整 `DashboardServiceImpl` 中的 `STATS_CACHE_MINUTES`。
+
+#### 编译与静态检查修复（2026.06）
+
+在不改变业务行为的前提下，修复 IDE / 编译器报错与警告：
+
+| 文件 | 问题 | 处理 |
+|------|------|------|
+| `SysFileServiceImpl` | `Files.isRegularFile` 不抛 `IOException`，`catch` 不可达 | 去掉多余 try-catch；`SysFileDO.updateTime` 增加 `@TableField` 自动填充，软删时正确更新删除时间 |
+| `DataExportController` | 未使用的 `DateTimeFormat`、`LocalDateTime` import | 删除无用 import |
+| `ListExportService` | `selectBatchIds` 已废弃 | 改为 `selectByIds` |
+| `CacheMonitorServiceImpl` | Redis API 空值类型安全警告 | 校验后用 `Objects.requireNonNull` 再传参 |
+| `ServerMonitorServiceImpl` | 多余的 `@SuppressWarnings("removal")` | 仅在调用 `getSystemCpuLoad()` 的回退方法保留 `@SuppressWarnings("deprecation")` |
+| `SysJobServiceImpl` | 缺少 `PageParam` import 导致启动失败 | 补全 import |
+
+### 回收中心与列表导出（2026.06）
+
+各业务模块删除改为**逻辑删除**后，原分散在各列表页的回收 Dialog / Drawer 已移除，统一由 **系统管理 → 回收中心** 管理。
+
+#### 回收中心
+
+| 项 | 说明 |
+|------|------|
+| **路由** | `/system/recycle` |
+| **菜单** | id=**163**，权限 `system:recycle:list`（进入页）；恢复/彻底删除复用各模块 `*:delete` 权限 |
+| **汇总 API** | `GET /api/system/recycle/summary` — 12 类软删数量角标 |
+| **前端** | `frontend/src/views/system/recycle/`（`recycle-config.ts` 驱动 Tab + 表格）；各业务列表页保留 **回收中心** 快捷入口 |
+
+**支持的 12 类**
+
+| Tab | 权限（列表） | 特殊说明 |
+|-----|--------------|----------|
+| 用户 | `system:user:list` | — |
+| 角色 | `system:role:list` | — |
+| 菜单 | `system:menu:list` | — |
+| 部门 | `system:dept:list` | — |
+| 岗位 | `system:post:list` | — |
+| 工单 | `system:ticket:list` | — |
+| 审批 | `system:approval:list` | — |
+| 字典类型 | `system:dict:list` | 恢复类型**不会**自动还原已级联删除的字典数据 |
+| 字典数据 | `system:dict:list` | 恢复/清除后自动 `dictCacheService.refreshAll()` |
+| 系统通知 | `system:announce:list` | 软删；彻底删除级联 `user_announce`、`send_log` |
+| 定时任务 | `monitor:job:list` | 恢复时重新注册 Quartz 调度 |
+| 文件 | `sys:file:list` | 软删不删磁盘；恢复前校验磁盘文件存在；超 **30 天** 可由内置任务 `purgeFileRecycleBin` 自动清盘 |
+
+各类型分页/恢复/彻底删除 API 仍挂在原模块路径下，例如：`GET /api/system/user/recycle/page`、`PUT .../restore/{id}`、`DELETE .../permanent/{id}`（以各 Controller 为准）。
+
+**数据库增量（必跑）**
+
+| 脚本 | 环境 | 内容 |
+|------|------|------|
+| `sql/add10.sql` | 本地 `wu-admin` | 回收中心菜单 id=163 + `sys_file` 的 `update_time`、`deleted`、索引 `idx_deleted_update` |
+| `sql/add10_wuadmin.sql` | 生产 `wuadmin` | 同上 |
+| `sql/add11.sql` / `add11_wuadmin.sql` | — | **已合并至 add10**，执行时仅输出 SKIP 提示 |
+
+```bash
+# 本地
+mysql -u root -p wu-admin < sql/add10.sql
+# 生产
+mysql -u wuadmin -p wuadmin < sql/add10_wuadmin.sql
+```
+
+执行后 **重新登录** 刷新侧栏。`add10` 先加 `update_time` 再加 `deleted`（`AFTER update_time`），可重复执行。
+
+配置项：`application.yml` → `app.job.file-recycle-retention-days: 30`（文件回收站保留天数）。
+
+#### 列表导出
+
+后端 **EasyExcel** + `ListExportService`；前端统一组件 `ListExportButton.vue`（`format=xlsx|csv`，`scope=filtered|all`）。
+
+| 页面 | 接口 | 权限 |
+|------|------|------|
+| 用户管理 | `GET /api/system/export/user` | `system:user:list` |
+| 登录日志 | `GET /api/system/export/login-log` | `system:loginLog:query` |
+| 操作日志 | `GET /api/system/export/oper-log` | `system:operLog:query` |
+| 工单 | `GET /api/system/export/ticket` | `system:ticket:list` |
+| 审批单 | `GET /api/system/export/approval` | `system:approval:list` |
+| API 访问 | `GET /api/monitor/api-access/export` | `monitor:apiAccess:query` |
+| 在线用户 | `GET /api/monitor/online/export` | `monitor:online:list` |
+
+导出写操作日志（`@Log` businessType=EXPORT）；`scope=filtered` 与列表当前筛选一致，`all` 在权限范围内导出全量（受 `PageParam` 上限约束）。
+
+#### 前端：页面组件化拆分
+
+采用统一约定：**路由入口 `index.vue`（薄包装）→ `*Page.vue`（页面骨架）+ `composables/use*Page.ts`（状态与业务）+ `components/`（展示子组件）**。
+
+| 模块 | 路由 | 主要文件 |
+|------|------|----------|
+| 登录 / 注册 | `/login`、`/register` | `LoginPage.vue`、`RegisterPage.vue`；共享 `views/auth/components/`（`AuthSplitLayout`、`AuthCaptchaField` 等） |
+| 布局壳层 | `/`（layout） | `LayoutPage.vue` + `useLayoutMenu` / `useLayoutMessages` / `useLayoutTheme` 等 |
+| 工作台 | `/dashboard` | `WelcomeBanner`、`CoreStatsRow` 等 + `useDashboardData` |
+| 个人中心 | `/profile` | `ProfileHero`、`BasicInfoForm`、`SecuritySettings` + `useProfileInfo` / `useProfileSecurity` |
+| 系统管理 | `/system/user` · `dict` · `file` · `menu` · `org` · `config` · **`recycle`** | 各 `*Page.vue` + 对应 `use*Page.ts` 与 Tab/Dialog 子组件；回收中心见 `recycle/recycle-config.ts` |
+| 系统监控 | `/monitor/job` · `/monitor/cache` · `/monitor/server` | `JobPage.vue` + `useJobPage.ts`；`CacheMonitorPage.vue` + `cacheMonitorChart.ts` + `useCacheMonitorPage.ts`；`ServerMonitorPage.vue` + `serverMonitorChart.ts` + `useServerMonitorPage.ts` |
+| 企业IM | `/message/chat` | `ChatPage.vue` + `useChatPage.ts` / `useChatRender` / `useMention` |
+
+**质量保障**：`npm run typecheck`（`vue-tsc --noEmit`）、`npm run test`（Vitest，37 用例）、`npm run build`（构建前自动类型检查）。
+
+> 待后续拆分（体量仍较大）：`approval`、`ticket`、`role` 等页面；企业 IM 聊天区可进一步拆分子面板组件。
+
+**组件化拆分注意**：样式从 Vue `<style scoped>` 抽到独立 `.css` / `.scss` 时，**勿使用 `:deep()`**（仅 SFC scoped 有效）；应改为 `.parent .el-textarea__inner` 等普通选择器。企业 IM 的 `chat-page.css` 已按此修正（输入框黑框问题）。个人中心样式见独立 `profile-page.scss`（由 `index.vue` 非 scoped 引入），子组件无需再套 scoped。
+
+### 系统监控 · 缓存/服务监控（2026.06）
+
+新增 **缓存监控**（Redis）与 **服务监控**（本机 JMX），前后端与菜单增量见 `sql/add7.sql`、`add8.sql`；生产合并脚本 **`sql/add6_7_wuadmin.sql`**（含流程中心 rename + 缓存 + 服务监控）。
+
+#### 能力一览
+
+| 页面 | 路由 | 权限 | 说明 |
+|------|------|------|------|
+| 缓存监控 | `/monitor/cache` | `monitor:cache:list` / `monitor:cache:delete` | Redis 概览、内存/QPS/命中率/连接数四宫格图表、SCAN 键列表与详情/删除 |
+| 服务监控 | `/monitor/server` | `monitor:server:list` | CPU/物理内存/JVM/磁盘、CPU 与 JVM 堆折线趋势 |
+
+#### 后端
+
+| 模块 | 路径 | 要点 |
+|------|------|------|
+| 缓存监控 | `CacheMonitorController` / `CacheMonitorServiceImpl` | `INFO` 统计、SCAN 键、`GET/DELETE` 键详情；删除键**前缀黑名单**（`Authorization:`、`satoken:`、`captcha:` 等） |
+| 服务监控 | `ServerMonitorController` / `ServerMonitorServiceImpl` | JMX 采集 CPU、堆/物理内存、磁盘；JDK 21+ 反射 `getCpuLoad()`，JDK 17 回退 `getSystemCpuLoad()` |
+
+主要 API：`GET /api/monitor/cache/info|stats|keys|value`、`DELETE /api/monitor/cache/key`；`GET /api/monitor/server/info`。
+
+#### 前端 · 折线图与后台采样
+
+登录进入布局后，若角色具备对应 `monitor:*:list` 权限，**无需打开监控页**即开始后台轮询（缓存 **3s**、服务 **5s**），折线采样写入 **`sessionStorage`**（同一标签页 **F5 刷新仍保留**，最多 **20** 个点）。切到其他菜单再返回，历史趋势不丢失。
+
+| 行为 | 说明 |
+|------|------|
+| 全局采样 | `useLayoutBootstrap` → `startMonitorBackground`（`composables/useMonitorBackground.ts`） |
+| 图表状态 | `cacheMonitorChart.ts`、`serverMonitorChart.ts`（模块级 + sessionStorage） |
+| 「自动」开关 | 关闭后停止轮询；状态持久化，刷新后仍生效 |
+| 退出登录 | 停止采样并清空 session 中的监控折线数据 |
+| 浏览器标签隐藏 | 暂停轮询；切回标签页后继续 |
+
+> **平均负载**：来自 Linux `load average`；**Windows 上 JMX 返回不可用**，界面显示 `-` 属正常，请参考 **系统 CPU / 进程 CPU** 与折线图。
+
+> **Redis 内存环图**：未配置 `maxmemory` 时仅展示当前占用（如 1.22M），外圈绿环非占比；配额环需在 Redis 服务端配置 `maxmemory` + `maxmemory-policy`。
+
+### 个人中心 · 布局与样式（2026.06）
+
+- 路由 `/profile` 拆为 `ProfileHero`、`BasicInfoForm`、`SecuritySettings`、`AccountSidebar` 等子组件 + `useProfileInfo` / `useProfileSecurity`。
+- 样式集中在 **`profile-page.scss`**（`index.vue` 非 scoped `@import`），避免子组件 scoped 穿透失效；大屏下左右列底部对齐、基本资料「保存」按钮与表单 label 左对齐。
+
+### 生产部署排障实录（2026.06）
+
+以下为实际上线 `wushij.online` 时遇到的问题与处理，供同类环境对照。
+
+| 现象 | 原因 | 处理 |
+|------|------|------|
+| 登录报「网络连接失败」或 403；Network 里 `login` 的 Response 是 **`index.html`** | Nginx 未把 `/api` 反代到后端，请求落入 `try_files` → SPA 首页 | 配置 `location ^~ /api/ { proxy_pass http://127.0.0.1:8080/api/; ... }`；检查宝塔 `extension/*.conf` 无冲突；重载 Nginx。自测：`https://域名/api/auth/config` 须返回 **JSON** |
+| master 能登、dev 包不能登（已确认 Nginx 正常） | dev 将 CORS 从 `*` 改为 `application-prod.yml` 域名，**勿留占位符** `your-domain.com` | 改为实际域名，如 `https://wushij.online,https://www.wushij.online`，重新打包并重启 jar |
+| 开启「禁止前端调试」后 F12 打不开，无法排障 | `disableDevtool` 存于 `sys_config_group.security` | 执行 `sql/disable_devtool_off.sql`（**MySQL 5.6** 用 `REPLACE`，勿用 `JSON_SET`），重启后端并强刷浏览器；调试完在系统配置改回或改 SQL 还原 |
+| 企业 IM 输入框出现**黑色边框** | 拆分后 `chat-page.css` 中 `:deep()` 不生效 | 已改为 `.chat-textarea .el-textarea__inner { border: none !important; }` |
+| 联系人「在线/离线」不实时变，须刷新 | 旧版仅在 `loadUsers()` 时拉取 `online` 字段 | 已增加 WebSocket **`presence`** 推送；前后端需一并升级 |
+| 字典管理多出多个「审批类型（副本）」 | 误点「复制类型」；每点一次生成一条 `_copy_时间戳` | 在字典管理删除多余副本即可，不影响业务字典 `sys_approval_form_type` |
+
+**Nginx 反代示例**（`/api` 须写在 `location /` 之前，建议加 `^~`）：
+
+```nginx
+location ^~ /api/ {
+    proxy_pass http://127.0.0.1:8080/api/;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+}
+```
 
 ### 个人中心 · 短信绑定/更换手机号
 
@@ -45,7 +245,7 @@
 | `POST /api/auth/profile/mobile/sms-code` | 发绑定验证码，body：`{ "mobile": "13800138000", "code": "slider_verified" }` |
 | `PUT /api/auth/profile/mobile` | 绑定/更换，body：`{ "mobile": "13800138000", "smsCode": "123456" }` |
 
-后端：`ProfileSmsMobileBindService`；前端：`frontend/src/views/profile/index.vue`。
+后端：`ProfileSmsMobileBindService`；前端：`frontend/src/views/profile/`（`useProfileInfo.ts`、`BasicInfoForm.vue` 等）。
 
 ### 审批单中心 · 详情页审批
 
@@ -92,6 +292,42 @@
 | **正在输入…** | 私聊输入时向对方推送 typing 事件，顶栏显示「对方正在输入…」 |
 | **图片预览** | 聊天图片点击后使用 Element Plus 全屏查看器居中预览 |
 
+### 企业IM · 群公告与免打扰（2026.06）
+
+群聊体验与通知策略增强，前后端 + WebSocket + 数据库增量（`sql/add9.sql`）需一并升级并 **重启后端**。
+
+| 能力 | 说明 |
+|------|------|
+| **群名称 / 群公告编辑** | 仅 **群主 / 群管理员** 可改；普通成员在群组详情中只读 |
+| **群公告持久化** | 保存后写入 `sys_chat_group.announcement`；公告变更时重置全员 `announcement_read_time`，全员视为未读 |
+| **群公告置顶条** | 有未读公告时，聊天区顶部展示摘要条；点击进入详情（发布者昵称/头像、发布时间、全文） |
+| **标记已读** | 详情内点「完成」调用 `POST .../announcement/read`，收起置顶条并记录 `announcement_read_time` |
+| **公告实时推送** | 保存后向**全部成员** WebSocket 推送 `type: groupAnnouncement`（含公告全文 `announcement`）；正在该群聊天页时同步置顶条，不重复弹窗 |
+| **群聊免打扰** | 成员可对本群开启 `notifyMuted`；**普通群消息**不弹窗、**不计入**群未读角标 |
+| **免打扰例外** | **@ 我**、**群公告** 始终提醒并计入未读；顶栏浮层标题为 `[有人@你]` 或「xxx 发布了新公告」 |
+| **消息展示** | 群聊每条消息独立头像 + 气泡，连发不合并 |
+| **群组详情 UI** | 「保存修改」底部居中（「解散群组」左侧）；群公告编辑区 `autosize` 无内嵌滚动条 |
+
+**WebSocket 新增类型**：`groupAnnouncement`（字段含 `groupId`、`groupName`、`announcement`、`senderId`、`senderName`、`title`、`content` 摘要）。
+
+**主要 API（前缀 `/api/system/chat/group`）**
+
+| 路径 | 说明 |
+|------|------|
+| `PUT /update` | 更新群名称/公告（body：`id`、`name`、`announcement`）；仅群主/管理员 |
+| `POST /{groupId}/announcement/read` | 当前用户标记群公告已读 |
+| `POST /{groupId}/notify-muted?muted=true\|false` | 设置本群免打扰 |
+| `GET /{groupId}` | 群详情上下文，含 `announcement`、`announcementUnread`、`notifyMuted`、发布者信息 |
+
+**数据库字段**（`sys_chat_group_member`）
+
+| 字段 | 说明 |
+|------|------|
+| `notify_muted` | `0` 正常；`1` 免打扰（仅 @ / 群公告提醒） |
+| `announcement_read_time` | 群公告已读时间；`NULL` 或早于群 `update_time` 视为未读 |
+
+**前端关键逻辑**：`utils/message-push.ts`（`shouldNotifyGroupChat`、`shouldCountGroupUnread`）、`store/message.ts`（群免打扰映射、`groupAnnouncementTick`）、`views/message/chat/composables/useChatPage.ts`（置顶条、详情、保存）。
+
 **消息类型（`msgType`）**
 
 | 值 | 含义 |
@@ -102,7 +338,9 @@
 | `4` | 系统消息（群事件等） |
 | `5` | 已撤回 |
 
-**WebSocket 推送类型**：`notice` / `chat` / `groupChat` / `typing`；群消息可带 `atMe: true`；撤回带 `recall: true` 与 `messageId`。
+**WebSocket 推送类型**：`notice` / `chat` / `groupChat` / **`groupAnnouncement`** / `typing` / **`presence`**（联系人上线/下线）；群消息可带 `atMe: true`；撤回带 `recall: true` 与 `messageId`。
+
+**在线状态**：用户 WebSocket 连接/断开时，后端向其他在线用户广播 `{ type: "presence", userId, online }`，企业 IM 联系人列表与聊天顶栏「在线/离线」**实时更新**，无需手动刷新。
 
 **数据库增量**
 
@@ -110,15 +348,20 @@
 |------|------|------|
 | `sql/add3.sql` | 本地 dev（`wu-admin`） | 菜单更名为「企业IM」 |
 | `sql/add4.sql` | 本地 dev | 群消息表 `mention_ids` 字段 |
-| `sql/add3_add4_wuadmin.sql` | **生产**（`wuadmin`） | 合并 add3 + add4 |
+| `sql/add9.sql` | 本地 dev | 群成员 `notify_muted`、`announcement_read_time`（群公告已读 / 免打扰） |
+| `sql/add6_7_wuadmin.sql` | **生产**（`wuadmin`） | 合并 add6～add8 + **add9**（流程中心、缓存/服务监控、群公告免打扰字段） |
+| `sql/add9_wuadmin.sql` | **生产**（`wuadmin`） | 仅 add9 字段（已跑过 `add6_7_wuadmin` 可跳过） |
 
 ```bash
-# 本地
+# 本地（按版本依次）
 mysql -u root -p wu-admin < sql/add3.sql
 mysql -u root -p wu-admin < sql/add4.sql
+mysql -u root -p wu-admin < sql/add9.sql
 
-# 服务器（库名 wuadmin，与 application-prod.yml 一致）
-mysql -u wuadmin -p wuadmin < sql/add3_add4_wuadmin.sql
+# 生产（库名 wuadmin；若尚未执行 add3/add4，可先改脚本 USE 或逐条执行 add3、add4 后再跑）
+mysql -u wuadmin -p wuadmin < sql/add6_7_wuadmin.sql
+# 或仅补 add9：
+mysql -u wuadmin -p wuadmin < sql/add9_wuadmin.sql
 ```
 
 ---
@@ -196,7 +439,7 @@ mysql -u wuadmin -p wuadmin < sql/add3_add4_wuadmin.sql
 
 1. 用户注册成功，账号 `status = 2`（待审核），分配配置中的默认角色；
 2. 自动创建类型为 `REGISTER` 的审批单，并通知**首位可用的超级管理员**（`super_admin` 角色，站内通知 `sys_notice`）；
-3. 管理员在 **业务中心 → 审批单中心** 通过或驳回（列表「处理」下拉，或打开 **详情** 抽屉底部 **通过 / 驳回**）；
+3. 管理员在 **流程中心 → 审批单中心** 通过或驳回（列表「处理」下拉，或打开 **详情** 抽屉底部 **通过 / 驳回**）；
 4. **通过** → `status = 1`，用户出现在 **用户管理** 默认列表，可登录；
 5. **驳回** → 逻辑删除账号并清理角色/岗位关联，**不出现在用户管理**；申请人收到审核结果通知；
 6. 若该用户名曾在回收站（软删），**同用户名再次注册**会自动恢复账号并重新走审核流程。
@@ -228,9 +471,9 @@ mysql -u wuadmin -p wuadmin < sql/add3_add4_wuadmin.sql
 |------|------|
 | **业务消息** | 顶栏铃铛「业务消息」Tab，数据表 `sys_notice`，点击跳转工单/审批 |
 | **系统通知** | 管理员在「系统通知」页发布广播/定向公告（`sys_announce`），用户顶栏「系统通知」Tab 查看 |
-| **企业IM** | 私聊 + 群聊；文本/表情/图片/**文件**；在线状态；拉黑；群管（邀请/移除/禁言/转让/解散）；**@ 提醒**；**2 分钟内撤回**；**正在输入** |
+| **企业IM** | 私聊 + 群聊；文本/表情/图片/**文件**；在线状态；拉黑；群管（邀请/移除/禁言/转让/解散）；**群公告**（置顶/已读/推送）；**群免打扰**（仅 @ 与公告提醒）；**@ 提醒**；**2 分钟内撤回**；**正在输入** |
 | **群聊日志** | 群组详情 →「群聊日志」Tab，记录建群、邀请、退群等操作（`sys_chat_group_log`） |
-| **实时推送** | WebSocket 推送新通知、私聊、群聊、**@ 强提醒**、**撤回**、**正在输入**；顶栏角标与聊天页联动刷新 |
+| **实时推送** | WebSocket 推送新通知、私聊、群聊、**群公告**、**@ 强提醒**、**撤回**、**正在输入**；免打扰群普通消息不弹窗不计角标；顶栏与聊天页联动 |
 
 ### 菜单与页面
 
@@ -259,9 +502,12 @@ mysql -u wuadmin -p wuadmin < sql/add3_add4_wuadmin.sql
 | 群聊 | `POST /system/chat/group/{groupId}/message/{messageId}/recall` | 撤回群消息 |
 | 群聊 | `GET /system/chat/group/{groupId}/logs` | 群操作日志 |
 | 群聊 | `GET /system/chat/can-create-group` | 是否可建群（仅 `super_admin` 为 true） |
+| 群聊 | `PUT /system/chat/group/update` | 更新群名称/公告（群主/管理员） |
+| 群聊 | `POST /system/chat/group/{groupId}/announcement/read` | 标记群公告已读 |
+| 群聊 | `POST /system/chat/group/{groupId}/notify-muted?muted=` | 设置本群免打扰 |
 | 聊天图片 | `POST /system/chat/upload/image` | 上传至 `images/chat/`，**不出现在文件管理列表** |
 | 聊天文件 | `POST /system/chat/upload/file` | 上传至 `files/chat/`，受文件配置大小/扩展名约束 |
-| WebSocket | `ws(s)://{host}/api/ws/message?token=...` | 推送：`notice` / `chat` / `groupChat` / `typing`；群聊可带 `atMe`；撤回带 `recall` + `messageId` |
+| WebSocket | `ws(s)://{host}/api/ws/message?token=...` | 推送：`notice` / `chat` / `groupChat` / **`groupAnnouncement`** / `typing` / `presence`；群聊可带 `atMe`；撤回带 `recall` + `messageId` |
 
 ### 前端关键文件
 
@@ -270,7 +516,8 @@ frontend/src/
 ├── api/message/index.ts          # 通知、聊天、群聊 API
 ├── constants/chat.ts             # 消息类型、分页大小
 ├── utils/chat-message.ts         # 文件 payload、撤回文案、@ 渲染
-├── store/message.ts              # 未读汇总、WebSocket、群未读角标、撤回事件
+├── utils/message-push.ts         # 免打扰过滤、群公告/@ 提醒策略
+├── store/message.ts              # 未读汇总、WebSocket、群未读角标、撤回、群公告 tick
 ├── types/message.ts              # 消息相关类型
 ├── utils/messageWebSocket.ts     # WS 连接封装
 ├── components/
@@ -279,7 +526,10 @@ frontend/src/
 │   └── MessageNotification.vue   # 新消息浮层提示
 └── views/message/
     ├── notice/index.vue          # 系统通知管理（发布/发送日志）
-    └── chat/index.vue            # 企业IM（私聊/群聊/群组详情）
+    └── chat/
+        ├── index.vue             # 路由入口（薄包装）
+        ├── components/ChatPage.vue
+        └── composables/useChatPage.ts、useChatRender.ts、useMention.ts
 ```
 
 后端：`modules/system/api/message/`（`AnnounceController`、`ChatController`）、`framework/websocket/`（`WebSocketConfig`、`MessageWebSocketHandler`）。
@@ -302,13 +552,13 @@ frontend/src/
 |------|------|------|
 | **全新安装（空库）** | `sql/admin_platform.sql` | `mysql -u root -p < sql/admin_platform.sql`（空库自动放行） |
 | **极旧库首次升级** | `admin_platform.sql` **附录段**（约 910 行起） | 补全缺表/菜单/索引，可重复执行 |
-| **发版增量** | **`sql/add1.sql`** … **`sql/add4.sql`** | 见下表；生产库名 `wuadmin` 可用 `add3_add4_wuadmin.sql` |
+| **发版增量** | **`sql/add1.sql`** … **`add10.sql`** | 见下表；`add11` 已合并进 `add10`；生产合并见 **`add6_7_wuadmin.sql`**（含 add9） |
 
 > 切勿对生产库直接跑 `admin_platform.sql` 全文（Part A 含 DROP，默认会被熔断拦截）。
 
 正文已含：消息中心表（§11b）、`sys_chat_group_log`、群消息 `mention_ids`、分级组织示例、定时任务、短信配置与 `sys_sms_log`、性能索引（含清理任务相关时间索引）。升级后涉及菜单变更时请 **重新登录**；WebSocket 与新接口需 **重启后端**。
 
-> 说明：历史聊天图片若曾走通用文件上传，可能仍出现在文件列表；升级后新发的聊天图片走 `images/chat/`、文件走 `files/chat/`，列表会自动排除。
+> 说明：历史聊天图片若曾走通用文件上传，可能仍出现在文件列表；升级后新发的聊天图片走 `images/chat/`、文件走 `files/chat/`，列表会自动排除。群公告/免打扰需执行 **`add9.sql`**（生产见 `add6_7_wuadmin.sql` 或 `add9_wuadmin.sql`）。
 
 ## 定时任务（系统监控 → 定时任务）
 
@@ -324,7 +574,7 @@ frontend/src/
 ### 组织管理（`/system/org`）
 
 - Tab：**部门体系 | 岗位体系**
-- 部门：树形、`ancestors`、拖拽、回收站；左侧树**默认折叠**（隐藏唯一根节点后直接展示下级）
+- 部门：树形、`ancestors`、拖拽；软删部门在 **回收中心** 恢复；左侧树**默认折叠**（隐藏唯一根节点后直接展示下级）
 - 岗位：`sys_user_post` 关联、组织内成员；岗位树**默认展开至第 2 级**
 
 ### 菜单管理（`/system/menu`）
@@ -404,8 +654,14 @@ wu-admin/
 ├── frontend/                   # Vue 3 + TypeScript 前端
 │   ├── src/
 │   │   ├── api/                # 接口封装（system、message、monitor 等，均为 .ts）
-│   │   ├── views/              # 页面（system、message、monitor、profile、login 等）
-│   │   ├── components/         # 公共组件（DictSelect、SliderCaptcha、MessageNotification、earth/Earth3D 等）
+│   │   ├── views/              # 页面模块（按功能分子目录）
+│   │   │   ├── login/、register/、layout/、dashboard/、profile/
+│   │   │   ├── auth/components/    # 登录注册共享（AuthSplitLayout、AuthCaptchaField 等）
+│   │   │   ├── system/{user,dict,file,menu,org,config,recycle}/  # 各含 index、*Page、composables、components
+│   │   │   ├── monitor/job/、monitor/cache/、monitor/server/、message/chat/
+│   │   │   └── …               # approval、ticket、role 等待拆分页面
+│   │   ├── composables/        # 跨页面复用（useDict、useMonitorBackground 等）
+│   │   ├── components/         # 全局公共组件（DictSelect、SliderCaptcha、MessageNotification 等）
 │   │   ├── router/             # 路由与守卫
 │   │   ├── store/              # Pinia（user、message 等）
 │   │   ├── types/              # TS 类型（api、message、config）
@@ -419,7 +675,18 @@ wu-admin/
 │   ├── add2.sql                # 增量补丁 #2（登录 smsLoginSliderCaptchaEnabled）
 │   ├── add3.sql                # 增量补丁 #3（菜单「企业IM」）
 │   ├── add4.sql                # 增量补丁 #4（群消息 mention_ids）
-│   └── add3_add4_wuadmin.sql   # 生产合并补丁（库名 wuadmin）
+│   ├── add5.sql                # 增量补丁 #5（工单字典）
+│   ├── add6.sql                # 增量补丁 #6（流程中心菜单）
+│   ├── add7.sql                # 增量补丁 #7（缓存监控菜单）
+│   ├── add8.sql                # 增量补丁 #8（服务监控菜单）
+│   ├── add9.sql                # 增量补丁 #9（群成员 notify_muted、announcement_read_time）
+│   ├── add10.sql               # 增量补丁 #10（回收中心菜单 + sys_file 软删字段）
+│   ├── add11.sql               # 已合并至 add10（SKIP 提示）
+│   ├── add6_7_wuadmin.sql      # 生产合并补丁 add6+7+8+9（库名 wuadmin）
+│   ├── add9_wuadmin.sql        # 生产仅 add9 字段（库名 wuadmin）
+│   ├── add10_wuadmin.sql       # 生产 add10（回收中心 + 文件软删）
+│   ├── add11_wuadmin.sql       # 已合并至 add10_wuadmin（SKIP 提示）
+│   └── disable_devtool_off.sql # 临时关闭「禁止前端调试」（MySQL 5.6 兼容）
 ├── data/                       # 本地上传目录（git 忽略，对应 file.storage.local-path）
 └── README.md
 ```
@@ -431,24 +698,26 @@ wu-admin/
 ```
 cn.rbac.server/
 ├── common/
-│   ├── pojo/                         # CommonResult、PageParam、PageResult
+│   ├── pojo/                         # CommonResult、PageParam、PageResult、BusinessException
 │   └── util/                         # ClientIpUtils、UserAgentUtils、IpLocationUtils
 ├── framework/                        # 技术基础设施（可抽公共 starter）
 │   ├── config/                       # DynamicConfigProvider、DevRedissonConfig（dev）
 │   ├── security/
 │   │   ├── api/                      # PermissionApi（SPI）
-│   │   ├── config/                   # SecurityConfig
+│   │   ├── config/                   # SecurityConfig（CORS 从 yml 读取）
 │   │   └── core/                     # TokenService、SecurityUtils
 │   ├── web/
-│   │   ├── core/                     # GlobalExceptionHandler
-│   │   └── filter/                   # SaTokenAuthenticationFilter、Knife4jIframeHeaderFilter
+│   │   ├── core/                     # GlobalExceptionHandler（含 BusinessException）
+│   │   └── filter/                   # AuthorizationQueryFilter、Knife4jIframeHeaderFilter
 │   ├── log/annotation/               # @Log
 │   ├── mybatis/、redis/、storage/
 └── modules/
     └── system/                       # 系统域业务
-        ├── api/                      # REST Controller（含 pay、auth/profile）
+        ├── api/                      # 瘦 Controller：@PreAuthorize、@Validated、委托 Service
+        │   └── */vo/                 # 请求 VO（JSR-303 校验）
         ├── pay/                      # 微信/支付宝测试下单与回调
-        ├── service/、dal/
+        ├── service/                    # 业务逻辑（auth、user、role、ticket、permission 等）
+        ├── dal/                        # DO、Mapper
         └── framework/                # 对本项目 framework SPI 的实现
             ├── config/               # SystemConfigProvider
             ├── security/             # SystemPermissionService（bean 名 ss）
@@ -459,6 +728,7 @@ cn.rbac.server/
 | 扩展场景 | 做法 |
 |----------|------|
 | 改会话/上传限制等运行时配置 | 改库表 `sys_config_group`，经 `SystemConfigHelper` → `SystemConfigProvider` |
+| 新增业务接口 | 在 `service/` 写业务逻辑，Controller 只做入参校验与 `CommonResult` 封装；业务错误抛 `BusinessException` |
 | 新增业务模块 | 增加 `modules/xxx`，在 `xxx/framework` 实现 SPI，勿让 `framework` 依赖业务 |
 | 复用基础层 | 将 `common` + `framework` 打成 jar，供其它 Spring Boot 项目依赖 |
 
@@ -486,14 +756,22 @@ cn.rbac.server/
 # 空库全新安装（直接执行即可）
 mysql -u root -p < sql/admin_platform.sql
 
-# 已有库发版增量（按版本依次执行）
+# 已有库发版增量（按版本依次执行，本地库 wu-admin）
 mysql -u root -p wu-admin < sql/add1.sql
 mysql -u root -p wu-admin < sql/add2.sql
 mysql -u root -p wu-admin < sql/add3.sql
 mysql -u root -p wu-admin < sql/add4.sql
+mysql -u root -p wu-admin < sql/add5.sql
+mysql -u root -p wu-admin < sql/add6.sql
+mysql -u root -p wu-admin < sql/add7.sql
+mysql -u root -p wu-admin < sql/add8.sql
+mysql -u root -p wu-admin < sql/add9.sql
+mysql -u root -p wu-admin < sql/add10.sql
 
-# 生产服务器（库名 wuadmin，合并 add3+add4）
-mysql -u wuadmin -p wuadmin < sql/add3_add4_wuadmin.sql
+# 生产服务器（库名 wuadmin；合并 add6+7+8+9，含流程中心/缓存/服务监控/群公告免打扰）
+mysql -u wuadmin -p wuadmin < sql/add6_7_wuadmin.sql
+# 回收中心 + 文件软删（add10；add11 已合并，勿单独执行）
+mysql -u wuadmin -p wuadmin < sql/add10_wuadmin.sql
 
 # 极旧库首次补全（缺表/菜单时，执行 admin_platform.sql 附录段，约 910 行起）
 ```
@@ -584,21 +862,24 @@ npm run dev
 | `/api/system/**` | 用户、角色、菜单、组织、字典、**config-group**（含 test-payment）、审批、工单、**announce/chat** 等 |
 | `/api/pay/**` | 支付回调（`/notify/*` 公开）、测试订单查单 |
 | `/api/files/**` | 文件上传与访问 |
-| `/api/monitor/**` | API 访问、在线用户、**定时任务** |
-| `/api/dashboard/**` | 工作台统计（含配置摘要、待审核用户数） |
+| `/api/monitor/**` | API 访问、在线用户、**定时任务**、**Redis 缓存监控**（`/monitor/cache/*`）、**服务监控**（`/monitor/server/info`） |
+| `/api/dashboard/**` | 工作台统计（含配置摘要、待审核用户数）；计数类指标单 SQL 聚合 + Redis 缓存（约 2 分钟） |
+| `/api/system/user/list` | 用户下拉选项（启用用户、最多 2000 条）；管理列表请用 `/api/system/user/page` |
+| `/api/system/recycle/summary` | 回收中心 12 类软删数量汇总 |
+| `/api/system/export/*` | 列表 Excel/CSV 导出（用户、日志、工单、审批等） |
 
 ---
 
 ## 数据库脚本
 
-维护 **`sql/admin_platform.sql`**（全量 + 附录）与 **`sql/add1.sql` … `add4.sql`** 等增量补丁：
+维护 **`sql/admin_platform.sql`**（全量 + 附录）与 **`sql/add1.sql` … `add10.sql`** 等增量补丁：
 
 | 场景 | 做法 |
 |------|------|
 | **全新安装** | 空库直接 `mysql -u root -p < sql/admin_platform.sql` |
 | **极旧库首次升级** | 执行 `admin_platform.sql` 文末 **附录**（约 910 行起） |
-| **发版增量（本地 dev）** | 依次 `mysql -u root -p wu-admin < sql/add1.sql` … `add4.sql` |
-| **发版增量（生产）** | `mysql -u wuadmin -p wuadmin < sql/add3_add4_wuadmin.sql`（或按需单独执行 add3/add4 并改库名） |
+| **发版增量（本地 dev）** | 依次 `mysql -u root -p wu-admin < sql/add1.sql` … **`add10.sql`** |
+| **发版增量（生产）** | 按已执行版本补跑；**流程中心 + 缓存/服务监控** 见 **`add6_7_wuadmin.sql`**；**回收中心** 见 **`add10_wuadmin.sql`** |
 
 `addN.sql` 体量应保持在几十行量级；全量补丁逻辑在 `admin_platform.sql` 附录。
 
@@ -608,7 +889,19 @@ npm run dev
 | `add2.sql` | 登录配置 `smsLoginSliderCaptchaEnabled`（短信发码前滑块，默认 `false`） |
 | `add3.sql` | 菜单 id=172「即时聊天」→「**企业IM**」 |
 | `add4.sql` | `sys_chat_group_message.mention_ids`（群 @ 提醒，可重复执行） |
-| `add3_add4_wuadmin.sql` | **生产库 `wuadmin`** 合并 add3 + add4 |
+| `add5.sql` | 补全工单字典类型 `sys_ticket_status` / `sys_ticket_priority` |
+| `add6.sql` | 菜单 id=8「业务中心」→「**流程中心**」（path `/workflow`）；排序至消息中心与开发工具之间；本地库 `wu-admin` |
+| `add7.sql` | 系统监控新增「**缓存监控**」菜单与权限；本地库 `wu-admin` |
+| `add8.sql` | 系统监控新增「**服务监控**」菜单（本机 JMX）；本地库 `wu-admin` |
+| `add9.sql` | 群成员 `notify_muted`、`announcement_read_time`（群公告已读 / 免打扰）；本地库 `wu-admin` |
+| `add10.sql` | **回收中心**菜单 id=163；`sys_file` 增加 `update_time`、`deleted` 及索引；本地库 `wu-admin` |
+| `add11.sql` | **已合并至 add10**，单独执行仅输出 SKIP |
+| `add6_7_wuadmin.sql` | **生产库 `wuadmin`** 合并 add6 + add7 + add8 + **add9** |
+| `add9_wuadmin.sql` | **生产库 `wuadmin`** 仅 add9 字段（已跑过合并脚本可跳过） |
+| `add10_wuadmin.sql` | **生产库 `wuadmin`** 回收中心 + 文件软删（与 add10 等价） |
+| `add11_wuadmin.sql` | **已合并至 add10_wuadmin**，单独执行仅输出 SKIP |
+
+> 生产环境若尚未执行 add3/add4，可将 `add3.sql`、`add4.sql` 中 `USE` 改为 `wuadmin` 后逐条执行，或直接依赖已更新的 `admin_platform.sql` 全量/附录。仓库内**无**单独的 `add3_add4_wuadmin.sql` 文件。
 
 **附录 / 增量行为（可重复执行、尽量非破坏性）：**
 
@@ -643,7 +936,7 @@ npm run dev
 
 ### 操作日志
 
-在 `modules/system/api` 的 Controller 方法上添加 `@Log`（`framework.log.annotation`），由 `modules/system/framework/operlog/LogAspect` 经 `OperLogRecorder` 写入 `sys_oper_log`。
+在 `modules/system/api` 的 Controller 方法上添加 `@Log`（`framework.log.annotation`），由 `modules/system/framework/operlog/LogAspect` 经 `OperLogRecorder` 写入 `sys_oper_log`。登录、注册、工单流转、审批处理、定时任务等核心写操作已补齐 `@Log`。
 
 ### 按钮权限
 
@@ -655,8 +948,10 @@ npm run dev
 
 ### 登录 / 注册页
 
-- 路由：`/login`、`/register`；左侧为 **Three.js 3D 地球**（`frontend/src/components/earth/Earth3D.vue`），透明画布透出粒子星空，支持鼠标拖拽旋转与滚轮缩放。
+- 路由：`/login`、`/register`；页面逻辑见 `views/login/composables/useLoginForm.ts`、`views/register/composables/useRegisterForm.ts`；共享布局与验证码见 `views/auth/components/`（`AuthSplitLayout`、`AuthCaptchaField`、`AuthParticleBackground`）。
+- 左侧为 **Three.js 3D 地球**（`frontend/src/components/earth/Earth3D.vue`），透明画布透出粒子星空，支持鼠标拖拽旋转与滚轮缩放。
 - 文案与验证码等行为由公开配置驱动，见下节。
+- **记住我**：仅持久化「账号登录」模式下的用户名；切换 Tab 不会清空勾选状态。
 - **短信 Tab**：未填手机号点击「获取验证码」会提示「请输入手机号」；开启发码前滑块时先弹 `SliderCaptcha` 再发码。
 - **账号登录**：用户名或密码错误时提示「**账号或密码错误**」（不再误报「登录已过期」）；公开认证接口（`/auth/login` 等）的 401 与已登录态 token 失效区分处理。
 - **注册页**：公开接口（登录/注册/验证码/config）请求**不携带**管理员 Token，避免误报 403；软删用户名再次注册由后端自动恢复账号。
@@ -686,13 +981,57 @@ GET /auth/config  // 实际请求 /api/auth/config
 ### 构建与打包
 
 ```powershell
-cd frontend && npm run build
-cd backend && mvn clean package -DskipTests
+# 前端 → frontend/dist/
+cd frontend
+npm run build
+
+# 后端 → backend/target/backend.jar（默认 prod profile）
+cd backend
+mvn clean package -DskipTests
 ```
+
+**产物说明**
+
+| 产物 | 路径 | 说明 |
+|------|------|------|
+| 前端静态资源 | `frontend/dist/` | 部署到 Nginx 等 Web 服务器根目录 |
+| 后端可执行包 | `backend/target/backend.jar` | `java -jar backend.jar`，默认 `prod`，监听 `8080`，context-path `/api` |
+
+**生产默认连接配置**（`application-prod.yml`，部署前请修改）：
+
+| 项 | 默认值 |
+|----|--------|
+| MySQL 库名 | `wuadmin` |
+| MySQL 用户 / 密码 | `wuadmin` / `root` |
+| Redis 密码 | `root`（database `1`） |
+| CORS | `app.cors.allowed-origins` 须改为实际域名（示例：`https://wushij.online,https://www.wushij.online`） |
+
+**Nginx 反代要点**：静态资源走 `root` + `try_files`；`/api/` 反代到 `http://127.0.0.1:8080/api/`；WebSocket 需 `Upgrade` / `Connection` 头（消息推送）。
+
+**仅前端发版**（如监控折线、个人中心样式）：覆盖 `frontend/dist/` 并强刷浏览器即可，**不必重启 jar**。涉及菜单/SQL/后端接口时须同步后端与数据库增量。
+
+启动示例：
+
+```bash
+java -jar backend.jar
+# 或覆盖敏感配置：
+java -jar backend.jar --spring.datasource.password=xxx --spring.data.redis.password=xxx
+```
+
+### 新增页面开发约定（前端）
+
+1. 在 `frontend/src/router` 注册路由，`path` 与 `sys_menu.path` 保持一致。
+2. 页面目录：`views/<模块>/index.vue` 仅作路由入口，业务放在 `*Page.vue` + `composables/use*Page.ts`。
+3. 可复用 UI 拆到同目录 `components/`；登录注册类共用 `views/auth/components/`。
+4. 列表页优先用 `DictSelect` / `DictTag`；按钮权限用 `v-permission`。
+5. 提交前执行 `npm run typecheck` 与 `npm run test`。
 
 ---
 
 ## 常见问题
+
+**Q：生产环境登录失败，接口返回 HTML 或「检查网络连接」？**  
+A：① 浏览器访问 `https://域名/api/auth/config`，若返回 `index.html` 则是 **Nginx 未反代 `/api`**（见上文「生产部署排障实录」）；② 若返回 JSON 仍失败，检查 `application-prod.yml` 中 **CORS 域名**是否为实际站点（dev 相对 master 从 `*` 改为可配域名，占位符会导致异常）；③ 验证码须填写；④ 清 `localStorage` 中旧 `token` 后重试。
 
 **Q：登录后菜单为空或 403？**  
 A：确认已导入 `admin_platform.sql` 或为角色分配菜单，然后重新登录。
@@ -707,7 +1046,16 @@ A：若开启「注册需审核」，需管理员在审批单中心通过；登�
 A：升级后默认列表已排除待审核/驳回用户；待审用户仅在审批单中心处理。若仍为旧版，请更新前后端并刷新页面。
 
 **Q：驳回后同用户名无法注册，或提示权限不足？**  
-A：① 确认 **注册认证** 已开启开放注册；② 升级后软删用户名可自动恢复再注册；③ 若回收站仍有该用户，可「清除」彻底删除后再试；④ 注册/登录请求勿带管理员 Token（新版前端已自动跳过）。
+A：① 确认 **注册认证** 已开启开放注册；② 升级后软删用户名可自动恢复再注册；③ 若 **回收中心** 仍有该用户，可「彻底删除」后再试；④ 注册/登录请求勿带管理员 Token（新版前端已自动跳过）。
+
+**Q：回收中心菜单不显示，或文件列表报 `Unknown column 'deleted'`？**  
+A：对已有库执行 **`sql/add10.sql`**（生产 **`add10_wuadmin.sql`**），**重新登录**；`add11` 已合并进 `add10`，勿重复找旧脚本。全量新库请用已含菜单 163 与 `sys_file` 字段的 `admin_platform.sql`。
+
+**Q：回收中心某个 Tab 看不到（如岗位）？**  
+A：Tab 按各模块 **列表权限** 显示（如岗位需 `system:post:list`）；无权限的类别不会展示，但汇总接口仍可能返回计数。
+
+**Q：文件恢复失败提示磁盘不存在？**  
+A：软删仅改库表标记，若磁盘文件已被手动删除则无法恢复；可在回收中心「彻底删除」清理无效记录。超过 `app.job.file-recycle-retention-days`（默认 30 天）的记录可由定时任务 **文件回收站清理** 自动清盘（内置任务，默认暂停，需在定时任务页启用）。
 
 **Q：如何开启短信发码前滑块？**  
 A：**系统配置 → 登录认证** 开启「短信验证码登录」与「发送前滑块验证」；已有库执行 `sql/add2.sql` 补配置字段，保存后刷新登录页。
@@ -722,7 +1070,16 @@ A：已配置 OpenAPI 默认服务 `http://localhost:3000/api`；重启后端与
 A：在 **系统配置 → 文件存储** 调整；单文件上限不得超过 500MB。
 
 **Q：消息中心菜单不显示或聊天 403？**  
-A：对已有库：极旧库先跑 **admin_platform.sql 附录**；发版增量依次跑 `sql/add1.sql` … `add4.sql`（生产可用 `add3_add4_wuadmin.sql`），**重启后端**后 **重新登录**。普通用户需角色分配菜单 170/172；只读权限用户访问 `:list` 接口时会映射为 `:query`。
+A：对已有库：极旧库先跑 **admin_platform.sql 附录**；发版增量依次跑 `sql/add1.sql` … `add4.sql`（生产改 `USE wuadmin` 后执行 add3/add4），**重启后端**后 **重新登录**。普通用户需角色分配菜单 170/172；只读权限用户访问 `:list` 接口时会映射为 `:query`。
+
+**Q：缓存/服务监控菜单不显示？**  
+A：已有库执行 `sql/add7.sql`、`add8.sql`（本地）或生产 **`sql/add6_7_wuadmin.sql`**，**重新登录**刷新侧栏；确认角色已分配 `monitor:cache:list` / `monitor:server:list`。
+
+**Q：监控折线图一切页或 F5 就清空？**  
+A：升级至含 **全局后台采样 + sessionStorage** 的前端后，登录即有权限则后台持续采样；同一标签页 F5 仍保留最近 20 个点。关闭标签页或退出登录会清空。仅更新前端 `dist` 即可，**无需改后端 jar**。
+
+**Q：服务监控「平均负载」显示 `-`？**  
+A：**Windows** 不提供 Linux 式 load average，JMX 返回不可用，界面显示 `-` 属正常；请参考 **系统 CPU / 进程 CPU** 及 CPU 折线图。Linux 部署会显示数值。
 
 **Q：顶栏有通知角标但列表为空？**  
 A：确认 WebSocket 已连接（登录后自动初始化）；在顶栏铃铛打开「系统通知」Tab 会拉取列表。管理员发布通知需 `system:announce:publish`。
@@ -730,8 +1087,17 @@ A：确认 WebSocket 已连接（登录后自动初始化）；在顶栏铃铛�
 **Q：聊天图片出现在文件管理里？**  
 A：升级后新图片走 `/system/chat/upload/image`（`images/chat/`）、新文件走 `/system/chat/upload/file`（`files/chat/`），文件列表已排除；历史旧数据可手动删除。
 
+**Q：群公告保存后别人看不到置顶条，或没有弹窗提醒？**  
+A：① 执行 `sql/add9.sql`（生产 `add9_wuadmin.sql` 或 `add6_7_wuadmin.sql`）；② **重启后端**；③ 前后端一并升级（需 `groupAnnouncement` WebSocket）；④ 公告变更会重置全员已读，成员进入群聊或收到推送后应显示置顶条。
+
+**Q：开了群免打扰仍收到所有消息提醒？**  
+A：确认 `sys_chat_group_member.notify_muted` 字段已入库（add9）；升级含 `message-push.ts` 的前端后，仅 **@ 我** 与 **群公告** 会弹窗并计角标，普通群消息应被过滤。
+
+**Q：普通成员能改群名称或群公告吗？**  
+A：不能。仅 **群主 / 群管理员** 可编辑；普通成员群组详情中为只读，保存按钮对其不可见或无权限。
+
 **Q：企业IM 升级后 @ / 撤回 / 文件发送不可用？**  
-A：① 已有库执行 `sql/add4.sql`（或生产 `add3_add4_wuadmin.sql`）；② **重启后端**；③ 重新登录刷新菜单名「企业IM」；④ 确认角色有 `system:chat:list`。
+A：① 已有库执行 `sql/add4.sql`（生产改 `USE wuadmin`）；② **重启后端**；③ 重新登录刷新菜单名「企业IM」；④ 确认角色有 `system:chat:list`。
 
 **Q：群聊 @ 没有强提醒或角标？**  
 A：确认 `mention_ids` 字段已入库（add4）；被 @ 时 WebSocket 推送带 `atMe: true`，顶栏通知标题为 `[有人@你]`。
@@ -747,6 +1113,18 @@ A：升级后后端按扩展名返回正确 MIME 并触发下载；请重新部�
 
 **Q：开启「禁止前端调试」无效？**  
 A：在 **系统配置 → 安全配置** 保存后需 **整页刷新**；缺 `security` 分组时先跑 **admin_platform.sql 附录**。此为浏览器端限制，无法替代后端鉴权。
+
+**Q：生产已开「禁止前端调试」，F12 打不开如何排障？**  
+A：执行 `sql/disable_devtool_off.sql`（库名 `wuadmin`；**MySQL 5.6 勿用 JSON_SET**），重启后端并 `Ctrl+F5` 强刷；或在系统配置关闭后保存。调试完请恢复。
+
+**Q：企业 IM 联系人在线状态不实时更新？**  
+A：升级至含 **`presence` WebSocket 推送** 的版本并重启后端；双方均须已登录且 WebSocket 已连接。旧版仅进入页面时 `loadUsers()` 拉取一次在线状态。
+
+**Q：企业 IM 输入框多了一圈黑边框？**  
+A：组件化拆分时独立 CSS 中 `:deep()` 无效所致；升级至已修复的 `chat-page.css` 后重新 `npm run build` 部署前端。
+
+**Q：字典里多了好几个「××（副本）」？**  
+A：「复制类型」每点一次生成一条（`原编码_copy_时间戳`），误点多次即多条；删除多余副本并「刷新缓存」即可，业务仍用原字典类型。
 
 **Q：系统配置没有「第三方配置 / 支付配置 / 短信配置」Tab？**  
 A：对已有库：极旧库先跑 **admin_platform.sql 附录**；发版增量跑 `sql/add1.sql`；**重启后端**并刷新页面。
@@ -777,6 +1155,12 @@ A：本地请用 **`dev` profile** 启动（`SPRING_PROFILES_ACTIVE=dev`），�
 
 **Q：登录输错密码却提示「登录已过期」？**  
 A：升级后账号/密码错误统一返回「账号或密码错误」；若仍为旧版，请更新前后端并重启后端。
+
+**Q：分页请求 pageSize 很大导致接口变慢？**  
+A：升级后 `PageParam` 自动将 `pageSize` 上限限制为 **200**；非法 `pageNo` 会修正为 1。
+
+**Q：业务错误返回格式不统一？**  
+A：Service 层应抛 `BusinessException`，由 `GlobalExceptionHandler` 统一返回 `CommonResult`；勿在 Controller 手工 catch 后吞掉异常。
 
 **Q：Git 仓库？**  
 A：https://github.com/wushij/wu-admin

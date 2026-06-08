@@ -65,17 +65,19 @@ public class OnlineUserServiceImpl implements OnlineUserService {
 
     @Override
     public void recordLoginSession(Long userId, String username, String nickname, HttpServletRequest request) {
-        String ip = ClientIpUtils.resolve(request);
-        String userAgent = request.getHeader("User-Agent");
+        recordLoginSession(userId, username, nickname, ClientIpUtils.resolve(request), request.getHeader("User-Agent"));
+    }
 
+    @Override
+    public void recordLoginSession(Long userId, String username, String nickname, String clientIp, String userAgent) {
         OnlineDetail detail = new OnlineDetail();
         detail.setUserId(userId);
         detail.setUsername(username);
         detail.setNickname(nickname);
-        detail.setIpaddr(ip);
-        detail.setLoginLocation(resolveLocation(ip));
+        detail.setIpaddr(clientIp);
+        detail.setLoginLocation(resolveLocation(clientIp));
         detail.setBrowser(UserAgentUtils.parseBrowser(userAgent));
-        detail.setOs(UserAgentUtils.parseOs(request));
+        detail.setOs(UserAgentUtils.parseOsFromUserAgent(userAgent));
         long now = System.currentTimeMillis();
         detail.setLoginTime(now);
         detail.setLastAccessTime(now);
@@ -89,7 +91,7 @@ public class OnlineUserServiceImpl implements OnlineUserService {
         }
 
         RBucket<String> bucket = redissonClient.getBucket(ONLINE_DETAIL_PREFIX + userId);
-        bucket.set(JSONUtil.toJsonStr(detail), 1, TimeUnit.DAYS);
+        setWithTtl(bucket, JSONUtil.toJsonStr(detail), 1, TimeUnit.DAYS);
 
         refreshActiveMarker(userId, now);
     }
@@ -107,7 +109,7 @@ public class OnlineUserServiceImpl implements OnlineUserService {
         if (json != null) {
             OnlineDetail detail = JSONUtil.toBean(json, OnlineDetail.class);
             detail.setLastAccessTime(now);
-            bucket.set(JSONUtil.toJsonStr(detail), 1, TimeUnit.DAYS);
+            setWithTtl(bucket, JSONUtil.toJsonStr(detail), 1, TimeUnit.DAYS);
         }
     }
 
@@ -151,6 +153,7 @@ public class OnlineUserServiceImpl implements OnlineUserService {
     }
 
     /** 从 Sa-Token 在 Redis 中的 session 键解析在线用户（searchSessionId 为空时的兜底） */
+    @SuppressWarnings("deprecation")
     private void collectUserIdsFromRedisSessions(Set<Long> ids) {
         try {
             RKeys keys = redissonClient.getKeys();
@@ -273,7 +276,7 @@ public class OnlineUserServiceImpl implements OnlineUserService {
 
     private void refreshActiveMarker(Long userId, long timestamp) {
         long minutes = Math.max(10L, dynamicConfigProvider.getTokenExpirationMs() / 60_000L);
-        redissonClient.getBucket(ONLINE_ACTIVE_PREFIX + userId).set(timestamp, minutes, TimeUnit.MINUTES);
+        setWithTtl(redissonClient.getBucket(ONLINE_ACTIVE_PREFIX + userId), timestamp, minutes, TimeUnit.MINUTES);
     }
 
     private long parseTime(String time) {
@@ -286,5 +289,10 @@ public class OnlineUserServiceImpl implements OnlineUserService {
         } catch (Exception e) {
             return 0L;
         }
+    }
+
+    @SuppressWarnings("deprecation")
+    private <V> void setWithTtl(RBucket<V> bucket, V value, long duration, TimeUnit unit) {
+        bucket.set(value, duration, unit);
     }
 }

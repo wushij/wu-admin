@@ -42,7 +42,6 @@ export const topStatCards: TopStatCardConfig[] = [
     trendKey: 'user',
     icon: User,
     iconTheme: 'user',
-    permission: 'system:user:list',
     to: '/system/user',
     footer: (_s, t) => formatTrendFooter(t.user),
   },
@@ -92,7 +91,7 @@ export const topStatCards: TopStatCardConfig[] = [
   },
   {
     key: 'approval-pending',
-    title: '待我审批',
+    title: '待审批',
     valueKey: 'approvalPendingCount',
     icon: Checked,
     iconTheme: 'approval',
@@ -102,7 +101,7 @@ export const topStatCards: TopStatCardConfig[] = [
   },
   {
     key: 'ticket-open',
-    title: '待我处理',
+    title: '待处理工单',
     valueKey: 'ticketOpenCount',
     icon: Tickets,
     iconTheme: 'ticket',
@@ -110,7 +109,7 @@ export const topStatCards: TopStatCardConfig[] = [
     to: '/system/ticket',
     footer: (s) => {
       const overdue = s.ticketOverdueCount ?? 0
-      return overdue > 0 ? `超时 ${overdue} 个` : '待我处理的工单'
+      return overdue > 0 ? `超时 ${overdue} 个` : '流程中心'
     },
   },
   {
@@ -120,7 +119,6 @@ export const topStatCards: TopStatCardConfig[] = [
     trendKey: 'role',
     icon: UserFilled,
     iconTheme: 'role',
-    permission: 'system:role:list',
     to: '/system/role',
     footer: (_s, t) => formatTrendFooter(t.role),
   },
@@ -131,7 +129,6 @@ export const topStatCards: TopStatCardConfig[] = [
     trendKey: 'dept',
     icon: OfficeBuilding,
     iconTheme: 'dept',
-    permission: 'system:dept:list',
     to: '/system/org',
     footer: (_s, t) => formatTrendFooter(t.dept),
   },
@@ -141,7 +138,6 @@ export const topStatCards: TopStatCardConfig[] = [
     valueKey: 'postCount',
     icon: Briefcase,
     iconTheme: 'post',
-    permission: 'system:dept:list',
     to: '/system/org',
     footer: (s) => `部门 ${s.deptCount ?? 0} 个`,
   },

@@ -43,7 +43,6 @@ export const cacheAutoRefresh = ref(loadMonitorSessionFlag(CACHE_AUTO_REFRESH_KE
 let statsTimer: ReturnType<typeof setInterval> | null = null
 let chartRenderHandler: (() => Promise<void>) | null = null
 let backgroundActive = false
-let statsFetchInFlight = false
 
 function persistChartHistory() {
   saveMonitorSession(CACHE_CHART_STORAGE_KEY, toRaw(cacheChartHistory))
@@ -80,8 +79,6 @@ export function recordCacheStatsPoint(stats: CacheStats) {
 }
 
 export async function fetchCacheStatsPoint() {
-  if (statsFetchInFlight) return
-  statsFetchInFlight = true
   try {
     const res = await getCacheStats()
     if (res.data) {
@@ -90,8 +87,6 @@ export async function fetchCacheStatsPoint() {
     }
   } catch {
     /* ignore */
-  } finally {
-    statsFetchInFlight = false
   }
 }
 

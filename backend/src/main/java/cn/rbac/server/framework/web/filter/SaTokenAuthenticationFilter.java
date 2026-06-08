@@ -1,13 +1,12 @@
 package cn.rbac.server.framework.web.filter;
 
 import cn.dev33.satoken.stp.StpUtil;
-import cn.rbac.server.framework.security.core.service.TokenService;
 import cn.rbac.server.modules.system.service.monitor.OnlineUserService;
+import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
-import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import jakarta.servlet.FilterChain;
@@ -27,14 +26,12 @@ public class SaTokenAuthenticationFilter extends OncePerRequestFilter {
     private OnlineUserService onlineUserService;
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
+    protected void doFilterInternal(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response, @NonNull FilterChain filterChain)
             throws ServletException, IOException {
         try {
             if (StpUtil.isLogin()) {
                 Long userId = StpUtil.getLoginIdAsLong();
                 onlineUserService.touchLastAccess(userId);
-                Object usernameObj = StpUtil.getSession().get(TokenService.SESSION_USERNAME);
-                String username = usernameObj != null ? usernameObj.toString() : String.valueOf(userId);
 
                 UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
                         userId, null, Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER"))

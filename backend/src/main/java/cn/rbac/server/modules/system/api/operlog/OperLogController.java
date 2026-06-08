@@ -2,6 +2,7 @@ package cn.rbac.server.modules.system.api.operlog;
 
 import cn.rbac.server.common.pojo.CommonResult;
 import cn.rbac.server.common.pojo.PageResult;
+import cn.rbac.server.framework.log.annotation.Log;
 import cn.rbac.server.modules.system.dal.dataobject.operlog.OperLogDO;
 import cn.rbac.server.modules.system.service.operlog.OperLogService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -34,6 +35,7 @@ public class OperLogController {
     @DeleteMapping("/{id}")
     @Operation(summary = "删除操作日志")
     @PreAuthorize("@ss.hasPermission('system:operLog:delete')")
+    @Log(title = "操作日志", businessType = Log.BusinessType.DELETE)
     public CommonResult<Boolean> delete(@PathVariable Long id) {
         operLogService.delete(id);
         return CommonResult.success(true);
@@ -42,6 +44,7 @@ public class OperLogController {
     @DeleteMapping("/clean")
     @Operation(summary = "清空操作日志")
     @PreAuthorize("@ss.hasPermission('system:operLog:clear')")
+    @Log(title = "操作日志", businessType = Log.BusinessType.DELETE)
     public CommonResult<Boolean> clean() {
         operLogService.clean();
         return CommonResult.success(true);

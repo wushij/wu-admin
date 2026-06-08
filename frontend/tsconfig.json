@@ -21,10 +21,9 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
 
-    /* Path Alias */
-    "baseUrl": ".",
+    /* Path Alias（TS 6+ 不再使用 baseUrl，前缀写在 paths 中） */
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["./src/*"]
     },
 
     /* Types */

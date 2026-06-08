@@ -1,6 +1,8 @@
 package cn.rbac.server.framework.security.core.service;
 
 import cn.dev33.satoken.stp.StpUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.util.StringUtils;
@@ -9,6 +11,8 @@ import org.springframework.util.StringUtils;
  * 安全工具类
  */
 public class SecurityUtils {
+
+    private static final Logger log = LoggerFactory.getLogger(SecurityUtils.class);
 
     private SecurityUtils() {
     }
@@ -21,7 +25,8 @@ public class SecurityUtils {
             if (StpUtil.isLogin()) {
                 return StpUtil.getLoginIdAsLong();
             }
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            log.debug("getLoginUserId via Sa-Token failed: {}", e.getMessage());
         }
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || !authentication.isAuthenticated()) {
@@ -39,6 +44,14 @@ public class SecurityUtils {
     }
 
     /**
+     * 获取当前登录用户ID，未登录时返回 0L（用于 Controller 层替代重复的 currentUserId() 实现）
+     */
+    public static Long getLoginUserIdOrZero() {
+        Long userId = getLoginUserId();
+        return userId != null ? userId : 0L;
+    }
+
+    /**
      * 获取当前登录用户名（用于操作日志等展示，非 userId）
      */
     public static String getLoginUsername() {
@@ -49,7 +62,8 @@ public class SecurityUtils {
                     return usernameObj.toString();
                 }
             }
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            log.debug("getLoginUsername via Sa-Token failed: {}", e.getMessage());
         }
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || !authentication.isAuthenticated()) {

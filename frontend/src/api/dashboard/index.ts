@@ -35,6 +35,9 @@ export interface DashboardStats {
   ticketOpenCount?: number
   ticketOverdueCount?: number
   approvalPendingCount?: number
+  jobTotalCount?: number
+  jobRunningCount?: number
+  jobPausedCount?: number
 }
 
 export interface RecentLogin {

@@ -2,14 +2,13 @@ import { ref, reactive, computed, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { getConfigGroup, updateConfigGroup } from '@/api/system/config'
 import { getRoleList } from '@/api/system/role'
-import { getUserList } from '@/api/system/user'
 import { getErrorMessage } from '@/utils/axiosError'
 import { useUserStore } from '@/store/user'
 import { useSiteStore } from '@/store/site'
 import type { ConfigGroupCode, ConfigGroupMap } from '@/types/config'
 
 export const GROUP_CODES = [
-  'site', 'session', 'file', 'rateLimit', 'login', 'register', 'thirdParty', 'payment', 'sms', 'email', 'security', 'ai',
+  'site', 'session', 'file', 'rateLimit', 'login', 'register', 'thirdParty', 'payment', 'sms', 'security',
 ] as const satisfies readonly ConfigGroupCode[]
 
 const DEFAULTS = {
@@ -18,12 +17,9 @@ const DEFAULTS = {
     platformSubtitle: '统一运维 · 高效管控',
     loginWelcome: 'Welcome',
     registerTitle: 'Sign Up',
-    copyright: '',
-    icpEnabled: true,
-    icpNumber: '粤ICP备XXXXXXXX号-1',
-    icpUrl: 'https://beian.miit.gov.cn'
+    copyright: ''
   },
-  session: { tokenExpireHours: 24, sessionSignExpireHours: 24 },
+  session: { tokenExpireHours: 24 },
   file: {
     maxSizeMb: 50,
     allowedExtensions:
@@ -37,18 +33,14 @@ const DEFAULTS = {
     smsSendIntervalSeconds: 60,
     smsPerPhoneDaily: 10,
     smsPerIpDaily: 30,
-    aiChatPerUserMinute: 8,
   },
   login: {
     captchaEnabled: true,
     captchaType: 'image',
     smsLoginEnabled: false,
     smsLoginSliderCaptchaEnabled: false,
-    emailLoginEnabled: false,
-    emailLoginSliderCaptchaEnabled: false,
     rememberMe: true,
     maxRetryCount: 5,
-    maxRetryCountIp: 20,
     lockTime: 10
   },
   register: {
@@ -57,8 +49,7 @@ const DEFAULTS = {
     captchaType: 'image',
     defaultRoleCode: 'user',
     needAudit: false,
-    minPasswordLength: 6,
-    auditorUserIds: [],
+    minPasswordLength: 6
   },
   thirdParty: {
     wechat: { enabled: false, appId: '', appSecret: '' },
@@ -90,24 +81,6 @@ const DEFAULTS = {
     templateVerifyBindPhone: '100005',
     schemeName: '', codeExpireMinutes: 5,
   },
-  email: {
-    enabled: true, provider: 'qq',
-    host: 'smtp.qq.com', port: 465,
-    username: '', password: '',
-    fromName: 'wu-admin 系统团队',
-    authEnabled: true, securityType: 'SSL',
-    connectionTimeoutMs: 5000, timeoutMs: 5000, writeTimeoutMs: 5000,
-    encoding: 'UTF-8', debug: false,
-    codeExpireMinutes: 5, codeLength: 6,
-    dailyLimitPerEmail: 20, sendIntervalSeconds: 60,
-  },
-  ai: {
-    assistantEnabled: true,
-    globalKnowledge: '',
-    answerScope: 'focus',
-    tokensPerUserDaily: 100000,
-    roleTokenQuotas: [],
-  },
 } satisfies ConfigGroupMap
 
 type ConfigState = ConfigGroupMap
@@ -133,12 +106,7 @@ export function normalizePayload<K extends ConfigGroupCode>(code: K, payload: Co
   }
   if (code === 'register') {
     const register = payload as ConfigGroupMap['register']
-    const base = register.captchaEnabled ? register : { ...register, captchaType: 'image' }
-    const ids = Array.isArray(base.auditorUserIds) ? base.auditorUserIds : []
-    return {
-      ...base,
-      auditorUserIds: [...new Set(ids.map(Number).filter((id) => Number.isFinite(id) && id > 0))],
-    } as ConfigGroupMap[K]
+    return (register.captchaEnabled ? register : { ...register, captchaType: 'image' }) as ConfigGroupMap[K]
   }
   return payload
 }
@@ -163,24 +131,6 @@ function applyGroupFromServer<K extends ConfigGroupCode>(
     if (login.captchaType === 'sms') { login.smsLoginEnabled = true; login.captchaType = 'image' }
     if (login.smsLoginEnabled === undefined) login.smsLoginEnabled = false
     if (login.smsLoginSliderCaptchaEnabled === undefined) login.smsLoginSliderCaptchaEnabled = false
-    if (login.maxRetryCountIp === undefined) login.maxRetryCountIp = 20
-  }
-  if (code === 'register') {
-    const reg = merged as ConfigGroupMap['register']
-    if (!Array.isArray(reg.auditorUserIds)) reg.auditorUserIds = []
-  }
-  if (code === 'ai') {
-    const ai = merged as ConfigGroupMap['ai']
-    if (ai.assistantEnabled === undefined) ai.assistantEnabled = true
-    if (ai.answerScope !== 'open') ai.answerScope = 'focus'
-    if (typeof ai.tokensPerUserDaily !== 'number') ai.tokensPerUserDaily = 100000
-    if (!Array.isArray(ai.roleTokenQuotas)) {
-      ai.roleTokenQuotas = []
-    } else {
-      ai.roleTokenQuotas = ai.roleTokenQuotas
-        .filter((q) => q && Number(q.roleId) > 0)
-        .map((q) => ({ roleId: Number(q.roleId), tokensDaily: Number(q.tokensDaily) || 0 }))
-    }
   }
   if (code === 'sms') {
     const sms = merged as ConfigGroupMap['sms']
@@ -198,8 +148,7 @@ function applyGroupFromServer<K extends ConfigGroupCode>(
   setConfigGroup(draft, code, cloneConfig(merged))
 }
 
-export interface RoleOption { id: number; name: string; code: string }
-export interface UserOption { id: number; label: string }
+export interface RoleOption { name: string; code: string }
 
 export function useConfigDraft() {
   const userStore = useUserStore()
@@ -210,7 +159,6 @@ export function useConfigDraft() {
   const loading = ref(false)
   const saving = ref(false)
   const roleOptions = ref<RoleOption[]>([])
-  const userOptions = ref<UserOption[]>([])
   const platformMaxFileMb = 500
 
   const savedSnapshot = reactive(cloneConfig(DEFAULTS) as ConfigState)
@@ -247,33 +195,14 @@ export function useConfigDraft() {
   async function loadRoles() {
     const perms = userStore.userInfo?.permissions || []
     if (!perms.includes('system:role:list') && !perms.includes('system:role:query')) {
-      roleOptions.value = [{ id: 0, name: '普通用户', code: 'user' }]
+      roleOptions.value = [{ name: '普通用户', code: 'user' }]
       return
     }
     try {
       const res = await getRoleList({ status: 1 })
-      roleOptions.value = (res.data || []).map((r: any) => ({ id: r.id, name: r.name, code: r.code }))
+      roleOptions.value = (res.data || []).map((r: any) => ({ name: r.name, code: r.code }))
     } catch {
-      roleOptions.value = [{ id: 0, name: '普通用户', code: 'user' }]
-    }
-  }
-
-  async function loadUsers() {
-    const perms = userStore.userInfo?.permissions || []
-    if (!perms.includes('system:user:list') && !perms.includes('system:user:query')) {
-      userOptions.value = []
-      return
-    }
-    try {
-      const res = await getUserList()
-      userOptions.value = (res.data || [])
-        .filter((u) => u.status !== 0)
-        .map((u) => ({
-          id: u.id,
-          label: `${u.nickname || u.username}${u.deptName ? `（${u.deptName}）` : ''}`,
-        }))
-    } catch {
-      userOptions.value = []
+      roleOptions.value = [{ name: '普通用户', code: 'user' }]
     }
   }
 
@@ -282,8 +211,7 @@ export function useConfigDraft() {
     let forbidden = false
     const results = await Promise.allSettled([
       ...GROUP_CODES.map((code) => loadGroup(code)),
-      loadRoles(),
-      loadUsers(),
+      loadRoles()
     ])
     for (const r of results) {
       if (r.status === 'rejected') {
@@ -324,7 +252,6 @@ export function useConfigDraft() {
       }
       checkDirty()
       siteStore.setDisableDevtool(draft.security.disableDevtool)
-      await siteStore.loadConfig()
       ElMessage.success(
         devtoolChanged
           ? '保存成功，配置已生效；「禁止前端调试」已变更，请刷新页面后生效'
@@ -338,7 +265,7 @@ export function useConfigDraft() {
   }
 
   return {
-    canEdit, activeTab, loading, saving, roleOptions, userOptions, platformMaxFileMb,
+    canEdit, activeTab, loading, saving, roleOptions, platformMaxFileMb,
     draft, savedSnapshot, isDirty, forbidConcurrentLogin,
     checkDirty, loadAll, handleReset, handleSave,
   }

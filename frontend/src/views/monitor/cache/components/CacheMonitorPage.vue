@@ -1,31 +1,15 @@
 <template>
-  <div class="app-container module-page cache-monitor-page">
+  <div class="app-container cache-monitor-page">
     <el-alert
-      v-if="!canQuery"
+      v-if="!canList"
       type="warning"
-      title="当前角色未分配「缓存查询」权限，无法查看 Redis 状态。"
+      title="当前角色未分配「缓存监控」权限，无法查看 Redis 状态。"
       :closable="false"
       show-icon
       class="no-perm-alert"
     />
 
-    <template v-if="canQuery">
-      <el-card class="search-card module-hero-card" shadow="never">
-        <div class="module-hero-row">
-          <div class="module-hero-text">
-            <div class="module-hero-title">
-              <ModulePageIcon :icon="MODULE_PAGE_ICON.cache" />
-              <span>缓存监控</span>
-            </div>
-            <p class="module-hero-desc">Redis 运行状态与键值管理，支持自动刷新与键名扫描</p>
-          </div>
-          <div class="module-hero-stats">
-            <div class="stat-num">{{ info.dbSize ?? '-' }}</div>
-            <div class="stat-label">键总数</div>
-          </div>
-        </div>
-      </el-card>
-
+    <template v-if="canList">
       <el-card shadow="never" class="info-card">
         <template #header>
           <div class="card-header">
@@ -123,7 +107,7 @@
           </el-check-tag>
         </div>
 
-        <el-form inline class="module-search-form keys-search-form">
+        <el-form inline class="search-form">
           <el-form-item label="键名模式">
             <el-input
               v-model="searchPattern"
@@ -145,7 +129,7 @@
             />
           </el-form-item>
           <el-form-item>
-            <el-button type="primary" :icon="Search" :loading="keysLoading" @click="loadKeys">搜索</el-button>
+            <el-button type="primary" :loading="keysLoading" @click="loadKeys">搜索</el-button>
           </el-form-item>
         </el-form>
 
@@ -193,7 +177,7 @@
         </el-table>
         </div>
 
-        <div class="table-pagination">
+        <div class="pagination-wrap">
           <el-pagination
             v-model:current-page="pagination.page"
             v-model:page-size="pagination.pageSize"
@@ -224,19 +208,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
-import { Loading, Search } from '@element-plus/icons-vue'
-import ModulePageIcon from '@/components/ModulePageIcon.vue'
-import { MODULE_PAGE_ICON } from '@/constants/module-page-icons'
+import { Loading } from '@element-plus/icons-vue'
 import { useCacheMonitorPage } from '../composables/useCacheMonitorPage'
 
-const memoryChartRef = ref<HTMLElement | null>(null)
-const qpsChartRef = ref<HTMLElement | null>(null)
-const hitRateChartRef = ref<HTMLElement | null>(null)
-const clientsChartRef = ref<HTMLElement | null>(null)
-
 const {
-  canQuery,
+  canList,
   canDelete,
   info,
   keysLoading,
@@ -251,6 +227,10 @@ const {
   patternPresets,
   detailVisible,
   cacheDetail,
+  memoryChartRef,
+  qpsChartRef,
+  hitRateChartRef,
+  clientsChartRef,
   pagedKeys,
   pagination,
   filteredKeys,
@@ -264,12 +244,7 @@ const {
   formatTTL,
   formatValue,
   toggleAutoRefresh,
-} = useCacheMonitorPage({
-  memoryChartRef,
-  qpsChartRef,
-  hitRateChartRef,
-  clientsChartRef,
-})
+} = useCacheMonitorPage()
 </script>
 
 <style scoped lang="scss">
@@ -379,7 +354,7 @@ const {
       }
     }
 
-    .keys-search-form {
+    .search-form {
       margin-bottom: 12px;
     }
 
@@ -396,8 +371,7 @@ const {
     word-break: break-all;
   }
 
-  .pagination-wrap,
-  .table-pagination {
+  .pagination-wrap {
     margin-top: 16px;
     display: flex;
     justify-content: flex-end;

@@ -2,9 +2,7 @@
   <el-popover v-model:visible="popoverVisible" trigger="click" placement="bottom-end" :width="340" @show="$emit('show')">
     <template #reference>
       <el-badge :value="messageStore.totalUnread" :hidden="!messageStore.totalUnread" class="notice-badge">
-        <div class="header-icon-btn">
-          <el-icon :size="18"><component :is="ElementPlusIconsVue.Bell" /></el-icon>
-        </div>
+        <el-icon class="notice-icon" :size="20"><component :is="ElementPlusIconsVue.Bell" /></el-icon>
       </el-badge>
     </template>
     <el-tabs v-model="messageTab" class="message-tabs">
@@ -106,31 +104,8 @@ function goChat() {
 </script>
 
 <style scoped>
-.notice-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-}
-.header-icon-btn {
-  width: 34px;
-  height: 34px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 8px;
-  border: 1px solid var(--theme-border, #e2e8f0);
-  background: #ffffff;
-  color: var(--theme-text-base, #1F2937);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-}
-.header-icon-btn:hover {
-  border-color: var(--theme-primary, #3b82f6);
-  color: var(--theme-primary, #3b82f6);
-  background: var(--theme-primary-muted, rgba(59, 130, 246, 0.06));
-  transform: translateY(-1px);
-}
+.notice-badge { cursor: pointer; }
+.notice-icon { color: var(--theme-text-base, #1F2937); }
 .message-tabs :deep(.el-tabs__header) { margin-bottom: 8px; }
 .tab-badge { margin-left: 6px; }
 .panel-footer { text-align: center; padding-top: 8px; }

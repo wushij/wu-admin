@@ -10,7 +10,6 @@ import {
   assignUserRole,
   updateUserStatus,
   resetUserPassword,
-  unlockUserLogin,
   getUserRoleIds,
   type UserVO,
   type UserSaveDTO,
@@ -19,7 +18,6 @@ import {
 import { getRoleList, type RoleVO } from '@/api/system/role'
 import { getDeptTree, type DeptVO } from '@/api/system/dept'
 import { displayOrgTree } from '@/utils/org-tree'
-import { buildUnlockLoginConfirm } from '@/utils/login-lock'
 import { getPostList, type PostVO } from '@/api/system/post'
 
 export function useUserPage() {
@@ -47,27 +45,7 @@ export function useUserPage() {
     mobile: '',
     status: null,
     deptId: null,
-    loginLocked: undefined,
   })
-
-  /** 状态筛选：启用 / 禁用 / 锁定（锁定走 loginLocked，非 status 字段） */
-  const statusFilter = ref<'' | '1' | '0' | 'locked'>('')
-
-  function applyStatusFilter() {
-    if (statusFilter.value === 'locked') {
-      queryParams.status = null
-      queryParams.loginLocked = true
-      return
-    }
-    queryParams.loginLocked = undefined
-    if (statusFilter.value === '1') {
-      queryParams.status = 1
-    } else if (statusFilter.value === '0') {
-      queryParams.status = 0
-    } else {
-      queryParams.status = null
-    }
-  }
 
   const form = reactive<UserSaveDTO>({
     id: null,
@@ -90,14 +68,7 @@ export function useUserPage() {
   })
 
   const rules = {
-    username: [
-      { required: true, message: '请输入用户名', trigger: 'blur' },
-      {
-        pattern: /^[a-zA-Z0-9_]{4,12}$/,
-        message: '用户名只能包含字母、数字、下划线，长度4-12位',
-        trigger: 'blur',
-      },
-    ],
+    username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
     nickname: [{ required: true, message: '请输入昵称', trigger: 'blur' }],
     password: [{ required: true, message: '请输入密码', trigger: 'blur' }],
   }
@@ -105,7 +76,6 @@ export function useUserPage() {
   const getList = async () => {
     loading.value = true
     try {
-      applyStatusFilter()
       const res = await getUserPage(queryParams)
       userList.value = res.data.list || []
       total.value = res.data.total || 0
@@ -116,8 +86,12 @@ export function useUserPage() {
     }
   }
 
-  const handleDeptClick = (data: DeptVO | null) => {
-    queryParams.deptId = data?.id ?? null
+  const handleDeptClick = (data: DeptVO) => {
+    if (data.parentId === null || data.parentId === 0) {
+      queryParams.deptId = null
+    } else {
+      queryParams.deptId = data.id
+    }
     queryParams.pageNo = 1
     getList()
   }
@@ -130,9 +104,7 @@ export function useUserPage() {
   const resetQuery = () => {
     queryParams.username = ''
     queryParams.mobile = ''
-    statusFilter.value = ''
     queryParams.status = null
-    queryParams.loginLocked = undefined
     handleQuery()
   }
 
@@ -157,9 +129,6 @@ export function useUserPage() {
       case 'assignRole':
         handleAssignRole(row)
         break
-      case 'unlockLogin':
-        handleUnlockLogin(row)
-        break
       case 'delete':
         handleDelete(row)
         break
@@ -171,21 +140,6 @@ export function useUserPage() {
     resetPwdForm.username = row.username
     resetPwdForm.password = ''
     resetPwdVisible.value = true
-  }
-
-  const handleUnlockLogin = async (row: UserVO) => {
-    try {
-      const { title, content } = buildUnlockLoginConfirm(row)
-      await ElMessageBox.confirm(content, title, {
-        type: 'warning',
-        confirmButtonText: '解除锁定',
-      })
-      await unlockUserLogin(row.id)
-      ElMessage.success('已解除登录锁定')
-      getList()
-    } catch {
-      /* 用户取消 */
-    }
   }
 
   const submitResetPwd = async () => {
@@ -314,7 +268,7 @@ export function useUserPage() {
     if (statusFromRoute !== undefined && statusFromRoute !== '') {
       const status = Number(statusFromRoute)
       if (!Number.isNaN(status)) {
-        statusFilter.value = status === 1 ? '1' : status === 0 ? '0' : ''
+        queryParams.status = status
       }
     }
     getList()
@@ -337,7 +291,6 @@ export function useUserPage() {
     deptSelectOptions,
     postOptions,
     queryParams,
-    statusFilter,
     form,
     resetPwdForm,
     rules,

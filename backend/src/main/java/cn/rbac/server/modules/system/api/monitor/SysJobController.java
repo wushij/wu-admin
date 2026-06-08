@@ -1,7 +1,9 @@
 package cn.rbac.server.modules.system.api.monitor;
 
 import cn.rbac.server.common.pojo.CommonResult;
+import cn.rbac.server.common.pojo.PageParam;
 import cn.rbac.server.common.pojo.PageResult;
+import cn.rbac.server.framework.log.annotation.Log;
 import cn.rbac.server.modules.system.api.monitor.vo.JobTemplateVO;
 import cn.rbac.server.modules.system.api.monitor.vo.SysJobVO;
 import cn.rbac.server.modules.system.dal.dataobject.job.SysJobDO;
@@ -70,6 +72,7 @@ public class SysJobController {
 
     @PostMapping
     @PreAuthorize("@ss.hasPermission('monitor:job:add')")
+    @Log(title = "定时任务", businessType = Log.BusinessType.INSERT)
     @Operation(summary = "新增任务")
     public CommonResult<Boolean> create(@RequestBody SysJobDO job) {
         jobService.create(job);
@@ -78,6 +81,7 @@ public class SysJobController {
 
     @PutMapping
     @PreAuthorize("@ss.hasPermission('monitor:job:edit')")
+    @Log(title = "定时任务", businessType = Log.BusinessType.UPDATE)
     @Operation(summary = "更新任务")
     public CommonResult<Boolean> update(@RequestBody SysJobDO job) {
         jobService.update(job);
@@ -86,6 +90,7 @@ public class SysJobController {
 
     @DeleteMapping("/{id}")
     @PreAuthorize("@ss.hasPermission('monitor:job:delete')")
+    @Log(title = "定时任务", businessType = Log.BusinessType.DELETE)
     @Operation(summary = "删除任务")
     public CommonResult<Boolean> delete(@PathVariable Long id) {
         jobService.delete(id);
@@ -94,6 +99,7 @@ public class SysJobController {
 
     @PutMapping("/changeStatus")
     @PreAuthorize("@ss.hasPermission('monitor:job:edit')")
+    @Log(title = "定时任务", businessType = Log.BusinessType.UPDATE)
     @Operation(summary = "修改任务状态")
     public CommonResult<Boolean> changeStatus(@RequestBody StatusRequest request) {
         jobService.changeStatus(request.getId(), request.getStatus());
@@ -129,9 +135,38 @@ public class SysJobController {
 
     @DeleteMapping("/log/clean")
     @PreAuthorize("@ss.hasPermission('monitor:job:delete')")
+    @Log(title = "定时任务", businessType = Log.BusinessType.DELETE)
     @Operation(summary = "清空调度日志")
     public CommonResult<Boolean> cleanLog() {
         jobLogService.clean();
+        return CommonResult.success(true);
+    }
+
+    @GetMapping("/recycle/page")
+    @PreAuthorize("@ss.hasPermission('monitor:job:delete')")
+    @Operation(summary = "定时任务回收站分页")
+    public CommonResult<PageResult<SysJobDO>> recyclePage(
+            PageParam pageParam,
+            @RequestParam(required = false) String jobName,
+            @RequestParam(required = false) String jobGroup) {
+        return CommonResult.success(jobService.recyclePage(pageParam, jobName, jobGroup));
+    }
+
+    @PutMapping("/restore")
+    @PreAuthorize("@ss.hasPermission('monitor:job:delete')")
+    @Log(title = "定时任务", businessType = Log.BusinessType.UPDATE)
+    @Operation(summary = "恢复定时任务")
+    public CommonResult<Boolean> restore(@RequestParam Long id) {
+        jobService.restore(id);
+        return CommonResult.success(true);
+    }
+
+    @DeleteMapping("/delete-permanent")
+    @PreAuthorize("@ss.hasPermission('monitor:job:delete')")
+    @Log(title = "定时任务", businessType = Log.BusinessType.DELETE)
+    @Operation(summary = "彻底删除定时任务")
+    public CommonResult<Boolean> deletePermanent(@RequestParam Long id) {
+        jobService.deletePermanent(id);
         return CommonResult.success(true);
     }
 

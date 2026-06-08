@@ -1,6 +1,7 @@
 package cn.rbac.server.modules.system.api.dict;
 
 import cn.rbac.server.common.pojo.CommonResult;
+import cn.rbac.server.common.pojo.PageParam;
 import cn.rbac.server.common.pojo.PageResult;
 import cn.rbac.server.framework.log.annotation.Log;
 import cn.rbac.server.modules.system.dal.dataobject.dict.DictDataDO;
@@ -41,6 +42,7 @@ public class DictTypeController {
 
     @GetMapping("/list")
     @Operation(summary = "启用字典类型列表")
+    @PreAuthorize("@ss.hasRead('system:dict:list')")
     public CommonResult<List<DictTypeDO>> list() {
         return CommonResult.success(dictTypeService.listEnabled());
     }
@@ -97,6 +99,31 @@ public class DictTypeController {
     @Log(title = "字典类型", businessType = Log.BusinessType.INSERT)
     public CommonResult<Boolean> copy(@PathVariable Long id) {
         dictTypeService.copy(id);
+        return CommonResult.success(true);
+    }
+
+    @GetMapping("/recycle/page")
+    @Operation(summary = "字典类型回收站分页")
+    @PreAuthorize("@ss.hasPermission('system:dict:delete')")
+    public CommonResult<PageResult<DictTypeDO>> recyclePage(PageParam pageParam,
+                                                            @RequestParam(required = false) String dictName,
+                                                            @RequestParam(required = false) String dictType) {
+        return CommonResult.success(dictTypeService.recyclePage(pageParam, dictName, dictType));
+    }
+
+    @PutMapping("/restore")
+    @Operation(summary = "恢复字典类型")
+    @PreAuthorize("@ss.hasPermission('system:dict:delete')")
+    public CommonResult<Boolean> restore(@RequestParam Long id) {
+        dictTypeService.restore(id);
+        return CommonResult.success(true);
+    }
+
+    @DeleteMapping("/delete-permanent")
+    @Operation(summary = "彻底删除字典类型")
+    @PreAuthorize("@ss.hasPermission('system:dict:delete')")
+    public CommonResult<Boolean> deletePermanent(@RequestParam Long id) {
+        dictTypeService.deletePermanent(id);
         return CommonResult.success(true);
     }
 }

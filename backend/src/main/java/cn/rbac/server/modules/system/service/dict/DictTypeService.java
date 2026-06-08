@@ -1,5 +1,6 @@
 package cn.rbac.server.modules.system.service.dict;
 
+import cn.rbac.server.common.pojo.PageParam;
 import cn.rbac.server.common.pojo.PageResult;
 import cn.rbac.server.modules.system.dal.dataobject.dict.DictTypeDO;
 
@@ -21,4 +22,10 @@ public interface DictTypeService {
 
     /** 复制类型及其全部数据项 */
     void copy(Long id);
+
+    PageResult<DictTypeDO> recyclePage(PageParam pageParam, String dictName, String dictType);
+
+    void restore(Long id);
+
+    void deletePermanent(Long id);
 }

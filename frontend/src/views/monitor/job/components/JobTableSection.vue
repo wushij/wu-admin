@@ -12,7 +12,7 @@
       </div>
     </template>
 
-    <el-form :model="queryParams" inline class="module-search-form">
+    <el-form :model="queryParams" inline class="search-form">
       <el-form-item label="任务名称">
         <el-input
           v-model="queryParams.jobName"
@@ -35,8 +35,8 @@
         </el-select>
       </el-form-item>
       <el-form-item>
-        <el-button type="primary" :icon="Search" @click="$emit('search')">搜索</el-button>
-        <el-button :icon="Refresh" @click="$emit('reset')">重置</el-button>
+        <el-button type="primary" @click="$emit('search')">搜索</el-button>
+        <el-button @click="$emit('reset')">重置</el-button>
       </el-form-item>
     </el-form>
 
@@ -47,7 +47,7 @@
       <el-button @click="$emit('open-all-logs')">
         <el-icon><List /></el-icon>调度日志
       </el-button>
-      <el-button v-permission="'monitor:job:delete'" type="danger" plain @click="$emit('clean-logs')">清空全部日志</el-button>
+      <el-button v-permission="'monitor:job:delete'" type="danger" plain @click="$emit('clean-logs')">清空日志</el-button>
     </div>
 
     <el-table
@@ -108,7 +108,7 @@
       </el-table-column>
     </el-table>
 
-    <div class="table-pagination">
+    <div class="pagination-container">
       <el-pagination
         v-model:current-page="queryParams.pageNo"
         v-model:page-size="queryParams.pageSize"
@@ -124,7 +124,7 @@
 </template>
 
 <script setup lang="ts">
-import { Plus, List, Refresh, Search } from '@element-plus/icons-vue'
+import { Plus, List, Refresh } from '@element-plus/icons-vue'
 import RecycleCenterLink from '@/components/RecycleCenterLink.vue'
 import type { SysJob } from '@/api/monitor/job'
 import { groupTagType } from '../constants/cronPresets'
@@ -156,9 +156,6 @@ defineEmits<{
 .table-card {
   margin-bottom: 16px;
 }
-.table-card :deep(.el-card__body) {
-  padding: 16px 20px 20px;
-}
 .card-header-row {
   display: flex;
   align-items: center;
@@ -170,11 +167,11 @@ defineEmits<{
   align-items: center;
   gap: 8px;
 }
-.module-search-form {
-  margin-bottom: 12px;
+.search-form {
+  margin-bottom: 4px;
 }
 .table-toolbar {
-  margin-bottom: 16px;
+  margin-bottom: 12px;
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
@@ -211,6 +208,11 @@ defineEmits<{
 }
 .text-muted {
   color: #c0c4cc;
+}
+.pagination-container {
+  margin-top: 16px;
+  display: flex;
+  justify-content: flex-end;
 }
 .action-buttons {
   display: flex;

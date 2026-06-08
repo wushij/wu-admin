@@ -2,7 +2,11 @@ package cn.rbac.server.modules.system.api.monitor;
 
 import cn.rbac.server.common.pojo.CommonResult;
 import cn.rbac.server.common.pojo.PageResult;
+import cn.rbac.server.framework.export.ExportFormat;
+import cn.rbac.server.framework.export.ExportScope;
+import cn.rbac.server.framework.log.annotation.Log;
 import cn.rbac.server.modules.system.dal.dataobject.monitor.ApiAccessLogDO;
+import cn.rbac.server.modules.system.service.export.ListExportService;
 import cn.rbac.server.modules.system.service.monitor.ApiAccessLogService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -14,6 +18,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import jakarta.annotation.Resource;
+import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Map;
@@ -25,6 +31,8 @@ public class ApiAccessLogController {
 
     @Resource
     private ApiAccessLogService apiAccessLogService;
+    @Resource
+    private ListExportService listExportService;
 
     @Operation(summary = "分页查询 API 访问日志")
     @GetMapping("/page")
@@ -40,6 +48,26 @@ public class ApiAccessLogController {
             @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss") LocalDateTime endTime) {
         return CommonResult.success(
                 apiAccessLogService.page(pageNo, pageSize, userId, apiPath, method, success, startTime, endTime));
+    }
+
+    @Log(title = "API访问统计", businessType = Log.BusinessType.EXPORT, isSaveResponseData = false)
+    @Operation(summary = "导出 API 访问日志")
+    @GetMapping("/export")
+    @PreAuthorize("@ss.hasPermission('monitor:apiAccess:query')")
+    public void export(HttpServletResponse response,
+                       @RequestParam(defaultValue = "xlsx") String format,
+                       @RequestParam(defaultValue = "filtered") String scope,
+                       @RequestParam(required = false) Integer pageNo,
+                       @RequestParam(required = false) Integer pageSize,
+                       @RequestParam(required = false) Long userId,
+                       @RequestParam(required = false) String apiPath,
+                       @RequestParam(required = false) String method,
+                       @RequestParam(required = false) Integer success,
+                       @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss") LocalDateTime startTime,
+                       @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss") LocalDateTime endTime)
+            throws IOException {
+        listExportService.exportApiAccess(response, ExportFormat.fromParam(format), ExportScope.fromParam(scope),
+                pageNo, pageSize, userId, apiPath, method, success, startTime, endTime);
     }
 
     @Operation(summary = "获取统计数据")

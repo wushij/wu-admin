@@ -4,16 +4,17 @@ import cn.rbac.server.framework.log.annotation.Log;
 import cn.rbac.server.common.pojo.CommonResult;
 import cn.rbac.server.common.pojo.PageParam;
 import cn.rbac.server.common.pojo.PageResult;
+import cn.rbac.server.modules.system.api.role.vo.AssignMenuReqVO;
+import cn.rbac.server.modules.system.api.role.vo.RoleCreateReqVO;
+import cn.rbac.server.modules.system.api.role.vo.RoleUpdateReqVO;
 import cn.rbac.server.modules.system.dal.dataobject.permission.RoleDO;
-import cn.rbac.server.modules.system.dal.mysql.permission.RoleMapper;
-import cn.rbac.server.modules.system.service.permission.PermissionService;
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import cn.rbac.server.modules.system.service.role.RoleService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import lombok.Data;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+
 import jakarta.annotation.Resource;
 import java.util.List;
 import java.util.Set;
@@ -22,85 +23,56 @@ import java.util.Set;
 @RestController
 @RequestMapping("/system/role")
 public class RoleController {
-    
+
     @Resource
-    private RoleMapper roleMapper;
-    @Resource
-    private PermissionService permissionService;
-    
+    private RoleService roleService;
+
     @Operation(summary = "获取角色列表")
     @GetMapping("/list")
     @PreAuthorize("@ss.hasRead('system:role:list')")
     public CommonResult<List<RoleDO>> list(
             @RequestParam(required = false) String name,
             @RequestParam(required = false) Integer status) {
-        LambdaQueryWrapper<RoleDO> wrapper = new LambdaQueryWrapper<>();
-        if (name != null && !name.isEmpty()) {
-            wrapper.like(RoleDO::getName, name);
-        }
-        if (status != null) {
-            wrapper.eq(RoleDO::getStatus, status);
-        }
-        List<RoleDO> roles = roleMapper.selectList(wrapper);
-        // 填充菜单ID列表
-        roles.forEach(role -> {
-            Set<Long> menuIds = permissionService.getRoleMenuListByRoleId(role.getId());
-            role.setMenuIds(menuIds);
-        });
-        return CommonResult.success(roles);
+        return CommonResult.success(roleService.list(name, status));
     }
-    
+
     @Operation(summary = "获取角色分页")
     @GetMapping("/page")
     @PreAuthorize("@ss.hasRead('system:role:list')")
     public CommonResult<PageResult<RoleDO>> page(PageParam pageParam) {
-        Page<RoleDO> page = roleMapper.selectPage(new Page<>(pageParam.getPageNo(), pageParam.getPageSize()), null);
-        return CommonResult.success(PageResult.of(page.getRecords(), page.getTotal()));
+        return CommonResult.success(roleService.page(pageParam));
     }
-    
+
     @Operation(summary = "获取角色详情")
     @GetMapping("/get")
     @PreAuthorize("@ss.hasPermission('system:role:query')")
     public CommonResult<RoleDO> get(@RequestParam Long id) {
-        return CommonResult.success(roleMapper.selectById(id));
+        return CommonResult.success(roleService.getById(id));
     }
-    
+
     @Log(title = "角色管理", businessType = Log.BusinessType.INSERT)
     @Operation(summary = "新增角色")
     @PostMapping("/create")
     @PreAuthorize("@ss.hasPermission('system:role:create')")
-    public CommonResult<Long> create(@RequestBody RoleCreateReqVO reqVO) {
-        RoleDO role = new RoleDO();
-        role.setName(reqVO.getName());
-        role.setCode(reqVO.getCode());
-        role.setSort(reqVO.getSort());
-        role.setStatus(1);
-        role.setRemark(reqVO.getRemark());
-        roleMapper.insert(role);
-        return CommonResult.success(role.getId());
+    public CommonResult<Long> create(@Validated @RequestBody RoleCreateReqVO reqVO) {
+        return CommonResult.success(roleService.create(reqVO));
     }
-    
+
     @Log(title = "角色管理", businessType = Log.BusinessType.UPDATE)
     @Operation(summary = "修改角色")
     @PutMapping("/update")
     @PreAuthorize("@ss.hasPermission('system:role:update')")
-    public CommonResult<Boolean> update(@RequestBody RoleUpdateReqVO reqVO) {
-        RoleDO role = roleMapper.selectById(reqVO.getId());
-        role.setName(reqVO.getName());
-        role.setCode(reqVO.getCode());
-        role.setSort(reqVO.getSort());
-        role.setStatus(reqVO.getStatus());
-        role.setRemark(reqVO.getRemark());
-        roleMapper.updateById(role);
+    public CommonResult<Boolean> update(@Validated @RequestBody RoleUpdateReqVO reqVO) {
+        roleService.update(reqVO);
         return CommonResult.success(true);
     }
-    
+
     @Log(title = "角色管理", businessType = Log.BusinessType.DELETE)
     @Operation(summary = "删除角色")
     @DeleteMapping("/delete")
     @PreAuthorize("@ss.hasPermission('system:role:delete')")
     public CommonResult<Boolean> delete(@RequestParam Long id) {
-        roleMapper.deleteById(id);
+        roleService.delete(id);
         return CommonResult.success(true);
     }
 
@@ -110,21 +82,14 @@ public class RoleController {
     public CommonResult<PageResult<RoleDO>> recyclePage(PageParam pageParam,
             @RequestParam(required = false) String name,
             @RequestParam(required = false) Integer status) {
-        Page<RoleDO> page = new Page<>(pageParam.getPageNo(), pageParam.getPageSize());
-        Page<RoleDO> deletedPage = (Page<RoleDO>) roleMapper.selectDeletedPage(page, name, status);
-        List<RoleDO> roles = deletedPage.getRecords();
-        roles.forEach(role -> role.setMenuIds(permissionService.getRoleMenuListByRoleId(role.getId())));
-        return CommonResult.success(PageResult.of(roles, deletedPage.getTotal()));
+        return CommonResult.success(roleService.recyclePage(pageParam, name, status));
     }
 
     @Operation(summary = "恢复角色")
     @PutMapping("/restore")
     @PreAuthorize("@ss.hasPermission('system:role:delete')")
     public CommonResult<Boolean> restore(@RequestParam Long id) {
-        int rows = roleMapper.restoreById(id);
-        if (rows == 0) {
-            return CommonResult.error(404, "回收站角色不存在");
-        }
+        roleService.restore(id);
         return CommonResult.success(true);
     }
 
@@ -132,58 +97,31 @@ public class RoleController {
     @DeleteMapping("/delete-permanent")
     @PreAuthorize("@ss.hasPermission('system:role:delete')")
     public CommonResult<Boolean> deletePermanent(@RequestParam Long id) {
-        int rows = roleMapper.deletePhysicalById(id);
-        if (rows == 0) {
-            return CommonResult.error(404, "回收站角色不存在");
-        }
+        roleService.deletePermanent(id);
         return CommonResult.success(true);
     }
-    
+
     @Operation(summary = "获取角色菜单列表")
     @GetMapping("/get-menu-ids")
+    @PreAuthorize("@ss.hasPermission('system:role:query')")
     public CommonResult<Set<Long>> getMenuIds(@RequestParam Long roleId) {
-        return CommonResult.success(permissionService.getRoleMenuIdsForAssign(roleId));
+        return CommonResult.success(roleService.getMenuIdsForAssign(roleId));
     }
 
     @Operation(summary = "分配角色菜单")
     @Log(title = "角色管理", businessType = Log.BusinessType.UPDATE)
     @PostMapping("/assign-menu")
-    public CommonResult<Boolean> assignMenu(@RequestBody AssignMenuReqVO reqVO) {
-        permissionService.assignRoleMenu(reqVO.getRoleId(), reqVO.getMenuIds());
+    @PreAuthorize("@ss.hasPermission('system:role:update')")
+    public CommonResult<Boolean> assignMenu(@Validated @RequestBody AssignMenuReqVO reqVO) {
+        roleService.assignMenu(reqVO.getRoleId(), reqVO.getMenuIds());
         return CommonResult.success(true);
     }
-    
+
     @Operation(summary = "更新角色状态")
     @PutMapping("/update-status")
     @PreAuthorize("@ss.hasPermission('system:role:update')")
     public CommonResult<Boolean> updateStatus(@RequestParam Long id, @RequestParam Integer status) {
-        RoleDO role = roleMapper.selectById(id);
-        role.setStatus(status);
-        roleMapper.updateById(role);
+        roleService.updateStatus(id, status);
         return CommonResult.success(true);
-    }
-    
-    @Data
-    public static class RoleCreateReqVO {
-        private String name;
-        private String code;
-        private Integer sort;
-        private String remark;
-    }
-    
-    @Data
-    public static class RoleUpdateReqVO {
-        private Long id;
-        private String name;
-        private String code;
-        private Integer sort;
-        private Integer status;
-        private String remark;
-    }
-    
-    @Data
-    public static class AssignMenuReqVO {
-        private Long roleId;
-        private Set<Long> menuIds;
     }
 }

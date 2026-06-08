@@ -37,6 +37,7 @@ public class DeptController {
 
     @GetMapping("/list")
     @Operation(summary = "部门扁平列表（表单下拉）")
+    @PreAuthorize("@ss.hasRead('system:dept:list')")
     public CommonResult<List<DeptDO>> list() {
         return CommonResult.success(deptService.listAll());
     }

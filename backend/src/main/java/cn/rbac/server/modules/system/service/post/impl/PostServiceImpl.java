@@ -1,11 +1,15 @@
 package cn.rbac.server.modules.system.service.post.impl;
 
+import cn.rbac.server.common.pojo.BusinessException;
+import cn.rbac.server.common.pojo.PageParam;
+import cn.rbac.server.common.pojo.PageResult;
 import cn.rbac.server.modules.system.dal.dataobject.post.PostDO;
 import cn.rbac.server.modules.system.dal.dataobject.user.UserPostDO;
 import cn.rbac.server.modules.system.dal.mysql.post.PostMapper;
 import cn.rbac.server.modules.system.dal.mysql.user.UserPostMapper;
 import cn.rbac.server.modules.system.service.post.PostService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -99,6 +103,29 @@ public class PostServiceImpl extends ServiceImpl<PostMapper, PostDO> implements 
         }
         post.setParentId(parentId);
         updateById(post);
+    }
+
+    @Override
+    public PageResult<PostDO> recyclePage(PageParam pageParam, String postName, Integer status) {
+        Page<PostDO> page = new Page<>(pageParam.getPageNo(), pageParam.getPageSize());
+        Page<PostDO> deletedPage = (Page<PostDO>) baseMapper.selectDeletedPage(page, postName, status);
+        return PageResult.of(deletedPage.getRecords(), deletedPage.getTotal());
+    }
+
+    @Override
+    public void restore(Long id) {
+        int rows = baseMapper.restoreById(id);
+        if (rows == 0) {
+            throw new BusinessException(404, "回收站岗位不存在");
+        }
+    }
+
+    @Override
+    public void deletePermanent(Long id) {
+        int rows = baseMapper.deletePhysicalById(id);
+        if (rows == 0) {
+            throw new BusinessException(404, "回收站岗位不存在");
+        }
     }
 
     private boolean isDescendant(Long ancestorId, Long nodeId) {

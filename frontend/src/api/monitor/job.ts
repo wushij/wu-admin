@@ -94,3 +94,20 @@ export const getJobLogPage = (params: JobLogPageQuery) =>
   get<PageResult<SysJobLog>>('/monitor/job/log/page', params)
 
 export const cleanJobLogs = () => del<boolean>('/monitor/job/log/clean')
+
+export function getRecycleJobPage(params: {
+  pageNo: number
+  pageSize: number
+  jobName?: string
+  jobGroup?: string
+}) {
+  return get<PageResult<SysJob>>('/monitor/job/recycle/page', params)
+}
+
+export function restoreJob(id: number) {
+  return put<boolean>('/monitor/job/restore', null, { params: { id } })
+}
+
+export function deleteJobPermanent(id: number) {
+  return del<boolean>('/monitor/job/delete-permanent', { params: { id } })
+}

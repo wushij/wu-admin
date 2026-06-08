@@ -1,11 +1,40 @@
--- 第三方配置 + 支付配置（可重复执行，无 DROP）
-INSERT INTO sys_config_group (group_code, group_name, config_value, remark) VALUES
-('thirdParty', '第三方配置',
- '{"wechat":{"enabled":false,"appId":"","appSecret":""},"alipay":{"enabled":false,"appId":"","privateKey":"","publicKey":""},"github":{"enabled":false,"clientId":"","clientSecret":""},"google":{"enabled":false,"clientId":"","clientSecret":"","redirectUri":""}}',
- '微信/支付宝/GitHub/Google 第三方登录密钥'),
-('payment', '支付配置',
- '{"wechatPay":{"enabled":false,"mchId":"","appId":"","apiV3Key":"","privateKey":"","certSerialNo":"","notifyUrl":""},"alipay":{"enabled":false,"appId":"","privateKey":"","publicKey":"","signType":"RSA2","gatewayUrl":"https://openapi.alipay.com/gateway.do","notifyUrl":"","returnUrl":""}}',
- '微信/支付宝支付与测试下单')
+-- =============================================================================
+-- add7.sql  增量补丁 #7（可重复执行）
+-- =============================================================================
+-- 系统监控下新增「缓存监控」菜单（Redis INFO 图表 + SCAN 键管理）。
+--
+-- 用法: mysql -u root -p wu-admin < sql/add7.sql
+-- 生产/服务器: mysql -u wuadmin -p wuadmin < sql/add6_7_wuadmin.sql
+-- 执行后请重新登录；超管角色自动授权，其他角色需在菜单/角色中勾选。
+-- =============================================================================
+
+USE `wu-admin`;
+
+INSERT INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, component, status)
+VALUES (185, '缓存监控', 'monitor:cache:list', 2, 4, 100, '/monitor/cache', 'Coin', 'monitor/cache/index', 1)
 ON DUPLICATE KEY UPDATE
-  group_name = VALUES(group_name),
-  remark = VALUES(remark);
+    name = VALUES(name),
+    permission = VALUES(permission),
+    type = VALUES(type),
+    sort = VALUES(sort),
+    parent_id = VALUES(parent_id),
+    path = VALUES(path),
+    icon = VALUES(icon),
+    component = VALUES(component),
+    status = VALUES(status);
+
+INSERT INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, component, status)
+VALUES (186, '缓存删除', 'monitor:cache:delete', 3, 1, 185, '', '', '', 1)
+ON DUPLICATE KEY UPDATE
+    name = VALUES(name),
+    permission = VALUES(permission),
+    type = VALUES(type),
+    sort = VALUES(sort),
+    parent_id = VALUES(parent_id),
+    status = VALUES(status);
+
+INSERT IGNORE INTO sys_role_menu (role_id, menu_id) VALUES
+(1, 185),
+(1, 186);
+
+SELECT '[OK] add7.sql finished' AS result;

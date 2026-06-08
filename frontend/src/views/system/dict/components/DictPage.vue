@@ -1,21 +1,5 @@
 <template>
-  <div class="app-container module-page dict-page">
-    <el-card class="search-card module-hero-card" shadow="never">
-      <div class="module-hero-row">
-        <div class="module-hero-text">
-          <div class="module-hero-title">
-            <ModulePageIcon :icon="MODULE_PAGE_ICON.dict" />
-            <span>字典管理</span>
-          </div>
-          <p class="module-hero-desc">左侧选择字典类型，右侧维护选项；业务表单通过 DictSelect / DictTag 引用类型编码</p>
-        </div>
-        <div class="module-hero-stats">
-          <div class="stat-num">{{ total }}</div>
-          <div class="stat-label">字典类型</div>
-        </div>
-      </div>
-    </el-card>
-
+  <div class="app-container dict-page">
     <DictSearchCard :query-params="queryParams" @query="handleQuery" @reset="resetQuery" />
 
     <div class="dict-layout">
@@ -69,19 +53,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watchEffect, defineAsyncComponent } from 'vue'
-import ModulePageIcon from '@/components/ModulePageIcon.vue'
-import { MODULE_PAGE_ICON } from '@/constants/module-page-icons'
+import { ref, watchEffect } from 'vue'
 import DictSearchCard from './DictSearchCard.vue'
 import DictTypePanel from './DictTypePanel.vue'
 import DictDataPanel from './DictDataPanel.vue'
+import DictTypeFormDialog from './DictTypeFormDialog.vue'
+import DictDataFormDialog from './DictDataFormDialog.vue'
 import { useDictPage } from '../composables/useDictPage'
 
-const DictTypeFormDialog = defineAsyncComponent(() => import('./DictTypeFormDialog.vue'))
-const DictDataFormDialog = defineAsyncComponent(() => import('./DictDataFormDialog.vue'))
-
-const typeDialogRef = ref<any>(null)
-const dataDialogRef = ref<any>(null)
+const typeDialogRef = ref<InstanceType<typeof DictTypeFormDialog> | null>(null)
+const dataDialogRef = ref<InstanceType<typeof DictDataFormDialog> | null>(null)
 
 const {
   loading,

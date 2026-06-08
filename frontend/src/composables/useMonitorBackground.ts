@@ -21,29 +21,17 @@ function handleVisibilityChange() {
   onServerMonitorVisibilityChange(hidden)
 }
 
-export function isAdmin(userStore: ReturnType<typeof useUserStore>): boolean {
-  const roles = userStore.userInfo.roles || []
-  return roles.includes('admin') || roles.includes('super_admin')
-}
-
 function syncMonitorBackground(userStore: ReturnType<typeof useUserStore>) {
-  // 仅超级管理员登录后自动启动全局后台轮询，普通用户进入监控页才按需采样
-  if (!isAdmin(userStore)) {
-    stopCacheMonitorBackground()
-    stopServerMonitorBackground()
-    return
-  }
-
   const permissions = userStore.userInfo.permissions
   const menus = userStore.menus
 
-  if (hasMonitorPerm(permissions, menus, 'monitor:cache:query')) {
+  if (hasMonitorPerm(permissions, menus, 'monitor:cache:list')) {
     startCacheMonitorBackground()
   } else {
     stopCacheMonitorBackground()
   }
 
-  if (hasMonitorPerm(permissions, menus, 'monitor:server:query')) {
+  if (hasMonitorPerm(permissions, menus, 'monitor:server:list')) {
     startServerMonitorBackground()
   } else {
     stopServerMonitorBackground()

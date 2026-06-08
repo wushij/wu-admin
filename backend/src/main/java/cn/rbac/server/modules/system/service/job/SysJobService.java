@@ -1,5 +1,6 @@
 package cn.rbac.server.modules.system.service.job;
 
+import cn.rbac.server.common.pojo.PageParam;
 import cn.rbac.server.common.pojo.PageResult;
 import cn.rbac.server.modules.system.api.monitor.vo.JobTemplateVO;
 import cn.rbac.server.modules.system.api.monitor.vo.SysJobVO;
@@ -30,4 +31,10 @@ public interface SysJobService {
     void changeStatus(Long id, Integer status);
 
     void run(Long id);
+
+    PageResult<SysJobDO> recyclePage(PageParam pageParam, String jobName, String jobGroup);
+
+    void restore(Long id);
+
+    void deletePermanent(Long id);
 }

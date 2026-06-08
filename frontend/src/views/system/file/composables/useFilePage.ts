@@ -46,7 +46,7 @@ import {
 export function useFilePage() {
   const groups = ref<FileGroupVO[]>([])
   const ungroupedCount = ref(0)
-  const activeType = ref('all')
+  const activeType = ref('image')
   const activeGroupId = ref<number | null>(-1)
 
   const viewMode = ref('grid')

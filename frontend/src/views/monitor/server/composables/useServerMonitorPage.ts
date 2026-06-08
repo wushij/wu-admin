@@ -1,4 +1,4 @@
-import { computed, nextTick, onMounted, onUnmounted, ref, type Ref } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import type { EChartsType } from 'echarts'
 import { type ServerInfo } from '@/api/monitor/server'
 import { useUserStore } from '@/store/user'
@@ -11,9 +11,7 @@ import {
   setServerChartRenderHandler,
   setServerInfoUpdateHandler,
   startServerMonitorBackground,
-  stopServerMonitorBackground,
 } from '../serverMonitorChart'
-import { isAdmin } from '@/composables/useMonitorBackground'
 
 const LINE_CHART_GRID = {
   left: 8,
@@ -23,16 +21,10 @@ const LINE_CHART_GRID = {
   containLabel: true,
 }
 
-export interface ServerMonitorChartRefs {
-  cpuChartRef: Ref<HTMLElement | null>
-  memoryChartRef: Ref<HTMLElement | null>
-}
-
-export function useServerMonitorPage(chartRefs: ServerMonitorChartRefs) {
-  const { cpuChartRef, memoryChartRef } = chartRefs
+export function useServerMonitorPage() {
   const userStore = useUserStore()
-  const canQuery = computed(() =>
-    hasMonitorPerm(userStore.userInfo.permissions, userStore.menus, 'monitor:server:query'),
+  const canList = computed(() =>
+    hasMonitorPerm(userStore.userInfo.permissions, userStore.menus, 'monitor:server:list'),
   )
 
   const info = ref<ServerInfo>({})
@@ -40,6 +32,9 @@ export function useServerMonitorPage(chartRefs: ServerMonitorChartRefs) {
   const refreshing = ref(false)
   /** 仅手动点「刷新」时用于磁盘表格 loading */
   const tableLoading = ref(false)
+
+  const cpuChartRef = ref<HTMLElement | null>(null)
+  const memoryChartRef = ref<HTMLElement | null>(null)
 
   let cpuChart: EChartsType | null = null
   let memoryChart: EChartsType | null = null
@@ -163,7 +158,7 @@ export function useServerMonitorPage(chartRefs: ServerMonitorChartRefs) {
   }
 
   onMounted(async () => {
-    if (!canQuery.value) return
+    if (!canList.value) return
     startServerMonitorBackground()
     setServerInfoUpdateHandler((data) => {
       info.value = data
@@ -185,13 +180,10 @@ export function useServerMonitorPage(chartRefs: ServerMonitorChartRefs) {
     setServerInfoUpdateHandler(null)
     window.removeEventListener('resize', handleResize)
     disposeCharts()
-    if (!isAdmin(userStore)) {
-      stopServerMonitorBackground()
-    }
   })
 
   return {
-    canQuery,
+    canList,
     info,
     refreshing,
     tableLoading,
@@ -200,6 +192,8 @@ export function useServerMonitorPage(chartRefs: ServerMonitorChartRefs) {
     heapDisplay,
     physicalDisplay,
     maxDiskPercent,
+    cpuChartRef,
+    memoryChartRef,
     refreshByUser,
     toggleAutoRefresh,
     diskProgressStatus,

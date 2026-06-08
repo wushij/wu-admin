@@ -41,26 +41,15 @@
       <LayoutTagsView />
 
       <div class="main-content">
-        <div class="main-content__body">
-          <router-view v-slot="{ Component }">
-            <transition name="fade" mode="out-in">
-              <component :is="Component" />
-            </transition>
-          </router-view>
-        </div>
-        <SiteFooter
-          :copyright="siteCopyright"
-          :icp-enabled="siteIcpEnabled"
-          :icp-number="siteIcpNumber"
-          :icp-url="siteIcpUrl"
-          theme="light"
-          inline
-        />
+        <router-view v-slot="{ Component }">
+          <transition name="fade" mode="out-in">
+            <component :is="Component" />
+          </transition>
+        </router-view>
       </div>
     </div>
 
     <MessageNotification />
-    <AiWuFloatBtn />
   </div>
 </template>
 
@@ -69,8 +58,6 @@ import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/store/user'
 import MessageNotification from '@/components/MessageNotification.vue'
-import AiWuFloatBtn from '@/components/AiWu/AiWuFloatBtn.vue'
-import SiteFooter from '@/components/SiteFooter.vue'
 import LayoutSidebar from './LayoutSidebar.vue'
 import LayoutHeader from './LayoutHeader.vue'
 import LayoutTagsView from './LayoutTagsView.vue'
@@ -91,15 +78,7 @@ const currentPageTitle = computed(() => {
   return typeof title === 'string' ? title : ''
 })
 
-const {
-  sitePlatformName,
-  sitePlatformSubtitle,
-  siteCopyright,
-  siteIcpEnabled,
-  siteIcpNumber,
-  siteIcpUrl,
-  loadSiteConfig,
-} = useLayoutSite()
+const { sitePlatformName, sitePlatformSubtitle, loadSiteConfig } = useLayoutSite()
 const { currentColor, activePresetId, handlePresetSelect, handleColorChange, initTheme } = useLayoutTheme()
 const {
   SYSTEM_MENU_ID,

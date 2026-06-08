@@ -65,6 +65,18 @@ export function copyDictType(id: number) {
   return post(`/system/dict-type/${id}/copy`)
 }
 
+export function getRecycleDictTypePage(params: { pageNo: number; pageSize: number; dictName?: string; dictType?: string }) {
+  return get<PageResult<DictTypeVO>>('/system/dict-type/recycle/page', params)
+}
+
+export function restoreDictType(id: number) {
+  return put('/system/dict-type/restore', null, { params: { id } })
+}
+
+export function deleteDictTypePermanent(id: number) {
+  return del('/system/dict-type/delete-permanent', { params: { id } })
+}
+
 export function listDictDataByType(dictType: string) {
   return get<DictDataItem[]>(`/system/dict-data/type/${dictType}`)
 }
@@ -92,4 +104,21 @@ export function updateDictData(data: DictDataSaveDTO) {
 
 export function deleteDictData(id: number) {
   return del(`/system/dict-data/${id}`)
+}
+
+export function getRecycleDictDataPage(params: {
+  pageNo: number
+  pageSize: number
+  dictType?: string
+  dictLabel?: string
+}) {
+  return get<PageResult<DictDataItem>>('/system/dict-data/recycle/page', params)
+}
+
+export function restoreDictData(id: number) {
+  return put('/system/dict-data/restore', null, { params: { id } })
+}
+
+export function deleteDictDataPermanent(id: number) {
+  return del('/system/dict-data/delete-permanent', { params: { id } })
 }

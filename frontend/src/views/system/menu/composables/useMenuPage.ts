@@ -11,16 +11,13 @@ import {
   type MenuListQuery,
 } from '@/api/system/menu'
 import {
-  applyMenuAdminDisplayTree,
   buildParentMenuOptions,
   countMenuTypes,
   flattenMenuTree,
   isExternalMenuComponent,
 } from '@/utils/menu-tree'
-import { useUserStore } from '@/store/user'
 
 export function useMenuPage() {
-  const userStore = useUserStore()
   const loading = ref(false)
   const submitLoading = ref(false)
   const menuList = ref<MenuVO[]>([])
@@ -30,7 +27,6 @@ export function useMenuPage() {
   const formRef = ref<FormInstance | null>(null)
   const tableRef = ref<TableInstance | null>(null)
   const expandAll = ref(false)
-  const tableKey = ref(0)
 
   const queryParams = reactive<MenuListQuery>({
     name: '',
@@ -64,9 +60,8 @@ export function useMenuPage() {
     loading.value = true
     try {
       const res = await getMenuList(queryParams)
-      menuList.value = applyMenuAdminDisplayTree(res.data || [])
+      menuList.value = res.data || []
       parentOptions.value = buildParentMenuOptions(menuList.value)
-      tableKey.value += 1
     } finally {
       loading.value = false
     }
@@ -149,13 +144,6 @@ export function useMenuPage() {
       if (row.id == null || row.status == null) return
       await updateMenuStatus(row.id, row.status)
       ElMessage.success(`${text}成功`)
-      await getList()
-      // 当前登录用户若也受该菜单影响，立即刷新权限/菜单树，保证工作台入口与直链访问同步收敛
-      try {
-        await userStore.refreshUserStore()
-      } catch {
-        /* ignore */
-      }
     } catch {
       row.status = row.status === 1 ? 0 : 1
     }
@@ -217,11 +205,6 @@ export function useMenuPage() {
         }
         dialogVisible.value = false
         getList()
-        try {
-          await userStore.refreshUserStore()
-        } catch {
-          /* ignore */
-        }
       } finally {
         submitLoading.value = false
       }
@@ -240,7 +223,6 @@ export function useMenuPage() {
     formRef,
     tableRef,
     expandAll,
-    tableKey,
     queryParams,
     form,
     rules,

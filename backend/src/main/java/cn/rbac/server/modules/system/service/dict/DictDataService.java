@@ -1,5 +1,6 @@
 package cn.rbac.server.modules.system.service.dict;
 
+import cn.rbac.server.common.pojo.PageParam;
 import cn.rbac.server.common.pojo.PageResult;
 import cn.rbac.server.modules.system.dal.dataobject.dict.DictDataDO;
 
@@ -21,6 +22,12 @@ public interface DictDataService {
     void update(DictDataDO dictData);
 
     void delete(Long id);
+
+    PageResult<DictDataDO> recyclePage(PageParam pageParam, String dictType, String dictLabel);
+
+    void restore(Long id);
+
+    void deletePermanent(Long id);
 
     long countByDictType(String dictType);
 

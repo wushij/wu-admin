@@ -8,7 +8,7 @@
   >
     <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
       <el-form-item label="用户名" prop="username">
-        <el-input v-model="form.username" placeholder="4-12位字母数字下划线" maxlength="12" />
+        <el-input v-model="form.username" placeholder="请输入用户名" />
       </el-form-item>
       <el-form-item label="昵称" prop="nickname">
         <el-input v-model="form.nickname" placeholder="请输入昵称" />

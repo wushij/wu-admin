@@ -16,6 +16,11 @@ public class ChatGroupMemberDO {
     private Long userId;
     private String nickname;
     private Integer role;
+    /** 0 正常 1 被禁言 */
     private Integer muted;
+    /** 0 正常 1 免打扰（仅 @ 我时提醒） */
+    private Integer notifyMuted;
+    /** 群公告已读时间（用于置顶公告「完成」） */
+    private LocalDateTime announcementReadTime;
     private LocalDateTime joinTime;
 }

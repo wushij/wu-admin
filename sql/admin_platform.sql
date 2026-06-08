@@ -484,6 +484,8 @@ CREATE TABLE sys_chat_group_member (
     nickname VARCHAR(50) DEFAULT NULL,
     role TINYINT DEFAULT 0 COMMENT '0成员 1管理员 2群主',
     muted TINYINT DEFAULT 0,
+    notify_muted TINYINT DEFAULT 0 COMMENT '0正常 1免打扰仅@提醒',
+    announcement_read_time DATETIME DEFAULT NULL COMMENT '群公告已读时间',
     join_time DATETIME DEFAULT CURRENT_TIMESTAMP,
     UNIQUE KEY uk_group_user (group_id, user_id),
     INDEX idx_user_id (user_id)
@@ -594,10 +596,13 @@ CREATE TABLE sys_file (
     remark VARCHAR(500) DEFAULT '' COMMENT '备注',
     create_by VARCHAR(64) DEFAULT '' COMMENT '创建者',
     create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    deleted TINYINT NOT NULL DEFAULT 0 COMMENT '是否删除',
     PRIMARY KEY (id),
     INDEX idx_group_id (group_id),
     INDEX idx_create_time (create_time),
-    INDEX idx_group_time (group_id, create_time)
+    INDEX idx_group_time (group_id, create_time),
+    INDEX idx_deleted_update (deleted, update_time)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='文件记录表';
 
 DROP TABLE IF EXISTS sys_file_group;
@@ -759,7 +764,7 @@ INSERT INTO sys_config_group (group_code, group_name, config_value, remark) VALU
 ('sms', '短信配置', '{"enabled":false,"provider":"aliyunAuth","accessKeyId":"","accessKeySecret":"","signName":"","tencentAppId":"","templateVerifyCode":"100001","templateModifyPhone":"100002","templateResetPassword":"100003","templateBindPhone":"100004","templateVerifyBindPhone":"100005","schemeName":"","codeExpireMinutes":5}', '阿里云短信认证/腾讯云'),
 ('security', '安全配置', '{"disableDevtool":false,"isConcurrent":false}', '前端安全与会话：禁止调试、禁止多端同时在线');
 
--- 菜单与按钮（一级目录 sort：系统管理 1 / 业务 2 / 监控 3 / 日志 4 / 文件 5 / 消息 6 / 工具 7）
+-- 菜单与按钮（一级目录 sort：系统管理 1 / 监控 3 / 日志 4 / 文件 5 / 消息 6 / 流程 7 / 工具 8）
 INSERT INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, component, status) VALUES
 -- 系统管理目录
 (1, '系统管理', '', 1, 1, 0, '/system', 'Setting', '', 1),
@@ -774,11 +779,12 @@ INSERT INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, c
 -- 字典管理
 (130, '字典管理', 'system:dict:list', 2, 5, 1, '/system/dict', 'Collection', 'system/dict/index', 1),
 (160, '系统配置', 'system:config:list', 2, 6, 1, '/system/config', 'Tools', 'system/config/index', 1),
--- 业务中心目录
-(8, '业务中心', '', 1, 2, 0, '/business', 'Suitcase', '', 1),
+(163, '回收中心', 'system:recycle:list', 2, 7, 1, '/system/recycle', 'Delete', 'system/recycle/index', 1),
+-- 流程中心目录（审批 + 工单）
+(8, '流程中心', '', 1, 7, 0, '/workflow', 'Operation', '', 1),
 -- 审批单中心
 (9, '审批单中心', 'system:approval:list', 2, 1, 8, '/system/approval', 'Checked', 'system/approval/index', 1),
--- 工单管理（隶属业务中心）
+-- 工单管理（隶属流程中心）
 (7, '工单管理', 'system:ticket:list', 2, 2, 8, '/system/ticket', 'Tickets', 'system/ticket/index', 1),
 -- 用户管理按钮
 (10, '用户查询', 'system:user:query', 3, 1, 2, '', '', '', 1),
@@ -850,6 +856,11 @@ INSERT INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, c
 (182, '任务新增', 'monitor:job:add', 3, 2, 180, '', '', '', 1),
 (183, '任务编辑', 'monitor:job:edit', 3, 3, 180, '', '', '', 1),
 (184, '任务删除', 'monitor:job:delete', 3, 4, 180, '', '', '', 1),
+-- 缓存监控
+(185, '缓存监控', 'monitor:cache:list', 2, 4, 100, '/monitor/cache', 'Coin', 'monitor/cache/index', 1),
+(186, '缓存删除', 'monitor:cache:delete', 3, 1, 185, '', '', '', 1),
+-- 服务监控
+(187, '服务监控', 'monitor:server:list', 2, 5, 100, '/monitor/server', 'Cpu', 'monitor/server/index', 1),
 -- 系统日志目录
 (120, '系统日志', '', 1, 4, 0, '/log', 'Notebook', '', 1),
 (121, '操作日志', 'system:operLog:list', 2, 1, 120, '/system/oper-log', 'EditPen', 'system/oper-log/index', 1),
@@ -859,7 +870,7 @@ INSERT INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, c
 -- 登录日志（隶属系统日志）
 (6, '登录日志', 'system:loginLog:list', 2, 2, 120, '/system/login-log', 'Promotion', 'system/login-log/index', 1),
 -- 开发工具
-(150, '开发工具', '', 1, 7, 0, '/tool', 'Tools', '', 1),
+(150, '开发工具', '', 1, 8, 0, '/tool', 'Tools', '', 1),
 (151, '接口文档', 'tool:apiDoc:view', 2, 1, 150, '/tool/api-doc', 'Document', '/doc.html', 1),
 -- 消息中心
 (170, '消息中心', '', 1, 6, 0, '/message', 'Bell', '', 1),
@@ -888,7 +899,7 @@ INSERT INTO sys_user_role (user_id, role_id) VALUES
 
 -- 超级管理员 ↔ 全部菜单
 INSERT INTO sys_role_menu (role_id, menu_id) VALUES
-(1, 1), (1, 2), (1, 3), (1, 4), (1, 5), (1, 130), (1, 160), (1, 7), (1, 8), (1, 9),
+(1, 1), (1, 2), (1, 3), (1, 4), (1, 5), (1, 130), (1, 160), (1, 163), (1, 7), (1, 8), (1, 9),
 (1, 6), (1, 120), (1, 121), (1, 126), (1, 127), (1, 128),
 (1, 10), (1, 11), (1, 12), (1, 13),
 (1, 20), (1, 21), (1, 22), (1, 23),
@@ -898,7 +909,7 @@ INSERT INTO sys_role_menu (role_id, menu_id) VALUES
 (1, 50), (1, 51), (1, 52),
 (1, 60), (1, 61), (1, 62), (1, 63), (1, 64), (1, 65),
 (1, 70), (1, 71), (1, 72), (1, 73), (1, 74),
-(1, 100), (1, 101), (1, 102), (1, 103), (1, 104), (1, 180), (1, 181), (1, 182), (1, 183), (1, 184),
+(1, 100), (1, 101), (1, 102), (1, 103), (1, 104), (1, 180), (1, 181), (1, 182), (1, 183), (1, 184), (1, 185), (1, 186), (1, 187),
 (1, 105), (1, 110), (1, 111), (1, 112), (1, 113),
 (1, 150), (1, 151),
 (1, 170), (1, 171), (1, 172), (1, 173), (1, 174), (1, 175), (1, 176), (1, 177), (1, 178);
@@ -1001,11 +1012,12 @@ WHERE group_code = 'thirdParty'
 -- [附录·菜单] 系统配置页 160-162（INSERT IGNORE；强制同步见 sp_wu_admin_sync_builtin_menus）
 INSERT IGNORE INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, component, status) VALUES
 (160, '系统配置', 'system:config:list', 2, 6, 1, '/system/config', 'Tools', 'system/config/index', 1),
+(163, '回收中心', 'system:recycle:list', 2, 7, 1, '/system/recycle', 'Delete', 'system/recycle/index', 1),
 (161, '配置查询', 'system:config:query', 3, 1, 160, '', '', '', 1),
 (162, '配置修改', 'system:config:update', 3, 2, 160, '', '', '', 1);
 
 INSERT IGNORE INTO sys_role_menu (role_id, menu_id) VALUES
-(1, 160), (1, 161), (1, 162);
+(1, 160), (1, 161), (1, 162), (1, 163);
 
 -- [附录·菜单] 图标修正
 UPDATE sys_menu SET icon = 'UserFilled' WHERE id = 3 AND icon IN ('Key', 'key');
@@ -1115,6 +1127,8 @@ CREATE TABLE IF NOT EXISTS sys_chat_group_member (
     nickname VARCHAR(50) DEFAULT NULL,
     role TINYINT DEFAULT 0 COMMENT '0成员 1管理员 2群主',
     muted TINYINT DEFAULT 0,
+    notify_muted TINYINT DEFAULT 0 COMMENT '0正常 1免打扰仅@提醒',
+    announcement_read_time DATETIME DEFAULT NULL COMMENT '群公告已读时间',
     join_time DATETIME DEFAULT CURRENT_TIMESTAMP,
     UNIQUE KEY uk_group_user (group_id, user_id),
     INDEX idx_user_id (user_id)
@@ -1361,6 +1375,7 @@ BEGIN
     ELSE
         INSERT INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, component, status) VALUES
         (160, '系统配置', 'system:config:list', 2, 6, 1, '/system/config', 'Tools', 'system/config/index', 1),
+        (163, '回收中心', 'system:recycle:list', 2, 7, 1, '/system/recycle', 'Delete', 'system/recycle/index', 1),
         (161, '配置查询', 'system:config:query', 3, 1, 160, '', '', '', 1),
         (162, '配置修改', 'system:config:update', 3, 2, 160, '', '', '', 1),
         (126, '操作日志查询', 'system:operLog:query', 3, 1, 121, '', '', '', 1),
@@ -1429,10 +1444,13 @@ INSERT IGNORE INTO sys_menu (id, name, permission, type, sort, parent_id, path, 
 (181, '任务查询', 'monitor:job:query', 3, 1, 180, '', '', '', 1),
 (182, '任务新增', 'monitor:job:add', 3, 2, 180, '', '', '', 1),
 (183, '任务编辑', 'monitor:job:edit', 3, 3, 180, '', '', '', 1),
-(184, '任务删除', 'monitor:job:delete', 3, 4, 180, '', '', '', 1);
+(184, '任务删除', 'monitor:job:delete', 3, 4, 180, '', '', '', 1),
+(185, '缓存监控', 'monitor:cache:list', 2, 4, 100, '/monitor/cache', 'Coin', 'monitor/cache/index', 1),
+(186, '缓存删除', 'monitor:cache:delete', 3, 1, 185, '', '', '', 1),
+(187, '服务监控', 'monitor:server:list', 2, 5, 100, '/monitor/server', 'Cpu', 'monitor/server/index', 1);
 
 INSERT IGNORE INTO sys_role_menu (role_id, menu_id) VALUES
-(1, 180), (1, 181), (1, 182), (1, 183), (1, 184);
+(1, 180), (1, 181), (1, 182), (1, 183), (1, 184), (1, 185), (1, 186), (1, 187);
 
 -- 移除已废弃的内置任务；迁移旧版字典/配置缓存任务为聊天清理
 DELETE FROM sys_job WHERE invoke_target IN (
@@ -1684,6 +1702,33 @@ CALL sp_add_index_if_missing('sys_user_post', 'uk_user_post',
 
 CALL sp_add_index_if_missing('sys_oper_log', 'idx_oper_time_status',
     'ALTER TABLE sys_oper_log ADD INDEX idx_oper_time_status (oper_time, status)');
+
+-- [附录·群成员] add9：免打扰、群公告已读时间（可重复执行）
+SET @col_exists := (
+    SELECT COUNT(*) FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'sys_chat_group_member'
+      AND COLUMN_NAME = 'notify_muted'
+);
+SET @sql := IF(@col_exists = 0,
+    'ALTER TABLE sys_chat_group_member ADD COLUMN notify_muted TINYINT DEFAULT 0 COMMENT ''0正常 1免打扰仅@提醒'' AFTER muted',
+    'SELECT ''notify_muted exists'' AS info');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @col_exists := (
+    SELECT COUNT(*) FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'sys_chat_group_member'
+      AND COLUMN_NAME = 'announcement_read_time'
+);
+SET @sql := IF(@col_exists = 0,
+    'ALTER TABLE sys_chat_group_member ADD COLUMN announcement_read_time DATETIME NULL COMMENT ''群公告已读时间'' AFTER notify_muted',
+    'SELECT ''announcement_read_time exists'' AS info');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
 
 CALL sp_add_index_if_missing('sys_chat_group_member', 'idx_user_id',
     'ALTER TABLE sys_chat_group_member ADD INDEX idx_user_id (user_id)');

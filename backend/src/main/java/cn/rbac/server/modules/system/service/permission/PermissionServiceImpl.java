@@ -24,7 +24,7 @@ public class PermissionServiceImpl implements PermissionService {
     private MenuMapper menuMapper;
 
     @Override
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public void assignUserRole(Long userId, Set<Long> roleIds) {
         // 删除原有关联
         userRoleMapper.deleteByUserId(userId);
@@ -46,7 +46,18 @@ public class PermissionServiceImpl implements PermissionService {
     }
 
     @Override
-    @Transactional
+    public Map<Long, Set<Long>> getUserRoleIdsMapByUserIds(Collection<Long> userIds) {
+        if (CollUtil.isEmpty(userIds)) {
+            return Collections.emptyMap();
+        }
+        List<UserRoleDO> allLinks = userRoleMapper.selectByUserIds(userIds);
+        return allLinks.stream().collect(Collectors.groupingBy(
+                UserRoleDO::getUserId,
+                Collectors.mapping(UserRoleDO::getRoleId, Collectors.toSet())));
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
     public void assignRoleMenu(Long roleId, Set<Long> menuIds) {
         roleMenuMapper.deleteByRoleId(roleId);
         if (CollUtil.isNotEmpty(menuIds)) {
@@ -117,15 +128,16 @@ public class PermissionServiceImpl implements PermissionService {
         if (CollUtil.isEmpty(roleIds)) {
             return false;
         }
+        // 批量收集所有角色关联的菜单ID，一次查询代替 N*M 次逐条查询
+        Set<Long> allMenuIds = new HashSet<>();
         for (Long roleId : roleIds) {
-            for (Long menuId : getRoleMenuListByRoleId(roleId)) {
-                MenuDO menu = menuMapper.selectById(menuId);
-                if (menu != null && permission.equals(menu.getPermission())) {
-                    return true;
-                }
-            }
+            allMenuIds.addAll(getRoleMenuListByRoleId(roleId));
         }
-        return false;
+        if (CollUtil.isEmpty(allMenuIds)) {
+            return false;
+        }
+        List<MenuDO> menus = listMenusByIds(allMenuIds);
+        return menus.stream().anyMatch(menu -> permission.equals(menu.getPermission()));
     }
 
     /** 仅有 query 时，允许访问同资源的 list 接口（列表页只读） */
@@ -184,13 +196,12 @@ public class PermissionServiceImpl implements PermissionService {
         if (CollUtil.isEmpty(roleIds)) {
             return false;
         }
-        for (Long roleId : roleIds) {
-            RoleDO roleDO = roleMapper.selectById(roleId);
-            if (roleDO != null && role.equals(roleDO.getCode())) {
-                return true;
-            }
+        // 批量查询角色，代替逐条 selectById
+        List<RoleDO> roles = roleMapper.selectByIds(roleIds);
+        if (CollUtil.isEmpty(roles)) {
+            return false;
         }
-        return false;
+        return roles.stream().anyMatch(roleDO -> role.equals(roleDO.getCode()));
     }
 
     @Override
@@ -216,20 +227,25 @@ public class PermissionServiceImpl implements PermissionService {
 
     /**
      * 勾选按钮时自动补齐父级目录、菜单，否则侧栏不显示（前端只渲染 type≠3 的节点）
+     * 优化：批量加载菜单树后在内存中遍历，避免 BFS 逐条查库
      */
     private Set<Long> expandMenuClosure(Set<Long> menuIds) {
         if (CollUtil.isEmpty(menuIds)) {
             return Collections.emptySet();
         }
+        // 先加载全量菜单（菜单表通常不大），在内存中构建 parent 映射
+        List<MenuDO> allMenus = menuMapper.selectList(null);
+        Map<Long, Long> parentMap = new HashMap<>();
+        for (MenuDO menu : allMenus) {
+            if (menu.getParentId() != null && menu.getParentId() > 0) {
+                parentMap.put(menu.getId(), menu.getParentId());
+            }
+        }
         Set<Long> result = new HashSet<>(menuIds);
         ArrayDeque<Long> queue = new ArrayDeque<>(menuIds);
         while (!queue.isEmpty()) {
             Long id = queue.poll();
-            MenuDO menu = menuMapper.selectById(id);
-            if (menu == null) {
-                continue;
-            }
-            Long parentId = menu.getParentId();
+            Long parentId = parentMap.get(id);
             if (parentId != null && parentId > 0 && result.add(parentId)) {
                 queue.add(parentId);
             }

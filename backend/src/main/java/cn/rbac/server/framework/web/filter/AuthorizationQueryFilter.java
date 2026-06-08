@@ -7,6 +7,7 @@ import jakarta.servlet.http.HttpServletRequestWrapper;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
+import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -18,20 +19,32 @@ import java.util.List;
 
 /**
  * 将 URL 查询参数 Authorization 写入请求头，供 Sa-Token 校验。
- * 用于 img/video 等无法自定义 Header 的资源请求（如 /files/**?Authorization=）。
+ * 仅对静态文件与预览/下载路径生效（video/img 等无法自定义 Header 的资源请求）。
  */
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class AuthorizationQueryFilter extends OncePerRequestFilter {
 
+    private static boolean allowsTokenQueryParam(String path) {
+        if (path == null) {
+            return false;
+        }
+        return path.contains("/files/")
+                || path.contains("/system/file/preview/")
+                || path.contains("/system/file/download/");
+    }
+
     @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
+    protected void doFilterInternal(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response, @NonNull FilterChain chain)
             throws ServletException, IOException {
-        if (!StringUtils.hasText(request.getHeader("Authorization"))) {
-            String token = request.getParameter("Authorization");
-            if (StringUtils.hasText(token)) {
-                chain.doFilter(new AuthorizationHeaderRequestWrapper(request, token.trim()), response);
-                return;
+        String path = request.getRequestURI();
+        if (allowsTokenQueryParam(path)) {
+            if (!StringUtils.hasText(request.getHeader("Authorization"))) {
+                String token = request.getParameter("Authorization");
+                if (StringUtils.hasText(token)) {
+                    chain.doFilter(new AuthorizationHeaderRequestWrapper(request, token.trim()), response);
+                    return;
+                }
             }
         }
         chain.doFilter(request, response);

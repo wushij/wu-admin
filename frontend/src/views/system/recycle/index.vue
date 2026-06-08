@@ -1,26 +1,29 @@
 <template>
-  <div class="app-container module-page recycle-center-page">
-    <el-card class="search-card module-hero-card" shadow="never">
-      <div class="module-hero-row">
-        <div class="module-hero-text">
-          <div class="module-hero-title">
-            <ModulePageIcon :icon="MODULE_PAGE_ICON.recycle" />
-            <span>回收中心</span>
-          </div>
-          <p class="module-hero-desc">{{ visibleTypes.length }} 类业务数据 · 可恢复或彻底清除</p>
+  <div class="app-container recycle-center-page">
+    <section class="hero-panel">
+      <div class="hero-glow hero-glow--left" />
+      <div class="hero-glow hero-glow--right" />
+      <div class="hero-main">
+        <div class="hero-icon-wrap">
+          <el-icon><Delete /></el-icon>
         </div>
-        <div class="recycle-hero-stats">
-          <div class="module-hero-stats">
-            <div class="stat-num">{{ visiblePendingTotal }}</div>
-            <div class="stat-label">待处理</div>
-          </div>
-          <div class="module-hero-stats">
-            <div class="stat-num">{{ activePendingCount }}</div>
-            <div class="stat-label">当前分类</div>
-          </div>
+        <div>
+          <h2 class="hero-title">回收中心</h2>
+          <p class="hero-subtitle">{{ visibleTypes.length }} 类业务数据 · 可恢复或彻底清除</p>
         </div>
       </div>
-    </el-card>
+      <div class="hero-stats">
+        <div class="hero-stat">
+          <span class="hero-stat-num">{{ visiblePendingTotal }}</span>
+          <span class="hero-stat-label">待处理</span>
+        </div>
+        <div class="hero-stat-divider" />
+        <div class="hero-stat">
+          <span class="hero-stat-num">{{ activePendingCount }}</span>
+          <span class="hero-stat-label">当前分类</span>
+        </div>
+      </div>
+    </section>
 
     <div class="type-cards">
       <button
@@ -120,7 +123,7 @@
           <template #default="{ row }">
             <div class="action-buttons">
               <el-button
-                v-if="canRestore"
+                v-if="canDelete"
                 type="primary"
                 plain
                 size="small"
@@ -129,7 +132,7 @@
                 恢复
               </el-button>
               <el-button
-                v-if="canDeletePermanent"
+                v-if="canDelete"
                 type="danger"
                 plain
                 size="small"
@@ -159,9 +162,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Refresh } from '@element-plus/icons-vue'
-import ModulePageIcon from '@/components/ModulePageIcon.vue'
-import { MODULE_PAGE_ICON } from '@/constants/module-page-icons'
+import { Delete, Refresh } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import DictTag from '@/components/DictTag.vue'
 import { getRecycleSummary, type RecycleSummary } from '@/api/system/recycle'
@@ -187,9 +188,7 @@ const summary = reactive<RecycleSummary>({
   dictData: 0,
   announce: 0,
   job: 0,
-  jobLog: 0,
   file: 0,
-  gen: 0,
   total: 0,
 })
 
@@ -201,13 +200,9 @@ const total = ref(0)
 const searchForm = reactive<Record<string, string>>({})
 const query = reactive({ pageNo: 1, pageSize: 10 })
 
-const visibleTypes = computed(() => {
-  const codes = userStore.userInfo?.permissions || []
-  const hasRecycleQuery =
-    codes.includes('system:recycle:query') || hasMenuPermission(userStore.menus, 'system:recycle:query')
-  if (hasRecycleQuery) return RECYCLE_TYPES
-  return RECYCLE_TYPES.filter((t) => hasMenuPermission(userStore.menus, t.deletePermission))
-})
+const visibleTypes = computed(() =>
+  RECYCLE_TYPES.filter((t) => hasMenuPermission(userStore.menus, t.permission)),
+)
 
 const currentType = computed(() => getRecycleType(activeType.value))
 
@@ -218,21 +213,9 @@ const visiblePendingTotal = computed(() =>
   visibleTypes.value.reduce((sum, type) => sum + (summary[type.key] ?? 0), 0),
 )
 
-function hasPermCode(code: string) {
-  const codes = userStore.userInfo?.permissions || []
-  return codes.includes(code) || hasMenuPermission(userStore.menus, code)
-}
-
-const canRestore = computed(() => {
+const canDelete = computed(() => {
   const perm = currentType.value?.deletePermission
-  if (!perm) return false
-  return hasPermCode('system:recycle:restore') || hasMenuPermission(userStore.menus, perm)
-})
-
-const canDeletePermanent = computed(() => {
-  const perm = currentType.value?.deletePermission
-  if (!perm) return false
-  return hasPermCode('system:recycle:delete') || hasMenuPermission(userStore.menus, perm)
+  return perm ? hasMenuPermission(userStore.menus, perm) : false
 })
 
 function initSearchForm() {
@@ -353,18 +336,131 @@ onMounted(async () => {
 
 <style scoped lang="scss">
 .recycle-center-page {
-  .recycle-hero-stats {
+  .hero-panel {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    padding: 28px 32px;
+    margin-bottom: 20px;
+    border-radius: 16px;
+    overflow: hidden;
+    color: #fff;
+    background: linear-gradient(
+      135deg,
+      var(--theme-primary, #111827) 0%,
+      var(--theme-primary-hover, #374151) 52%,
+      var(--theme-primary-active, #4b5563) 100%
+    );
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.12);
+  }
+
+  .hero-glow {
+    position: absolute;
+    border-radius: 50%;
+    pointer-events: none;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.14) 0%, transparent 70%);
+  }
+
+  .hero-glow--left {
+    width: 220px;
+    height: 220px;
+    top: -80px;
+    left: -40px;
+  }
+
+  .hero-glow--right {
+    width: 280px;
+    height: 280px;
+    bottom: -120px;
+    right: -60px;
+    opacity: 0.7;
+  }
+
+  .hero-main {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    min-width: 0;
+  }
+
+  .hero-icon-wrap {
+    width: 56px;
+    height: 56px;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.16);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    color: #fff;
+    font-size: 26px;
+    flex-shrink: 0;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+  }
+
+  .hero-title {
+    margin: 0 0 6px;
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+  }
+
+  .hero-subtitle {
+    margin: 0;
+    font-size: 13px;
+    opacity: 0.82;
+    line-height: 1.5;
+  }
+
+  .hero-stats {
+    position: relative;
+    z-index: 1;
     display: flex;
     align-items: center;
     gap: 20px;
     flex-shrink: 0;
+    padding: 12px 22px;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+  }
+
+  .hero-stat {
+    text-align: center;
+    min-width: 64px;
+  }
+
+  .hero-stat-num {
+    display: block;
+    font-size: 30px;
+    font-weight: 700;
+    line-height: 1.1;
+  }
+
+  .hero-stat-label {
+    display: block;
+    margin-top: 4px;
+    font-size: 12px;
+    opacity: 0.78;
+  }
+
+  .hero-stat-divider {
+    width: 1px;
+    height: 36px;
+    background: rgba(255, 255, 255, 0.22);
   }
 
   .type-cards {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
     gap: 12px;
-    margin-bottom: var(--admin-page-gap);
+    margin-bottom: 20px;
   }
 
   .type-card {
@@ -534,11 +630,6 @@ onMounted(async () => {
   .accent-file {
     --accent-gradient: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
     --accent-shadow: rgba(99, 102, 241, 0.35);
-  }
-
-  .accent-gen {
-    --accent-gradient: linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%);
-    --accent-shadow: rgba(59, 130, 246, 0.35);
   }
 
   .table-card {

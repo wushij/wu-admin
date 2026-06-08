@@ -11,25 +11,8 @@
         <el-switch :model-value="forbidConcurrentLogin" :disabled="!canEdit" @update:model-value="(v) => $emit('update:forbidConcurrentLogin', !!v)" />
         <span class="unit">开启后，同一账号再次登录会先踢掉之前的会话，只保留最新一次登录</span>
       </el-form-item>
-      <el-divider content-position="left">API 安全防线与防重放</el-divider>
-      <el-form-item label="SM4 数据加密">
-        <el-switch :model-value="draft.sm4EncryptEnabled ?? false" :disabled="!canEdit" @update:model-value="(v) => draft.sm4EncryptEnabled = !!v" />
-        <span class="unit">是否启用接口请求/响应数据加密（国密 SM4-CBC 模式 + 16 字节随机 IV 向量）</span>
-      </el-form-item>
-      <el-form-item label="数字签名验签">
-        <el-switch :model-value="draft.sm2SignEnabled ?? false" :disabled="!canEdit" @update:model-value="(v) => draft.sm2SignEnabled = !!v" />
-        <span class="unit">是否启用接口签名验签（国密 HMAC-SM3 高性能签名防篡改）</span>
-      </el-form-item>
-      <el-form-item label="时间戳校验">
-        <el-switch :model-value="draft.timestampEnabled ?? true" :disabled="!canEdit" @update:model-value="(v) => draft.timestampEnabled = !!v" />
-        <span class="unit">校验请求时间，防止过期请求（5 分钟时间窗口）</span>
-      </el-form-item>
-      <el-form-item label="Nonce 校验">
-        <el-switch :model-value="draft.nonceEnabled ?? true" :disabled="!canEdit" @update:model-value="(v) => draft.nonceEnabled = !!v" />
-        <span class="unit">校验随机数，防止高频重放攻击（Redis 单次随机数查重）</span>
-      </el-form-item>
     </el-form>
-    <el-alert type="info" :closable="false" show-icon title="保存全部后立即生效：接口安全开关将即时作用于系统所有 REST 接口；时间戳与 Nonce 建议保持开启。" />
+    <el-alert type="info" :closable="false" show-icon title="保存全部后立即生效：禁止多端对新登录生效；禁止前端调试需刷新浏览器页面。" />
   </div>
 </template>
 

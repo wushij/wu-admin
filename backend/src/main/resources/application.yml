@@ -18,8 +18,12 @@ app:
     log-retention-days: 30
     notice-read-retention-days: 90
     ticket-recycle-retention-days: 30
+    file-recycle-retention-days: 30
     chat-message-retention-days: 180
     group-chat-message-retention-days: 180
+  # CORS：开发 *；生产在 application-prod.yml 配具体域名
+  cors:
+    allowed-origins: "*"
 
 spring:
   application:

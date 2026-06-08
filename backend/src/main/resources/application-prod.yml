@@ -10,3 +10,8 @@ spring:
       port: 6379
       password: root
       database: 1
+
+# 生产环境 CORS：配置具体域名，逗号分隔（须与站点一致，勿留占位符）
+app:
+  cors:
+    allowed-origins: "https://wushij.online,https://www.wushij.online"

@@ -22,7 +22,7 @@ import {
   movePost,
 } from '@/api/system/post'
 import { unwrapOrgTreeNode } from '@/types/org'
-import { displayOrgTree, resolveDeptRootParentId } from '@/utils/org-tree'
+import { displayOrgTree, resolveDeptRootParentId, collectExpandKeysByDepth } from '@/utils/org-tree'
 
 export function useOrgPage() {
   const router = useRouter()
@@ -33,6 +33,7 @@ export function useOrgPage() {
   const deptTreeRaw = ref<DeptVO[]>([])
   const deptDisplayTree = computed(() => displayOrgTree(deptTreeRaw.value))
   const postTree = ref<PostVO[]>([])
+  const postDefaultExpandedKeys = computed(() => collectExpandKeysByDepth(postTree.value, 2))
 
   const selectedId = ref<number | null>(null)
   const selectedName = ref('')
@@ -57,17 +58,12 @@ export function useOrgPage() {
     loadUsers()
   })
 
-  let orgSearchTimer: ReturnType<typeof setTimeout> | null = null
-
   watch(treeSearch, (val) => {
-    if (orgSearchTimer) clearTimeout(orgSearchTimer)
-    orgSearchTimer = setTimeout(() => {
-      if (activeTab.value === 'dept') {
-        deptTreeRef.value?.filter(val)
-      } else {
-        postTreeRef.value?.filter(val)
-      }
-    }, 250)
+    if (activeTab.value === 'dept') {
+      deptTreeRef.value?.filter(val)
+    } else {
+      postTreeRef.value?.filter(val)
+    }
   })
 
   function filterTreeNode(value: string, data: unknown) {
@@ -196,7 +192,7 @@ export function useOrgPage() {
     id: undefined,
     parentId: 0,
     name: '',
-    leaderUserId: null as number | null,
+    leaderName: '',
     phone: '',
     email: '',
     sort: 0,
@@ -257,7 +253,7 @@ export function useOrgPage() {
       id: row?.id,
       parentId: row?.parentId ?? parentId ?? 0,
       name: row?.name || '',
-      leaderUserId: row?.leaderUserId ?? null,
+      leaderName: row?.leaderName || '',
       phone: row?.phone || '',
       email: row?.email || '',
       sort: row?.sort ?? 0,
@@ -286,12 +282,7 @@ export function useOrgPage() {
     await deptFormRef.value?.validate()
     deptSubmitting.value = true
     try {
-      const payload = {
-        ...deptForm,
-        parentId: deptForm.parentId || 0,
-        leaderUserId: deptForm.leaderUserId ?? null,
-      }
-      delete (payload as { leaderName?: string }).leaderName
+      const payload = { ...deptForm, parentId: deptForm.parentId || 0 }
       if (deptForm.id) {
         await updateDept(payload)
         ElMessage.success('更新成功')
@@ -354,6 +345,7 @@ export function useOrgPage() {
     postTreeRef,
     deptDisplayTree,
     postTree,
+    postDefaultExpandedKeys,
     selectedId,
     memberTitle,
     userLoading,

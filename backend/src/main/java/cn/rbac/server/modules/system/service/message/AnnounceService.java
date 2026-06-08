@@ -1,7 +1,10 @@
 package cn.rbac.server.modules.system.service.message;
 
-import cn.rbac.server.framework.security.core.service.SecurityUtils;
+import cn.rbac.server.common.pojo.BusinessException;
+import cn.rbac.server.common.pojo.PageParam;
+import cn.rbac.server.common.pojo.PageResult;
 import cn.rbac.server.framework.websocket.MessageWebSocketHandler;
+import cn.rbac.server.framework.security.core.service.SecurityUtils;
 import cn.rbac.server.modules.system.dal.dataobject.message.AnnounceDO;
 import cn.rbac.server.modules.system.dal.dataobject.message.AnnounceSendLogDO;
 import cn.rbac.server.modules.system.dal.dataobject.message.UserAnnounceDO;
@@ -123,8 +126,34 @@ public class AnnounceService {
 
     @Transactional(rollbackFor = Exception.class)
     public void delete(Long id) {
+        if (announceMapper.selectById(id) == null) {
+            throw new IllegalArgumentException("通知不存在");
+        }
         announceMapper.deleteById(id);
-        userAnnounceMapper.delete(new LambdaQueryWrapper<UserAnnounceDO>().eq(UserAnnounceDO::getAnnounceId, id));
+    }
+
+    public PageResult<AnnounceDO> recyclePage(PageParam pageParam, String title) {
+        Page<AnnounceDO> page = new Page<>(pageParam.getPageNo(), pageParam.getPageSize());
+        Page<AnnounceDO> deletedPage = (Page<AnnounceDO>) announceMapper.selectDeletedPage(page, title);
+        return PageResult.of(deletedPage.getRecords(), deletedPage.getTotal());
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public void restore(Long id) {
+        int rows = announceMapper.restoreById(id);
+        if (rows == 0) {
+            throw new BusinessException(404, "回收站通知不存在");
+        }
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public void deletePermanent(Long id) {
+        int rows = announceMapper.deletePhysicalById(id);
+        if (rows == 0) {
+            throw new BusinessException(404, "回收站通知不存在");
+        }
+        userAnnounceMapper.deletePhysicalByAnnounceId(id);
+        sendLogMapper.deletePhysicalByAnnounceId(id);
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -149,7 +178,7 @@ public class AnnounceService {
                 ua.setCreateTime(LocalDateTime.now());
                 userAnnounceMapper.insert(ua);
             }
-            webSocketHandler.sendNotice(uid, announce.getTitle(), announce.getContent());
+            webSocketHandler.sendNotice(uid, id, announce.getTitle(), announce.getContent());
             success++;
         }
         AnnounceSendLogDO log = new AnnounceSendLogDO();

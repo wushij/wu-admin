@@ -4,7 +4,6 @@ import cn.rbac.server.framework.log.annotation.Log;
 import cn.rbac.server.common.pojo.CommonResult;
 import cn.rbac.server.modules.system.dal.dataobject.file.SysFileGroupDO;
 import cn.rbac.server.modules.system.service.file.SysFileGroupService;
-import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -22,8 +21,9 @@ public class SysFileGroupController {
 
     @GetMapping("/list")
     @PreAuthorize("@ss.hasRead('sys:file:list')")
-    public CommonResult<Map<String, Object>> list() {
-        return CommonResult.success(fileGroupService.listWithUngroupedCount());
+    public CommonResult<Map<String, Object>> list(
+            @RequestParam(required = false) String fileCategory) {
+        return CommonResult.success(fileGroupService.listWithUngroupedCount(fileCategory));
     }
 
     @Log(title = "文件分组", businessType = Log.BusinessType.INSERT)

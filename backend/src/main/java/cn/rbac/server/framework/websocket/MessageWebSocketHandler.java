@@ -2,6 +2,7 @@ package cn.rbac.server.framework.websocket;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
@@ -9,6 +10,7 @@ import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 
 import java.io.IOException;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -20,7 +22,7 @@ public class MessageWebSocketHandler extends TextWebSocketHandler {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Override
-    public void afterConnectionEstablished(WebSocketSession session) {
+    public void afterConnectionEstablished(@NonNull WebSocketSession session) {
         Long userId = getUserId(session);
         if (userId == null) {
             return;
@@ -28,11 +30,12 @@ public class MessageWebSocketHandler extends TextWebSocketHandler {
         WebSocketSession old = ONLINE_SESSIONS.put(userId, session);
         closeQuietly(old);
         sendJson(session, Map.of("type", "connected", "content", "ok"));
+        broadcastPresence(userId, true);
         log.info("WS connected userId={}, online={}", userId, ONLINE_SESSIONS.size());
     }
 
     @Override
-    protected void handleTextMessage(WebSocketSession session, TextMessage message) {
+    protected void handleTextMessage(@NonNull WebSocketSession session, @NonNull TextMessage message) {
         try {
             var node = objectMapper.readTree(message.getPayload());
             String type = node.path("type").asText();
@@ -53,10 +56,13 @@ public class MessageWebSocketHandler extends TextWebSocketHandler {
     }
 
     @Override
-    public void afterConnectionClosed(WebSocketSession session, CloseStatus status) {
+    public void afterConnectionClosed(@NonNull WebSocketSession session, @NonNull CloseStatus status) {
         Long userId = getUserId(session);
         if (userId != null) {
             ONLINE_SESSIONS.remove(userId, session);
+            if (!ONLINE_SESSIONS.containsKey(userId)) {
+                broadcastPresence(userId, false);
+            }
         }
     }
 
@@ -67,13 +73,17 @@ public class MessageWebSocketHandler extends TextWebSocketHandler {
         }
     }
 
-    public void sendNotice(Long userId, String title, String content) {
+    public void sendNotice(Long userId, Long announceId, String title, String content) {
         try {
-            String json = objectMapper.writeValueAsString(Map.of(
-                    "type", "notice",
-                    "title", title,
-                    "content", content,
-                    "time", System.currentTimeMillis()));
+            Map<String, Object> payload = new LinkedHashMap<>();
+            payload.put("type", "notice");
+            payload.put("title", title != null ? title : "");
+            payload.put("content", content != null ? content : "");
+            payload.put("time", System.currentTimeMillis());
+            if (announceId != null) {
+                payload.put("announceId", announceId);
+            }
+            String json = objectMapper.writeValueAsString(payload);
             if (userId == null) {
                 broadcast(json);
             } else {
@@ -107,12 +117,22 @@ public class MessageWebSocketHandler extends TextWebSocketHandler {
     }
 
     public void sendTypingPayload(Long toUserId, Long fromUserId) {
+        sendTypingPayload(toUserId, fromUserId, true);
+    }
+
+    /** active=false 时通知对方停止显示「正在输入」 */
+    public void sendTypingStopPayload(Long toUserId, Long fromUserId) {
+        sendTypingPayload(toUserId, fromUserId, false);
+    }
+
+    private void sendTypingPayload(Long toUserId, Long fromUserId, boolean active) {
         try {
-            String json = objectMapper.writeValueAsString(Map.of(
-                    "type", "typing",
-                    "fromUserId", fromUserId,
-                    "time", System.currentTimeMillis()));
-            sendToUser(toUserId, json);
+            Map<String, Object> payload = new LinkedHashMap<>();
+            payload.put("type", "typing");
+            payload.put("fromUserId", fromUserId);
+            payload.put("active", active);
+            payload.put("time", System.currentTimeMillis());
+            sendToUser(toUserId, objectMapper.writeValueAsString(payload));
         } catch (Exception e) {
             log.error("sendTypingPayload failed", e);
         }
@@ -127,7 +147,25 @@ public class MessageWebSocketHandler extends TextWebSocketHandler {
         ONLINE_SESSIONS.values().forEach(s -> sendRaw(s, json));
     }
 
-    private void sendJson(WebSocketSession session, Map<String, Object> map) {
+    /** 通知其他在线用户：某人上线/下线（企业 IM 联系人列表实时状态） */
+    private void broadcastPresence(Long userId, boolean online) {
+        try {
+            String json = objectMapper.writeValueAsString(Map.of(
+                    "type", "presence",
+                    "userId", userId,
+                    "online", online
+            ));
+            ONLINE_SESSIONS.forEach((uid, s) -> {
+                if (!uid.equals(userId)) {
+                    sendRaw(s, json);
+                }
+            });
+        } catch (Exception e) {
+            log.warn("broadcastPresence failed userId={}", userId, e);
+        }
+    }
+
+    private void sendJson(WebSocketSession session, Map<String, ?> map) {
         try {
             sendRaw(session, objectMapper.writeValueAsString(map));
         } catch (Exception ignored) {
@@ -135,7 +173,7 @@ public class MessageWebSocketHandler extends TextWebSocketHandler {
     }
 
     private void sendRaw(WebSocketSession session, String json) {
-        if (session != null && session.isOpen()) {
+        if (session != null && session.isOpen() && json != null) {
             try {
                 session.sendMessage(new TextMessage(json));
             } catch (IOException e) {
