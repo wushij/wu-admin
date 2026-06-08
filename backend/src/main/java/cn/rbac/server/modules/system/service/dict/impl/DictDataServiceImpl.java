@@ -1,5 +1,7 @@
 package cn.rbac.server.modules.system.service.dict.impl;
 
+import cn.rbac.server.common.pojo.BusinessException;
+import cn.rbac.server.common.pojo.PageParam;
 import cn.rbac.server.common.pojo.PageResult;
 import cn.rbac.server.modules.system.dal.dataobject.dict.DictDataDO;
 import cn.rbac.server.modules.system.dal.mysql.dict.DictDataMapper;
@@ -82,6 +84,33 @@ public class DictDataServiceImpl extends ServiceImpl<DictDataMapper, DictDataDO>
     public void delete(Long id) {
         if (!removeById(id)) {
             throw new IllegalArgumentException("字典数据不存在");
+        }
+        dictCacheService.refreshAll();
+    }
+
+    @Override
+    public PageResult<DictDataDO> recyclePage(PageParam pageParam, String dictType, String dictLabel) {
+        Page<DictDataDO> page = new Page<>(pageParam.getPageNo(), pageParam.getPageSize());
+        Page<DictDataDO> deletedPage = (Page<DictDataDO>) baseMapper.selectDeletedPage(page, dictType, dictLabel);
+        return PageResult.of(deletedPage.getRecords(), deletedPage.getTotal());
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void restore(Long id) {
+        int rows = baseMapper.restoreById(id);
+        if (rows == 0) {
+            throw new BusinessException(404, "回收站字典数据不存在");
+        }
+        dictCacheService.refreshAll();
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void deletePermanent(Long id) {
+        int rows = baseMapper.deletePhysicalById(id);
+        if (rows == 0) {
+            throw new BusinessException(404, "回收站字典数据不存在");
         }
         dictCacheService.refreshAll();
     }

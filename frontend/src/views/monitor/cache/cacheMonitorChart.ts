@@ -1,4 +1,4 @@
-import { ref } from 'vue'
+import { reactive, ref, toRaw } from 'vue'
 import { getCacheStats, type CacheStats } from '@/api/monitor/cache'
 import {
   loadMonitorSession,
@@ -34,7 +34,10 @@ const defaultChartHistory = (): CacheChartHistory => ({
   lastHitRateText: '-',
 })
 
-export const cacheChartHistory = loadMonitorSession(CACHE_CHART_STORAGE_KEY, defaultChartHistory())
+/** 须 reactive，否则概览「当前 QPS」等 computed 无法随采样更新 */
+export const cacheChartHistory = reactive(
+  loadMonitorSession(CACHE_CHART_STORAGE_KEY, defaultChartHistory()),
+)
 export const cacheAutoRefresh = ref(loadMonitorSessionFlag(CACHE_AUTO_REFRESH_KEY, true))
 
 let statsTimer: ReturnType<typeof setInterval> | null = null
@@ -42,7 +45,7 @@ let chartRenderHandler: (() => Promise<void>) | null = null
 let backgroundActive = false
 
 function persistChartHistory() {
-  saveMonitorSession(CACHE_CHART_STORAGE_KEY, cacheChartHistory)
+  saveMonitorSession(CACHE_CHART_STORAGE_KEY, toRaw(cacheChartHistory))
 }
 
 function persistAutoRefresh() {

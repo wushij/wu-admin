@@ -57,7 +57,6 @@ export function useCacheMonitorPage() {
   const scanLimit = ref(200)
   const keyFilter = ref('')
   const refreshing = ref(false)
-
   const liveQps = computed(() => cacheChartHistory.lastLiveQps)
   const liveHitRateText = computed(() => cacheChartHistory.lastHitRateText)
 
@@ -263,13 +262,20 @@ export function useCacheMonitorPage() {
     }
   }
 
-  async function refreshAll() {
-    refreshing.value = true
+  async function refreshAll(showButtonLoading = false) {
+    if (showButtonLoading) {
+      if (refreshing.value) return
+      refreshing.value = true
+    }
     try {
       await Promise.all([loadInfo(), fetchCacheStatsPoint(), loadKeys()])
     } finally {
-      refreshing.value = false
+      if (showButtonLoading) refreshing.value = false
     }
+  }
+
+  function refreshByUser() {
+    return refreshAll(true)
   }
 
   function applyPreset(pattern: string) {
@@ -368,7 +374,7 @@ export function useCacheMonitorPage() {
     if (cacheChartHistory.timeLabels.length) {
       await updateCharts(cacheChartHistory.lastMemoryStats ?? {})
     }
-    await refreshAll()
+    await refreshAll(false)
     window.addEventListener('resize', handleResize)
   })
 
@@ -403,6 +409,7 @@ export function useCacheMonitorPage() {
     filteredKeys,
     keysTableHeight: KEYS_TABLE_HEIGHT,
     refreshAll,
+    refreshByUser,
     applyPreset,
     copyKey,
     loadKeys,

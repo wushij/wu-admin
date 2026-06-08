@@ -1,6 +1,7 @@
 package cn.rbac.server.modules.system.service.job.impl;
 
 import cn.rbac.server.common.pojo.BusinessException;
+import cn.rbac.server.common.pojo.PageParam;
 import cn.rbac.server.common.pojo.PageResult;
 import cn.rbac.server.framework.quartz.util.CronUtils;
 import cn.rbac.server.framework.quartz.util.ScheduleUtils;
@@ -74,6 +75,8 @@ public class SysJobServiceImpl extends ServiceImpl<SysJobMapper, SysJobDO> imple
                 "systemJobTask.purgeReadNotices", "0 15 3 * * ?", "消息中心", "Bell"));
         list.add(template("purge_ticket_recycle", "工单回收站清理", "SYSTEM", "彻底删除回收站中超过 30 天的工单及关联数据",
                 "systemJobTask.purgeTicketRecycleBin", "0 30 3 * * ?", "工单管理", "Tickets"));
+        list.add(template("purge_file_recycle", "文件回收站清理", "SYSTEM", "彻底删除回收站中超过 30 天的文件记录及磁盘文件",
+                "systemJobTask.purgeFileRecycleBin", "0 45 3 * * ?", "文件管理", "Folder"));
         return list;
     }
 
@@ -227,6 +230,40 @@ public class SysJobServiceImpl extends ServiceImpl<SysJobMapper, SysJobDO> imple
             ScheduleUtils.run(scheduler, job);
         } catch (SchedulerException e) {
             throw new IllegalStateException("执行任务失败：" + e.getMessage(), e);
+        }
+    }
+
+    @Override
+    public PageResult<SysJobDO> recyclePage(PageParam pageParam, String jobName, String jobGroup) {
+        Page<SysJobDO> page = new Page<>(pageParam.getPageNo(), pageParam.getPageSize());
+        Page<SysJobDO> deletedPage = (Page<SysJobDO>) baseMapper.selectDeletedPage(page, jobName, jobGroup);
+        return PageResult.of(deletedPage.getRecords(), deletedPage.getTotal());
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void restore(Long id) {
+        int rows = baseMapper.restoreById(id);
+        if (rows == 0) {
+            throw new BusinessException(404, "回收站任务不存在");
+        }
+        SysJobDO job = getById(id);
+        if (job == null) {
+            throw new BusinessException(404, "回收站任务不存在");
+        }
+        try {
+            ScheduleUtils.createScheduleJob(scheduler, job);
+        } catch (SchedulerException e) {
+            throw new IllegalStateException("恢复定时任务失败：" + e.getMessage(), e);
+        }
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void deletePermanent(Long id) {
+        int rows = baseMapper.deletePhysicalById(id);
+        if (rows == 0) {
+            throw new BusinessException(404, "回收站任务不存在");
         }
     }
 }

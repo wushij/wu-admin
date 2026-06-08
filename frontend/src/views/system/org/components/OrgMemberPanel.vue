@@ -31,14 +31,8 @@
             >
               新增子级
             </el-button>
-            <el-button
-              v-if="activeTab === 'dept'"
-              v-permission="'system:dept:delete'"
-              size="small"
-              @click="$emit('open-recycle')"
-            >
-              回收站
-            </el-button>
+            <RecycleCenterLink v-if="activeTab === 'dept'" tab="dept" />
+            <RecycleCenterLink v-else tab="post" />
             <el-button
               v-permission="activeTab === 'dept' ? 'system:dept:delete' : 'system:post:delete'"
               type="danger"
@@ -87,6 +81,7 @@
 
 <script setup lang="ts">
 import { ArrowRight } from '@element-plus/icons-vue'
+import RecycleCenterLink from '@/components/RecycleCenterLink.vue'
 import type { UserVO, UserPageQuery } from '@/api/system/user'
 
 defineProps<{
@@ -103,7 +98,6 @@ defineEmits<{
   'go-user-manage': []
   'edit-node': []
   'add-child': []
-  'open-recycle': []
   'delete-node': []
   'load-users': []
 }>()

@@ -87,6 +87,18 @@ export function deleteAnnounce(id: number) {
   return del(`/system/announce/${id}`)
 }
 
+export function getRecycleAnnouncePage(params: { pageNo: number; pageSize: number; title?: string }) {
+  return get<PageResult<AnnounceVO>>('/system/announce/recycle/page', params)
+}
+
+export function restoreAnnounce(id: number) {
+  return put('/system/announce/restore', null, { params: { id } })
+}
+
+export function deleteAnnouncePermanent(id: number) {
+  return del('/system/announce/delete-permanent', { params: { id } })
+}
+
 export function publishAnnounce(id: number) {
   return post(`/system/announce/${id}/publish`)
 }

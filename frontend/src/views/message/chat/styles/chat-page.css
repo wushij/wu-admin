@@ -280,20 +280,20 @@
   background: #c8c8c8;
 }
 
-.header-actions {
+.chat-page .header-actions {
   display: flex;
   align-items: center;
   gap: 2px;
 }
 
-.header-actions .el-button {
+.chat-page .header-actions .el-button {
   width: 36px;
   height: 36px;
   border-radius: 8px;
   color: #576b95;
 }
 
-.header-actions .el-button:hover {
+.chat-page .header-actions .el-button:hover {
   background: rgba(0, 0, 0, 0.05);
 }
 
@@ -682,7 +682,7 @@
   color: #888;
 }
 
-.group-btns {
+.chat-page .group-btns {
   display: flex;
   justify-content: center;
   align-items: center;
@@ -690,7 +690,7 @@
   gap: 10px;
 }
 
-.group-btns .el-button {
+.chat-page .group-btns .el-button {
   margin: 0;
 }
 
@@ -783,7 +783,7 @@
   color: #303133;
 }
 
-.action-buttons {
+.chat-page .action-buttons {
   display: flex;
   justify-content: center;
   align-items: center;
@@ -791,7 +791,7 @@
   gap: 8px;
 }
 
-.action-buttons .el-button {
+.chat-page .action-buttons .el-button {
   margin: 0;
 }
 

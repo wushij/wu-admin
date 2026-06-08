@@ -3,7 +3,7 @@ import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { ElTree } from 'element-plus'
 import { getUserPage, type UserVO, type UserPageQuery } from '@/api/system/user'
-import type { DeptVO, DeptSaveDTO, DeptRecycleQuery } from '@/api/system/dept'
+import type { DeptVO, DeptSaveDTO } from '@/api/system/dept'
 import type { PostVO, PostSaveDTO } from '@/api/system/post'
 import {
   getDeptTree,
@@ -12,9 +12,6 @@ import {
   updateDept,
   deleteDept,
   moveDept,
-  getRecycleDeptPage,
-  restoreDept,
-  deleteDeptPermanent,
 } from '@/api/system/dept'
 import {
   getPostTree,
@@ -336,42 +333,6 @@ export function useOrgPage() {
     loadUsers()
   }
 
-  const recycleVisible = ref(false)
-  const recycleLoading = ref(false)
-  const recycleList = ref<DeptVO[]>([])
-  const recycleTotal = ref(0)
-  const recycleQuery = reactive<DeptRecycleQuery>({ pageNo: 1, pageSize: 10 })
-
-  function openRecycle() {
-    recycleVisible.value = true
-    loadRecycle()
-  }
-
-  async function loadRecycle() {
-    recycleLoading.value = true
-    try {
-      const res = await getRecycleDeptPage(recycleQuery)
-      recycleList.value = res.data?.list || []
-      recycleTotal.value = Number(res.data?.total) || 0
-    } finally {
-      recycleLoading.value = false
-    }
-  }
-
-  async function handleRestore(row: DeptVO) {
-    await restoreDept(row.id)
-    ElMessage.success('已恢复')
-    loadRecycle()
-    loadTree()
-  }
-
-  async function handlePermanentDelete(row: DeptVO) {
-    await ElMessageBox.confirm('彻底删除后不可恢复，是否继续？', '警告', { type: 'warning' })
-    await deleteDeptPermanent(row.id)
-    ElMessage.success('已删除')
-    loadRecycle()
-  }
-
   onMounted(() => {
     loadTree()
     loadUsers()
@@ -420,15 +381,6 @@ export function useOrgPage() {
     postRules,
     postTreeOptions,
     submitPost,
-    recycleVisible,
-    recycleLoading,
-    recycleList,
-    recycleTotal,
-    recycleQuery,
-    openRecycle,
-    loadRecycle,
     loadUsers,
-    handleRestore,
-    handlePermanentDelete,
   }
 }

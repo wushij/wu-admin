@@ -28,7 +28,10 @@ export function useServerMonitorPage() {
   )
 
   const info = ref<ServerInfo>({})
-  const loading = ref(false)
+  /** 仅手动点「刷新」时用于按钮转圈 */
+  const refreshing = ref(false)
+  /** 仅手动点「刷新」时用于磁盘表格 loading */
+  const tableLoading = ref(false)
 
   const cpuChartRef = ref<HTMLElement | null>(null)
   const memoryChartRef = ref<HTMLElement | null>(null)
@@ -68,12 +71,15 @@ export function useServerMonitorPage() {
     return echartsModule
   }
 
-  async function loadInfo() {
-    loading.value = true
+  async function refreshByUser() {
+    if (refreshing.value) return
+    refreshing.value = true
+    tableLoading.value = true
     try {
       await fetchServerPoint()
     } finally {
-      loading.value = false
+      refreshing.value = false
+      tableLoading.value = false
     }
   }
 
@@ -165,7 +171,7 @@ export function useServerMonitorPage() {
     if (serverChartHistory.timeLabels.length) {
       await updateCharts()
     }
-    await loadInfo()
+    await fetchServerPoint()
     window.addEventListener('resize', handleResize)
   })
 
@@ -179,7 +185,8 @@ export function useServerMonitorPage() {
   return {
     canList,
     info,
-    loading,
+    refreshing,
+    tableLoading,
     autoRefresh: serverAutoRefresh,
     cpuDisplay,
     heapDisplay,
@@ -187,7 +194,7 @@ export function useServerMonitorPage() {
     maxDiskPercent,
     cpuChartRef,
     memoryChartRef,
-    loadInfo,
+    refreshByUser,
     toggleAutoRefresh,
     diskProgressStatus,
   }

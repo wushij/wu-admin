@@ -1,5 +1,7 @@
 package cn.rbac.server.modules.system.service.dict.impl;
 
+import cn.rbac.server.common.pojo.BusinessException;
+import cn.rbac.server.common.pojo.PageParam;
 import cn.rbac.server.common.pojo.PageResult;
 import cn.rbac.server.modules.system.dal.dataobject.dict.DictDataDO;
 import cn.rbac.server.modules.system.dal.dataobject.dict.DictTypeDO;
@@ -92,6 +94,33 @@ public class DictTypeServiceImpl extends ServiceImpl<DictTypeMapper, DictTypeDO>
         removeById(id);
         dictDataMapper.delete(new LambdaQueryWrapper<DictDataDO>()
                 .eq(DictDataDO::getDictType, row.getDictType()));
+        dictCacheService.refreshAll();
+    }
+
+    @Override
+    public PageResult<DictTypeDO> recyclePage(PageParam pageParam, String dictName, String dictType) {
+        Page<DictTypeDO> page = new Page<>(pageParam.getPageNo(), pageParam.getPageSize());
+        Page<DictTypeDO> deletedPage = (Page<DictTypeDO>) baseMapper.selectDeletedPage(page, dictName, dictType);
+        return PageResult.of(deletedPage.getRecords(), deletedPage.getTotal());
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void restore(Long id) {
+        int rows = baseMapper.restoreById(id);
+        if (rows == 0) {
+            throw new BusinessException(404, "回收站字典类型不存在");
+        }
+        dictCacheService.refreshAll();
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void deletePermanent(Long id) {
+        int rows = baseMapper.deletePhysicalById(id);
+        if (rows == 0) {
+            throw new BusinessException(404, "回收站字典类型不存在");
+        }
         dictCacheService.refreshAll();
     }
 

@@ -19,6 +19,7 @@ import org.springframework.util.StringUtils;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -125,7 +126,7 @@ public class CacheMonitorServiceImpl implements CacheMonitorService {
 
     @Override
     public CacheKeysVO scanKeys(String pattern, int limit) {
-        String match = StringUtils.hasText(pattern) ? pattern.trim() : "*";
+        String match = Objects.requireNonNull(StringUtils.hasText(pattern) ? pattern.trim() : "*");
         int cap = Math.min(Math.max(limit, 1), MAX_SCAN_LIMIT);
 
         List<String> keys = new ArrayList<>();
@@ -157,16 +158,17 @@ public class CacheMonitorServiceImpl implements CacheMonitorService {
         if (!StringUtils.hasText(key)) {
             throw new BusinessException(400, "键名不能为空");
         }
-        DataType dataType = stringRedisTemplate.type(key);
+        String cacheKey = Objects.requireNonNull(key.trim());
+        DataType dataType = stringRedisTemplate.type(cacheKey);
         if (dataType == null || DataType.NONE.equals(dataType)) {
             throw new BusinessException(404, "缓存键不存在");
         }
         String type = dataType.code();
-        Long ttl = stringRedisTemplate.getExpire(key);
-        Object value = readValueByType(key, type);
+        Long ttl = stringRedisTemplate.getExpire(cacheKey);
+        Object value = readValueByType(cacheKey, type);
 
         CacheValueVO vo = new CacheValueVO();
-        vo.setKey(key);
+        vo.setKey(cacheKey);
         vo.setType(type);
         vo.setTtl(ttl);
         vo.setValue(value);
@@ -199,7 +201,7 @@ public class CacheMonitorServiceImpl implements CacheMonitorService {
         }
         List<Object> pipelineResults = stringRedisTemplate.executePipelined((RedisCallback<Object>) connection -> {
             for (String key : keys) {
-                byte[] raw = stringRedisTemplate.getStringSerializer().serialize(key);
+                byte[] raw = stringRedisTemplate.getStringSerializer().serialize(Objects.requireNonNull(key));
                 if (raw != null) {
                     connection.keyCommands().type(raw);
                     connection.keyCommands().ttl(raw);
@@ -246,12 +248,13 @@ public class CacheMonitorServiceImpl implements CacheMonitorService {
     }
 
     private Object readValueByType(String key, String type) {
+        String cacheKey = Objects.requireNonNull(key);
         return switch (type) {
-            case "string" -> stringRedisTemplate.opsForValue().get(key);
-            case "list" -> stringRedisTemplate.opsForList().range(key, 0, -1);
-            case "set" -> stringRedisTemplate.opsForSet().members(key);
-            case "zset" -> stringRedisTemplate.opsForZSet().range(key, 0, -1);
-            case "hash" -> stringRedisTemplate.opsForHash().entries(key);
+            case "string" -> stringRedisTemplate.opsForValue().get(cacheKey);
+            case "list" -> stringRedisTemplate.opsForList().range(cacheKey, 0, -1);
+            case "set" -> stringRedisTemplate.opsForSet().members(cacheKey);
+            case "zset" -> stringRedisTemplate.opsForZSet().range(cacheKey, 0, -1);
+            case "hash" -> stringRedisTemplate.opsForHash().entries(cacheKey);
             default -> null;
         };
     }

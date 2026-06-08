@@ -2,10 +2,13 @@
   <el-card class="dict-type-card" shadow="never" v-loading="loading">
     <template #header>
       <div class="card-header">
-        <span>字典类型</span>
-        <el-button v-permission="'system:dict:create'" type="primary" size="small" @click="$emit('add-type')">
-          新增
-        </el-button>
+        <span class="card-title">字典类型</span>
+        <div class="header-actions">
+          <RecycleCenterLink tab="dict" size="small" />
+          <el-button v-permission="'system:dict:create'" type="primary" size="small" @click="$emit('add-type')">
+            新增
+          </el-button>
+        </div>
       </div>
     </template>
     <el-input
@@ -48,6 +51,7 @@
 </template>
 
 <script setup lang="ts">
+import RecycleCenterLink from '@/components/RecycleCenterLink.vue'
 import type { DictTypeVO, DictTypePageQuery } from '@/api/system/dict'
 
 defineProps<{
@@ -78,6 +82,22 @@ defineEmits<{
   justify-content: space-between;
   align-items: center;
   gap: 8px;
+  flex-wrap: nowrap;
+  min-width: 0;
+}
+
+.card-title {
+  flex-shrink: 0;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  margin-left: auto;
 }
 .type-filter {
   margin-bottom: 12px;

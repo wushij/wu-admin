@@ -1,6 +1,8 @@
 package cn.rbac.server.modules.system.api.post;
 
 import cn.rbac.server.common.pojo.CommonResult;
+import cn.rbac.server.common.pojo.PageParam;
+import cn.rbac.server.common.pojo.PageResult;
 import cn.rbac.server.framework.log.annotation.Log;
 import cn.rbac.server.modules.system.dal.dataobject.post.PostDO;
 import cn.rbac.server.modules.system.service.post.PostService;
@@ -74,6 +76,31 @@ public class PostController {
     @Log(title = "岗位管理", businessType = Log.BusinessType.UPDATE)
     public CommonResult<Boolean> move(@PathVariable Long id, @RequestParam Long parentId) {
         postService.move(id, parentId);
+        return CommonResult.success(true);
+    }
+
+    @GetMapping("/recycle/page")
+    @Operation(summary = "岗位回收站分页")
+    @PreAuthorize("@ss.hasPermission('system:post:delete')")
+    public CommonResult<PageResult<PostDO>> recyclePage(PageParam pageParam,
+                                                        @RequestParam(required = false) String postName,
+                                                        @RequestParam(required = false) Integer status) {
+        return CommonResult.success(postService.recyclePage(pageParam, postName, status));
+    }
+
+    @PutMapping("/restore")
+    @Operation(summary = "恢复岗位")
+    @PreAuthorize("@ss.hasPermission('system:post:delete')")
+    public CommonResult<Boolean> restore(@RequestParam Long id) {
+        postService.restore(id);
+        return CommonResult.success(true);
+    }
+
+    @DeleteMapping("/delete-permanent")
+    @Operation(summary = "彻底删除岗位")
+    @PreAuthorize("@ss.hasPermission('system:post:delete')")
+    public CommonResult<Boolean> deletePermanent(@RequestParam Long id) {
+        postService.deletePermanent(id);
         return CommonResult.success(true);
     }
 }

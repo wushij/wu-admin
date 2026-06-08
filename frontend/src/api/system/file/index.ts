@@ -135,6 +135,18 @@ export function deleteFile(id: number) {
   return del(`/system/file/${id}`)
 }
 
+export function getRecycleFilePage(params: { pageNo: number; pageSize: number; originalName?: string }) {
+  return get<PageResult<FileRecord>>('/system/file/recycle/page', params)
+}
+
+export function restoreFile(id: number) {
+  return put('/system/file/restore', null, { params: { id } })
+}
+
+export function deleteFilePermanent(id: number) {
+  return del('/system/file/delete-permanent', { params: { id } })
+}
+
 export function deleteFileBatch(ids: number[]) {
   return del('/system/file/batch', { data: ids })
 }

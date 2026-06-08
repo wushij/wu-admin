@@ -28,7 +28,8 @@
       <div class="card-header">
         <span>用户列表</span>
         <div class="header-actions">
-          <el-button v-permission="'system:user:delete'" @click="$emit('open-recycle')">回收站</el-button>
+          <ListExportButton module="user" :query-params="queryParams" permission="system:user:list" />
+          <RecycleCenterLink tab="user" />
           <el-button type="primary" v-permission="'system:user:create'" @click="$emit('add')">新增用户</el-button>
         </div>
       </div>
@@ -111,6 +112,8 @@
 
 <script setup lang="ts">
 import { Refresh, User, Delete } from '@element-plus/icons-vue'
+import ListExportButton from '@/components/ListExportButton.vue'
+import RecycleCenterLink from '@/components/RecycleCenterLink.vue'
 import type { UserVO, UserPageQuery } from '@/api/system/user'
 
 defineProps<{
@@ -123,7 +126,6 @@ defineProps<{
 defineEmits<{
   query: []
   'reset-query': []
-  'open-recycle': []
   add: []
   load: []
   'status-change': [row: UserVO]

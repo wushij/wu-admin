@@ -28,7 +28,7 @@
         <div class="card-header">
           <span>角色列表</span>
           <div class="header-actions">
-            <el-button v-permission="'system:role:delete'" @click="openRecycleDialog">回收站</el-button>
+            <RecycleCenterLink tab="role" />
             <el-button type="primary" v-permission="'system:role:create'" @click="handleAdd">新增角色</el-button>
           </div>
         </div>
@@ -157,45 +157,6 @@
         <el-button type="primary" @click="submitAssignMenu">确定</el-button>
       </template>
     </el-dialog>
-
-    <el-dialog v-model="recycleVisible" title="角色回收站" width="900px" :lock-scroll="false">
-      <el-table
-        :data="recycleList"
-        v-loading="recycleLoading"
-        border
-        stripe
-        :header-cell-style="{ textAlign: 'center' }"
-        :cell-style="{ textAlign: 'center' }"
-      >
-        <el-table-column prop="id" label="ID" width="80" />
-        <el-table-column prop="name" label="角色名称" width="150" />
-        <el-table-column prop="code" label="角色编码" width="150" />
-        <el-table-column prop="sort" label="排序" width="80" />
-        <el-table-column prop="status" label="状态" width="100">
-          <template #default="{ row }">
-            <DictTag :value="row.status" dict-type="sys_normal_disable" />
-          </template>
-        </el-table-column>
-        <el-table-column prop="updateTime" label="删除时间" width="180" />
-        <el-table-column label="操作" width="170" fixed="right">
-          <template #default="{ row }">
-            <div class="action-buttons">
-              <el-button size="small" type="success" @click="handleRestore(row)">恢复</el-button>
-              <el-button size="small" type="danger" @click="handlePermanentDelete(row)">清除</el-button>
-            </div>
-          </template>
-        </el-table-column>
-      </el-table>
-      <el-pagination
-        v-model:current-page="recycleQuery.pageNo"
-        v-model:page-size="recycleQuery.pageSize"
-        :total="recycleTotal"
-        :page-sizes="[10, 20, 50, 100]"
-        layout="total, sizes, prev, pager, next, jumper"
-        @size-change="getRecycleList"
-        @current-change="getRecycleList"
-      />
-    </el-dialog>
   </div>
 </template>
 
@@ -213,14 +174,11 @@ import {
   type RoleSaveDTO,
   type RoleListQuery,
   getRoleMenuIds,
-  getRecycleRolePage,
-  restoreRole,
-  deleteRolePermanent,
   type RoleVO,
-  type RoleRecycleQuery,
 } from '@/api/system/role'
 import { getMenuList, type MenuVO } from '@/api/system/menu'
 import { buildMenuTree } from '@/utils/menu-tree'
+import RecycleCenterLink from '@/components/RecycleCenterLink.vue'
 
 const loading = ref(false)
 const roleList = ref<RoleVO[]>([])
@@ -232,18 +190,8 @@ const menuTreeRef = ref<InstanceType<typeof ElTree> | null>(null)
 const currentRole = ref<Partial<RoleVO>>({})
 const selectedMenus = ref<number[]>([])
 const menuOptions = ref<MenuVO[]>([])
-const recycleVisible = ref(false)
-const recycleLoading = ref(false)
-const recycleList = ref<RoleVO[]>([])
-const recycleTotal = ref(0)
 
 const queryParams = reactive<RoleListQuery>({
-  name: '',
-  status: null
-})
-const recycleQuery = reactive<RoleRecycleQuery>({
-  pageNo: 1,
-  pageSize: 10,
   name: '',
   status: null
 })
@@ -302,37 +250,6 @@ const handleDelete = async (row: RoleVO) => {
   await deleteRole(row.id)
   ElMessage.success('删除成功')
   getList()
-}
-
-const getRecycleList = async () => {
-  recycleLoading.value = true
-  try {
-    const res = await getRecycleRolePage(recycleQuery)
-    recycleList.value = res.data?.list || []
-    recycleTotal.value = res.data?.total || 0
-  } finally {
-    recycleLoading.value = false
-  }
-}
-
-const openRecycleDialog = async () => {
-  recycleQuery.pageNo = 1
-  recycleVisible.value = true
-  await getRecycleList()
-}
-
-const handleRestore = async (row: RoleVO) => {
-  await restoreRole(row.id)
-  ElMessage.success('恢复成功')
-  await getRecycleList()
-  await getList()
-}
-
-const handlePermanentDelete = async (row: RoleVO) => {
-  await ElMessageBox.confirm('确定彻底删除该角色吗？该操作不可恢复', '提示', { type: 'warning' })
-  await deleteRolePermanent(row.id)
-  ElMessage.success('清除成功')
-  await getRecycleList()
 }
 
 // 状态切换

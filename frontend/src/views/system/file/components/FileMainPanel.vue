@@ -23,6 +23,7 @@
           <el-button :disabled="!selectedIds.length" @click="$emit('open-move')">移动</el-button>
         </div>
         <div class="toolbar-right">
+          <RecycleCenterLink tab="file" />
           <el-input
             :model-value="searchName"
             placeholder="请输入文件名称"
@@ -171,6 +172,7 @@
 <script setup lang="ts">
 import type { CheckboxValueType, UploadRequestOptions } from 'element-plus'
 import { Upload, Search, List, Grid } from '@element-plus/icons-vue'
+import RecycleCenterLink from '@/components/RecycleCenterLink.vue'
 import { fileDisplayUrl, type FileRecord } from '@/api/system/file'
 import {
   formatSize,

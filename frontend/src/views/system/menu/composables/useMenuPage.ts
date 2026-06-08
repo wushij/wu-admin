@@ -6,13 +6,9 @@ import {
   updateMenu,
   deleteMenu,
   updateMenuStatus,
-  getRecycleMenuPage,
-  restoreMenu,
-  deleteMenuPermanent,
   type MenuVO,
   type MenuSaveDTO,
   type MenuListQuery,
-  type MenuRecycleQuery,
 } from '@/api/system/menu'
 import {
   buildParentMenuOptions,
@@ -32,21 +28,10 @@ export function useMenuPage() {
   const tableRef = ref<TableInstance | null>(null)
   const expandAll = ref(false)
 
-  const recycleVisible = ref(false)
-  const recycleLoading = ref(false)
-  const recycleList = ref<MenuVO[]>([])
-  const recycleTotal = ref(0)
-
   const queryParams = reactive<MenuListQuery>({
     name: '',
     status: null,
     type: null,
-  })
-  const recycleQuery = reactive<MenuRecycleQuery>({
-    pageNo: 1,
-    pageSize: 10,
-    name: '',
-    status: null,
   })
 
   const form = reactive<MenuSaveDTO & { isFrame: number }>({
@@ -164,37 +149,6 @@ export function useMenuPage() {
     }
   }
 
-  const openRecycleDialog = async () => {
-    recycleQuery.pageNo = 1
-    recycleVisible.value = true
-    await getRecycleList()
-  }
-
-  const getRecycleList = async () => {
-    recycleLoading.value = true
-    try {
-      const res = await getRecycleMenuPage(recycleQuery)
-      recycleList.value = res.data?.list || []
-      recycleTotal.value = res.data?.total || 0
-    } finally {
-      recycleLoading.value = false
-    }
-  }
-
-  const handleRestore = async (row: MenuVO) => {
-    await restoreMenu(row.id)
-    ElMessage.success('恢复成功')
-    await getRecycleList()
-    await getList()
-  }
-
-  const handlePermanentDelete = async (row: MenuVO) => {
-    await ElMessageBox.confirm('彻底删除后不可恢复，确定继续？', '提示', { type: 'warning' })
-    await deleteMenuPermanent(row.id)
-    ElMessage.success('已清除')
-    await getRecycleList()
-  }
-
   const resetForm = () => {
     form.id = null
     form.parentId = 0
@@ -269,12 +223,7 @@ export function useMenuPage() {
     formRef,
     tableRef,
     expandAll,
-    recycleVisible,
-    recycleLoading,
-    recycleList,
-    recycleTotal,
     queryParams,
-    recycleQuery,
     form,
     rules,
     menuStats,
@@ -288,10 +237,6 @@ export function useMenuPage() {
     fillPermissionPrefix,
     handleDelete,
     handleStatusChange,
-    openRecycleDialog,
-    getRecycleList,
-    handleRestore,
-    handlePermanentDelete,
     submitForm,
   }
 }

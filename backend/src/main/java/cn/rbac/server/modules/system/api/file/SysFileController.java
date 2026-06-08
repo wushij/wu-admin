@@ -2,6 +2,7 @@ package cn.rbac.server.modules.system.api.file;
 
 import cn.rbac.server.framework.log.annotation.Log;
 import cn.rbac.server.common.pojo.CommonResult;
+import cn.rbac.server.common.pojo.PageParam;
 import cn.rbac.server.common.pojo.PageResult;
 import cn.rbac.server.modules.system.dal.dataobject.file.SysFileDO;
 import cn.rbac.server.modules.system.service.config.SystemConfigHelper;
@@ -156,6 +157,31 @@ public class SysFileController {
     @PreAuthorize("@ss.hasPermission('sys:file:upload')")
     public CommonResult<Boolean> rename(@PathVariable Long id, @RequestBody RenameRequest request) {
         fileService.rename(id, request.getNewName());
+        return CommonResult.success(true);
+    }
+
+    @GetMapping("/recycle/page")
+    @PreAuthorize("@ss.hasPermission('sys:file:delete')")
+    @Operation(summary = "文件回收站分页")
+    public CommonResult<PageResult<SysFileDO>> recyclePage(
+            PageParam pageParam,
+            @RequestParam(required = false) String originalName) {
+        return CommonResult.success(fileService.recyclePage(pageParam, originalName));
+    }
+
+    @PutMapping("/restore")
+    @PreAuthorize("@ss.hasPermission('sys:file:delete')")
+    @Operation(summary = "恢复文件")
+    public CommonResult<Boolean> restore(@RequestParam Long id) {
+        fileService.restore(id);
+        return CommonResult.success(true);
+    }
+
+    @DeleteMapping("/delete-permanent")
+    @PreAuthorize("@ss.hasPermission('sys:file:delete')")
+    @Operation(summary = "彻底删除文件")
+    public CommonResult<Boolean> deletePermanent(@RequestParam Long id) {
+        fileService.deletePermanent(id);
         return CommonResult.success(true);
     }
 

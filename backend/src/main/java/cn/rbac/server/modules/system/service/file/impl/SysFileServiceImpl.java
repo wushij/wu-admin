@@ -1,5 +1,7 @@
 package cn.rbac.server.modules.system.service.file.impl;
 
+import cn.rbac.server.common.pojo.BusinessException;
+import cn.rbac.server.common.pojo.PageParam;
 import cn.rbac.server.common.pojo.PageResult;
 import cn.rbac.server.framework.security.core.service.SecurityUtils;
 import cn.rbac.server.framework.storage.FileContentTypes;
@@ -11,6 +13,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,6 +28,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -37,6 +41,9 @@ public class SysFileServiceImpl extends ServiceImpl<SysFileMapper, SysFileDO> im
 
     @Resource
     private LocalFileStorage localFileStorage;
+
+    @Value("${app.job.file-recycle-retention-days:30}")
+    private int fileRecycleRetentionDays;
 
     @Override
     public PageResult<SysFileDO> pageByGroup(Integer pageNo, Integer pageSize, Long groupId, Boolean ungrouped,
@@ -181,11 +188,6 @@ public class SysFileServiceImpl extends ServiceImpl<SysFileMapper, SysFileDO> im
         if (record == null) {
             return;
         }
-        try {
-            localFileStorage.delete(record.getFilePath());
-        } catch (IOException e) {
-            // 仍删除库记录
-        }
         removeById(id);
     }
 
@@ -222,5 +224,60 @@ public class SysFileServiceImpl extends ServiceImpl<SysFileMapper, SysFileDO> im
 
     private String generatePath() {
         return LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy/MM/dd"));
+    }
+
+    @Override
+    public PageResult<SysFileDO> recyclePage(PageParam pageParam, String originalName) {
+        Page<SysFileDO> page = new Page<>(pageParam.getPageNo(), pageParam.getPageSize());
+        Page<SysFileDO> deletedPage = (Page<SysFileDO>) baseMapper.selectDeletedPage(page, originalName);
+        return PageResult.of(deletedPage.getRecords(), deletedPage.getTotal());
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void restore(Long id) {
+        SysFileDO record = baseMapper.selectDeletedById(id);
+        if (record == null) {
+            throw new BusinessException(404, "回收站文件不存在");
+        }
+        Path path = localFileStorage.resolvePath(record.getFilePath());
+        if (!Files.isRegularFile(path)) {
+            throw new BusinessException(400, "磁盘文件已不存在，无法恢复");
+        }
+        int rows = baseMapper.restoreById(id);
+        if (rows == 0) {
+            throw new BusinessException(404, "回收站文件不存在");
+        }
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void deletePermanent(Long id) {
+        SysFileDO record = baseMapper.selectDeletedById(id);
+        if (record == null) {
+            throw new BusinessException(404, "回收站文件不存在");
+        }
+        try {
+            localFileStorage.delete(record.getFilePath());
+        } catch (IOException ignored) {
+            // 磁盘文件可能已不存在，仍清除库记录
+        }
+        int rows = baseMapper.deletePhysicalById(id);
+        if (rows == 0) {
+            throw new BusinessException(404, "回收站文件不存在");
+        }
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void purgeExpiredRecycleBin() {
+        if (fileRecycleRetentionDays <= 0) {
+            return;
+        }
+        LocalDateTime cutoff = LocalDateTime.now().minusDays(fileRecycleRetentionDays);
+        List<Long> ids = baseMapper.selectExpiredRecycleIds(cutoff);
+        for (Long id : ids) {
+            deletePermanent(id);
+        }
     }
 }

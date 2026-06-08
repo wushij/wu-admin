@@ -12,7 +12,6 @@
           :total="total"
           @query="handleQuery"
           @reset-query="resetQuery"
-          @open-recycle="openRecycleDialog"
           @add="handleAdd"
           @load="getList"
           @status-change="handleStatusChange"
@@ -48,16 +47,6 @@
       @submit="submitResetPwd"
     />
 
-    <UserRecycleDialog
-      v-model:visible="recycleVisible"
-      :list="recycleList"
-      :loading="recycleLoading"
-      :total="recycleTotal"
-      :query="recycleQuery"
-      @load="getRecycleList"
-      @restore="handleRestore"
-      @permanent-delete="handlePermanentDelete"
-    />
   </div>
 </template>
 
@@ -68,7 +57,6 @@ import UserMainPanel from './UserMainPanel.vue'
 import UserFormDialog from './UserFormDialog.vue'
 import UserRoleDialog from './UserRoleDialog.vue'
 import UserResetPwdDialog from './UserResetPwdDialog.vue'
-import UserRecycleDialog from './UserRecycleDialog.vue'
 import { useUserPage } from '../composables/useUserPage'
 
 const deptTreeComponentRef = ref<InstanceType<typeof UserDeptTree> | null>(null)
@@ -90,14 +78,9 @@ const {
   deptOptions,
   deptSelectOptions,
   postOptions,
-  recycleVisible,
-  recycleLoading,
-  recycleList,
-  recycleTotal,
   queryParams,
   form,
   resetPwdForm,
-  recycleQuery,
   rules,
   getList,
   handleDeptClick,
@@ -108,10 +91,6 @@ const {
   submitResetPwd,
   handleAdd,
   handleEdit,
-  openRecycleDialog,
-  getRecycleList,
-  handleRestore,
-  handlePermanentDelete,
   submitAssignRole,
   submitForm,
 } = useUserPage()

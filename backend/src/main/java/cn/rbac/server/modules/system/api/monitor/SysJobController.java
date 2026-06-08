@@ -1,6 +1,7 @@
 package cn.rbac.server.modules.system.api.monitor;
 
 import cn.rbac.server.common.pojo.CommonResult;
+import cn.rbac.server.common.pojo.PageParam;
 import cn.rbac.server.common.pojo.PageResult;
 import cn.rbac.server.framework.log.annotation.Log;
 import cn.rbac.server.modules.system.api.monitor.vo.JobTemplateVO;
@@ -138,6 +139,34 @@ public class SysJobController {
     @Operation(summary = "清空调度日志")
     public CommonResult<Boolean> cleanLog() {
         jobLogService.clean();
+        return CommonResult.success(true);
+    }
+
+    @GetMapping("/recycle/page")
+    @PreAuthorize("@ss.hasPermission('monitor:job:delete')")
+    @Operation(summary = "定时任务回收站分页")
+    public CommonResult<PageResult<SysJobDO>> recyclePage(
+            PageParam pageParam,
+            @RequestParam(required = false) String jobName,
+            @RequestParam(required = false) String jobGroup) {
+        return CommonResult.success(jobService.recyclePage(pageParam, jobName, jobGroup));
+    }
+
+    @PutMapping("/restore")
+    @PreAuthorize("@ss.hasPermission('monitor:job:delete')")
+    @Log(title = "定时任务", businessType = Log.BusinessType.UPDATE)
+    @Operation(summary = "恢复定时任务")
+    public CommonResult<Boolean> restore(@RequestParam Long id) {
+        jobService.restore(id);
+        return CommonResult.success(true);
+    }
+
+    @DeleteMapping("/delete-permanent")
+    @PreAuthorize("@ss.hasPermission('monitor:job:delete')")
+    @Log(title = "定时任务", businessType = Log.BusinessType.DELETE)
+    @Operation(summary = "彻底删除定时任务")
+    public CommonResult<Boolean> deletePermanent(@RequestParam Long id) {
+        jobService.deletePermanent(id);
         return CommonResult.success(true);
     }
 

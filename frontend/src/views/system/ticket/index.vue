@@ -35,7 +35,8 @@
         <div class="card-header">
           <span>工单列表</span>
           <div class="header-actions">
-            <el-button v-permission="'system:ticket:delete'" @click="openRecycleDialog">回收站</el-button>
+            <ListExportButton module="ticket" :query-params="queryParams" permission="system:ticket:list" />
+            <RecycleCenterLink tab="ticket" />
             <el-button type="primary" v-permission="'system:ticket:create'" @click="handleCreate">新建工单</el-button>
           </div>
         </div>
@@ -135,43 +136,6 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="recycleVisible" title="工单回收站" width="920px" :lock-scroll="false">
-      <el-table :data="recycleList" border stripe v-loading="recycleLoading" :header-cell-style="{ textAlign: 'center' }" :cell-style="{ textAlign: 'center' }">
-        <el-table-column prop="ticketNo" label="编号" width="190" />
-        <el-table-column prop="title" label="标题" min-width="180" />
-        <el-table-column prop="priority" label="优先级" width="100">
-          <template #default="{ row }">
-            <DictTag :value="row.priority" :dict-type="DICT_TYPE.TICKET_PRIORITY" />
-          </template>
-        </el-table-column>
-        <el-table-column prop="status" label="状态" width="120">
-          <template #default="{ row }">
-            <DictTag :value="row.status" :dict-type="DICT_TYPE.TICKET_STATUS" />
-          </template>
-        </el-table-column>
-        <el-table-column prop="creatorName" label="创建人" width="110" />
-        <el-table-column prop="assigneeName" label="处理人" width="110" />
-        <el-table-column prop="updateTime" label="删除时间" width="180" />
-        <el-table-column label="操作" width="180" fixed="right">
-          <template #default="{ row }">
-            <div class="action-cell">
-              <el-button size="small" type="success" @click="handleRestore(row)">恢复</el-button>
-              <el-button size="small" type="danger" @click="handleDeletePermanent(row)">彻底删除</el-button>
-            </div>
-          </template>
-        </el-table-column>
-      </el-table>
-      <el-pagination
-        v-model:current-page="recycleQuery.pageNo"
-        v-model:page-size="recycleQuery.pageSize"
-        :total="recycleTotal"
-        :page-sizes="[10, 20, 50, 100]"
-        layout="total, sizes, prev, pager, next, jumper"
-        @size-change="getRecycleList"
-        @current-change="getRecycleList"
-      />
-    </el-dialog>
-
     <el-drawer v-model="detailVisible" title="工单详情" size="45%" :lock-scroll="false">
       <el-descriptions :column="1" border v-if="currentTicket.id">
         <el-descriptions-item label="编号">{{ currentTicket.ticketNo }}</el-descriptions-item>
@@ -217,14 +181,11 @@ import {
   createTicket,
   createTicketComment,
   deleteTicket,
-  deleteTicketPermanent,
   getTicket,
   getTicketAssigneeOptions,
   getTicketAttachments,
   getTicketComments,
   getTicketPage,
-  getRecycleTicketPage,
-  restoreTicket,
   transitionTicket,
   uploadTicketAttachment,
   updateTicket,
@@ -235,10 +196,12 @@ import {
   type TicketSaveDTO,
   type TicketPageQuery,
 } from '@/api/system/ticket'
-import type { RecyclePageQuery, MenuTreeNode } from '@/types/api'
+import type { MenuTreeNode } from '@/types/api'
 import type { UploadFile } from 'element-plus'
 import DictSelect from '@/components/DictSelect.vue'
 import DictTag from '@/components/DictTag.vue'
+import ListExportButton from '@/components/ListExportButton.vue'
+import RecycleCenterLink from '@/components/RecycleCenterLink.vue'
 import { DICT_TYPE } from '@/constants/dict'
 import { useDict, getDictDefaultValue, preloadDicts } from '@/composables/useDict'
 
@@ -252,10 +215,6 @@ const ticketList = ref<TicketVO[]>([])
 const tableRef = ref<TableInstance | null>(null)
 const userOptions = ref<AssigneeOptionVO[]>([])
 const formVisible = ref(false)
-const recycleVisible = ref(false)
-const recycleLoading = ref(false)
-const recycleList = ref<TicketVO[]>([])
-const recycleTotal = ref(0)
 const detailVisible = ref(false)
 const formRef = ref<FormInstance | null>(null)
 const comments = ref<TicketCommentVO[]>([])
@@ -278,11 +237,6 @@ const form = reactive<TicketSaveDTO>({
   priority: 'MEDIUM',
   assigneeUserId: null,
   deadline: null,
-})
-
-const recycleQuery = reactive<RecyclePageQuery>({
-  pageNo: 1,
-  pageSize: 10
 })
 
 const rules = {
@@ -358,23 +312,6 @@ const handleCreate = async () => {
   formVisible.value = true
 }
 
-const getRecycleList = async () => {
-  recycleLoading.value = true
-  try {
-    const res = await getRecycleTicketPage(recycleQuery)
-    recycleList.value = res.data.list || []
-    recycleTotal.value = res.data.total || 0
-  } finally {
-    recycleLoading.value = false
-  }
-}
-
-const openRecycleDialog = () => {
-  recycleVisible.value = true
-  recycleQuery.pageNo = 1
-  getRecycleList()
-}
-
 const openTicketDetailById = async (ticketId: number) => {
   if (!ticketId) return
   const detailRes = await getTicket(ticketId)
@@ -447,23 +384,6 @@ const handleDelete = async (row: TicketVO) => {
     queryParams.pageNo = pageNo - 1
   }
   getList()
-}
-
-const handleRestore = async (row: TicketVO) => {
-  await restoreTicket(row.id)
-  ElMessage.success('恢复成功')
-  getRecycleList()
-  getList()
-}
-
-const handleDeletePermanent = async (row: TicketVO) => {
-  await ElMessageBox.confirm(`确定彻底删除工单【${row.ticketNo}】吗？该操作不可恢复。`, '警告', { type: 'warning' })
-  await deleteTicketPermanent(row.id)
-  ElMessage.success('已彻底删除')
-  if (recycleQuery.pageNo > 1 && recycleList.value.length === 1) {
-    recycleQuery.pageNo -= 1
-  }
-  getRecycleList()
 }
 
 const submitForm = async () => {

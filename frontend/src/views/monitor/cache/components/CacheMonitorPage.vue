@@ -22,8 +22,17 @@
                 inactive-text="暂停"
                 @change="toggleAutoRefresh"
               />
-              <el-button type="primary" size="small" :loading="refreshing" @click="refreshAll">
-                刷新
+              <el-button
+                type="primary"
+                size="small"
+                class="monitor-refresh-btn"
+                :class="{ 'is-refreshing': refreshing }"
+                @click="refreshByUser"
+              >
+                <span class="monitor-refresh-label-wrap">
+                  <el-icon v-if="refreshing" class="is-loading monitor-refresh-spinner"><Loading /></el-icon>
+                  刷新
+                </span>
               </el-button>
             </div>
           </div>
@@ -199,6 +208,7 @@
 </template>
 
 <script setup lang="ts">
+import { Loading } from '@element-plus/icons-vue'
 import { useCacheMonitorPage } from '../composables/useCacheMonitorPage'
 
 const {
@@ -225,7 +235,7 @@ const {
   pagination,
   filteredKeys,
   keysTableHeight,
-  refreshAll,
+  refreshByUser,
   applyPreset,
   copyKey,
   loadKeys,
@@ -255,10 +265,38 @@ const {
     font-weight: 600;
   }
 
-  .header-actions {
-    display: flex;
-    align-items: center;
-    gap: 12px;
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-shrink: 0;
+
+      :deep(.el-switch) {
+        min-width: 56px;
+      }
+
+      .monitor-refresh-btn {
+      min-width: 80px;
+
+      :deep(.monitor-refresh-label-wrap) {
+        position: relative;
+        display: inline-block;
+        line-height: 1;
+      }
+
+      :deep(.monitor-refresh-spinner) {
+        position: absolute;
+        right: calc(100% + 3px);
+        top: 0;
+        bottom: 0;
+        height: 14px;
+        margin: auto 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+      }
+    }
   }
 
   .charts-row {

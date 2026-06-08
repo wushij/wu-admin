@@ -596,10 +596,13 @@ CREATE TABLE sys_file (
     remark VARCHAR(500) DEFAULT '' COMMENT '备注',
     create_by VARCHAR(64) DEFAULT '' COMMENT '创建者',
     create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    deleted TINYINT NOT NULL DEFAULT 0 COMMENT '是否删除',
     PRIMARY KEY (id),
     INDEX idx_group_id (group_id),
     INDEX idx_create_time (create_time),
-    INDEX idx_group_time (group_id, create_time)
+    INDEX idx_group_time (group_id, create_time),
+    INDEX idx_deleted_update (deleted, update_time)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='文件记录表';
 
 DROP TABLE IF EXISTS sys_file_group;
@@ -776,6 +779,7 @@ INSERT INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, c
 -- 字典管理
 (130, '字典管理', 'system:dict:list', 2, 5, 1, '/system/dict', 'Collection', 'system/dict/index', 1),
 (160, '系统配置', 'system:config:list', 2, 6, 1, '/system/config', 'Tools', 'system/config/index', 1),
+(163, '回收中心', 'system:recycle:list', 2, 7, 1, '/system/recycle', 'Delete', 'system/recycle/index', 1),
 -- 流程中心目录（审批 + 工单）
 (8, '流程中心', '', 1, 7, 0, '/workflow', 'Operation', '', 1),
 -- 审批单中心
@@ -895,7 +899,7 @@ INSERT INTO sys_user_role (user_id, role_id) VALUES
 
 -- 超级管理员 ↔ 全部菜单
 INSERT INTO sys_role_menu (role_id, menu_id) VALUES
-(1, 1), (1, 2), (1, 3), (1, 4), (1, 5), (1, 130), (1, 160), (1, 7), (1, 8), (1, 9),
+(1, 1), (1, 2), (1, 3), (1, 4), (1, 5), (1, 130), (1, 160), (1, 163), (1, 7), (1, 8), (1, 9),
 (1, 6), (1, 120), (1, 121), (1, 126), (1, 127), (1, 128),
 (1, 10), (1, 11), (1, 12), (1, 13),
 (1, 20), (1, 21), (1, 22), (1, 23),
@@ -1008,11 +1012,12 @@ WHERE group_code = 'thirdParty'
 -- [附录·菜单] 系统配置页 160-162（INSERT IGNORE；强制同步见 sp_wu_admin_sync_builtin_menus）
 INSERT IGNORE INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, component, status) VALUES
 (160, '系统配置', 'system:config:list', 2, 6, 1, '/system/config', 'Tools', 'system/config/index', 1),
+(163, '回收中心', 'system:recycle:list', 2, 7, 1, '/system/recycle', 'Delete', 'system/recycle/index', 1),
 (161, '配置查询', 'system:config:query', 3, 1, 160, '', '', '', 1),
 (162, '配置修改', 'system:config:update', 3, 2, 160, '', '', '', 1);
 
 INSERT IGNORE INTO sys_role_menu (role_id, menu_id) VALUES
-(1, 160), (1, 161), (1, 162);
+(1, 160), (1, 161), (1, 162), (1, 163);
 
 -- [附录·菜单] 图标修正
 UPDATE sys_menu SET icon = 'UserFilled' WHERE id = 3 AND icon IN ('Key', 'key');
@@ -1370,6 +1375,7 @@ BEGIN
     ELSE
         INSERT INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, component, status) VALUES
         (160, '系统配置', 'system:config:list', 2, 6, 1, '/system/config', 'Tools', 'system/config/index', 1),
+        (163, '回收中心', 'system:recycle:list', 2, 7, 1, '/system/recycle', 'Delete', 'system/recycle/index', 1),
         (161, '配置查询', 'system:config:query', 3, 1, 160, '', '', '', 1),
         (162, '配置修改', 'system:config:update', 3, 2, 160, '', '', '', 1),
         (126, '操作日志查询', 'system:operLog:query', 3, 1, 121, '', '', '', 1),

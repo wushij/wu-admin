@@ -1,5 +1,6 @@
 package cn.rbac.server.modules.system.service.file;
 
+import cn.rbac.server.common.pojo.PageParam;
 import cn.rbac.server.common.pojo.PageResult;
 import cn.rbac.server.modules.system.dal.dataobject.file.SysFileDO;
 import com.baomidou.mybatisplus.extension.service.IService;
@@ -35,4 +36,12 @@ public interface SysFileService extends IService<SysFileDO> {
 
     /** 分组侧栏数量（与文件列表相同的分类、排除聊天目录） */
     long countForGroupSidebar(Long groupId, Boolean ungrouped, String fileCategory);
+
+    PageResult<SysFileDO> recyclePage(PageParam pageParam, String originalName);
+
+    void restore(Long id);
+
+    void deletePermanent(Long id);
+
+    void purgeExpiredRecycleBin();
 }

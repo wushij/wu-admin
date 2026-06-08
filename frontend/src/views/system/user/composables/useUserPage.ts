@@ -11,13 +11,9 @@ import {
   updateUserStatus,
   resetUserPassword,
   getUserRoleIds,
-  getRecycleUserPage,
-  restoreUser,
-  deleteUserPermanent,
   type UserVO,
   type UserSaveDTO,
   type UserPageQuery,
-  type UserRecycleQuery,
 } from '@/api/system/user'
 import { getRoleList, type RoleVO } from '@/api/system/role'
 import { getDeptTree, type DeptVO } from '@/api/system/dept'
@@ -41,10 +37,6 @@ export function useUserPage() {
   const deptOptions = ref<DeptVO[]>([])
   const deptSelectOptions = ref<DeptVO[]>([])
   const postOptions = ref<PostVO[]>([])
-  const recycleVisible = ref(false)
-  const recycleLoading = ref(false)
-  const recycleList = ref<UserVO[]>([])
-  const recycleTotal = ref(0)
 
   const queryParams = reactive<UserPageQuery>({
     pageNo: 1,
@@ -73,15 +65,6 @@ export function useUserPage() {
     id: null,
     username: '',
     password: '',
-  })
-
-  const recycleQuery = reactive<UserRecycleQuery>({
-    pageNo: 1,
-    pageSize: 10,
-    username: '',
-    mobile: '',
-    status: null,
-    deptId: null,
   })
 
   const rules = {
@@ -207,37 +190,6 @@ export function useUserPage() {
     getList()
   }
 
-  const getRecycleList = async () => {
-    recycleLoading.value = true
-    try {
-      const res = await getRecycleUserPage(recycleQuery)
-      recycleList.value = res.data?.list || []
-      recycleTotal.value = res.data?.total || 0
-    } finally {
-      recycleLoading.value = false
-    }
-  }
-
-  const openRecycleDialog = async () => {
-    recycleQuery.pageNo = 1
-    recycleVisible.value = true
-    await getRecycleList()
-  }
-
-  const handleRestore = async (row: UserVO) => {
-    await restoreUser(row.id)
-    ElMessage.success('恢复成功')
-    await getRecycleList()
-    await getList()
-  }
-
-  const handlePermanentDelete = async (row: UserVO) => {
-    await ElMessageBox.confirm('确定彻底删除该用户吗？该操作不可恢复', '提示', { type: 'warning' })
-    await deleteUserPermanent(row.id)
-    ElMessage.success('清除成功')
-    await getRecycleList()
-  }
-
   const handleAssignRole = async (row: UserVO) => {
     currentUser.value = row
     const res = await getUserRoleIds(row.id)
@@ -331,14 +283,9 @@ export function useUserPage() {
     deptOptions,
     deptSelectOptions,
     postOptions,
-    recycleVisible,
-    recycleLoading,
-    recycleList,
-    recycleTotal,
     queryParams,
     form,
     resetPwdForm,
-    recycleQuery,
     rules,
     getList,
     handleDeptClick,
@@ -349,10 +296,6 @@ export function useUserPage() {
     submitResetPwd,
     handleAdd,
     handleEdit,
-    openRecycleDialog,
-    getRecycleList,
-    handleRestore,
-    handlePermanentDelete,
     submitAssignRole,
     submitForm,
   }

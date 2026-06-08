@@ -10,11 +10,12 @@
 |------|------|
 | **工作台** | 首页统计（用户/角色/部门/文件等）、待办提醒（待审用户、工单、审批）、12 项快捷入口、最近登录；`/dashboard/*` |
 | **系统管理** | 用户、角色、菜单、组织、字典（含**类型复制**）、**系统配置**；用户列表默认仅展示**已入库**用户（启用/停用）；待审核/驳回在审批单中心处理 |
-| **组织管理** | 部门 + 岗位；左树右表、拖拽调整、岗位成员、部门回收站 |
+| **组织管理** | 部门 + 岗位；左树右表、拖拽调整、岗位成员；软删数据在 **回收中心** 统一恢复 |
 | **菜单管理** | 树形表格；目录/菜单/按钮联动；图标选择器；外链新窗口 / iframe 内嵌 |
 | **系统配置** | 十分组 Tab：基础信息、会话、文件、限流、登录/注册认证、**第三方配置**、**支付配置**、**短信配置**、安全配置；支付支持**测试订单**与异步回调；短信支持**测试发送**与发送记录 |
 | **个人中心** | 顶栏入口 `/profile`：资料编辑、头像上传、**短信验证绑定/更换手机号**（发码前强制滑块）、自助改密、**短信验证重置密码**（忘记当前密码时）、我的登录记录 |
-| **回收站** | 用户、角色、菜单、部门、工单、审批单逻辑删除，支持恢复与彻底删除 |
+| **回收中心** | **系统管理 → 回收中心**（`/system/recycle`）：12 类软删数据统一汇总、分页、恢复与彻底删除（见下文） |
+| **列表导出** | 用户、登录/操作日志、工单、审批、API 访问、在线用户等列表支持 **Excel / CSV** 导出（当前筛选 / 全部） |
 | **开发工具** | 内嵌 Knife4j 接口文档（`doc.html`） |
 | **系统日志** | 操作日志（AOP，含详情）；登录日志（**ip2region IP 归属地**、浏览器解析） |
 | **系统监控** | API 访问统计（ECharts 图表 + 日志列表）、在线用户与强退、**定时任务**（Quartz 调度、内置清理任务，默认暂停）、**缓存监控**（Redis 内存/QPS/命中率/连接数趋势 + SCAN 键管理与详情）、**服务监控**（本机 JMX：CPU/内存/JVM/磁盘） |
@@ -62,6 +63,86 @@
 
 > 统计缓存默认 2 分钟延迟，适合首页/大屏场景；若需更实时可调整 `DashboardServiceImpl` 中的 `STATS_CACHE_MINUTES`。
 
+#### 编译与静态检查修复（2026.06）
+
+在不改变业务行为的前提下，修复 IDE / 编译器报错与警告：
+
+| 文件 | 问题 | 处理 |
+|------|------|------|
+| `SysFileServiceImpl` | `Files.isRegularFile` 不抛 `IOException`，`catch` 不可达 | 去掉多余 try-catch；`SysFileDO.updateTime` 增加 `@TableField` 自动填充，软删时正确更新删除时间 |
+| `DataExportController` | 未使用的 `DateTimeFormat`、`LocalDateTime` import | 删除无用 import |
+| `ListExportService` | `selectBatchIds` 已废弃 | 改为 `selectByIds` |
+| `CacheMonitorServiceImpl` | Redis API 空值类型安全警告 | 校验后用 `Objects.requireNonNull` 再传参 |
+| `ServerMonitorServiceImpl` | 多余的 `@SuppressWarnings("removal")` | 仅在调用 `getSystemCpuLoad()` 的回退方法保留 `@SuppressWarnings("deprecation")` |
+| `SysJobServiceImpl` | 缺少 `PageParam` import 导致启动失败 | 补全 import |
+
+### 回收中心与列表导出（2026.06）
+
+各业务模块删除改为**逻辑删除**后，原分散在各列表页的回收 Dialog / Drawer 已移除，统一由 **系统管理 → 回收中心** 管理。
+
+#### 回收中心
+
+| 项 | 说明 |
+|------|------|
+| **路由** | `/system/recycle` |
+| **菜单** | id=**163**，权限 `system:recycle:list`（进入页）；恢复/彻底删除复用各模块 `*:delete` 权限 |
+| **汇总 API** | `GET /api/system/recycle/summary` — 12 类软删数量角标 |
+| **前端** | `frontend/src/views/system/recycle/`（`recycle-config.ts` 驱动 Tab + 表格）；各业务列表页保留 **回收中心** 快捷入口 |
+
+**支持的 12 类**
+
+| Tab | 权限（列表） | 特殊说明 |
+|-----|--------------|----------|
+| 用户 | `system:user:list` | — |
+| 角色 | `system:role:list` | — |
+| 菜单 | `system:menu:list` | — |
+| 部门 | `system:dept:list` | — |
+| 岗位 | `system:post:list` | — |
+| 工单 | `system:ticket:list` | — |
+| 审批 | `system:approval:list` | — |
+| 字典类型 | `system:dict:list` | 恢复类型**不会**自动还原已级联删除的字典数据 |
+| 字典数据 | `system:dict:list` | 恢复/清除后自动 `dictCacheService.refreshAll()` |
+| 系统通知 | `system:announce:list` | 软删；彻底删除级联 `user_announce`、`send_log` |
+| 定时任务 | `monitor:job:list` | 恢复时重新注册 Quartz 调度 |
+| 文件 | `sys:file:list` | 软删不删磁盘；恢复前校验磁盘文件存在；超 **30 天** 可由内置任务 `purgeFileRecycleBin` 自动清盘 |
+
+各类型分页/恢复/彻底删除 API 仍挂在原模块路径下，例如：`GET /api/system/user/recycle/page`、`PUT .../restore/{id}`、`DELETE .../permanent/{id}`（以各 Controller 为准）。
+
+**数据库增量（必跑）**
+
+| 脚本 | 环境 | 内容 |
+|------|------|------|
+| `sql/add10.sql` | 本地 `wu-admin` | 回收中心菜单 id=163 + `sys_file` 的 `update_time`、`deleted`、索引 `idx_deleted_update` |
+| `sql/add10_wuadmin.sql` | 生产 `wuadmin` | 同上 |
+| `sql/add11.sql` / `add11_wuadmin.sql` | — | **已合并至 add10**，执行时仅输出 SKIP 提示 |
+
+```bash
+# 本地
+mysql -u root -p wu-admin < sql/add10.sql
+# 生产
+mysql -u wuadmin -p wuadmin < sql/add10_wuadmin.sql
+```
+
+执行后 **重新登录** 刷新侧栏。`add10` 先加 `update_time` 再加 `deleted`（`AFTER update_time`），可重复执行。
+
+配置项：`application.yml` → `app.job.file-recycle-retention-days: 30`（文件回收站保留天数）。
+
+#### 列表导出
+
+后端 **EasyExcel** + `ListExportService`；前端统一组件 `ListExportButton.vue`（`format=xlsx|csv`，`scope=filtered|all`）。
+
+| 页面 | 接口 | 权限 |
+|------|------|------|
+| 用户管理 | `GET /api/system/export/user` | `system:user:list` |
+| 登录日志 | `GET /api/system/export/login-log` | `system:loginLog:query` |
+| 操作日志 | `GET /api/system/export/oper-log` | `system:operLog:query` |
+| 工单 | `GET /api/system/export/ticket` | `system:ticket:list` |
+| 审批单 | `GET /api/system/export/approval` | `system:approval:list` |
+| API 访问 | `GET /api/monitor/api-access/export` | `monitor:apiAccess:query` |
+| 在线用户 | `GET /api/monitor/online/export` | `monitor:online:list` |
+
+导出写操作日志（`@Log` businessType=EXPORT）；`scope=filtered` 与列表当前筛选一致，`all` 在权限范围内导出全量（受 `PageParam` 上限约束）。
+
 #### 前端：页面组件化拆分
 
 采用统一约定：**路由入口 `index.vue`（薄包装）→ `*Page.vue`（页面骨架）+ `composables/use*Page.ts`（状态与业务）+ `components/`（展示子组件）**。
@@ -72,7 +153,7 @@
 | 布局壳层 | `/`（layout） | `LayoutPage.vue` + `useLayoutMenu` / `useLayoutMessages` / `useLayoutTheme` 等 |
 | 工作台 | `/dashboard` | `WelcomeBanner`、`CoreStatsRow` 等 + `useDashboardData` |
 | 个人中心 | `/profile` | `ProfileHero`、`BasicInfoForm`、`SecuritySettings` + `useProfileInfo` / `useProfileSecurity` |
-| 系统管理 | `/system/user` · `dict` · `file` · `menu` · `org` · `config` | 各 `*Page.vue` + 对应 `use*Page.ts` 与 Tab/Dialog 子组件 |
+| 系统管理 | `/system/user` · `dict` · `file` · `menu` · `org` · `config` · **`recycle`** | 各 `*Page.vue` + 对应 `use*Page.ts` 与 Tab/Dialog 子组件；回收中心见 `recycle/recycle-config.ts` |
 | 系统监控 | `/monitor/job` · `/monitor/cache` · `/monitor/server` | `JobPage.vue` + `useJobPage.ts`；`CacheMonitorPage.vue` + `cacheMonitorChart.ts` + `useCacheMonitorPage.ts`；`ServerMonitorPage.vue` + `serverMonitorChart.ts` + `useServerMonitorPage.ts` |
 | 企业IM | `/message/chat` | `ChatPage.vue` + `useChatPage.ts` / `useChatRender` / `useMention` |
 
@@ -471,7 +552,7 @@ frontend/src/
 |------|------|------|
 | **全新安装（空库）** | `sql/admin_platform.sql` | `mysql -u root -p < sql/admin_platform.sql`（空库自动放行） |
 | **极旧库首次升级** | `admin_platform.sql` **附录段**（约 910 行起） | 补全缺表/菜单/索引，可重复执行 |
-| **发版增量** | **`sql/add1.sql`** … **`add9.sql`** | 见下表；生产合并见 **`add6_7_wuadmin.sql`**（含 add9） |
+| **发版增量** | **`sql/add1.sql`** … **`add10.sql`** | 见下表；`add11` 已合并进 `add10`；生产合并见 **`add6_7_wuadmin.sql`**（含 add9） |
 
 > 切勿对生产库直接跑 `admin_platform.sql` 全文（Part A 含 DROP，默认会被熔断拦截）。
 
@@ -493,7 +574,7 @@ frontend/src/
 ### 组织管理（`/system/org`）
 
 - Tab：**部门体系 | 岗位体系**
-- 部门：树形、`ancestors`、拖拽、回收站；左侧树**默认折叠**（隐藏唯一根节点后直接展示下级）
+- 部门：树形、`ancestors`、拖拽；软删部门在 **回收中心** 恢复；左侧树**默认折叠**（隐藏唯一根节点后直接展示下级）
 - 岗位：`sys_user_post` 关联、组织内成员；岗位树**默认展开至第 2 级**
 
 ### 菜单管理（`/system/menu`）
@@ -576,7 +657,7 @@ wu-admin/
 │   │   ├── views/              # 页面模块（按功能分子目录）
 │   │   │   ├── login/、register/、layout/、dashboard/、profile/
 │   │   │   ├── auth/components/    # 登录注册共享（AuthSplitLayout、AuthCaptchaField 等）
-│   │   │   ├── system/{user,dict,file,menu,org,config}/  # 各含 index、*Page、composables、components
+│   │   │   ├── system/{user,dict,file,menu,org,config,recycle}/  # 各含 index、*Page、composables、components
 │   │   │   ├── monitor/job/、monitor/cache/、monitor/server/、message/chat/
 │   │   │   └── …               # approval、ticket、role 等待拆分页面
 │   │   ├── composables/        # 跨页面复用（useDict、useMonitorBackground 等）
@@ -599,8 +680,12 @@ wu-admin/
 │   ├── add7.sql                # 增量补丁 #7（缓存监控菜单）
 │   ├── add8.sql                # 增量补丁 #8（服务监控菜单）
 │   ├── add9.sql                # 增量补丁 #9（群成员 notify_muted、announcement_read_time）
+│   ├── add10.sql               # 增量补丁 #10（回收中心菜单 + sys_file 软删字段）
+│   ├── add11.sql               # 已合并至 add10（SKIP 提示）
 │   ├── add6_7_wuadmin.sql      # 生产合并补丁 add6+7+8+9（库名 wuadmin）
 │   ├── add9_wuadmin.sql        # 生产仅 add9 字段（库名 wuadmin）
+│   ├── add10_wuadmin.sql       # 生产 add10（回收中心 + 文件软删）
+│   ├── add11_wuadmin.sql       # 已合并至 add10_wuadmin（SKIP 提示）
 │   └── disable_devtool_off.sql # 临时关闭「禁止前端调试」（MySQL 5.6 兼容）
 ├── data/                       # 本地上传目录（git 忽略，对应 file.storage.local-path）
 └── README.md
@@ -681,9 +766,12 @@ mysql -u root -p wu-admin < sql/add6.sql
 mysql -u root -p wu-admin < sql/add7.sql
 mysql -u root -p wu-admin < sql/add8.sql
 mysql -u root -p wu-admin < sql/add9.sql
+mysql -u root -p wu-admin < sql/add10.sql
 
 # 生产服务器（库名 wuadmin；合并 add6+7+8+9，含流程中心/缓存/服务监控/群公告免打扰）
 mysql -u wuadmin -p wuadmin < sql/add6_7_wuadmin.sql
+# 回收中心 + 文件软删（add10；add11 已合并，勿单独执行）
+mysql -u wuadmin -p wuadmin < sql/add10_wuadmin.sql
 
 # 极旧库首次补全（缺表/菜单时，执行 admin_platform.sql 附录段，约 910 行起）
 ```
@@ -777,19 +865,21 @@ npm run dev
 | `/api/monitor/**` | API 访问、在线用户、**定时任务**、**Redis 缓存监控**（`/monitor/cache/*`）、**服务监控**（`/monitor/server/info`） |
 | `/api/dashboard/**` | 工作台统计（含配置摘要、待审核用户数）；计数类指标单 SQL 聚合 + Redis 缓存（约 2 分钟） |
 | `/api/system/user/list` | 用户下拉选项（启用用户、最多 2000 条）；管理列表请用 `/api/system/user/page` |
+| `/api/system/recycle/summary` | 回收中心 12 类软删数量汇总 |
+| `/api/system/export/*` | 列表 Excel/CSV 导出（用户、日志、工单、审批等） |
 
 ---
 
 ## 数据库脚本
 
-维护 **`sql/admin_platform.sql`**（全量 + 附录）与 **`sql/add1.sql` … `add9.sql`** 等增量补丁：
+维护 **`sql/admin_platform.sql`**（全量 + 附录）与 **`sql/add1.sql` … `add10.sql`** 等增量补丁：
 
 | 场景 | 做法 |
 |------|------|
 | **全新安装** | 空库直接 `mysql -u root -p < sql/admin_platform.sql` |
 | **极旧库首次升级** | 执行 `admin_platform.sql` 文末 **附录**（约 910 行起） |
-| **发版增量（本地 dev）** | 依次 `mysql -u root -p wu-admin < sql/add1.sql` … **`add9.sql`** |
-| **发版增量（生产）** | 按已执行版本补跑；**流程中心 + 缓存/服务监控** 见 **`add6_7_wuadmin.sql`** |
+| **发版增量（本地 dev）** | 依次 `mysql -u root -p wu-admin < sql/add1.sql` … **`add10.sql`** |
+| **发版增量（生产）** | 按已执行版本补跑；**流程中心 + 缓存/服务监控** 见 **`add6_7_wuadmin.sql`**；**回收中心** 见 **`add10_wuadmin.sql`** |
 
 `addN.sql` 体量应保持在几十行量级；全量补丁逻辑在 `admin_platform.sql` 附录。
 
@@ -804,8 +894,12 @@ npm run dev
 | `add7.sql` | 系统监控新增「**缓存监控**」菜单与权限；本地库 `wu-admin` |
 | `add8.sql` | 系统监控新增「**服务监控**」菜单（本机 JMX）；本地库 `wu-admin` |
 | `add9.sql` | 群成员 `notify_muted`、`announcement_read_time`（群公告已读 / 免打扰）；本地库 `wu-admin` |
+| `add10.sql` | **回收中心**菜单 id=163；`sys_file` 增加 `update_time`、`deleted` 及索引；本地库 `wu-admin` |
+| `add11.sql` | **已合并至 add10**，单独执行仅输出 SKIP |
 | `add6_7_wuadmin.sql` | **生产库 `wuadmin`** 合并 add6 + add7 + add8 + **add9** |
 | `add9_wuadmin.sql` | **生产库 `wuadmin`** 仅 add9 字段（已跑过合并脚本可跳过） |
+| `add10_wuadmin.sql` | **生产库 `wuadmin`** 回收中心 + 文件软删（与 add10 等价） |
+| `add11_wuadmin.sql` | **已合并至 add10_wuadmin**，单独执行仅输出 SKIP |
 
 > 生产环境若尚未执行 add3/add4，可将 `add3.sql`、`add4.sql` 中 `USE` 改为 `wuadmin` 后逐条执行，或直接依赖已更新的 `admin_platform.sql` 全量/附录。仓库内**无**单独的 `add3_add4_wuadmin.sql` 文件。
 
@@ -952,7 +1046,16 @@ A：若开启「注册需审核」，需管理员在审批单中心通过；登�
 A：升级后默认列表已排除待审核/驳回用户；待审用户仅在审批单中心处理。若仍为旧版，请更新前后端并刷新页面。
 
 **Q：驳回后同用户名无法注册，或提示权限不足？**  
-A：① 确认 **注册认证** 已开启开放注册；② 升级后软删用户名可自动恢复再注册；③ 若回收站仍有该用户，可「清除」彻底删除后再试；④ 注册/登录请求勿带管理员 Token（新版前端已自动跳过）。
+A：① 确认 **注册认证** 已开启开放注册；② 升级后软删用户名可自动恢复再注册；③ 若 **回收中心** 仍有该用户，可「彻底删除」后再试；④ 注册/登录请求勿带管理员 Token（新版前端已自动跳过）。
+
+**Q：回收中心菜单不显示，或文件列表报 `Unknown column 'deleted'`？**  
+A：对已有库执行 **`sql/add10.sql`**（生产 **`add10_wuadmin.sql`**），**重新登录**；`add11` 已合并进 `add10`，勿重复找旧脚本。全量新库请用已含菜单 163 与 `sys_file` 字段的 `admin_platform.sql`。
+
+**Q：回收中心某个 Tab 看不到（如岗位）？**  
+A：Tab 按各模块 **列表权限** 显示（如岗位需 `system:post:list`）；无权限的类别不会展示，但汇总接口仍可能返回计数。
+
+**Q：文件恢复失败提示磁盘不存在？**  
+A：软删仅改库表标记，若磁盘文件已被手动删除则无法恢复；可在回收中心「彻底删除」清理无效记录。超过 `app.job.file-recycle-retention-days`（默认 30 天）的记录可由定时任务 **文件回收站清理** 自动清盘（内置任务，默认暂停，需在定时任务页启用）。
 
 **Q：如何开启短信发码前滑块？**  
 A：**系统配置 → 登录认证** 开启「短信验证码登录」与「发送前滑块验证」；已有库执行 `sql/add2.sql` 补配置字段，保存后刷新登录页。

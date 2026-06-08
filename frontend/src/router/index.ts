@@ -72,6 +72,12 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '系统配置', icon: 'Tools', permission: 'system:config:list' }
       },
       {
+        path: 'system/recycle',
+        name: 'SystemRecycle',
+        component: () => import('@/views/system/recycle/index.vue'),
+        meta: { title: '回收中心', icon: 'Delete', permission: 'system:recycle:list' }
+      },
+      {
         path: 'system/oper-log',
         name: 'SystemOperLog',
         component: () => import('@/views/system/oper-log/index.vue'),

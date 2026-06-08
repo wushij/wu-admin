@@ -9,7 +9,6 @@
         @reset="resetQuery"
         @add="handleAdd()"
         @toggle-expand="toggleExpandAll"
-        @open-recycle="openRecycleDialog"
       />
 
       <MenuTreeTable
@@ -37,17 +36,6 @@
       @fill-permission-prefix="fillPermissionPrefix"
       @submit="submitForm"
     />
-
-    <MenuRecycleDialog
-      v-model:visible="recycleVisible"
-      :list="recycleList"
-      :loading="recycleLoading"
-      :total="recycleTotal"
-      :query="recycleQuery"
-      @load="getRecycleList"
-      @restore="handleRestore"
-      @permanent-delete="handlePermanentDelete"
-    />
   </div>
 </template>
 
@@ -56,7 +44,6 @@ import { ref, watchEffect } from 'vue'
 import MenuSearchToolbar from './MenuSearchToolbar.vue'
 import MenuTreeTable from './MenuTreeTable.vue'
 import MenuFormDialog from './MenuFormDialog.vue'
-import MenuRecycleDialog from './MenuRecycleDialog.vue'
 import { useMenuPage } from '../composables/useMenuPage'
 
 const tableComponentRef = ref<InstanceType<typeof MenuTreeTable> | null>(null)
@@ -72,12 +59,7 @@ const {
   formRef,
   tableRef,
   expandAll,
-  recycleVisible,
-  recycleLoading,
-  recycleList,
-  recycleTotal,
   queryParams,
-  recycleQuery,
   form,
   rules,
   menuStats,
@@ -91,10 +73,6 @@ const {
   fillPermissionPrefix,
   handleDelete,
   handleStatusChange,
-  openRecycleDialog,
-  getRecycleList,
-  handleRestore,
-  handlePermanentDelete,
   submitForm,
 } = useMenuPage()
 

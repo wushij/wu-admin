@@ -2,12 +2,17 @@ import { get, del } from '@/utils/request'
 
 export interface OnlineUser {
   userId: number
+  loginName?: string
+  deptName?: string
   username?: string
   nickname?: string
   ipaddr?: string
+  loginLocation?: string
   loginTime?: string
+  lastAccessTime?: string
   browser?: string
   os?: string
+  status?: number
 }
 
 export const getOnlineUserList = () => {

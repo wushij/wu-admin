@@ -3,9 +3,12 @@
     <template #header>
       <div class="card-header-row">
         <span>任务列表</span>
-        <el-button link type="primary" @click="$emit('refresh')">
-          <el-icon><Refresh /></el-icon>刷新
-        </el-button>
+        <div class="header-actions">
+          <RecycleCenterLink tab="job" />
+          <el-button link type="primary" @click="$emit('refresh')">
+            <el-icon><Refresh /></el-icon>刷新
+          </el-button>
+        </div>
       </div>
     </template>
 
@@ -122,6 +125,7 @@
 
 <script setup lang="ts">
 import { Plus, List, Refresh } from '@element-plus/icons-vue'
+import RecycleCenterLink from '@/components/RecycleCenterLink.vue'
 import type { SysJob } from '@/api/monitor/job'
 import { groupTagType } from '../constants/cronPresets'
 
@@ -157,6 +161,11 @@ defineEmits<{
   align-items: center;
   justify-content: space-between;
   font-weight: 600;
+}
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 .search-form {
   margin-bottom: 4px;

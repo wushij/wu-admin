@@ -46,13 +46,14 @@
       <el-button :icon="Sort" @click="$emit('toggle-expand')">{{ expandAll ? '全部折叠' : '全部展开' }}</el-button>
     </div>
     <div class="toolbar-right">
-      <el-button v-permission="'system:menu:delete'" @click="$emit('open-recycle')">回收站</el-button>
+      <RecycleCenterLink tab="menu" />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { Search, Refresh, Plus, Sort } from '@element-plus/icons-vue'
+import RecycleCenterLink from '@/components/RecycleCenterLink.vue'
 import type { MenuListQuery } from '@/api/system/menu'
 
 defineProps<{
@@ -66,7 +67,6 @@ defineEmits<{
   reset: []
   add: []
   'toggle-expand': []
-  'open-recycle': []
 }>()
 </script>
 

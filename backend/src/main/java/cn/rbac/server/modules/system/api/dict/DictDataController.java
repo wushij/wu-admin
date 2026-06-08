@@ -1,6 +1,7 @@
 package cn.rbac.server.modules.system.api.dict;
 
 import cn.rbac.server.common.pojo.CommonResult;
+import cn.rbac.server.common.pojo.PageParam;
 import cn.rbac.server.common.pojo.PageResult;
 import cn.rbac.server.framework.log.annotation.Log;
 import cn.rbac.server.modules.system.dal.dataobject.dict.DictDataDO;
@@ -101,6 +102,31 @@ public class DictDataController {
     @Log(title = "字典数据", businessType = Log.BusinessType.DELETE)
     public CommonResult<Boolean> delete(@PathVariable Long id) {
         dictDataService.delete(id);
+        return CommonResult.success(true);
+    }
+
+    @GetMapping("/recycle/page")
+    @Operation(summary = "字典数据回收站分页")
+    @PreAuthorize("@ss.hasPermission('system:dict:delete')")
+    public CommonResult<PageResult<DictDataDO>> recyclePage(PageParam pageParam,
+            @RequestParam(required = false) String dictType,
+            @RequestParam(required = false) String dictLabel) {
+        return CommonResult.success(dictDataService.recyclePage(pageParam, dictType, dictLabel));
+    }
+
+    @PutMapping("/restore")
+    @Operation(summary = "恢复字典数据")
+    @PreAuthorize("@ss.hasPermission('system:dict:delete')")
+    public CommonResult<Boolean> restore(@RequestParam Long id) {
+        dictDataService.restore(id);
+        return CommonResult.success(true);
+    }
+
+    @DeleteMapping("/delete-permanent")
+    @Operation(summary = "彻底删除字典数据")
+    @PreAuthorize("@ss.hasPermission('system:dict:delete')")
+    public CommonResult<Boolean> deletePermanent(@RequestParam Long id) {
+        dictDataService.deletePermanent(id);
         return CommonResult.success(true);
     }
 }

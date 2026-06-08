@@ -28,7 +28,10 @@
       <template #header>
         <div class="card-header">
           <span>通知公告列表</span>
-          <el-button v-permission="'system:announce:create'" type="primary" @click="openForm()">新增通知</el-button>
+          <div class="header-actions">
+            <RecycleCenterLink tab="announce" />
+            <el-button v-permission="'system:announce:create'" type="primary" @click="openForm()">新增通知</el-button>
+          </div>
         </div>
       </template>
       <el-table
@@ -188,6 +191,7 @@ import {
 } from '@/api/message/index'
 import { getUserList, type UserVO } from '@/api/system/user/index'
 import { getDeptTree, type DeptVO } from '@/api/system/dept/index'
+import RecycleCenterLink from '@/components/RecycleCenterLink.vue'
 
 const tableData = ref<AnnounceVO[]>([])
 const pageNo = ref(1)
@@ -350,6 +354,11 @@ onMounted(async () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 .pagination-wrap {
   margin-top: 16px;

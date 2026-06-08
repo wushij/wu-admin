@@ -79,12 +79,11 @@ public class ServerMonitorServiceImpl implements ServerMonitorService {
         return readDeprecatedSystemCpuPercent(sunOs);
     }
 
-    @SuppressWarnings("removal")
+    @SuppressWarnings("deprecation")
     private Double readDeprecatedSystemCpuPercent(com.sun.management.OperatingSystemMXBean sunOs) {
         return toPercent(sunOs.getSystemCpuLoad());
     }
 
-    @SuppressWarnings("removal")
     private Double readProcessCpuPercent(com.sun.management.OperatingSystemMXBean sunOs) {
         return toPercent(sunOs.getProcessCpuLoad());
     }

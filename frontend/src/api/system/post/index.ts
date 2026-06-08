@@ -52,3 +52,15 @@ export function deletePost(id: number) {
 export function movePost(id: number, parentId: number) {
   return post(`/system/post/${id}/move`, null, { params: { parentId } })
 }
+
+export function getRecyclePostPage(params: { pageNo: number; pageSize: number; postName?: string; status?: number | null }) {
+  return get<import('@/types/api').PageResult<PostVO>>('/system/post/recycle/page', params)
+}
+
+export function restorePost(id: number) {
+  return put('/system/post/restore', null, { params: { id } })
+}
+
+export function deletePostPermanent(id: number) {
+  return del('/system/post/delete-permanent', { params: { id } })
+}

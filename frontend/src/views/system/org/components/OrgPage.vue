@@ -35,7 +35,6 @@
         @go-user-manage="goUserManage"
         @edit-node="handleEditNode"
         @add-child="handleAddChild"
-        @open-recycle="openRecycle"
         @delete-node="handleDeleteNode"
         @load-users="loadUsers"
       />
@@ -62,17 +61,6 @@
       :submitting="postSubmitting"
       @submit="submitPost"
     />
-
-    <DeptRecycleDrawer
-      v-model:visible="recycleVisible"
-      :list="recycleList"
-      :loading="recycleLoading"
-      :total="recycleTotal"
-      :query="recycleQuery"
-      @load="loadRecycle"
-      @restore="handleRestore"
-      @permanent-delete="handlePermanentDelete"
-    />
   </div>
 </template>
 
@@ -82,7 +70,6 @@ import OrgTreePanel from './OrgTreePanel.vue'
 import OrgMemberPanel from './OrgMemberPanel.vue'
 import DeptFormDialog from './DeptFormDialog.vue'
 import PostFormDialog from './PostFormDialog.vue'
-import DeptRecycleDrawer from './DeptRecycleDrawer.vue'
 import { useOrgPage } from '../composables/useOrgPage'
 
 const treePanelRef = ref<InstanceType<typeof OrgTreePanel> | null>(null)
@@ -132,16 +119,7 @@ const {
   postRules,
   postTreeOptions,
   submitPost,
-  recycleVisible,
-  recycleLoading,
-  recycleList,
-  recycleTotal,
-  recycleQuery,
-  openRecycle,
-  loadRecycle,
   loadUsers,
-  handleRestore,
-  handlePermanentDelete,
 } = useOrgPage()
 
 watchEffect(() => {

@@ -73,6 +73,17 @@
       </el-card>
 
       <el-card class="table-card">
+        <template #header>
+          <div class="card-header">
+            <span>访问日志明细</span>
+            <ListExportButton
+              module="api-access"
+              :query-params="queryParams"
+              :extra-params="exportExtraParams"
+              permission="monitor:apiAccess:query"
+            />
+          </div>
+        </template>
         <el-form :model="queryParams" inline class="search-form">
           <el-form-item label="用户">
             <el-select
@@ -159,6 +170,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import ListExportButton from '@/components/ListExportButton.vue'
 import type { ECharts } from 'echarts'
 import type { CallbackDataParams } from 'echarts/types/dist/shared'
 import { useUserStore } from '@/store/user'
@@ -197,6 +209,13 @@ const queryParams = reactive<ApiAccessPageQuery>({
   success: null,
 })
 const dateRange = ref<[string, string] | null>(null)
+const exportExtraParams = computed(() => {
+  if (!dateRange.value) return {}
+  return {
+    startTime: dateRange.value[0],
+    endTime: dateRange.value[1],
+  }
+})
 const tableData = ref<ApiAccessLogRow[]>([])
 const loading = ref(false)
 const total = ref(0)
@@ -429,6 +448,11 @@ onUnmounted(() => {
     margin-bottom: 16px;
   }
   .table-card {
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
     .search-form {
       margin-bottom: 12px;
     }
