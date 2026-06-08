@@ -1,7 +1,7 @@
 <template>
   <div
     class="stat-card"
-    :class="[variant, { clickable }]"
+    :class="[variant, { clickable, compact }]"
     @click="handleClick"
   >
     <template v-if="variant === 'biz'">
@@ -13,9 +13,13 @@
     <template v-else>
       <div class="stat-card-header">
         <div class="stat-icon-box" :class="iconTheme">
-          <el-icon :size="24"><component :is="icon" /></el-icon>
+          <el-icon :size="compact ? 18 : 24"><component :is="icon" /></el-icon>
         </div>
-        <div v-if="variant === 'core' && trend !== undefined" class="stat-trend-badge" :class="trend >= 0 ? 'up' : 'down'">
+        <div
+          v-if="variant === 'core' && trend !== undefined && !compact"
+          class="stat-trend-badge"
+          :class="trend >= 0 ? 'up' : 'down'"
+        >
           <el-icon><Top v-if="trend >= 0" /><Bottom v-else /></el-icon>
           <span>{{ Math.abs(trend) }}%</span>
         </div>
@@ -45,6 +49,7 @@ const props = defineProps<{
   iconTheme?: string
   footer?: string
   clickable?: boolean
+  compact?: boolean
   to?: RouteLocationRaw
   bizValueClass?: 'warn' | 'danger' | ''
 }>()
@@ -74,6 +79,49 @@ function handleClick() {
 
 .stat-card.ops {
   min-height: 160px;
+}
+
+.stat-card.compact {
+  min-height: 0;
+  padding: 14px 16px;
+  border-radius: 12px;
+}
+
+.stat-card.compact .stat-card-header {
+  margin-bottom: 10px;
+}
+
+.stat-card.compact .stat-icon-box {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+}
+
+.stat-card.compact .stat-trend-badge {
+  padding: 2px 6px;
+  font-size: 11px;
+}
+
+.stat-card.compact .stat-number {
+  font-size: 24px;
+  margin-bottom: 4px;
+}
+
+.stat-card.compact .stat-title {
+  font-size: 12px;
+}
+
+.stat-card.compact .stat-card-body {
+  margin-bottom: 8px;
+}
+
+.stat-card.compact .stat-card-footer {
+  padding-top: 8px;
+  font-size: 11px;
+}
+
+.stat-card.compact:hover {
+  transform: translateY(-2px);
 }
 
 .stat-card.biz {
@@ -127,6 +175,12 @@ function handleClick() {
 .stat-icon-box.login-success { background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); }
 .stat-icon-box.file-store { background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); }
 .stat-icon-box.post { background: linear-gradient(135deg, #0ea5e9 0%, #06b6d4 100%); }
+.stat-icon-box.online { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+.stat-icon-box.visit { background: linear-gradient(135deg, #0ea5e9 0%, #38bdf8 100%); }
+.stat-icon-box.approval { background: linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%); }
+.stat-icon-box.ticket { background: linear-gradient(135deg, #f7971e 0%, #ffd200 100%); }
+.stat-icon-box.menu { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+.stat-icon-box.job { background: linear-gradient(135deg, #14b8a6 0%, #2dd4bf 100%); }
 
 .stat-trend-badge {
   display: flex;

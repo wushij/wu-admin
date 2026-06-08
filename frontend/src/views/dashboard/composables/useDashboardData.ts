@@ -6,6 +6,7 @@ import {
   type RecentLogin,
   type DashboardStats,
 } from '@/api/dashboard'
+import { getJobOverview } from '@/api/monitor/job'
 import type { DashboardTrends } from '../constants/statCards'
 
 const defaultStats = (): DashboardStats => ({
@@ -35,6 +36,9 @@ const defaultStats = (): DashboardStats => ({
   ticketOpenCount: 0,
   ticketOverdueCount: 0,
   approvalPendingCount: 0,
+  jobTotalCount: 0,
+  jobRunningCount: 0,
+  jobPausedCount: 0,
 })
 
 function captchaTypeLabel(type: string | undefined) {
@@ -81,9 +85,21 @@ export function useDashboardData() {
     return items
   })
 
-  const showBizAlerts = computed(
-    () => (stats.value.ticketOpenCount ?? 0) > 0 || (stats.value.approvalPendingCount ?? 0) > 0,
-  )
+  async function mergeJobOverview() {
+    try {
+      const res = await getJobOverview()
+      const overview = res.data
+      if (!overview) return
+      const total = overview.totalJobs ?? 0
+      const running = overview.runningJobs ?? 0
+      const paused = overview.pausedJobs ?? Math.max(0, total - running)
+      stats.value.jobTotalCount = total
+      stats.value.jobRunningCount = running
+      stats.value.jobPausedCount = paused
+    } catch {
+      // 无 monitor:job:list 权限或接口不可用时沿用 dashboard 统计
+    }
+  }
 
   async function loadStats() {
     try {
@@ -96,6 +112,7 @@ export function useDashboardData() {
       trends.value.role = data.roleTrend ?? 0
       trends.value.dept = data.deptTrend ?? 0
       trends.value.menu = data.menuTrend ?? 0
+      await mergeJobOverview()
     } catch (error) {
       console.error('获取统计数据失败', error)
     }
@@ -129,7 +146,6 @@ export function useDashboardData() {
     trends,
     recentLogins,
     systemMetaList,
-    showBizAlerts,
     initDashboard,
   }
 }

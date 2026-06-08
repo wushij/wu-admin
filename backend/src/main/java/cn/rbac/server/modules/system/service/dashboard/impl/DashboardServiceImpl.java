@@ -27,7 +27,8 @@ import java.util.concurrent.TimeUnit;
 public class DashboardServiceImpl implements DashboardService {
 
     private static final String VISIT_COUNT_KEY = "dashboard:visit:date:";
-    private static final String STATS_AGGREGATE_CACHE_KEY = "dashboard:stats:aggregate";
+    /** v2：含定时任务统计字段，升级后避免旧缓存缺字段 */
+    private static final String STATS_AGGREGATE_CACHE_KEY = "dashboard:stats:aggregate:v2";
     /** 计数类统计缓存时长（分钟级延迟可接受） */
     private static final long STATS_CACHE_MINUTES = 2;
 
@@ -56,6 +57,7 @@ public class DashboardServiceImpl implements DashboardService {
 
         DashboardStatsRow row = loadAggregateStatsRow(todayStart, yesterdayStart);
         putAggregateFields(stats, row);
+        putJobStatsFresh(stats);
 
         stats.put("onlineCount", onlineUserService.listOnlineUsers().size());
         stats.put("todayVisits", getDayVisitCount(LocalDate.now()));
@@ -138,6 +140,15 @@ public class DashboardServiceImpl implements DashboardService {
         stats.put("roleTrend", trendPercent(longVal(row.getRoleToday()), longVal(row.getRoleYesterday())));
         stats.put("deptTrend", trendPercent(longVal(row.getDeptToday()), longVal(row.getDeptYesterday())));
         stats.put("menuTrend", 0);
+    }
+
+    /** 定时任务数量每次实时查询，不走聚合缓存 */
+    private void putJobStatsFresh(Map<String, Object> stats) {
+        long jobTotal = dashboardMapper.countJobTotal();
+        long jobRunning = dashboardMapper.countJobRunning();
+        stats.put("jobTotalCount", jobTotal);
+        stats.put("jobRunningCount", jobRunning);
+        stats.put("jobPausedCount", Math.max(0, jobTotal - jobRunning));
     }
 
     private long longVal(Long value) {

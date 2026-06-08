@@ -36,4 +36,7 @@ public class DashboardStatsRow {
     private Long ticketOverdueCount;
 
     private Long approvalPendingCount;
+
+    private Long jobTotalCount;
+    private Long jobRunningCount;
 }

@@ -38,6 +38,8 @@
         @user-command="handleCommand"
       />
 
+      <LayoutTagsView />
+
       <div class="main-content">
         <router-view v-slot="{ Component }">
           <transition name="fade" mode="out-in">
@@ -58,6 +60,7 @@ import { useUserStore } from '@/store/user'
 import MessageNotification from '@/components/MessageNotification.vue'
 import LayoutSidebar from './LayoutSidebar.vue'
 import LayoutHeader from './LayoutHeader.vue'
+import LayoutTagsView from './LayoutTagsView.vue'
 import { useLayoutSite } from '../composables/useLayoutSite'
 import { useLayoutTheme } from '../composables/useLayoutTheme'
 import { useLayoutMenu } from '../composables/useLayoutMenu'

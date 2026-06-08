@@ -4,6 +4,7 @@ import type { MenuTreeNode } from '@/types/api'
 import { login, getInfo, logout as logoutApi } from '@/api/system/auth'
 import type { LoginForm, AuthInfo } from '@/types/api'
 import { useMessageStore } from '@/store/message'
+import { useTagsViewStore } from '@/store/tagsView'
 import { resetMonitorBackground } from '@/composables/useMonitorBackground'
 
 /** 登录后内存中的用户信息（与 /auth/info 字段子集一致） */
@@ -63,6 +64,11 @@ export const useUserStore = defineStore('user', () => {
       /* store 可能尚未初始化 */
     }
     resetMonitorBackground()
+    try {
+      useTagsViewStore().resetTags()
+    } catch {
+      /* store 可能尚未初始化 */
+    }
     token.value = ''
     userInfo.value = {}
     menus.value = []

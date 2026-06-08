@@ -4,11 +4,13 @@ import type { DashboardStats } from '@/api/dashboard'
 import {
   User,
   UserFilled,
-  Menu,
   OfficeBuilding,
-  CircleCheck,
   FolderOpened,
+  Checked,
+  Tickets,
   Briefcase,
+  Menu,
+  Timer,
 } from '@element-plus/icons-vue'
 
 export interface DashboardTrends {
@@ -18,63 +20,64 @@ export interface DashboardTrends {
   dept: number
 }
 
-export interface CoreStatCardConfig {
+/** 工作台顶部 10 项核心指标（两行 × 五列） */
+export interface TopStatCardConfig {
   key: string
   title: string
   valueKey: keyof DashboardStats
-  trendKey: keyof DashboardTrends
   icon: Component
   iconTheme: string
+  trendKey?: keyof DashboardTrends
   flatFooterWhenZero?: boolean
-}
-
-export interface OpsStatCardConfig {
-  key: string
-  title: string
-  valueKey: keyof DashboardStats
-  icon: Component
-  iconTheme: string
   permission?: string
-  to: RouteLocationRaw
-  footer: (stats: DashboardStats) => string
+  to?: RouteLocationRaw
+  footer?: (stats: DashboardStats, trends: DashboardTrends) => string
 }
 
-export interface BizAlertConfig {
-  key: string
-  label: string
-  valueKey: keyof DashboardStats
-  permission: string
-  to: RouteLocationRaw
-  valueClass?: 'warn' | 'danger'
-  visible: (stats: DashboardStats) => boolean
-}
-
-export const coreStatCards: CoreStatCardConfig[] = [
-  { key: 'user', title: '用户总数', valueKey: 'userCount', trendKey: 'user', icon: User, iconTheme: 'user' },
-  { key: 'role', title: '角色总数', valueKey: 'roleCount', trendKey: 'role', icon: UserFilled, iconTheme: 'role' },
-  { key: 'menu', title: '菜单总数', valueKey: 'menuCount', trendKey: 'menu', icon: Menu, iconTheme: 'menu', flatFooterWhenZero: true },
-  { key: 'dept', title: '部门总数', valueKey: 'deptCount', trendKey: 'dept', icon: OfficeBuilding, iconTheme: 'dept' },
-]
-
-export const opsStatCards: OpsStatCardConfig[] = [
+export const topStatCards: TopStatCardConfig[] = [
   {
-    key: 'pending-user',
-    title: '待审核用户',
-    valueKey: 'userPendingCount',
+    key: 'user',
+    title: '用户总数',
+    valueKey: 'userCount',
+    trendKey: 'user',
     icon: User,
-    iconTheme: 'pending-user',
-    permission: 'system:approval:list',
-    to: { path: '/system/approval', query: { formType: 'REGISTER', status: 'SUBMITTED' } },
-    footer: () => '注册审核',
+    iconTheme: 'user',
+    to: '/system/user',
+    footer: (_s, t) => formatTrendFooter(t.user),
   },
   {
-    key: 'login-success',
-    title: '今日登录成功',
-    valueKey: 'todayLoginSuccess',
-    icon: CircleCheck,
-    iconTheme: 'login-success',
-    to: '/system/login-log',
-    footer: (stats) => `失败 ${stats.todayLoginFail ?? 0} 次`,
+    key: 'online',
+    title: '在线用户',
+    valueKey: 'onlineCount',
+    icon: UserFilled,
+    iconTheme: 'online',
+    to: '/monitor/online',
+    permission: 'monitor:online:list',
+    footer: () => '实时监控',
+  },
+  {
+    key: 'menu',
+    title: '菜单数量',
+    valueKey: 'menuCount',
+    icon: Menu,
+    iconTheme: 'menu',
+    permission: 'system:menu:list',
+    to: '/system/menu',
+    footer: () => '目录 / 菜单 / 按钮',
+  },
+  {
+    key: 'job',
+    title: '定时任务',
+    valueKey: 'jobTotalCount',
+    icon: Timer,
+    iconTheme: 'job',
+    permission: 'monitor:job:list',
+    to: '/monitor/job',
+    footer: (s) => {
+      const running = s.jobRunningCount ?? 0
+      const paused = s.jobPausedCount ?? 0
+      return `运行中 ${running} · 暂停 ${paused}`
+    },
   },
   {
     key: 'file-store',
@@ -83,45 +86,60 @@ export const opsStatCards: OpsStatCardConfig[] = [
     icon: FolderOpened,
     iconTheme: 'file-store',
     to: '/system/file',
-    footer: (stats) => `单文件上限 ${stats.fileMaxSizeMb ?? 50}MB`,
+    permission: 'sys:file:list',
+    footer: (s) => `上限 ${s.fileMaxSizeMb ?? 50}MB`,
+  },
+  {
+    key: 'approval-pending',
+    title: '待审批',
+    valueKey: 'approvalPendingCount',
+    icon: Checked,
+    iconTheme: 'approval',
+    permission: 'system:approval:list',
+    to: '/system/approval',
+    footer: () => '审批单中心',
+  },
+  {
+    key: 'ticket-open',
+    title: '待处理工单',
+    valueKey: 'ticketOpenCount',
+    icon: Tickets,
+    iconTheme: 'ticket',
+    permission: 'system:ticket:list',
+    to: '/system/ticket',
+    footer: (s) => {
+      const overdue = s.ticketOverdueCount ?? 0
+      return overdue > 0 ? `超时 ${overdue} 个` : '流程中心'
+    },
+  },
+  {
+    key: 'role',
+    title: '角色总数',
+    valueKey: 'roleCount',
+    trendKey: 'role',
+    icon: UserFilled,
+    iconTheme: 'role',
+    to: '/system/role',
+    footer: (_s, t) => formatTrendFooter(t.role),
+  },
+  {
+    key: 'dept',
+    title: '部门总数',
+    valueKey: 'deptCount',
+    trendKey: 'dept',
+    icon: OfficeBuilding,
+    iconTheme: 'dept',
+    to: '/system/org',
+    footer: (_s, t) => formatTrendFooter(t.dept),
   },
   {
     key: 'post',
-    title: '岗位数',
+    title: '岗位总数',
     valueKey: 'postCount',
     icon: Briefcase,
     iconTheme: 'post',
     to: '/system/org',
-    footer: (stats) => `组织管理 · 部门 ${stats.deptCount ?? 0}`,
-  },
-]
-
-export const bizAlertCards: BizAlertConfig[] = [
-  {
-    key: 'ticket-open',
-    label: '待处理工单',
-    valueKey: 'ticketOpenCount',
-    permission: 'system:ticket:list',
-    to: '/system/ticket',
-    valueClass: 'warn',
-    visible: (stats) => (stats.ticketOpenCount ?? 0) > 0 || (stats.ticketOverdueCount ?? 0) > 0,
-  },
-  {
-    key: 'ticket-overdue',
-    label: '超时工单',
-    valueKey: 'ticketOverdueCount',
-    permission: 'system:ticket:list',
-    to: '/system/ticket',
-    valueClass: 'danger',
-    visible: (stats) => (stats.ticketOverdueCount ?? 0) > 0,
-  },
-  {
-    key: 'approval-pending',
-    label: '待审批',
-    valueKey: 'approvalPendingCount',
-    permission: 'system:approval:list',
-    to: '/system/approval',
-    visible: (stats) => (stats.approvalPendingCount ?? 0) > 0,
+    footer: (s) => `部门 ${s.deptCount ?? 0} 个`,
   },
 ]
 

@@ -35,11 +35,19 @@ public interface DashboardMapper {
             "    AND file_path NOT LIKE CONCAT(#{chatFilePrefix}, '%')) AS file_count,",
             "  (SELECT COUNT(*) FROM sys_ticket WHERE deleted = 0 AND status = 'OPEN') AS ticket_open_count,",
             "  (SELECT COUNT(*) FROM sys_ticket WHERE deleted = 0 AND status IN ('OPEN','IN_PROGRESS') AND deadline IS NOT NULL AND deadline < #{now}) AS ticket_overdue_count,",
-            "  (SELECT COUNT(*) FROM sys_approval_form WHERE deleted = 0 AND status = 'SUBMITTED') AS approval_pending_count"
+            "  (SELECT COUNT(*) FROM sys_approval_form WHERE deleted = 0 AND status = 'SUBMITTED') AS approval_pending_count,",
+            "  (SELECT COUNT(*) FROM sys_job WHERE deleted = 0) AS job_total_count,",
+            "  (SELECT COUNT(*) FROM sys_job WHERE deleted = 0 AND status = 1) AS job_running_count"
     })
     DashboardStatsRow selectAggregateStats(@Param("todayStart") LocalDateTime todayStart,
                                            @Param("yesterdayStart") LocalDateTime yesterdayStart,
                                            @Param("now") LocalDateTime now,
                                            @Param("chatImagePrefix") String chatImagePrefix,
                                            @Param("chatFilePrefix") String chatFilePrefix);
+
+    @Select("SELECT COUNT(*) FROM sys_job WHERE deleted = 0")
+    long countJobTotal();
+
+    @Select("SELECT COUNT(*) FROM sys_job WHERE deleted = 0 AND status = 1")
+    long countJobRunning();
 }

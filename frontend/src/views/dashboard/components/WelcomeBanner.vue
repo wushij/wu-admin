@@ -1,15 +1,23 @@
 <template>
   <div class="welcome-banner">
+    <div class="welcome-bg-pattern" />
     <div class="welcome-content">
       <div class="welcome-left">
         <div class="welcome-avatar">
-          <el-icon :size="40"><Avatar /></el-icon>
+          <el-avatar :size="72" :src="avatarSrc" class="welcome-avatar-img">
+            {{ avatarFallback }}
+          </el-avatar>
         </div>
         <div class="welcome-text">
-          <h1>欢迎回来，{{ nickname }}</h1>
-          <p class="welcome-platform">{{ platformName }} · {{ platformSubtitle }}</p>
-          <p class="welcome-time">{{ currentTime }}</p>
+          <h1 class="welcome-title">欢迎回来，{{ nickname }}</h1>
           <p class="welcome-greeting">{{ greetingMessage }}</p>
+          <div v-if="platformTags.length" class="welcome-tags">
+            <span v-for="tag in platformTags" :key="tag" class="welcome-tag">{{ tag }}</span>
+          </div>
+          <p class="welcome-time">
+            <el-icon class="welcome-time-icon" :size="14"><Clock /></el-icon>
+            {{ currentTime }}
+          </p>
         </div>
       </div>
       <div class="welcome-right">
@@ -48,39 +56,71 @@
 </template>
 
 <script setup lang="ts">
-import { Avatar, UserFilled, View, CircleCheck } from '@element-plus/icons-vue'
+import { computed } from 'vue'
+import { UserFilled, View, CircleCheck, Clock } from '@element-plus/icons-vue'
 import type { DashboardStats } from '@/api/dashboard'
 
-defineProps<{
+const props = defineProps<{
   nickname: string
+  avatarSrc?: string
+  avatarFallback: string
   platformName: string
   platformSubtitle: string
   currentTime: string
   greetingMessage: string
   stats: DashboardStats
 }>()
+
+const platformTags = computed(() => {
+  const tags: string[] = []
+  if (props.platformName?.trim()) tags.push(props.platformName.trim())
+  if (props.platformSubtitle?.trim()) {
+    props.platformSubtitle
+      .split('·')
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .forEach((part) => tags.push(part))
+  }
+  return tags
+})
 </script>
 
 <style scoped>
 .welcome-banner {
-  background: linear-gradient(135deg, var(--theme-primary, #111827) 0%, var(--theme-primary-hover, #374151) 50%, var(--theme-primary-active, #4b5563) 100%);
+  position: relative;
+  background: linear-gradient(
+    135deg,
+    var(--theme-primary, #111827) 0%,
+    var(--theme-primary-hover, #374151) 55%,
+    var(--theme-primary-active, #4b5563) 100%
+  );
   border-radius: 16px;
-  padding: 32px;
+  padding: 28px 32px;
   margin-bottom: 24px;
   color: #fff;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-  position: relative;
   overflow: hidden;
 }
 
-.welcome-banner::before {
+.welcome-bg-pattern {
+  position: absolute;
+  inset: 0;
+  opacity: 0.07;
+  background-image:
+    radial-gradient(circle at 18% 42%, #fff 1px, transparent 1px),
+    radial-gradient(circle at 82% 18%, #fff 1px, transparent 1px);
+  background-size: 36px 36px;
+  pointer-events: none;
+}
+
+.welcome-banner::after {
   content: '';
   position: absolute;
-  top: -50%;
-  right: -10%;
-  width: 400px;
-  height: 400px;
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
+  top: -40%;
+  right: -8%;
+  width: 360px;
+  height: 360px;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.12) 0%, transparent 68%);
   pointer-events: none;
 }
 
@@ -96,44 +136,88 @@ defineProps<{
 .welcome-left {
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: 22px;
+  min-width: 0;
 }
 
 .welcome-avatar {
-  width: 64px;
-  height: 64px;
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  backdrop-filter: blur(10px);
   flex-shrink: 0;
 }
 
-.welcome-text h1 {
-  margin: 0 0 8px 0;
-  font-size: 28px;
+.welcome-avatar-img {
+  border: 3px solid rgba(255, 255, 255, 0.38);
+  background: rgba(255, 255, 255, 0.12);
+  font-size: 26px;
   font-weight: 600;
-  letter-spacing: 0.5px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
 }
 
-.welcome-time {
-  margin: 0 0 4px 0;
-  font-size: 14px;
-  opacity: 0.9;
+.welcome-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  min-width: 0;
 }
 
-.welcome-platform {
-  margin: 4px 0 0;
-  font-size: 14px;
-  opacity: 0.9;
+.welcome-title {
+  margin: 0 0 10px;
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: -0.02em;
+  color: #fff;
 }
 
 .welcome-greeting {
+  margin: 0 0 12px;
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.55;
+  color: rgba(255, 255, 255, 0.88);
+  max-width: 420px;
+}
+
+.welcome-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.welcome-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.92);
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 999px;
+  backdrop-filter: blur(6px);
+}
+
+.welcome-time {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   margin: 0;
-  font-size: 13px;
-  opacity: 0.75;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.58);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+.welcome-time-icon {
+  flex-shrink: 0;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.welcome-time-icon :deep(svg) {
+  stroke-width: 2;
 }
 
 .stat-icon-wrapper.login-ok {
@@ -144,10 +228,12 @@ defineProps<{
   display: flex;
   align-items: center;
   gap: 24px;
+  flex-shrink: 0;
   background: rgba(255, 255, 255, 0.1);
   padding: 16px 24px;
   border-radius: 12px;
   backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .welcome-stat-item {
@@ -171,23 +257,43 @@ defineProps<{
   font-weight: 700;
   line-height: 1;
   margin-bottom: 4px;
+  font-variant-numeric: tabular-nums;
 }
 
 .stat-info .stat-label {
   font-size: 12px;
-  opacity: 0.8;
+  color: rgba(255, 255, 255, 0.72);
 }
 
 .welcome-stat-divider {
   width: 1px;
   height: 40px;
-  background: rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.22);
 }
 
 @media (max-width: 768px) {
-  .welcome-banner { padding: 20px; }
-  .welcome-content { flex-direction: column; align-items: flex-start; }
-  .welcome-text h1 { font-size: 20px; }
-  .welcome-right { width: 100%; justify-content: space-around; }
+  .welcome-banner {
+    padding: 20px;
+  }
+
+  .welcome-content {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .welcome-title {
+    font-size: 22px;
+  }
+
+  .welcome-greeting {
+    font-size: 14px;
+    max-width: none;
+  }
+
+  .welcome-right {
+    width: 100%;
+    justify-content: space-around;
+    padding: 14px 16px;
+  }
 }
 </style>

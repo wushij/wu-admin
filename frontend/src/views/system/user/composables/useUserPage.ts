@@ -264,6 +264,13 @@ export function useUserPage() {
         deptTreeRef.value?.setCurrentKey(deptId)
       }
     }
+    const statusFromRoute = route.query.status
+    if (statusFromRoute !== undefined && statusFromRoute !== '') {
+      const status = Number(statusFromRoute)
+      if (!Number.isNaN(status)) {
+        queryParams.status = status
+      }
+    }
     getList()
   })
 
