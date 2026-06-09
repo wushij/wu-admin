@@ -201,7 +201,7 @@ mysql -u wuadmin -p wuadmin < sql/add11_wuadmin.sql
 | 消息 | `/message/notice` | `notice/index.vue`，`module-page` |
 | 企业IM | `/message/chat` | `ChatPage.vue` + `useChatPage.ts` / `useChatRender` / `useMention` |
 
-**质量保障**：`npm run typecheck`（`vue-tsc --noEmit`）、`npm run test`（Vitest，约 86 用例）、`npm run build`（构建前自动类型检查）；后端 `mvn test`（JUnit 5 + Mockito，约 87 用例）。详见下文 [单元测试](#单元测试)。
+**质量保障**：`npm run typecheck`（`vue-tsc --noEmit`）、`npm run test`（Vitest，约 85 用例）、`npm run build`（构建前自动类型检查）；后端 `mvn test`（JUnit 5 + Mockito，约 126 用例）。推送到 `main`/`master`/`dev` 或开 PR 时由 [GitHub Actions CI](#持续集成ci) 自动执行。详见 [单元测试](#单元测试)。
 
 > 企业 IM 聊天区可进一步拆分子面板组件；`role` 等页已接入 `module-page`，逻辑 composable 拆分可继续做。
 
@@ -685,6 +685,7 @@ frontend/src/
 
 ```
 wu-admin/
+├── .github/workflows/ci.yml    # GitHub Actions：后端 mvn test + 前端 typecheck/test
 ├── backend/                    # Spring Boot 后端
 │   ├── pom.xml
 │   ├── src/main/java/cn/rbac/server/
@@ -965,7 +966,7 @@ cd frontend && npm run test
 cd backend && mvn test
 ```
 
-说明见 [单元测试](#单元测试)。
+说明见 [单元测试](#单元测试)。代码托管在 GitHub 时，push / PR 会触发 [持续集成（CI）](#持续集成ci) 自动跑相同检查。
 
 ---
 
@@ -1185,6 +1186,39 @@ mvn test -Dtest=AuthServiceImplTest   # 指定类
 
 > 当前以 **Service 层单元测试** 为主，尚未接入 JaCoCo 覆盖率报告与 Controller 层 `MockMvc` 集成测试；新增核心业务逻辑时建议同步补充对应 `*Test.java` / `*.test.ts`。
 
+### 持续集成（CI）
+
+仓库已配置 **GitHub Actions**（`.github/workflows/ci.yml`），在 `push` / `pull_request` 到 `main`、`master` 或 `dev` 时自动执行质量检查；也可在 GitHub 仓库 **Actions** 页手动 **Run workflow**（`workflow_dispatch`）。
+
+#### 流水线结构
+
+两个 Job **并行**执行，互不阻塞：
+
+| Job | 环境 | 步骤 |
+|-----|------|------|
+| **Backend (Maven)** | Ubuntu，JDK **17**（Temurin），Maven 依赖缓存 | `mvn -B test`（约 126 用例） |
+| **Frontend (Node)** | Ubuntu，Node **20**，`npm ci` 缓存 | `npm run typecheck` → `npm run test`（约 85 用例） |
+
+同一分支有新提交时，进行中的旧 run 会被取消（`concurrency`），避免浪费 Actions 分钟。
+
+#### 本地与 CI 对照
+
+| 检查项 | 本地命令 | CI |
+|--------|----------|-----|
+| 后端单测 | `cd backend && mvn test` | ✅ Backend Job |
+| 前端类型检查 | `cd frontend && npm run typecheck` | ✅ Frontend Job |
+| 前端单测 | `cd frontend && npm run test` | ✅ Frontend Job |
+| 前端 Lint | `cd frontend && npm run lint` | ❌ 暂未纳入（存量 `vue/no-mutating-props` 等待清理） |
+| 覆盖率门禁（JaCoCo） | — | ❌ 未配置 |
+
+#### 启用与分支保护（可选）
+
+1. 将 `.github/workflows/ci.yml` 提交并推送到 GitHub。
+2. 仓库 **Settings → Actions → General** 确认已启用 Actions。
+3. （推荐）**Settings → Branches → Branch protection**：勾选 **Require status checks to pass**，选择 `Backend (Maven)` 与 `Frontend (Node)`，合并 PR 前须 CI 通过。
+
+本地提交前仍建议执行 `npm run typecheck`、`npm run test` 与 `mvn test`；CI 作为第二道防线，在干净环境中复现结果。
+
 ### 构建与打包
 
 ```powershell
@@ -1231,7 +1265,7 @@ java -jar backend.jar --spring.datasource.password=xxx --spring.data.redis.passw
 2. 页面目录：`views/<模块>/index.vue` 仅作路由入口，业务放在 `*Page.vue` + `composables/use*Page.ts`。
 3. 可复用 UI 拆到同目录 `components/`；登录注册类共用 `views/auth/components/`。
 4. 列表页优先用 `DictSelect` / `DictTag`；按钮权限用 `v-permission`。
-5. 提交前执行 `npm run typecheck` 与 `npm run test`；涉及后端 Service 变更时执行 `mvn test`。
+5. 提交前执行 `npm run typecheck` 与 `npm run test`；涉及后端 Service 变更时执行 `mvn test`。推送到 GitHub 后由 [CI](#持续集成ci) 自动复跑。
 
 ---
 

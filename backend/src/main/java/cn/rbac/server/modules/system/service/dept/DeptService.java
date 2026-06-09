@@ -1,5 +1,7 @@
 package cn.rbac.server.modules.system.service.dept;
 
+import cn.rbac.server.common.pojo.PageParam;
+import cn.rbac.server.common.pojo.PageResult;
 import cn.rbac.server.modules.system.dal.dataobject.dept.DeptDO;
 
 import java.util.List;
@@ -19,4 +21,12 @@ public interface DeptService {
     void delete(Long id);
 
     void move(Long id, Long parentId, Integer sort);
+
+    void updateStatus(Long id, Integer status);
+
+    PageResult<DeptDO> recyclePage(PageParam pageParam, String name, Integer status);
+
+    void restore(Long id);
+
+    void deletePermanent(Long id);
 }

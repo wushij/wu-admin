@@ -1,6 +1,8 @@
 package cn.rbac.server.modules.system.service.menu.impl;
 
 import cn.rbac.server.common.pojo.BusinessException;
+import cn.rbac.server.modules.system.api.menu.vo.MenuCreateReqVO;
+import cn.rbac.server.modules.system.api.menu.vo.MenuUpdateReqVO;
 import cn.rbac.server.modules.system.dal.dataobject.permission.MenuDO;
 import cn.rbac.server.modules.system.dal.mysql.permission.MenuMapper;
 import cn.rbac.server.testsupport.MybatisLambdaTestBase;
@@ -75,6 +77,62 @@ class MenuServiceImplTest extends MybatisLambdaTestBase {
         menuService.deleteMenu(1L);
 
         verify(menuMapper).deleteById(eq(1L));
+    }
+
+    @Test
+    @DisplayName("createMenu：插入并返回 ID")
+    void createMenu_insertsAndReturnsId() {
+        MenuCreateReqVO req = new MenuCreateReqVO();
+        req.setName("新菜单");
+        req.setType(2);
+        req.setPath("demo");
+
+        doAnswer(inv -> {
+            MenuDO menu = inv.getArgument(0);
+            menu.setId(100L);
+            return 1;
+        }).when(menuMapper).insert(any(MenuDO.class));
+
+        Long id = menuService.createMenu(req);
+
+        assertEquals(100L, id);
+        verify(menuMapper).insert(argThat((MenuDO m) ->
+                "新菜单".equals(m.getName()) && m.getStatus() == 1 && m.getParentId() == 0L));
+    }
+
+    @Test
+    @DisplayName("updateMenu：菜单不存在抛 404")
+    void updateMenu_notFound() {
+        when(menuMapper.selectById(1L)).thenReturn(null);
+        MenuUpdateReqVO req = new MenuUpdateReqVO();
+        req.setId(1L);
+
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> menuService.updateMenu(req));
+
+        assertEquals(404, ex.getCode());
+    }
+
+    @Test
+    @DisplayName("updateStatus：更新菜单状态")
+    void updateStatus_updatesMenu() {
+        MenuDO menu = ServiceTestFixtures.menu(1L, 0L, 1, null);
+        when(menuMapper.selectById(1L)).thenReturn(menu);
+
+        menuService.updateStatus(1L, 0);
+
+        verify(menuMapper).updateById(argThat((MenuDO m) -> m.getStatus() == 0));
+    }
+
+    @Test
+    @DisplayName("restoreMenu：回收站不存在抛 404")
+    void restoreMenu_notFound() {
+        when(menuMapper.restoreById(1L)).thenReturn(0);
+
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> menuService.restoreMenu(1L));
+
+        assertEquals(404, ex.getCode());
     }
 
     private static List<Long> collectMenuIds(List<MenuDO> nodes) {

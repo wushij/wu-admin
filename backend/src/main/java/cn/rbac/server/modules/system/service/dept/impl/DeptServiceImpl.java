@@ -1,12 +1,15 @@
 package cn.rbac.server.modules.system.service.dept.impl;
 
 import cn.rbac.server.common.pojo.BusinessException;
+import cn.rbac.server.common.pojo.PageParam;
+import cn.rbac.server.common.pojo.PageResult;
 import cn.rbac.server.modules.system.dal.dataobject.dept.DeptDO;
 import cn.rbac.server.modules.system.dal.dataobject.user.UserDO;
 import cn.rbac.server.modules.system.dal.mysql.dept.DeptMapper;
 import cn.rbac.server.modules.system.dal.mysql.user.UserMapper;
 import cn.rbac.server.modules.system.service.dept.DeptService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -166,6 +169,34 @@ public class DeptServiceImpl extends ServiceImpl<DeptMapper, DeptDO> implements 
         Map<Long, Long> countMap = users.stream()
                 .collect(Collectors.groupingBy(UserDO::getDeptId, Collectors.counting()));
         depts.forEach(d -> d.setUserCount(countMap.getOrDefault(d.getId(), 0L)));
+    }
+
+    @Override
+    public void updateStatus(Long id, Integer status) {
+        DeptDO dept = getById(id);
+        dept.setStatus(status);
+        updateById(dept);
+    }
+
+    @Override
+    public PageResult<DeptDO> recyclePage(PageParam pageParam, String name, Integer status) {
+        Page<DeptDO> page = new Page<>(pageParam.getPageNo(), pageParam.getPageSize());
+        Page<DeptDO> deletedPage = (Page<DeptDO>) baseMapper.selectDeletedPage(page, name, status);
+        return PageResult.of(deletedPage.getRecords(), deletedPage.getTotal());
+    }
+
+    @Override
+    public void restore(Long id) {
+        if (baseMapper.restoreById(id) == 0) {
+            throw new BusinessException(404, "回收站部门不存在");
+        }
+    }
+
+    @Override
+    public void deletePermanent(Long id) {
+        if (baseMapper.deletePhysicalById(id) == 0) {
+            throw new BusinessException(404, "回收站部门不存在");
+        }
     }
 
     private List<DeptDO> buildTree(List<DeptDO> depts) {

@@ -1,20 +1,17 @@
 package cn.rbac.server.modules.system.api.dept;
 
-import cn.rbac.server.common.pojo.BusinessException;
 import cn.rbac.server.common.pojo.CommonResult;
 import cn.rbac.server.common.pojo.PageParam;
 import cn.rbac.server.common.pojo.PageResult;
 import cn.rbac.server.framework.log.annotation.Log;
 import cn.rbac.server.modules.system.dal.dataobject.dept.DeptDO;
-import cn.rbac.server.modules.system.dal.mysql.dept.DeptMapper;
 import cn.rbac.server.modules.system.service.dept.DeptService;
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.annotation.Resource;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
-import jakarta.annotation.Resource;
 import java.util.List;
 
 @Tag(name = "部门管理")
@@ -24,8 +21,6 @@ public class DeptController {
 
     @Resource
     private DeptService deptService;
-    @Resource
-    private DeptMapper deptMapper;
 
     @GetMapping("/tree")
     @Operation(summary = "部门树")
@@ -93,9 +88,7 @@ public class DeptController {
     @Operation(summary = "更新部门状态")
     @PreAuthorize("@ss.hasPermission('system:dept:update')")
     public CommonResult<Boolean> updateStatus(@RequestParam Long id, @RequestParam Integer status) {
-        DeptDO dept = deptService.getById(id);
-        dept.setStatus(status);
-        deptMapper.updateById(dept);
+        deptService.updateStatus(id, status);
         return CommonResult.success(true);
     }
 
@@ -105,18 +98,14 @@ public class DeptController {
     public CommonResult<PageResult<DeptDO>> recyclePage(PageParam pageParam,
             @RequestParam(required = false) String name,
             @RequestParam(required = false) Integer status) {
-        Page<DeptDO> page = new Page<>(pageParam.getPageNo(), pageParam.getPageSize());
-        Page<DeptDO> deletedPage = (Page<DeptDO>) deptMapper.selectDeletedPage(page, name, status);
-        return CommonResult.success(PageResult.of(deletedPage.getRecords(), deletedPage.getTotal()));
+        return CommonResult.success(deptService.recyclePage(pageParam, name, status));
     }
 
     @PutMapping("/restore")
     @Operation(summary = "恢复部门")
     @PreAuthorize("@ss.hasPermission('system:dept:delete')")
     public CommonResult<Boolean> restore(@RequestParam Long id) {
-        if (deptMapper.restoreById(id) == 0) {
-            throw new BusinessException(404, "回收站部门不存在");
-        }
+        deptService.restore(id);
         return CommonResult.success(true);
     }
 
@@ -124,9 +113,7 @@ public class DeptController {
     @Operation(summary = "彻底删除部门")
     @PreAuthorize("@ss.hasPermission('system:dept:delete')")
     public CommonResult<Boolean> deletePermanent(@RequestParam Long id) {
-        if (deptMapper.deletePhysicalById(id) == 0) {
-            throw new BusinessException(404, "回收站部门不存在");
-        }
+        deptService.deletePermanent(id);
         return CommonResult.success(true);
     }
 }

@@ -1,8 +1,10 @@
 package cn.rbac.server.testsupport;
 
 import cn.rbac.server.modules.system.dal.dataobject.approval.ApprovalFormDO;
+import cn.rbac.server.modules.system.dal.dataobject.approval.ApprovalRecordDO;
 import cn.rbac.server.modules.system.dal.dataobject.dept.DeptDO;
 import cn.rbac.server.modules.system.dal.dataobject.dict.DictDataDO;
+import cn.rbac.server.modules.system.dal.dataobject.loginlog.LoginLogDO;
 import cn.rbac.server.modules.system.dal.dataobject.message.ChatGroupDO;
 import cn.rbac.server.modules.system.dal.dataobject.message.ChatGroupMemberDO;
 import cn.rbac.server.modules.system.dal.dataobject.message.ChatGroupMessageDO;
@@ -10,6 +12,7 @@ import cn.rbac.server.modules.system.dal.dataobject.message.ChatMessageDO;
 import cn.rbac.server.modules.system.dal.dataobject.message.UserBlacklistDO;
 import cn.rbac.server.modules.system.dal.dataobject.permission.MenuDO;
 import cn.rbac.server.modules.system.dal.dataobject.permission.RoleDO;
+import cn.rbac.server.modules.system.dal.dataobject.notice.NoticeDO;
 import cn.rbac.server.modules.system.dal.dataobject.user.UserDO;
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
@@ -34,6 +37,9 @@ public abstract class MybatisLambdaTestBase {
         TableInfoHelper.initTableInfo(assistant, DeptDO.class);
         TableInfoHelper.initTableInfo(assistant, RoleDO.class);
         TableInfoHelper.initTableInfo(assistant, ApprovalFormDO.class);
+        TableInfoHelper.initTableInfo(assistant, ApprovalRecordDO.class);
+        TableInfoHelper.initTableInfo(assistant, NoticeDO.class);
+        TableInfoHelper.initTableInfo(assistant, LoginLogDO.class);
         TableInfoHelper.initTableInfo(assistant, DictDataDO.class);
         TableInfoHelper.initTableInfo(assistant, ChatGroupDO.class);
     }

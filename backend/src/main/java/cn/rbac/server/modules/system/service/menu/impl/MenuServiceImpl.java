@@ -1,10 +1,15 @@
 package cn.rbac.server.modules.system.service.menu.impl;
 
 import cn.rbac.server.common.pojo.BusinessException;
+import cn.rbac.server.common.pojo.PageParam;
+import cn.rbac.server.common.pojo.PageResult;
+import cn.rbac.server.modules.system.api.menu.vo.MenuCreateReqVO;
+import cn.rbac.server.modules.system.api.menu.vo.MenuUpdateReqVO;
 import cn.rbac.server.modules.system.dal.dataobject.permission.MenuDO;
 import cn.rbac.server.modules.system.dal.mysql.permission.MenuMapper;
 import cn.rbac.server.modules.system.service.menu.MenuService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import org.springframework.stereotype.Service;
 
 import jakarta.annotation.Resource;
@@ -50,6 +55,52 @@ public class MenuServiceImpl implements MenuService {
     }
 
     @Override
+    public List<MenuDO> listSimple() {
+        return menuMapper.selectList(new LambdaQueryWrapper<MenuDO>()
+                .orderByAsc(MenuDO::getSort)
+                .orderByAsc(MenuDO::getId));
+    }
+
+    @Override
+    public MenuDO getMenu(Long id) {
+        return menuMapper.selectById(id);
+    }
+
+    @Override
+    public Long createMenu(MenuCreateReqVO reqVO) {
+        MenuDO menu = new MenuDO();
+        menu.setName(reqVO.getName());
+        menu.setPermission(reqVO.getPermission());
+        menu.setType(reqVO.getType());
+        menu.setSort(reqVO.getSort() != null ? reqVO.getSort() : 0);
+        menu.setParentId(reqVO.getParentId() != null ? reqVO.getParentId() : 0L);
+        menu.setPath(reqVO.getPath());
+        menu.setIcon(reqVO.getIcon());
+        menu.setComponent(reqVO.getComponent());
+        menu.setStatus(reqVO.getStatus() != null ? reqVO.getStatus() : 1);
+        menuMapper.insert(menu);
+        return menu.getId();
+    }
+
+    @Override
+    public void updateMenu(MenuUpdateReqVO reqVO) {
+        MenuDO menu = menuMapper.selectById(reqVO.getId());
+        if (menu == null) {
+            throw new BusinessException(404, "菜单不存在");
+        }
+        menu.setName(reqVO.getName());
+        menu.setPermission(reqVO.getPermission());
+        menu.setType(reqVO.getType());
+        menu.setSort(reqVO.getSort());
+        menu.setParentId(reqVO.getParentId());
+        menu.setPath(reqVO.getPath());
+        menu.setIcon(reqVO.getIcon());
+        menu.setComponent(reqVO.getComponent());
+        menu.setStatus(reqVO.getStatus());
+        menuMapper.updateById(menu);
+    }
+
+    @Override
     public void deleteMenu(Long id) {
         Long childCount = menuMapper.selectCount(new LambdaQueryWrapper<MenuDO>()
                 .eq(MenuDO::getParentId, id));
@@ -57,6 +108,39 @@ public class MenuServiceImpl implements MenuService {
             throw new BusinessException("存在子菜单，无法删除");
         }
         menuMapper.deleteById(id);
+    }
+
+    @Override
+    public PageResult<MenuDO> recyclePage(PageParam pageParam, String name, Integer status) {
+        Page<MenuDO> page = new Page<>(pageParam.getPageNo(), pageParam.getPageSize());
+        Page<MenuDO> deletedPage = (Page<MenuDO>) menuMapper.selectDeletedPage(page, name, status);
+        return PageResult.of(deletedPage.getRecords(), deletedPage.getTotal());
+    }
+
+    @Override
+    public void restoreMenu(Long id) {
+        int rows = menuMapper.restoreById(id);
+        if (rows == 0) {
+            throw new BusinessException(404, "回收站菜单不存在");
+        }
+    }
+
+    @Override
+    public void deletePermanent(Long id) {
+        int rows = menuMapper.deletePhysicalById(id);
+        if (rows == 0) {
+            throw new BusinessException(404, "回收站菜单不存在");
+        }
+    }
+
+    @Override
+    public void updateStatus(Long id, Integer status) {
+        MenuDO menu = menuMapper.selectById(id);
+        if (menu == null) {
+            throw new BusinessException(404, "菜单不存在");
+        }
+        menu.setStatus(status);
+        menuMapper.updateById(menu);
     }
 
     private List<MenuDO> buildTree(List<MenuDO> menus, Map<Long, MenuDO> allById) {
