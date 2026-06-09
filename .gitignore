@@ -46,3 +46,6 @@ backend/data/
 GitHub上传与推送全流程.md
 部署与本地开发说明.md
 sql/admin_platform_mysql56.sql
+
+# 本地设计/方案文档（不上传 GitHub）
+docs/
