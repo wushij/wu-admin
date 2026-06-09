@@ -1,5 +1,6 @@
 package cn.rbac.server.modules.system.api.notice;
 
+import cn.rbac.server.common.pojo.BusinessException;
 import cn.rbac.server.common.pojo.CommonResult;
 import cn.rbac.server.framework.security.core.service.SecurityUtils;
 import cn.rbac.server.modules.system.dal.dataobject.notice.NoticeDO;
@@ -50,7 +51,7 @@ public class NoticeController {
     public CommonResult<Boolean> read(@RequestBody NoticeReadReqVO reqVO) {
         NoticeDO notice = noticeMapper.selectById(reqVO.getId());
         if (notice == null || !SecurityUtils.getLoginUserIdOrZero().equals(notice.getUserId())) {
-            return CommonResult.error(404, "消息不存在");
+            throw new BusinessException(404, "消息不存在");
         }
         notice.setReadStatus(1);
         noticeMapper.updateById(notice);

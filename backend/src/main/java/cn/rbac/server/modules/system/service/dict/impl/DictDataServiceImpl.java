@@ -54,7 +54,7 @@ public class DictDataServiceImpl extends ServiceImpl<DictDataMapper, DictDataDO>
     public DictDataDO getById(Long id) {
         DictDataDO row = super.getById(id);
         if (row == null) {
-            throw new IllegalArgumentException("字典数据不存在");
+            throw new BusinessException(404, "字典数据不存在");
         }
         return row;
     }
@@ -72,7 +72,7 @@ public class DictDataServiceImpl extends ServiceImpl<DictDataMapper, DictDataDO>
     @Transactional(rollbackFor = Exception.class)
     public void update(DictDataDO dictData) {
         if (super.getById(dictData.getId()) == null) {
-            throw new IllegalArgumentException("字典数据不存在");
+            throw new BusinessException(404, "字典数据不存在");
         }
         assertDictValueUnique(dictData.getDictType(), dictData.getDictValue(), dictData.getId());
         updateById(dictData);
@@ -83,7 +83,7 @@ public class DictDataServiceImpl extends ServiceImpl<DictDataMapper, DictDataDO>
     @Override
     public void delete(Long id) {
         if (!removeById(id)) {
-            throw new IllegalArgumentException("字典数据不存在");
+            throw new BusinessException(404, "字典数据不存在");
         }
         dictCacheService.refreshAll();
     }
@@ -133,7 +133,7 @@ public class DictDataServiceImpl extends ServiceImpl<DictDataMapper, DictDataDO>
             wrapper.ne(DictDataDO::getId, excludeId);
         }
         if (count(wrapper) > 0) {
-            throw new IllegalArgumentException("同一字典类型下键值已存在");
+            throw new BusinessException("同一字典类型下键值已存在");
         }
     }
 

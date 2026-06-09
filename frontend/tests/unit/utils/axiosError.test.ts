@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { getErrorMessage } from '@/utils/axiosError'
+import { ERROR_TOAST_SHOWN, getErrorMessage, isErrorToastShown, markErrorToastShown } from '@/utils/axiosError'
 
 describe('getErrorMessage', () => {
   it('extracts msg from axios response body', () => {
@@ -23,5 +23,13 @@ describe('getErrorMessage', () => {
   it('returns undefined for non-object input', () => {
     expect(getErrorMessage(null)).toBeUndefined()
     expect(getErrorMessage('oops')).toBeUndefined()
+  })
+
+  it('marks and detects toast shown flag', () => {
+    const error = new Error('failed')
+    expect(isErrorToastShown(error)).toBe(false)
+    markErrorToastShown(error)
+    expect(isErrorToastShown(error)).toBe(true)
+    expect((error as unknown as Record<string, unknown>)[ERROR_TOAST_SHOWN]).toBe(true)
   })
 })

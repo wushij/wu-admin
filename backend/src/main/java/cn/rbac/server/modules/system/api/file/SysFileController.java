@@ -1,6 +1,7 @@
 package cn.rbac.server.modules.system.api.file;
 
 import cn.rbac.server.framework.log.annotation.Log;
+import cn.rbac.server.common.pojo.BusinessException;
 import cn.rbac.server.common.pojo.CommonResult;
 import cn.rbac.server.common.pojo.PageParam;
 import cn.rbac.server.common.pojo.PageResult;
@@ -120,10 +121,10 @@ public class SysFileController {
     public CommonResult<String> text(@PathVariable Long id) {
         SysFileDO file = fileService.getById(id);
         if (file == null) {
-            return CommonResult.error(404, "文件不存在");
+            throw new BusinessException(404, "文件不存在");
         }
         if (file.getFileSize() != null && file.getFileSize() > 5 * 1024 * 1024) {
-            return CommonResult.error(400, "文件过大，无法预览");
+            throw new BusinessException(400, "文件过大，无法预览");
         }
         return CommonResult.success(new String(fileService.getFileBytes(id), StandardCharsets.UTF_8));
     }

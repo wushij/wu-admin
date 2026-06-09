@@ -128,7 +128,7 @@ public class SysFileServiceImpl extends ServiceImpl<SysFileMapper, SysFileDO> im
     public SysFileDO uploadImage(MultipartFile file) {
         String contentType = file.getContentType();
         if (contentType == null || !contentType.startsWith("image/")) {
-            throw new IllegalArgumentException("请上传图片文件");
+            throw new BusinessException("请上传图片文件");
         }
         return upload(file, "images/" + generatePath(), null);
     }
@@ -138,7 +138,7 @@ public class SysFileServiceImpl extends ServiceImpl<SysFileMapper, SysFileDO> im
     public SysFileDO uploadChatImage(MultipartFile file) {
         String contentType = file.getContentType();
         if (contentType == null || !contentType.startsWith("image/")) {
-            throw new IllegalArgumentException("请上传图片文件");
+            throw new BusinessException("请上传图片文件");
         }
         return upload(file, CHAT_IMAGE_PATH_PREFIX + generatePath(), null);
     }
@@ -159,7 +159,7 @@ public class SysFileServiceImpl extends ServiceImpl<SysFileMapper, SysFileDO> im
     public byte[] getFileBytes(Long id) {
         SysFileDO record = getById(id);
         if (record == null) {
-            throw new IllegalArgumentException("文件不存在");
+            throw new BusinessException(404, "文件不存在");
         }
         try {
             return localFileStorage.readBytes(record.getFilePath());
@@ -172,11 +172,11 @@ public class SysFileServiceImpl extends ServiceImpl<SysFileMapper, SysFileDO> im
     public org.springframework.core.io.Resource openFileResource(Long id) throws IOException {
         SysFileDO record = getById(id);
         if (record == null) {
-            throw new IllegalArgumentException("文件不存在");
+            throw new BusinessException(404, "文件不存在");
         }
         Path path = localFileStorage.resolvePath(record.getFilePath());
         if (!Files.isRegularFile(path)) {
-            throw new IllegalArgumentException("文件不存在");
+            throw new BusinessException(404, "文件不存在");
         }
         return new FileSystemResource(Objects.requireNonNull(path.toAbsolutePath(), "file path"));
     }
@@ -216,7 +216,7 @@ public class SysFileServiceImpl extends ServiceImpl<SysFileMapper, SysFileDO> im
     public void rename(Long id, String newName) {
         SysFileDO record = getById(id);
         if (record == null) {
-            throw new IllegalArgumentException("文件不存在");
+            throw new BusinessException(404, "文件不存在");
         }
         record.setOriginalName(newName);
         updateById(record);

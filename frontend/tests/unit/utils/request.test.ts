@@ -108,7 +108,7 @@ describe('request', () => {
       localStorage.setItem('token', 'expired')
       await expect(
         responseSuccess({
-          data: { code: 401, msg: '未授权' },
+          data: { code: 401, message: '未授权' },
           config: { url: '/system/user/list' },
         } as AxiosResponse),
       ).rejects.toThrow('未授权')
@@ -120,7 +120,7 @@ describe('request', () => {
     it('shows auth error without redirect on public login 401', async () => {
       await expect(
         responseSuccess({
-          data: { code: 401, msg: '账号或密码错误' },
+          data: { code: 401, message: '账号或密码错误' },
           config: { url: '/auth/login' },
         } as AxiosResponse),
       ).rejects.toThrow('账号或密码错误')
@@ -131,7 +131,7 @@ describe('request', () => {
     it('rejects 403 and shows permission toast', async () => {
       await expect(
         responseSuccess({
-          data: { code: 403, msg: '权限不足' },
+          data: { code: 403, message: '权限不足' },
           config: { url: '/system/role/list' },
         } as AxiosResponse),
       ).rejects.toThrow('权限不足')
@@ -141,7 +141,7 @@ describe('request', () => {
     it('respects silent403 and skips toast', async () => {
       await expect(
         responseSuccess({
-          data: { code: 403, msg: '权限不足' },
+          data: { code: 403, message: '权限不足' },
           config: { url: '/system/role/list', silent403: true },
         } as AxiosResponse),
       ).rejects.toThrow('权限不足')

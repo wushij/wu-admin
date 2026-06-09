@@ -1,5 +1,6 @@
 package cn.rbac.server.modules.system.service.menu.impl;
 
+import cn.rbac.server.common.pojo.BusinessException;
 import cn.rbac.server.modules.system.dal.dataobject.permission.MenuDO;
 import cn.rbac.server.modules.system.dal.mysql.permission.MenuMapper;
 import cn.rbac.server.testsupport.MybatisLambdaTestBase;
@@ -59,7 +60,7 @@ class MenuServiceImplTest extends MybatisLambdaTestBase {
     void deleteMenu_rejectsWhenHasChildren() {
         when(menuMapper.selectCount(MybatisMockMatchers.anyLambdaQueryWrapper())).thenReturn(1L);
 
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+        BusinessException ex = assertThrows(BusinessException.class,
                 () -> menuService.deleteMenu(1L));
 
         assertTrue(ex.getMessage().contains("子菜单"));

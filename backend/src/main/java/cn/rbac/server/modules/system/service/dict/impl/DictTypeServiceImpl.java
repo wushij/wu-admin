@@ -57,7 +57,7 @@ public class DictTypeServiceImpl extends ServiceImpl<DictTypeMapper, DictTypeDO>
     public DictTypeDO getById(Long id) {
         DictTypeDO row = super.getById(id);
         if (row == null) {
-            throw new IllegalArgumentException("字典类型不存在");
+            throw new BusinessException(404, "字典类型不存在");
         }
         row.setDataCount(dictDataService.countByDictType(row.getDictType()));
         return row;
@@ -74,10 +74,10 @@ public class DictTypeServiceImpl extends ServiceImpl<DictTypeMapper, DictTypeDO>
     public void update(DictTypeDO dictType) {
         DictTypeDO exist = super.getById(dictType.getId());
         if (exist == null) {
-            throw new IllegalArgumentException("字典类型不存在");
+            throw new BusinessException(404, "字典类型不存在");
         }
         if (!exist.getDictType().equals(dictType.getDictType())) {
-            throw new IllegalArgumentException("字典类型编码不允许修改");
+            throw new BusinessException("字典类型编码不允许修改");
         }
         assertDictTypeUnique(dictType.getDictType(), dictType.getId());
         updateById(dictType);
@@ -89,7 +89,7 @@ public class DictTypeServiceImpl extends ServiceImpl<DictTypeMapper, DictTypeDO>
     public void delete(Long id) {
         DictTypeDO row = super.getById(id);
         if (row == null) {
-            throw new IllegalArgumentException("字典类型不存在");
+            throw new BusinessException(404, "字典类型不存在");
         }
         removeById(id);
         dictDataMapper.delete(new LambdaQueryWrapper<DictDataDO>()
@@ -129,7 +129,7 @@ public class DictTypeServiceImpl extends ServiceImpl<DictTypeMapper, DictTypeDO>
     public void copy(Long id) {
         DictTypeDO src = super.getById(id);
         if (src == null) {
-            throw new IllegalArgumentException("字典类型不存在");
+            throw new BusinessException(404, "字典类型不存在");
         }
         String suffix = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
         String newType = src.getDictType() + "_copy_" + suffix;
@@ -167,7 +167,7 @@ public class DictTypeServiceImpl extends ServiceImpl<DictTypeMapper, DictTypeDO>
             wrapper.ne(DictTypeDO::getId, excludeId);
         }
         if (count(wrapper) > 0) {
-            throw new IllegalArgumentException("字典类型编码已存在");
+            throw new BusinessException("字典类型编码已存在");
         }
     }
 }

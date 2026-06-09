@@ -1,5 +1,6 @@
 package cn.rbac.server.modules.system.service.dept.impl;
 
+import cn.rbac.server.common.pojo.BusinessException;
 import cn.rbac.server.modules.system.dal.dataobject.dept.DeptDO;
 import cn.rbac.server.modules.system.dal.mysql.dept.DeptMapper;
 import cn.rbac.server.modules.system.dal.mysql.user.UserMapper;
@@ -44,7 +45,7 @@ class DeptServiceImplTest extends MybatisLambdaTestBase {
     void getById_notFound() {
         when(deptMapper.selectById(99L)).thenReturn(null);
 
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+        BusinessException ex = assertThrows(BusinessException.class,
                 () -> deptService.getById(99L));
 
         assertTrue(ex.getMessage().contains("不存在"));
@@ -84,7 +85,7 @@ class DeptServiceImplTest extends MybatisLambdaTestBase {
     void delete_rejectsWhenHasChildren() {
         when(deptMapper.selectCount(MybatisMockMatchers.anyLambdaQueryWrapper())).thenReturn(2L);
 
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+        BusinessException ex = assertThrows(BusinessException.class,
                 () -> deptService.delete(1L));
 
         assertTrue(ex.getMessage().contains("子部门"));
@@ -97,7 +98,7 @@ class DeptServiceImplTest extends MybatisLambdaTestBase {
         when(deptMapper.selectCount(MybatisMockMatchers.anyLambdaQueryWrapper())).thenReturn(0L);
         when(userMapper.selectCount(MybatisMockMatchers.anyLambdaQueryWrapper())).thenReturn(3L);
 
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+        BusinessException ex = assertThrows(BusinessException.class,
                 () -> deptService.delete(1L));
 
         assertTrue(ex.getMessage().contains("用户"));
@@ -113,7 +114,7 @@ class DeptServiceImplTest extends MybatisLambdaTestBase {
         update.setId(5L);
         update.setParentId(5L);
 
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+        BusinessException ex = assertThrows(BusinessException.class,
                 () -> deptService.update(update));
 
         assertTrue(ex.getMessage().contains("不能选择自己"));
@@ -128,7 +129,7 @@ class DeptServiceImplTest extends MybatisLambdaTestBase {
         when(deptMapper.selectById(1L)).thenReturn(dept);
         when(deptMapper.selectById(5L)).thenReturn(child);
 
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+        BusinessException ex = assertThrows(BusinessException.class,
                 () -> deptService.move(1L, 5L, null));
 
         assertTrue(ex.getMessage().contains("子部门"));

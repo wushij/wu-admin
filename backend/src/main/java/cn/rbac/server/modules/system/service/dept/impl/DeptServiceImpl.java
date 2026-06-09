@@ -1,5 +1,6 @@
 package cn.rbac.server.modules.system.service.dept.impl;
 
+import cn.rbac.server.common.pojo.BusinessException;
 import cn.rbac.server.modules.system.dal.dataobject.dept.DeptDO;
 import cn.rbac.server.modules.system.dal.dataobject.user.UserDO;
 import cn.rbac.server.modules.system.dal.mysql.dept.DeptMapper;
@@ -43,7 +44,7 @@ public class DeptServiceImpl extends ServiceImpl<DeptMapper, DeptDO> implements 
     public DeptDO getById(Long id) {
         DeptDO dept = super.getById(id);
         if (dept == null) {
-            throw new IllegalArgumentException("部门不存在");
+            throw new BusinessException(404, "部门不存在");
         }
         return dept;
     }
@@ -57,7 +58,7 @@ public class DeptServiceImpl extends ServiceImpl<DeptMapper, DeptDO> implements 
         } else {
             DeptDO parent = super.getById(parentId);
             if (parent == null) {
-                throw new IllegalArgumentException("父部门不存在");
+                throw new BusinessException(404, "父部门不存在");
             }
             dept.setAncestors(parent.getAncestors() + "," + parentId);
         }
@@ -72,14 +73,14 @@ public class DeptServiceImpl extends ServiceImpl<DeptMapper, DeptDO> implements 
     public void update(DeptDO dept) {
         DeptDO exist = super.getById(dept.getId());
         if (exist == null) {
-            throw new IllegalArgumentException("部门不存在");
+            throw new BusinessException(404, "部门不存在");
         }
         Long parentId = dept.getParentId() == null ? exist.getParentId() : dept.getParentId();
         if (parentId == null) {
             parentId = 0L;
         }
         if (dept.getId().equals(parentId)) {
-            throw new IllegalArgumentException("上级部门不能选择自己");
+            throw new BusinessException("上级部门不能选择自己");
         }
         if (!parentId.equals(exist.getParentId() == null ? 0L : exist.getParentId())) {
             if (parentId == 0L) {
@@ -87,10 +88,10 @@ public class DeptServiceImpl extends ServiceImpl<DeptMapper, DeptDO> implements 
             } else {
                 DeptDO parent = super.getById(parentId);
                 if (parent == null) {
-                    throw new IllegalArgumentException("父部门不存在");
+                    throw new BusinessException(404, "父部门不存在");
                 }
                 if (parent.getAncestors() != null && parent.getAncestors().contains("," + dept.getId())) {
-                    throw new IllegalArgumentException("不能移动到子部门下");
+                    throw new BusinessException("不能移动到子部门下");
                 }
                 dept.setAncestors(parent.getAncestors() + "," + parentId);
             }
@@ -106,11 +107,11 @@ public class DeptServiceImpl extends ServiceImpl<DeptMapper, DeptDO> implements 
     public void delete(Long id) {
         long childCount = count(new LambdaQueryWrapper<DeptDO>().eq(DeptDO::getParentId, id));
         if (childCount > 0) {
-            throw new IllegalArgumentException("存在子部门，无法删除");
+            throw new BusinessException("存在子部门，无法删除");
         }
         long userCount = userMapper.selectCount(new LambdaQueryWrapper<UserDO>().eq(UserDO::getDeptId, id));
         if (userCount > 0) {
-            throw new IllegalArgumentException("部门下仍有 " + userCount + " 名用户，无法删除");
+            throw new BusinessException("部门下仍有 " + userCount + " 名用户，无法删除");
         }
         removeById(id);
     }
@@ -120,19 +121,19 @@ public class DeptServiceImpl extends ServiceImpl<DeptMapper, DeptDO> implements 
     public void move(Long id, Long parentId, Integer sort) {
         DeptDO dept = super.getById(id);
         if (dept == null) {
-            throw new IllegalArgumentException("部门不存在");
+            throw new BusinessException(404, "部门不存在");
         }
         parentId = parentId == null ? 0L : parentId;
         if (id.equals(parentId)) {
-            throw new IllegalArgumentException("上级部门不能选择自己");
+            throw new BusinessException("上级部门不能选择自己");
         }
         if (parentId > 0) {
             DeptDO parent = super.getById(parentId);
             if (parent == null) {
-                throw new IllegalArgumentException("父部门不存在");
+                throw new BusinessException(404, "父部门不存在");
             }
             if (parent.getAncestors() != null && parent.getAncestors().contains("," + id)) {
-                throw new IllegalArgumentException("不能移动到子部门下");
+                throw new BusinessException("不能移动到子部门下");
             }
             dept.setAncestors(parent.getAncestors() + "," + parentId);
         } else {

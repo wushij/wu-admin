@@ -1,5 +1,6 @@
 package cn.rbac.server.modules.system.service.message;
 
+import cn.rbac.server.common.pojo.BusinessException;
 import cn.rbac.server.framework.websocket.MessageWebSocketHandler;
 import cn.rbac.server.modules.system.dal.dataobject.message.ChatGroupDO;
 import cn.rbac.server.modules.system.dal.dataobject.message.ChatGroupMessageDO;
@@ -181,7 +182,7 @@ class ChatServiceTest extends MybatisLambdaTestBase {
     void sendPrivate_blocked() {
         when(blacklistMapper.selectCount(MybatisMockMatchers.anyLambdaQueryWrapper())).thenReturn(1L, 0L);
 
-        assertThrows(IllegalStateException.class,
+        assertThrows(BusinessException.class,
                 () -> chatService.sendPrivate(ME, 2L, "hi", 1));
         verify(chatMessageMapper, never()).insert(any(ChatMessageDO.class));
     }
@@ -210,7 +211,7 @@ class ChatServiceTest extends MybatisLambdaTestBase {
     void sendGroupMessage_notMember() {
         when(groupMemberMapper.selectOne(MybatisMockMatchers.anyLambdaQueryWrapper())).thenReturn(null);
 
-        assertThrows(IllegalStateException.class,
+        assertThrows(BusinessException.class,
                 () -> chatService.sendGroupMessage(100L, ME, "hi", 1));
     }
 
@@ -223,7 +224,7 @@ class ChatServiceTest extends MybatisLambdaTestBase {
         member.setMuted(1);
         when(groupMemberMapper.selectOne(MybatisMockMatchers.anyLambdaQueryWrapper())).thenReturn(member);
 
-        IllegalStateException ex = assertThrows(IllegalStateException.class,
+        BusinessException ex = assertThrows(BusinessException.class,
                 () -> chatService.sendGroupMessage(100L, ME, "hi", 1));
 
         assertTrue(ex.getMessage().contains("禁言"));
@@ -238,7 +239,7 @@ class ChatServiceTest extends MybatisLambdaTestBase {
         msg.setSendTime(LocalDateTime.now());
         when(chatMessageMapper.selectById(50L)).thenReturn(msg);
 
-        assertThrows(IllegalStateException.class, () -> chatService.recallPrivate(ME, 50L));
+        assertThrows(BusinessException.class, () -> chatService.recallPrivate(ME, 50L));
     }
 
     @Test
@@ -264,7 +265,7 @@ class ChatServiceTest extends MybatisLambdaTestBase {
     void recallGroupMessage_notMember() {
         when(groupMemberMapper.selectOne(MybatisMockMatchers.anyLambdaQueryWrapper())).thenReturn(null);
 
-        assertThrows(IllegalStateException.class,
+        assertThrows(BusinessException.class,
                 () -> chatService.recallGroupMessage(100L, ME, 50L));
     }
 
@@ -304,7 +305,7 @@ class ChatServiceTest extends MybatisLambdaTestBase {
     void createGroup_forbidden() {
         when(permissionService.hasRole(ME, "super_admin")).thenReturn(false);
 
-        assertThrows(IllegalStateException.class,
+        assertThrows(BusinessException.class,
                 () -> chatService.createGroup(ME, "研发群", List.of()));
     }
 
@@ -347,7 +348,7 @@ class ChatServiceTest extends MybatisLambdaTestBase {
         group.setOwnerId(99L);
         when(chatGroupMapper.selectById(100L)).thenReturn(group);
 
-        assertThrows(IllegalStateException.class, () -> chatService.dissolveGroup(100L, ME));
+        assertThrows(BusinessException.class, () -> chatService.dissolveGroup(100L, ME));
     }
 
     @Test

@@ -42,7 +42,7 @@
 | 维度 | 改进要点 |
 |------|----------|
 | **分层** | 认证、用户、角色、工单、**工作台**、**消息汇总**等模块将业务逻辑从 Controller 下沉至 Service（`AuthService`、`UserService`、`RoleService`、`TicketService`、`DashboardService`、`NoticeService` 等）；Controller 负责参数校验、权限注解与结果封装 |
-| **异常** | 新增 `BusinessException`（可携带业务错误码）；`GlobalExceptionHandler` 统一处理校验失败、参数缺失、404 及兜底异常（共 11 种） |
+| **异常** | `BusinessException` + `GlobalExceptionHandler`（17 类异常）+ `BusinessHttpStatusMapper` 对齐 HTTP 状态；Security 401/403 JSON 化；详见 [全局异常处理](#全局异常处理与错误契约) |
 | **安全** | `UserDO.password` 添加 `@JsonIgnore`；管理端敏感接口补全 `@PreAuthorize`；CORS 改为 `app.cors.allowed-origins` 配置；URL 参数传 Token 仅限 `/files/**` |
 | **校验** | 核心 VO（登录/注册/用户/角色/工单/审批/聊天/个人中心）添加 JSR-303（`@NotBlank` / `@Pattern` / `@Size`）+ `@Validated` |
 | **事务** | 用户/工单/审批等多表写操作添加 `@Transactional(rollbackFor = Exception.class)` |
@@ -763,8 +763,9 @@ cn.rbac.server/
 │   │   ├── config/                   # SecurityConfig（CORS 从 yml 读取）
 │   │   └── core/                     # TokenService、SecurityUtils
 │   ├── web/
-│   │   ├── core/                     # GlobalExceptionHandler（含 BusinessException）
-│   │   └── filter/                   # AuthorizationQueryFilter、Knife4jIframeHeaderFilter
+│   │   ├── core/                     # GlobalExceptionHandler、BusinessHttpStatusMapper、ApiErrorResponseWriter
+│   │   └── filter/                   # SaTokenAuthenticationFilter、AuthorizationQueryFilter 等
+│   ├── security/handler/             # JsonAuthenticationEntryPoint、JsonAccessDeniedHandler（401/403 JSON）
 │   ├── log/annotation/               # @Log
 │   ├── mybatis/、redis/、storage/
 └── modules/
@@ -789,6 +790,90 @@ cn.rbac.server/
 | 新增业务接口 | 在 `service/` 写业务逻辑，Controller 只做入参校验与 `CommonResult` 封装；业务错误抛 `BusinessException` |
 | 新增业务模块 | 增加 `modules/xxx`，在 `xxx/framework` 实现 SPI，勿让 `framework` 依赖业务 |
 | 复用基础层 | 将 `common` + `framework` 打成 jar，供其它 Spring Boot 项目依赖 |
+
+### 全局异常处理与错误契约
+
+前后端统一约定：**业务可预期错误在 Service 层抛 `BusinessException`，由 `GlobalExceptionHandler` 转为 `CommonResult`；HTTP 状态码与 body.`code` 对齐**。Controller **不要** `return CommonResult.error(...)`，也不要 broad `catch (Exception)` 把内部堆栈返回前端。
+
+#### 处理链路
+
+```
+请求 → Filter（Sa-Token 桥接）→ Security（未登录/无权限 → JSON EntryPoint）
+     → Controller → Service 抛 BusinessException
+     → GlobalExceptionHandler → BusinessHttpStatusMapper → ResponseEntity + CommonResult
+     → 前端 request.ts 拦截器（401 跳登录 / 403 权限提示 / 429 限流 warning）
+```
+
+#### 核心类
+
+| 类 | 路径 | 职责 |
+|----|------|------|
+| `BusinessException` | `common/pojo/` | 业务异常，`code` 默认 400，可传 401/403/404/429/500 等 |
+| `BusinessHttpStatusMapper` | `framework/web/core/` | 业务码 → `HttpStatus`（401/403/404/405/415/429/500，其余 400） |
+| `GlobalExceptionHandler` | `framework/web/core/` | `@RestControllerAdvice`，17 个 `@ExceptionHandler` |
+| `ApiErrorResponseWriter` | `framework/web/core/` | 向 Servlet 响应写入 `CommonResult` JSON（供 Security 过滤器链使用） |
+| `JsonAuthenticationEntryPoint` | `framework/security/handler/` | 未登录 → HTTP 401 + `CommonResult` |
+| `JsonAccessDeniedHandler` | `framework/security/handler/` | 无权限 → HTTP 403 + `CommonResult` |
+
+#### 已覆盖的异常类型（17 个）
+
+| 异常 | HTTP | code | 典型场景 |
+|------|------|------|----------|
+| `BusinessException` | 动态 | 原始 code | 资源不存在、权限不足、限流等业务错误（**首选**） |
+| `IllegalArgumentException` | 400 | 400 | 定时任务调用格式、文件校验、Cron 表达式等（记 warn 日志） |
+| `IllegalStateException` | 400 | 400 | Quartz 任务状态异常等（记 warn 日志） |
+| `MethodArgumentNotValidException` | 400 | 400 | `@RequestBody` JSR-303 校验失败 |
+| `ConstraintViolationException` | 400 | 400 | 方法参数 `@Validated` 校验失败 |
+| `HttpMessageNotReadableException` | 400 | 400 | JSON 解析失败 |
+| `MissingServletRequestParameterException` | 400 | 400 | 缺少 `@RequestParam` |
+| `MissingPathVariableException` | 400 | 400 | 缺少 `@PathVariable` |
+| `MethodArgumentTypeMismatchException` | 400 | 400 | 参数类型不匹配 |
+| `MaxUploadSizeExceededException` | 400 | 400 | 上传超限（文案读取 `DynamicConfigProvider`） |
+| `SecurityException` | 403 | 403 | 文件路径穿越等安全拒绝（记 warn 日志 + IP） |
+| `AccessDeniedException` | 403 | 403 | `@PreAuthorize` 鉴权失败 |
+| `NotLoginException` | 401 | 401 | Sa-Token 注解鉴权未登录 |
+| `NoHandlerFoundException` | 404 | 404 | 路由不存在（需 `spring.mvc.throw-exception-if-no-handler-found: true`） |
+| `HttpRequestMethodNotSupportedException` | 405 | 405 | HTTP 方法不支持 |
+| `HttpMediaTypeNotSupportedException` | 415 | 415 | Content-Type 不支持 |
+| `Exception`（兜底） | 500 | 500 | 未预期异常；服务端记完整堆栈，对外仅「服务器内部错误」 |
+
+#### 开发约定
+
+```java
+// Service 层 — 推荐
+throw new BusinessException(404, "工单不存在");
+throw new BusinessException(403, "仅审批人可操作");
+throw new BusinessException(429, "操作过于频繁");
+throw new BusinessException("用户名已存在");  // 默认 code=400
+
+// Controller 层 — 禁止
+return CommonResult.error(404, "xxx");        // ❌ HTTP 200 与 body.code 不一致
+catch (Exception e) { return CommonResult.error(500, e.getMessage()); }  // ❌ 泄露内部信息
+```
+
+- **可观测性**：`handleBusiness` / `handleException` / `handleSecurity` 记录 method、URI、IP；`IllegalArgumentException` / `IllegalStateException` 记 warn；`SaTokenAuthenticationFilter` 鉴权异常记 debug（不静默吞掉）。
+- **配置**：`application.yml` 已启用 `spring.mvc.throw-exception-if-no-handler-found: true`，404 走统一 JSON 而非默认错误页。
+
+#### 前端对齐（`frontend/src/utils/request.ts`）
+
+| body.code / HTTP status | 行为 |
+|-------------------------|------|
+| 200 / 0 | 成功，返回 `res.data` |
+| 401 | 公开登录接口 Toast 错误文案；已登录态清 token 并跳转 `/login` |
+| 403 | Toast「权限不足」（`silent403: true` 可抑制；2 秒防抖） |
+| 429 | `ElMessage.warning` 限流提示 |
+| 其它 | Toast `message` 字段 |
+
+页面 `catch` 时可用 `getErrorMessage` / `isErrorToastShown`（`utils/axiosError.ts`）避免与拦截器重复弹窗。
+
+#### 单测
+
+| 测试类 | 说明 |
+|--------|------|
+| `GlobalExceptionHandlerTest` | 约 20 用例，覆盖业务码 HTTP 映射、校验拼接、401/403/404/405/415、兜底不泄露等 |
+| `BusinessHttpStatusMapperTest` | 业务码 → HTTP 状态映射 |
+
+运行：`cd backend && mvn test -Dtest=GlobalExceptionHandlerTest`
 
 ---
 
@@ -1094,7 +1179,7 @@ mvn test -Dtest=AuthServiceImplTest   # 指定类
 | `ChatServiceTest` | 私聊/群聊发送、撤回、建群、成员管理、解散 |
 | `TicketServiceImplTest` | 工单创建、评论、状态流转 |
 | `MenuServiceImplTest` / `DictDataServiceImplTest` | 菜单树、字典缓存刷新 |
-| `GlobalExceptionHandlerTest` | 业务异常、参数异常、403 统一响应 |
+| `GlobalExceptionHandlerTest` / `BusinessHttpStatusMapperTest` | 17 类异常处理、HTTP 状态对齐、安全/兜底/校验场景 |
 
 公共支撑：`testsupport/MybatisLambdaTestBase`（MyBatis-Plus `LambdaQueryWrapper` 元数据初始化）、`ServiceTestFixtures`（User/Role/Menu 等测试数据构造）。
 
@@ -1288,7 +1373,13 @@ A：升级后账号/密码错误统一返回「账号或密码错误」；若仍
 A：升级后 `PageParam` 自动将 `pageSize` 上限限制为 **200**；非法 `pageNo` 会修正为 1。
 
 **Q：业务错误返回格式不统一？**  
-A：Service 层应抛 `BusinessException`，由 `GlobalExceptionHandler` 统一返回 `CommonResult`；勿在 Controller 手工 catch 后吞掉异常。
+A：统一走 [全局异常处理](#全局异常处理与错误契约)：Service 抛 `BusinessException(code, message)`，由 `GlobalExceptionHandler` 返回 `CommonResult` 且 HTTP 状态与 `code` 对齐；Controller 勿 `return CommonResult.error`、勿 broad catch 泄露 `e.getMessage()`。未登录/无权限由 Security JSON EntryPoint 返回相同结构。前端读 `res.code` 与 `res.message`（非 `msg`）。
+
+**Q：接口 HTTP 200 但 body 里 code 是 403/404？**  
+A：升级后 `BusinessException` 已通过 `ResponseEntity` 对齐 HTTP 状态；若仍出现，检查是否 Controller 直接 `return CommonResult.error` 或未抛异常的旧代码路径。
+
+**Q：文件路径穿越或安全相关错误返回 400？**  
+A：升级后 `SecurityException`（如 `LocalFileStorage` 非法路径）返回 **403** 并记 warn 日志含 IP。
 
 **Q：Git 仓库？**  
 A：https://github.com/wushij/wu-admin
@@ -1298,6 +1389,7 @@ A：https://github.com/wushij/wu-admin
 ## 相关文档
 
 - [GitHub 上传与推送](./GitHub上传与推送全流程.md)
+- [GlobalExceptionHandler 代码质量分析](./code-quality-analysis-global-exception-handler.md)
 
 ---
 

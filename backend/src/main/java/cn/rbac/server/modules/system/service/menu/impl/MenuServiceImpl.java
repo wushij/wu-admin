@@ -1,5 +1,6 @@
 package cn.rbac.server.modules.system.service.menu.impl;
 
+import cn.rbac.server.common.pojo.BusinessException;
 import cn.rbac.server.modules.system.dal.dataobject.permission.MenuDO;
 import cn.rbac.server.modules.system.dal.mysql.permission.MenuMapper;
 import cn.rbac.server.modules.system.service.menu.MenuService;
@@ -53,7 +54,7 @@ public class MenuServiceImpl implements MenuService {
         Long childCount = menuMapper.selectCount(new LambdaQueryWrapper<MenuDO>()
                 .eq(MenuDO::getParentId, id));
         if (childCount != null && childCount > 0) {
-            throw new IllegalArgumentException("存在子菜单，无法删除");
+            throw new BusinessException("存在子菜单，无法删除");
         }
         menuMapper.deleteById(id);
     }

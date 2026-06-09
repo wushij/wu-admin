@@ -1,5 +1,6 @@
 package cn.rbac.server.modules.system.service.dict.impl;
 
+import cn.rbac.server.common.pojo.BusinessException;
 import cn.rbac.server.modules.system.dal.dataobject.dict.DictDataDO;
 import cn.rbac.server.modules.system.dal.mysql.dict.DictDataMapper;
 import cn.rbac.server.modules.system.framework.cache.DictCacheService;
@@ -56,7 +57,7 @@ class DictDataServiceImplTest extends MybatisLambdaTestBase {
     void getById_notFound() {
         when(dictDataMapper.selectById(99L)).thenReturn(null);
 
-        assertThrows(IllegalArgumentException.class, () -> dictDataService.getById(99L));
+        assertThrows(BusinessException.class, () -> dictDataService.getById(99L));
     }
 
     @Test
@@ -66,7 +67,7 @@ class DictDataServiceImplTest extends MybatisLambdaTestBase {
 
         DictDataDO dictData = dictRow(null, "sys_user_sex", "1", "男");
 
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+        BusinessException ex = assertThrows(BusinessException.class,
                 () -> dictDataService.create(dictData));
 
         assertTrue(ex.getMessage().contains("已存在"));

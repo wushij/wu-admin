@@ -2,6 +2,7 @@ package cn.rbac.server.framework.web.filter;
 
 import cn.dev33.satoken.stp.StpUtil;
 import cn.rbac.server.modules.system.service.monitor.OnlineUserService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -19,6 +20,7 @@ import java.util.Collections;
 /**
  * 将 Sa-Token 登录态桥接到 Spring Security
  */
+@Slf4j
 @Component
 public class SaTokenAuthenticationFilter extends OncePerRequestFilter {
 
@@ -39,7 +41,8 @@ public class SaTokenAuthenticationFilter extends OncePerRequestFilter {
                 authentication.setDetails(userId);
                 SecurityContextHolder.getContext().setAuthentication(authentication);
             }
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            log.debug("Sa-Token 鉴权跳过 [{}]: {}", request.getRequestURI(), e.getMessage());
             SecurityContextHolder.clearContext();
         }
         filterChain.doFilter(request, response);

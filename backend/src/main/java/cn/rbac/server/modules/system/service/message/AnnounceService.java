@@ -127,7 +127,7 @@ public class AnnounceService {
     @Transactional(rollbackFor = Exception.class)
     public void delete(Long id) {
         if (announceMapper.selectById(id) == null) {
-            throw new IllegalArgumentException("通知不存在");
+            throw new BusinessException(404, "通知不存在");
         }
         announceMapper.deleteById(id);
     }
@@ -160,7 +160,7 @@ public class AnnounceService {
     public void publish(Long id) {
         AnnounceDO announce = announceMapper.selectById(id);
         if (announce == null) {
-            throw new IllegalArgumentException("通知不存在");
+            throw new BusinessException(404, "通知不存在");
         }
         announce.setStatus(1);
         announceMapper.updateById(announce);

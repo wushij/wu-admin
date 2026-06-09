@@ -1,5 +1,5 @@
 <template>
-  <el-card shadow="never" class="search-card module-search-card table-card">
+  <el-card shadow="never" class="table-card">
     <template #header>
       <div class="card-header-row">
         <span>任务列表</span>
@@ -156,6 +156,9 @@ defineEmits<{
 .table-card {
   margin-bottom: 16px;
 }
+.table-card :deep(.el-card__body) {
+  padding: 16px 20px 20px;
+}
 .card-header-row {
   display: flex;
   align-items: center;
@@ -167,8 +170,11 @@ defineEmits<{
   align-items: center;
   gap: 8px;
 }
-.table-toolbar {
+.module-search-form {
   margin-bottom: 12px;
+}
+.table-toolbar {
+  margin-bottom: 16px;
   display: flex;
   gap: 8px;
   flex-wrap: wrap;

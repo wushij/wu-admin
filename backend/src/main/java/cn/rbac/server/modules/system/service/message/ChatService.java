@@ -1,5 +1,6 @@
 package cn.rbac.server.modules.system.service.message;
 
+import cn.rbac.server.common.pojo.BusinessException;
 import cn.rbac.server.framework.websocket.MessageWebSocketHandler;
 import cn.rbac.server.modules.system.service.permission.PermissionService;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -64,7 +65,7 @@ public class ChatService {
     @Transactional(rollbackFor = Exception.class)
     public ChatMessageDO sendPrivate(Long senderId, Long receiverId, String content, Integer msgType) {
         if (isBlocked(senderId, receiverId)) {
-            throw new IllegalStateException("无法发送，存在拉黑关系");
+            throw new BusinessException(400, "无法发送，存在拉黑关系");
         }
         UserDO sender = userMapper.selectById(senderId);
         ChatMessageDO msg = new ChatMessageDO();
@@ -190,7 +191,7 @@ public class ChatService {
     @Transactional(rollbackFor = Exception.class)
     public ChatGroupDO createGroup(Long ownerId, String name, List<Long> memberIds) {
         if (!canCreateGroup(ownerId)) {
-            throw new IllegalStateException("仅超级管理员可创建群聊");
+            throw new BusinessException(403, "仅超级管理员可创建群聊");
         }
         ChatGroupDO group = new ChatGroupDO();
         group.setName(name);
@@ -271,10 +272,10 @@ public class ChatService {
                 .eq(ChatGroupMemberDO::getGroupId, groupId)
                 .eq(ChatGroupMemberDO::getUserId, senderId));
         if (member == null) {
-            throw new IllegalStateException("不在该群");
+            throw new BusinessException(403, "不在该群");
         }
         if (member.getMuted() != null && member.getMuted() == 1) {
-            throw new IllegalStateException("您已被禁言");
+            throw new BusinessException(403, "您已被禁言");
         }
         UserDO sender = userMapper.selectById(senderId);
         ChatGroupMessageDO msg = new ChatGroupMessageDO();
@@ -290,7 +291,7 @@ public class ChatService {
             try {
                 msg.setMentionIds(objectMapper.writeValueAsString(atIds));
             } catch (Exception e) {
-                throw new IllegalStateException("提及用户解析失败");
+                throw new BusinessException(400, "提及用户解析失败");
             }
         }
         groupMessageMapper.insert(msg);
@@ -319,10 +320,10 @@ public class ChatService {
     public ChatMessageDO recallPrivate(Long userId, Long messageId) {
         ChatMessageDO msg = chatMessageMapper.selectById(messageId);
         if (msg == null) {
-            throw new IllegalStateException("消息不存在");
+            throw new BusinessException(404, "消息不存在");
         }
         if (!userId.equals(msg.getSenderId())) {
-            throw new IllegalStateException("只能撤回自己发送的消息");
+            throw new BusinessException(403, "只能撤回自己发送的消息");
         }
         ensureWithinRecallWindow(msg.getSendTime());
         if (msg.getMsgType() != null && msg.getMsgType() == ChatMsgType.RECALLED) {
@@ -341,14 +342,14 @@ public class ChatService {
                 .eq(ChatGroupMemberDO::getGroupId, groupId)
                 .eq(ChatGroupMemberDO::getUserId, userId));
         if (member == null) {
-            throw new IllegalStateException("不在该群");
+            throw new BusinessException(403, "不在该群");
         }
         ChatGroupMessageDO msg = groupMessageMapper.selectById(messageId);
         if (msg == null || !groupId.equals(msg.getGroupId())) {
-            throw new IllegalStateException("消息不存在");
+            throw new BusinessException(404, "消息不存在");
         }
         if (!userId.equals(msg.getSenderId())) {
-            throw new IllegalStateException("只能撤回自己发送的消息");
+            throw new BusinessException(403, "只能撤回自己发送的消息");
         }
         ensureWithinRecallWindow(msg.getSendTime());
         if (msg.getMsgType() != null && msg.getMsgType() == ChatMsgType.RECALLED) {
@@ -373,7 +374,7 @@ public class ChatService {
             return;
         }
         if (Duration.between(sendTime, LocalDateTime.now()).toMinutes() > RECALL_MINUTES) {
-            throw new IllegalStateException("已超过 " + RECALL_MINUTES + " 分钟，无法撤回");
+            throw new BusinessException(400, "已超过 " + RECALL_MINUTES + " 分钟，无法撤回");
         }
     }
 
@@ -430,7 +431,7 @@ public class ChatService {
                 .eq(ChatGroupMemberDO::getGroupId, groupId)
                 .eq(ChatGroupMemberDO::getUserId, userId));
         if (member == null) {
-            throw new IllegalStateException("不在该群");
+            throw new BusinessException(403, "不在该群");
         }
         Page<ChatGroupMessageDO> page = groupMessageMapper.selectPage(new Page<>(pageNo, pageSize),
                 new LambdaQueryWrapper<ChatGroupMessageDO>()
@@ -471,13 +472,13 @@ public class ChatService {
     public Map<String, Object> getGroupContext(Long groupId, Long userId) {
         ChatGroupDO group = chatGroupMapper.selectById(groupId);
         if (group == null || group.getStatus() == null || group.getStatus() != 1) {
-            throw new IllegalStateException("群不存在或已解散");
+            throw new BusinessException(404, "群不存在或已解散");
         }
         ChatGroupMemberDO member = groupMemberMapper.selectOne(new LambdaQueryWrapper<ChatGroupMemberDO>()
                 .eq(ChatGroupMemberDO::getGroupId, groupId)
                 .eq(ChatGroupMemberDO::getUserId, userId));
         if (member == null) {
-            throw new IllegalStateException("不在该群");
+            throw new BusinessException(403, "不在该群");
         }
         Map<String, Object> item = buildGroupSummary(group, member);
         long count = groupMemberMapper.selectCount(new LambdaQueryWrapper<ChatGroupMemberDO>()
@@ -492,7 +493,7 @@ public class ChatService {
         requireGroupAdmin(groupId, userId);
         ChatGroupDO group = chatGroupMapper.selectById(groupId);
         if (group == null || group.getStatus() == null || group.getStatus() != 1) {
-            throw new IllegalStateException("群不存在或已解散");
+            throw new BusinessException(404, "群不存在或已解散");
         }
         StringBuilder detail = new StringBuilder();
         boolean announcementChanged = false;
@@ -530,7 +531,7 @@ public class ChatService {
                 .eq(ChatGroupMemberDO::getGroupId, groupId)
                 .eq(ChatGroupMemberDO::getUserId, userId));
         if (member == null) {
-            throw new IllegalStateException("不在该群");
+            throw new BusinessException(403, "不在该群");
         }
         member.setAnnouncementReadTime(LocalDateTime.now());
         groupMemberMapper.updateById(member);
@@ -542,7 +543,7 @@ public class ChatService {
                 .eq(ChatGroupMemberDO::getGroupId, groupId)
                 .eq(ChatGroupMemberDO::getUserId, userId));
         if (member == null) {
-            throw new IllegalStateException("不在该群");
+            throw new BusinessException(403, "不在该群");
         }
         member.setNotifyMuted(notifyMuted ? 1 : 0);
         groupMemberMapper.updateById(member);
@@ -582,14 +583,14 @@ public class ChatService {
                 .eq(ChatGroupMemberDO::getGroupId, groupId)
                 .eq(ChatGroupMemberDO::getUserId, memberUserId));
         if (target == null) {
-            throw new IllegalStateException("成员不存在");
+            throw new BusinessException(404, "成员不存在");
         }
         if (target.getRole() != null && target.getRole() >= 2) {
-            throw new IllegalStateException("不能移除群主");
+            throw new BusinessException(400, "不能移除群主");
         }
         if (operator.getRole() != null && operator.getRole() == 1
                 && target.getRole() != null && target.getRole() >= 1) {
-            throw new IllegalStateException("管理员不能移除同级或上级");
+            throw new BusinessException(403, "管理员不能移除同级或上级");
         }
         saveGroupLog(groupId, "REMOVE", operatorId, memberUserId, null, null);
         groupMemberMapper.deleteById(target.getId());
@@ -599,16 +600,16 @@ public class ChatService {
     public void setAdmin(Long groupId, Long memberUserId, Long operatorId, boolean admin) {
         ChatGroupDO group = chatGroupMapper.selectById(groupId);
         if (group == null || !operatorId.equals(group.getOwnerId())) {
-            throw new IllegalStateException("仅群主可设置管理员");
+            throw new BusinessException(403, "仅群主可设置管理员");
         }
         ChatGroupMemberDO target = groupMemberMapper.selectOne(new LambdaQueryWrapper<ChatGroupMemberDO>()
                 .eq(ChatGroupMemberDO::getGroupId, groupId)
                 .eq(ChatGroupMemberDO::getUserId, memberUserId));
         if (target == null) {
-            throw new IllegalStateException("成员不存在");
+            throw new BusinessException(404, "成员不存在");
         }
         if (target.getRole() != null && target.getRole() >= 2) {
-            throw new IllegalStateException("不能修改群主角色");
+            throw new BusinessException(400, "不能修改群主角色");
         }
         target.setRole(admin ? 1 : 0);
         groupMemberMapper.updateById(target);
@@ -622,11 +623,11 @@ public class ChatService {
                 .eq(ChatGroupMemberDO::getGroupId, groupId)
                 .eq(ChatGroupMemberDO::getUserId, memberUserId));
         if (target == null) {
-            throw new IllegalStateException("成员不存在");
+            throw new BusinessException(404, "成员不存在");
         }
         if (operator.getRole() != null && operator.getRole() == 1
                 && target.getRole() != null && target.getRole() >= 1) {
-            throw new IllegalStateException("无权操作该成员");
+            throw new BusinessException(403, "无权操作该成员");
         }
         target.setMuted(muted ? 1 : 0);
         groupMemberMapper.updateById(target);
@@ -637,13 +638,13 @@ public class ChatService {
     public void transferOwner(Long groupId, Long newOwnerId, Long operatorId) {
         ChatGroupDO group = chatGroupMapper.selectById(groupId);
         if (group == null || !operatorId.equals(group.getOwnerId())) {
-            throw new IllegalStateException("仅群主可转让");
+            throw new BusinessException(403, "仅群主可转让");
         }
         ChatGroupMemberDO newOwner = groupMemberMapper.selectOne(new LambdaQueryWrapper<ChatGroupMemberDO>()
                 .eq(ChatGroupMemberDO::getGroupId, groupId)
                 .eq(ChatGroupMemberDO::getUserId, newOwnerId));
         if (newOwner == null) {
-            throw new IllegalStateException("新群主必须是群成员");
+            throw new BusinessException(400, "新群主必须是群成员");
         }
         ChatGroupMemberDO oldOwner = groupMemberMapper.selectOne(new LambdaQueryWrapper<ChatGroupMemberDO>()
                 .eq(ChatGroupMemberDO::getGroupId, groupId)
@@ -762,10 +763,10 @@ public class ChatService {
                 .eq(ChatGroupMemberDO::getGroupId, groupId)
                 .eq(ChatGroupMemberDO::getUserId, userId));
         if (member == null) {
-            throw new IllegalStateException("不在该群");
+            throw new BusinessException(403, "不在该群");
         }
         if (member.getRole() == null || member.getRole() < 1) {
-            throw new IllegalStateException("没有权限");
+            throw new BusinessException(403, "没有权限");
         }
         return member;
     }
@@ -774,7 +775,7 @@ public class ChatService {
     public void quitGroup(Long groupId, Long userId) {
         ChatGroupDO g = chatGroupMapper.selectById(groupId);
         if (g != null && userId.equals(g.getOwnerId())) {
-            throw new IllegalStateException("群主请先转让群主或解散群聊");
+            throw new BusinessException(400, "群主请先转让群主或解散群聊");
         }
         saveGroupLog(groupId, "QUIT", userId, null, null, null);
         groupMemberMapper.delete(new LambdaQueryWrapper<ChatGroupMemberDO>()
@@ -786,7 +787,7 @@ public class ChatService {
     public void dissolveGroup(Long groupId, Long userId) {
         ChatGroupDO g = chatGroupMapper.selectById(groupId);
         if (g == null || !userId.equals(g.getOwnerId())) {
-            throw new IllegalStateException("仅群主可解散");
+            throw new BusinessException(403, "仅群主可解散");
         }
         saveGroupLog(groupId, "DISSOLVE", userId, null, null, null);
         g.setStatus(0);
@@ -798,7 +799,7 @@ public class ChatService {
                 .eq(ChatGroupMemberDO::getGroupId, groupId)
                 .eq(ChatGroupMemberDO::getUserId, userId));
         if (member == null) {
-            throw new IllegalStateException("不在该群");
+            throw new BusinessException(403, "不在该群");
         }
         List<ChatGroupLogDO> logs = groupLogMapper.selectList(new LambdaQueryWrapper<ChatGroupLogDO>()
                 .eq(ChatGroupLogDO::getGroupId, groupId)

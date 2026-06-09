@@ -75,14 +75,6 @@ defineEmits<{
   margin-bottom: 4px;
 }
 
-.menu-search-form {
-  justify-content: center;
-}
-
-.menu-search-form :deep(.el-form-item) {
-  margin-bottom: 12px;
-}
-
 .menu-search-form :deep(.el-form-item__label),
 .menu-search-form :deep(.el-form-item__content) {
   align-items: center;
@@ -92,7 +84,6 @@ defineEmits<{
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: center;
   gap: 12px;
   margin-bottom: 14px;
   padding: 10px 12px;

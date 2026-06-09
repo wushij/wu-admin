@@ -1,5 +1,7 @@
 package cn.rbac.server.framework.security.config;
 
+import cn.rbac.server.framework.security.handler.JsonAccessDeniedHandler;
+import cn.rbac.server.framework.security.handler.JsonAuthenticationEntryPoint;
 import cn.rbac.server.framework.web.filter.SaTokenAuthenticationFilter;
 import jakarta.annotation.Resource;
 import org.springframework.beans.factory.annotation.Value;
@@ -36,6 +38,12 @@ public class SecurityConfig {
 
     @Resource
     private SaTokenAuthenticationFilter saTokenAuthenticationFilter;
+
+    @Resource
+    private JsonAuthenticationEntryPoint jsonAuthenticationEntryPoint;
+
+    @Resource
+    private JsonAccessDeniedHandler jsonAccessDeniedHandler;
 
     @Value("${app.cors.allowed-origins:*}")
     private String corsAllowedOrigins;
@@ -80,6 +88,9 @@ public class SecurityConfig {
                 .requestMatchers("/pay/notify/**").permitAll()
                 .anyRequest().authenticated()
             )
+            .exceptionHandling(ex -> ex
+                    .authenticationEntryPoint(jsonAuthenticationEntryPoint)
+                    .accessDeniedHandler(jsonAccessDeniedHandler))
             .headers(headers -> headers.frameOptions(HeadersConfigurer.FrameOptionsConfig::disable))
             .addFilterBefore(saTokenAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
