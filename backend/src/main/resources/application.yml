@@ -6,6 +6,8 @@ server:
 
 # Knife4j 调试默认基址（写入 OpenAPI servers，与前端 Vite 代理一致）
 app:
+  security:
+    cookie-secure: false
   api-docs:
     server-url: http://localhost:3000/api
   log:
@@ -92,6 +94,10 @@ sa-token:
   is-share: false
   token-style: uuid
   is-log: false
+  is-read-cookie: true
+  is-read-header: true
+  is-write-cookie: true
+  is-read-body: false
 
 # 登录防爬：图形验证码开关与按 IP 分钟限流（0 表示不限制）
 file:

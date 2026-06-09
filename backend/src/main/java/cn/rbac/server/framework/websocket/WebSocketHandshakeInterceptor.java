@@ -1,5 +1,6 @@
 package cn.rbac.server.framework.websocket;
 
+import cn.rbac.server.framework.security.core.AuthTokenResolver;
 import cn.rbac.server.framework.security.core.service.TokenService;
 import jakarta.annotation.Resource;
 import org.springframework.http.server.ServerHttpRequest;
@@ -14,6 +15,9 @@ import org.springframework.web.socket.server.HandshakeInterceptor;
 
 import java.util.Map;
 
+/**
+ * WebSocket 握手鉴权：从 Cookie / Header 读取 Token，不再使用 URL 查询参数。
+ */
 @Component
 public class WebSocketHandshakeInterceptor implements HandshakeInterceptor {
 
@@ -26,7 +30,7 @@ public class WebSocketHandshakeInterceptor implements HandshakeInterceptor {
         if (!(request instanceof ServletServerHttpRequest servletRequest)) {
             return false;
         }
-        String token = servletRequest.getServletRequest().getParameter("token");
+        String token = AuthTokenResolver.resolve(servletRequest.getServletRequest());
         if (!StringUtils.hasText(token)) {
             return false;
         }

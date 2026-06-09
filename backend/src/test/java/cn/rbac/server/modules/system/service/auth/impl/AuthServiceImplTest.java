@@ -139,7 +139,7 @@ class AuthServiceImplTest extends MybatisLambdaTestBase {
     }
 
     @Test
-    @DisplayName("loginByAccount：成功登录返回 token")
+    @DisplayName("loginByAccount：成功登录返回用户信息（Token 写入 Cookie）")
     void loginByAccount_success() {
         try (MockedStatic<StpUtil> stp = mockStatic(StpUtil.class)) {
             SaSession session = mock(SaSession.class);
@@ -153,7 +153,7 @@ class AuthServiceImplTest extends MybatisLambdaTestBase {
 
             Map<String, Object> result = authService.loginByAccount(req, "127.0.0.1", "JUnit");
 
-            assertEquals("token-abc", result.get("token"));
+            assertNull(result.get("token"));
             assertEquals(1L, result.get("userId"));
             assertEquals("alice", result.get("username"));
             verify(tokenService).createToken(1L, "alice");
@@ -255,7 +255,7 @@ class AuthServiceImplTest extends MybatisLambdaTestBase {
 
             Map<String, Object> result = authService.loginBySms(req, "127.0.0.1", "JUnit");
 
-            assertEquals("sms-token", result.get("token"));
+            assertNull(result.get("token"));
             verify(smsBucket).delete();
         }
     }

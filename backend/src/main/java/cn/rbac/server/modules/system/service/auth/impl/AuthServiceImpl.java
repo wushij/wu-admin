@@ -314,12 +314,11 @@ public class AuthServiceImpl implements AuthService {
     private Map<String, Object> completeLogin(UserDO user, String clientIp, String userAgent) {
         String username = user.getUsername();
         clearLoginFailure(username, clientIp);
-        String token = tokenService.createToken(user.getId(), user.getUsername());
+        tokenService.createToken(user.getId(), user.getUsername());
         StpUtil.getSession().set(TokenService.SESSION_NICKNAME, user.getNickname());
         onlineUserService.recordLoginSession(user.getId(), user.getUsername(), user.getNickname(), clientIp, userAgent);
         recordLoginLog(user.getId(), username, 0, "登录成功", clientIp, userAgent);
         Map<String, Object> result = new HashMap<>();
-        result.put("token", token);
         result.put("userId", user.getId());
         result.put("username", user.getUsername());
         result.put("nickname", user.getNickname());

@@ -4,6 +4,7 @@ import type { AxiosResponse, InternalAxiosRequestConfig } from 'axios'
 const mockPush = vi.fn()
 const mockGet = vi.fn()
 const mockPost = vi.fn()
+const mockLogout = vi.fn()
 
 type RequestInterceptor = (config: InternalAxiosRequestConfig) => InternalAxiosRequestConfig
 type ResponseInterceptor = (response: AxiosResponse) => unknown
@@ -41,9 +42,19 @@ vi.mock('@/router', () => ({
   default: { push: mockPush },
 }))
 
+vi.mock('@/store/user', () => ({
+  useUserStore: () => ({
+    logout: mockLogout,
+  }),
+}))
+
 const mockElMessageError = vi.fn()
+const mockElMessageWarning = vi.fn()
 vi.mock('element-plus', () => ({
-  ElMessage: { error: mockElMessageError },
+  ElMessage: {
+    error: mockElMessageError,
+    warning: mockElMessageWarning,
+  },
 }))
 
 async function loadRequestModule() {
@@ -54,7 +65,6 @@ describe('request', () => {
   beforeEach(async () => {
     vi.resetModules()
     vi.clearAllMocks()
-    localStorage.clear()
     mockGet.mockResolvedValue({ code: 200, data: { ok: true } })
     mockPost.mockResolvedValue({ code: 200, data: null })
     await loadRequestModule()
@@ -82,16 +92,8 @@ describe('request', () => {
   })
 
   describe('request interceptor', () => {
-    it('attaches Authorization for protected urls when token exists', () => {
-      localStorage.setItem('token', 'my-token')
+    it('passes config through without Authorization header', () => {
       const config = { url: '/system/user/list', headers: {} } as InternalAxiosRequestConfig
-      const result = requestInterceptor(config)
-      expect(result.headers!['Authorization']).toBe('my-token')
-    })
-
-    it('skips Authorization for public auth urls', () => {
-      localStorage.setItem('token', 'my-token')
-      const config = { url: '/auth/login', headers: {} } as InternalAxiosRequestConfig
       const result = requestInterceptor(config)
       expect(result.headers!['Authorization']).toBeUndefined()
     })
@@ -105,14 +107,13 @@ describe('request', () => {
     })
 
     it('redirects to login on 401 for protected routes', async () => {
-      localStorage.setItem('token', 'expired')
       await expect(
         responseSuccess({
           data: { code: 401, message: '未授权' },
           config: { url: '/system/user/list' },
         } as AxiosResponse),
       ).rejects.toThrow('未授权')
-      expect(localStorage.getItem('token')).toBeNull()
+      expect(mockLogout).toHaveBeenCalled()
       expect(mockPush).toHaveBeenCalledWith('/login')
       expect(mockElMessageError).toHaveBeenCalledWith('登录已过期，请重新登录')
     })
@@ -156,14 +157,13 @@ describe('request', () => {
     })
 
     it('handles HTTP 401 on protected route', async () => {
-      localStorage.setItem('token', 'tok')
       await expect(
         responseError({
           response: { status: 401, data: { msg: '未登录' } },
           config: { url: '/system/user/list' },
         }),
       ).rejects.toBeDefined()
-      expect(localStorage.getItem('token')).toBeNull()
+      expect(mockLogout).toHaveBeenCalled()
       expect(mockPush).toHaveBeenCalledWith('/login')
     })
   })

@@ -18,20 +18,19 @@ vi.mock('@/store/message', () => ({
 describe('useUserStore', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
-    localStorage.clear()
     vi.clearAllMocks()
   })
 
-  it('loginAction stores token and user info', async () => {
+  it('loginAction stores user info from response', async () => {
     vi.mocked(login).mockResolvedValue({
       code: 200,
-      data: { token: 'tok', userId: 1, username: 'admin', nickname: '管理员' },
+      data: { userId: 1, username: 'admin', nickname: '管理员' },
     })
     const store = useUserStore()
     await store.loginAction({ username: 'admin', password: 'x' })
-    expect(store.token).toBe('tok')
-    expect(localStorage.getItem('token')).toBe('tok')
+    expect(store.isLoggedIn).toBe(true)
     expect(store.userInfo.username).toBe('admin')
+    expect(store.userInfo.userId).toBe(1)
   })
 
   it('getUserInfo loads menus and permissions', async () => {
@@ -52,25 +51,22 @@ describe('useUserStore', () => {
     expect(store.userInfo.permissions).toContain('system:user:list')
   })
 
-  it('logout clears local session', () => {
+  it('logout clears in-memory session', () => {
     const store = useUserStore()
-    store.token = 'old'
-    store.userInfo = { username: 'a' }
+    store.userInfo = { userId: 1, username: 'a' }
     store.menus = [{ id: 1, parentId: 0, name: 'x', type: 2, path: '/' }]
-    localStorage.setItem('token', 'old')
     store.logout()
-    expect(store.token).toBe('')
+    expect(store.isLoggedIn).toBe(false)
     expect(store.userInfo).toEqual({})
     expect(store.menus).toEqual([])
-    expect(localStorage.getItem('token')).toBeNull()
   })
 
   it('logoutAction calls API then clears state', async () => {
     vi.mocked(logoutApi).mockResolvedValue({ code: 200, data: null })
     const store = useUserStore()
-    store.token = 'tok'
+    store.userInfo = { userId: 1, username: 'tok' }
     await store.logoutAction()
     expect(logoutApi).toHaveBeenCalled()
-    expect(store.token).toBe('')
+    expect(store.isLoggedIn).toBe(false)
   })
 })

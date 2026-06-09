@@ -551,7 +551,7 @@ mysql -u wuadmin -p wuadmin < sql/add9_wuadmin.sql
 | 群聊 | `POST /system/chat/group/{groupId}/notify-muted?muted=` | 设置本群免打扰 |
 | 聊天图片 | `POST /system/chat/upload/image` | 上传至 `images/chat/`，**不出现在文件管理列表** |
 | 聊天文件 | `POST /system/chat/upload/file` | 上传至 `files/chat/`，受文件配置大小/扩展名约束 |
-| WebSocket | `ws(s)://{host}/api/ws/message?token=...` | 推送：`notice` / `chat` / `groupChat` / **`groupAnnouncement`** / `typing` / `presence`；群聊可带 `atMe`；撤回带 `recall` + `messageId` |
+| WebSocket | `ws(s)://{host}/api/ws/message` | 握手时从 **httpOnly Cookie**（或 Header）鉴权，不再 URL 传 Token；推送：`notice` / `chat` / `groupChat` / **`groupAnnouncement`** / `typing` / `presence`；群聊可带 `atMe`；撤回带 `recall` + `messageId` |
 
 ### 前端关键文件
 
@@ -859,7 +859,7 @@ catch (Exception e) { return CommonResult.error(500, e.getMessage()); }  // ❌ 
 | body.code / HTTP status | 行为 |
 |-------------------------|------|
 | 200 / 0 | 成功，返回 `res.data` |
-| 401 | 公开登录接口 Toast 错误文案；已登录态清 token 并跳转 `/login` |
+| 401 | 公开登录接口 Toast 错误文案；已登录态清会话 Cookie 并跳转 `/login` |
 | 403 | Toast「权限不足」（`silent403: true` 可抑制；2 秒防抖） |
 | 429 | `ElMessage.warning` 限流提示 |
 | 其它 | Toast `message` 字段 |
@@ -1238,7 +1238,7 @@ java -jar backend.jar --spring.datasource.password=xxx --spring.data.redis.passw
 ## 常见问题
 
 **Q：生产环境登录失败，接口返回 HTML 或「检查网络连接」？**  
-A：① 浏览器访问 `https://域名/api/auth/config`，若返回 `index.html` 则是 **Nginx 未反代 `/api`**（见上文「生产部署排障实录」）；② 若返回 JSON 仍失败，检查 `application-prod.yml` 中 **CORS 域名**是否为实际站点（dev 相对 master 从 `*` 改为可配域名，占位符会导致异常）；③ 验证码须填写；④ 清 `localStorage` 中旧 `token` 后重试。
+A：① 浏览器访问 `https://域名/api/auth/config`，若返回 `index.html` 则是 **Nginx 未反代 `/api`**（见上文「生产部署排障实录」）；② 若返回 JSON 仍失败，检查 `application-prod.yml` 中 **CORS 域名**是否为实际站点（dev 相对 master 从 `*` 改为可配域名，占位符会导致异常）；③ 验证码须填写；④ 清除站点 Cookie 后重新登录（Token 已改为 **httpOnly Cookie**，不再使用 `localStorage`）。
 
 **Q：登录后菜单为空或 403？**  
 A：确认已导入 `admin_platform.sql` 或为角色分配菜单，然后重新登录。

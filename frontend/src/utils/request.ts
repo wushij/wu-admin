@@ -4,6 +4,7 @@ import router from '@/router'
 import type { ApiResult } from '@/types/api'
 import { isApiSuccessCode } from '@/utils/api-response'
 import { getErrorMessage, markErrorToastShown } from '@/utils/axiosError'
+import { useUserStore } from '@/store/user'
 
 export type { ApiResult } from '@/types/api'
 export { getErrorMessage, isErrorToastShown } from '@/utils/axiosError'
@@ -29,7 +30,16 @@ function resolveBodyMessage(message?: string, fallback = '请求失败') {
   return message || fallback
 }
 
-/** 公开认证接口不携带管理员 token，避免干扰注册/登录 */
+function clearSessionAndRedirectLogin() {
+  try {
+    useUserStore().logout()
+  } catch {
+    /* store 可能尚未初始化 */
+  }
+  router.push('/login')
+}
+
+/** 公开认证接口（登录 Cookie 写入前不依赖会话） */
 const AUTH_PUBLIC_SUFFIXES = [
   '/auth/login',
   '/auth/register',
@@ -44,40 +54,30 @@ function isAuthPublicUrl(url?: string): boolean {
   return AUTH_PUBLIC_SUFFIXES.some((suffix) => path === suffix || path.endsWith(suffix))
 }
 
-// 创建axios实例
 const service: AxiosInstance = axios.create({
-  baseURL: '/api', // 统一通过 /api 访问后端
+  baseURL: '/api',
   timeout: 15000,
+  withCredentials: true,
   headers: {
-    'Content-Type': 'application/json;charset=UTF-8'
-  }
+    'Content-Type': 'application/json;charset=UTF-8',
+  },
 })
 
-// 请求拦截器
 service.interceptors.request.use(
-  (config) => {
-    // 从localStorage获取token
-    const token = localStorage.getItem('token')
-    if (token && !isAuthPublicUrl(config.url)) {
-      config.headers['Authorization'] = token
-    }
-    return config
-  },
+  (config) => config,
   (error) => {
     console.error('请求错误:', error)
     return Promise.reject(error)
-  }
+  },
 )
 
-// 响应拦截器
 service.interceptors.response.use(
   (response: AxiosResponse) => {
     const res = response.data
     const { code, message } = res
 
-    // 根据实际返回结构调整
     if (isApiSuccessCode(code)) {
-      return res  // 返回完整响应对象，前端用 res.data 访问数据
+      return res
     }
 
     const cfg = response.config as InternalAxiosRequestConfig & { silent403?: boolean }
@@ -89,8 +89,7 @@ service.interceptors.response.use(
         return rejectWithToast(text || '认证失败')
       }
       ElMessage.error('登录已过期，请重新登录')
-      localStorage.removeItem('token')
-      router.push('/login')
+      clearSessionAndRedirectLogin()
       return rejectWithToast(text || '未授权')
     }
 
@@ -122,8 +121,7 @@ service.interceptors.response.use(
           ElMessage.error(text || '认证失败')
         } else {
           ElMessage.error('登录已过期，请重新登录')
-          localStorage.removeItem('token')
-          router.push('/login')
+          clearSessionAndRedirectLogin()
         }
       } else if (status === 403) {
         if (!cfg?.silent403) {
@@ -141,14 +139,11 @@ service.interceptors.response.use(
     }
 
     return Promise.reject(error)
-  }
+  },
 )
 
-// 导出请求方法
 export default service
 
-// 便捷方法
-/** GET 查询参数（axios 会序列化为 query string） */
 export type HttpQueryParamValue = string | number | boolean | null | undefined
 export type HttpQueryParams = Record<string, HttpQueryParamValue>
 

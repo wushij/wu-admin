@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import type { MenuTreeNode } from '@/types/api'
 import { login, getInfo, logout as logoutApi } from '@/api/system/auth'
 import type { LoginForm, AuthInfo } from '@/types/api'
@@ -15,18 +15,17 @@ export type UserInfo = Partial<
 export type { MenuTreeNode as MenuItem } from '@/types/api'
 
 export const useUserStore = defineStore('user', () => {
-  const token = ref<string>(localStorage.getItem('token') || '')
   const userInfo = ref<UserInfo>({})
   const menus = ref<MenuTreeNode[]>([])
 
+  const isLoggedIn = computed(() => userInfo.value.userId != null)
+
   const loginAction = async (loginForm: LoginForm) => {
     const res = await login(loginForm)
-    token.value = res.data.token
-    localStorage.setItem('token', res.data.token)
     userInfo.value = {
       userId: res.data.userId,
       username: res.data.username,
-      nickname: res.data.nickname
+      nickname: res.data.nickname,
     }
     return res
   }
@@ -39,21 +38,19 @@ export const useUserStore = defineStore('user', () => {
       nickname: res.data.nickname,
       avatar: res.data.avatar,
       roles: res.data.roles || [],
-      permissions: res.data.permissions || []
+      permissions: res.data.permissions || [],
     }
     menus.value = res.data.menus || []
     return res
   }
 
-  // 刷新页面时重新获取用户信息
   const refreshUserStore = async () => {
-    if (token.value) {
-      try {
-        await getUserInfo()
-      } catch (error) {
-        console.error('刷新用户信息失败:', error)
-        logout()
-      }
+    try {
+      await getUserInfo()
+    } catch (error) {
+      console.error('刷新用户信息失败:', error)
+      logout()
+      throw error
     }
   }
 
@@ -69,15 +66,13 @@ export const useUserStore = defineStore('user', () => {
     } catch {
       /* store 可能尚未初始化 */
     }
-    token.value = ''
     userInfo.value = {}
     menus.value = []
-    localStorage.removeItem('token')
   }
 
   const logoutAction = async () => {
     try {
-      if (token.value) {
+      if (isLoggedIn.value) {
         await logoutApi()
       }
     } catch (error) {
@@ -92,14 +87,14 @@ export const useUserStore = defineStore('user', () => {
   }
 
   return {
-    token,
     userInfo,
     menus,
+    isLoggedIn,
     loginAction,
     getUserInfo,
     refreshUserStore,
     logout,
     logoutAction,
-    patchUserInfo
+    patchUserInfo,
   }
 })

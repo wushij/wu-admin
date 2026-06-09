@@ -36,17 +36,14 @@ let reconnectAttempts = 0
 const handlers = new Set<WsHandler>()
 
 function getWsUrl(): string {
-  const token = localStorage.getItem('token') || ''
   const proto = location.protocol === 'https:' ? 'wss' : 'ws'
-  return `${proto}://${location.host}/api/ws/message?token=${encodeURIComponent(token)}`
+  return `${proto}://${location.host}/api/ws/message`
 }
 
 export function connectMessageWebSocket(): void {
   if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
     return
   }
-  const token = localStorage.getItem('token')
-  if (!token) return
 
   ws = new WebSocket(getWsUrl())
 
