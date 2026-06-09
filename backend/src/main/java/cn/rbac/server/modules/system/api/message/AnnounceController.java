@@ -1,5 +1,6 @@
 package cn.rbac.server.modules.system.api.message;
 
+import cn.rbac.server.common.pojo.BusinessException;
 import cn.rbac.server.common.pojo.CommonResult;
 import cn.rbac.server.common.pojo.PageParam;
 import cn.rbac.server.common.pojo.PageResult;
@@ -21,7 +22,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-@Tag(name = "系统通知")
+@Tag(name = "????")
 @RestController
 @RequestMapping("/system/announce")
 public class AnnounceController {
@@ -33,7 +34,7 @@ public class AnnounceController {
 
     @GetMapping("/page")
     @PreAuthorize("@ss.hasRead('system:announce:list')")
-    @Operation(summary = "通知分页")
+    @Operation(summary = "????")
     public CommonResult<PageResult<AnnounceDO>> page(PageParam pageParam,
             @RequestParam(required = false) String title,
             @RequestParam(required = false) Integer noticeType,
@@ -43,7 +44,7 @@ public class AnnounceController {
     }
 
     @GetMapping("/my")
-    @Operation(summary = "我的通知")
+    @Operation(summary = "????")
     public CommonResult<PageResult<AnnounceMyVO>> my(PageParam pageParam,
             @RequestParam(required = false) Integer isRead) {
         Long userId = SecurityUtils.getLoginUserId();
@@ -52,18 +53,18 @@ public class AnnounceController {
     }
 
     @GetMapping("/{id}")
-    @Operation(summary = "通知详情")
+    @Operation(summary = "????")
     public CommonResult<AnnounceRequest> detail(@PathVariable Long id) {
         AnnounceDO entity = announceService.getById(id);
         if (entity == null) {
-            return CommonResult.error(404, "通知不存在");
+            throw new BusinessException(404, "?????");
         }
         return CommonResult.success(AnnounceRequest.from(entity, objectMapper));
     }
 
     @PostMapping
     @PreAuthorize("@ss.hasPermission('system:announce:create')")
-    @Operation(summary = "创建通知")
+    @Operation(summary = "????")
     public CommonResult<Boolean> create(@RequestBody AnnounceRequest req) {
         announceService.create(req.toEntity(objectMapper));
         return CommonResult.success(true);
@@ -71,7 +72,7 @@ public class AnnounceController {
 
     @PutMapping
     @PreAuthorize("@ss.hasPermission('system:announce:update')")
-    @Operation(summary = "更新通知")
+    @Operation(summary = "????")
     public CommonResult<Boolean> update(@RequestBody AnnounceRequest req) {
         announceService.update(req.toEntity(objectMapper));
         return CommonResult.success(true);
@@ -79,7 +80,7 @@ public class AnnounceController {
 
     @DeleteMapping("/{id}")
     @PreAuthorize("@ss.hasPermission('system:announce:delete')")
-    @Operation(summary = "删除通知")
+    @Operation(summary = "????")
     public CommonResult<Boolean> delete(@PathVariable Long id) {
         announceService.delete(id);
         return CommonResult.success(true);
@@ -87,42 +88,42 @@ public class AnnounceController {
 
     @PostMapping("/{id}/publish")
     @PreAuthorize("@ss.hasPermission('system:announce:publish')")
-    @Operation(summary = "发布通知")
+    @Operation(summary = "????")
     public CommonResult<Boolean> publish(@PathVariable Long id) {
         announceService.publish(id);
         return CommonResult.success(true);
     }
 
     @PostMapping("/{id}/read")
-    @Operation(summary = "标记已读")
+    @Operation(summary = "????")
     public CommonResult<Boolean> read(@PathVariable Long id) {
         announceService.markRead(SecurityUtils.getLoginUserId(), id);
         return CommonResult.success(true);
     }
 
     @PostMapping("/read-all")
-    @Operation(summary = "全部已读")
+    @Operation(summary = "????")
     public CommonResult<Boolean> readAll() {
         announceService.markAllRead(SecurityUtils.getLoginUserId());
         return CommonResult.success(true);
     }
 
     @GetMapping("/unread-count")
-    @Operation(summary = "未读数")
+    @Operation(summary = "???")
     public CommonResult<Long> unreadCount() {
         return CommonResult.success(announceService.unreadCount(SecurityUtils.getLoginUserId()));
     }
 
     @GetMapping("/{id}/send-logs")
     @PreAuthorize("@ss.hasRead('system:announce:list')")
-    @Operation(summary = "推送日志")
+    @Operation(summary = "????")
     public CommonResult<List<AnnounceSendLogDO>> sendLogs(@PathVariable Long id) {
         return CommonResult.success(announceService.sendLogs(id));
     }
 
     @GetMapping("/recycle/page")
     @PreAuthorize("@ss.hasPermission('system:announce:delete')")
-    @Operation(summary = "通知回收站分页")
+    @Operation(summary = "?????")
     public CommonResult<PageResult<AnnounceDO>> recyclePage(PageParam pageParam,
             @RequestParam(required = false) String title) {
         return CommonResult.success(announceService.recyclePage(pageParam, title));
@@ -130,7 +131,7 @@ public class AnnounceController {
 
     @PutMapping("/restore")
     @PreAuthorize("@ss.hasPermission('system:announce:delete')")
-    @Operation(summary = "恢复通知")
+    @Operation(summary = "????")
     public CommonResult<Boolean> restore(@RequestParam Long id) {
         announceService.restore(id);
         return CommonResult.success(true);
@@ -138,7 +139,7 @@ public class AnnounceController {
 
     @DeleteMapping("/delete-permanent")
     @PreAuthorize("@ss.hasPermission('system:announce:delete')")
-    @Operation(summary = "彻底删除通知")
+    @Operation(summary = "????")
     public CommonResult<Boolean> deletePermanent(@RequestParam Long id) {
         announceService.deletePermanent(id);
         return CommonResult.success(true);

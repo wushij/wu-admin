@@ -1,13 +1,21 @@
 package cn.rbac.server.framework.web.core;
 
+import cn.dev33.satoken.exception.NotLoginException;
 import cn.rbac.server.common.pojo.BusinessException;
 import cn.rbac.server.common.pojo.CommonResult;
+import cn.rbac.server.common.util.ClientIpUtils;
 import cn.rbac.server.framework.config.DynamicConfigProvider;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingPathVariableException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -29,19 +37,25 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(IllegalStateException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public CommonResult<Void> handleIllegalState(IllegalStateException e) {
+        log.warn("状态异常: {}", e.getMessage());
         return CommonResult.error(400, e.getMessage());
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public CommonResult<Void> handleIllegalArgument(IllegalArgumentException e) {
+        log.warn("参数异常: {}", e.getMessage());
         return CommonResult.error(400, e.getMessage());
     }
 
-    /** 自定义业务异常（携带错误码） */
+    /** 自定义业务异常（携带错误码，HTTP 状态与 code 对齐） */
     @ExceptionHandler(BusinessException.class)
-    public CommonResult<Void> handleBusiness(BusinessException e) {
-        return CommonResult.error(e.getCode(), e.getMessage());
+    public ResponseEntity<CommonResult<Void>> handleBusiness(BusinessException e, HttpServletRequest request) {
+        log.info("业务异常 [{} {}] code={} msg={} ip={}",
+                request.getMethod(), request.getRequestURI(), e.getCode(), e.getMessage(),
+                ClientIpUtils.resolve(request));
+        HttpStatus status = BusinessHttpStatusMapper.toHttpStatus(e.getCode());
+        return ResponseEntity.status(status.value()).body(CommonResult.error(e.getCode(), e.getMessage()));
     }
 
     @ExceptionHandler(MaxUploadSizeExceededException.class)
@@ -52,9 +66,11 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(SecurityException.class)
-    @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public CommonResult<Void> handleSecurity(SecurityException e) {
-        return CommonResult.error(400, e.getMessage());
+    @ResponseStatus(HttpStatus.FORBIDDEN)
+    public CommonResult<Void> handleSecurity(SecurityException e, HttpServletRequest request) {
+        log.warn("安全异常 [{} {}] ip={}: {}",
+                request.getMethod(), request.getRequestURI(), ClientIpUtils.resolve(request), e.getMessage());
+        return CommonResult.error(403, e.getMessage());
     }
 
     @ExceptionHandler(AccessDeniedException.class)
@@ -63,12 +79,22 @@ public class GlobalExceptionHandler {
         return CommonResult.error(403, "权限不足，无法访问");
     }
 
-    /** JSR-303 参数验证失败 */
+    /** JSR-303 请求体校验失败 */
     @ExceptionHandler(MethodArgumentNotValidException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public CommonResult<Void> handleValidation(MethodArgumentNotValidException e) {
         String message = e.getBindingResult().getFieldErrors().stream()
                 .map(err -> err.getField() + ": " + err.getDefaultMessage())
+                .collect(Collectors.joining("; "));
+        return CommonResult.error(400, message.isEmpty() ? "参数验证失败" : message);
+    }
+
+    /** JSR-303 方法参数校验失败 */
+    @ExceptionHandler(ConstraintViolationException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public CommonResult<Void> handleConstraintViolation(ConstraintViolationException e) {
+        String message = e.getConstraintViolations().stream()
+                .map(v -> v.getPropertyPath() + ": " + v.getMessage())
                 .collect(Collectors.joining("; "));
         return CommonResult.error(400, message.isEmpty() ? "参数验证失败" : message);
     }
@@ -88,6 +114,14 @@ public class GlobalExceptionHandler {
         return CommonResult.error(400, "缺少必要参数: " + e.getParameterName());
     }
 
+    /** 路径变量缺失 */
+    @ExceptionHandler(MissingPathVariableException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public CommonResult<Void> handleMissingPathVariable(MissingPathVariableException e) {
+        log.warn("路径变量缺失: {}", e.getVariableName());
+        return CommonResult.error(400, "缺少路径参数: " + e.getVariableName());
+    }
+
     /** 参数类型不匹配（如 String 传给了 Long 参数） */
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
@@ -102,11 +136,34 @@ public class GlobalExceptionHandler {
         return CommonResult.error(404, "请求的资源不存在");
     }
 
-    /** 通用兑底异常处理 */
+    /** HTTP 方法不支持 */
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    @ResponseStatus(HttpStatus.METHOD_NOT_ALLOWED)
+    public CommonResult<Void> handleMethodNotSupported(HttpRequestMethodNotSupportedException e) {
+        return CommonResult.error(405, "请求方法不支持: " + e.getMethod());
+    }
+
+    /** Content-Type 不支持 */
+    @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
+    @ResponseStatus(HttpStatus.UNSUPPORTED_MEDIA_TYPE)
+    public CommonResult<Void> handleMediaTypeNotSupported(HttpMediaTypeNotSupportedException e) {
+        return CommonResult.error(415, "不支持的媒体类型");
+    }
+
+    /** Sa-Token 未登录（注解鉴权等场景） */
+    @ExceptionHandler(NotLoginException.class)
+    @ResponseStatus(HttpStatus.UNAUTHORIZED)
+    public CommonResult<Void> handleNotLogin(NotLoginException e) {
+        return CommonResult.error(401, "未登录或登录已过期");
+    }
+
+    /** 通用兜底异常处理 */
     @ExceptionHandler(Exception.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
-    public CommonResult<Void> handleException(Exception e) {
-        log.error("未处理异常: {}", e.getMessage(), e);
+    public CommonResult<Void> handleException(Exception e, HttpServletRequest request) {
+        log.error("未处理异常 [{} {}] ip={}: {}",
+                request.getMethod(), request.getRequestURI(), ClientIpUtils.resolve(request),
+                e.getMessage(), e);
         return CommonResult.error(500, "服务器内部错误");
     }
 }

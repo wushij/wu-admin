@@ -1,6 +1,7 @@
 package cn.rbac.server.modules.system.api.auth;
 
 import cn.dev33.satoken.stp.StpUtil;
+import cn.rbac.server.common.pojo.BusinessException;
 import cn.rbac.server.common.pojo.CommonResult;
 import cn.rbac.server.common.pojo.PageParam;
 import cn.rbac.server.common.pojo.PageResult;
@@ -80,7 +81,7 @@ public class ProfileController {
         Long userId = StpUtil.getLoginIdAsLong();
         UserDO user = userMapper.selectById(userId);
         if (user == null) {
-            return CommonResult.error(404, "用户不存在");
+            throw new BusinessException(404, "用户不存在");
         }
         return CommonResult.success(buildProfileMap(user));
     }
@@ -92,7 +93,7 @@ public class ProfileController {
         Long userId = StpUtil.getLoginIdAsLong();
         UserDO user = userMapper.selectById(userId);
         if (user == null) {
-            return CommonResult.error(404, "用户不存在");
+            throw new BusinessException(404, "用户不存在");
         }
 
         if (StringUtils.hasText(reqVO.getNickname())) {
@@ -107,7 +108,7 @@ public class ProfileController {
                         .ne(UserDO::getId, userId)
                         .eq(UserDO::getDeleted, 0));
                 if (exist != null) {
-                    return CommonResult.error(400, "邮箱已被其他账号使用");
+                    throw new BusinessException(400, "邮箱已被其他账号使用");
                 }
             }
             user.setEmail(email);
@@ -130,7 +131,7 @@ public class ProfileController {
         String err = profileSmsMobileBindService.sendBindCode(
                 userId, reqVO.getMobile(), ClientIpUtils.resolve(request), reqVO.getCode());
         if (err != null) {
-            return CommonResult.error(400, err);
+            throw new BusinessException(400, err);
         }
         return CommonResult.success(true);
     }
@@ -143,11 +144,11 @@ public class ProfileController {
         Long userId = StpUtil.getLoginIdAsLong();
         UserDO user = userMapper.selectById(userId);
         if (user == null) {
-            return CommonResult.error(404, "用户不存在");
+            throw new BusinessException(404, "用户不存在");
         }
         String err = profileSmsMobileBindService.bindMobile(userId, user, reqVO.getMobile(), reqVO.getSmsCode());
         if (err != null) {
-            return CommonResult.error(400, err);
+            throw new BusinessException(400, err);
         }
         userMapper.updateById(user);
         return CommonResult.success(true);
@@ -158,28 +159,28 @@ public class ProfileController {
     @PutMapping("/password")
     public CommonResult<Boolean> changePassword(@Validated @RequestBody ChangePasswordReqVO reqVO) {
         if (!StringUtils.hasText(reqVO.getOldPassword()) || !StringUtils.hasText(reqVO.getNewPassword())) {
-            return CommonResult.error(400, "请填写原密码和新密码");
+            throw new BusinessException(400, "请填写原密码和新密码");
         }
 
         int minLen = systemConfigHelper.getRegisterMinPasswordLength();
         if (reqVO.getNewPassword().length() < minLen) {
-            return CommonResult.error(400, "新密码长度不能少于 " + minLen + " 位");
+            throw new BusinessException(400, "新密码长度不能少于 " + minLen + " 位");
         }
         if (Objects.equals(reqVO.getOldPassword(), reqVO.getNewPassword())) {
-            return CommonResult.error(400, "新密码不能与原密码相同");
+            throw new BusinessException(400, "新密码不能与原密码相同");
         }
         if (StringUtils.hasText(reqVO.getConfirmPassword())
                 && !Objects.equals(reqVO.getNewPassword(), reqVO.getConfirmPassword())) {
-            return CommonResult.error(400, "两次输入的新密码不一致");
+            throw new BusinessException(400, "两次输入的新密码不一致");
         }
 
         Long userId = StpUtil.getLoginIdAsLong();
         UserDO user = userMapper.selectById(userId);
         if (user == null) {
-            return CommonResult.error(404, "用户不存在");
+            throw new BusinessException(404, "用户不存在");
         }
         if (!passwordEncoder.matches(reqVO.getOldPassword(), user.getPassword())) {
-            return CommonResult.error(400, "原密码不正确");
+            throw new BusinessException(400, "原密码不正确");
         }
 
         user.setPassword(passwordEncoder.encode(reqVO.getNewPassword()));
@@ -196,11 +197,11 @@ public class ProfileController {
         Long userId = StpUtil.getLoginIdAsLong();
         UserDO user = userMapper.selectById(userId);
         if (user == null) {
-            return CommonResult.error(404, "用户不存在");
+            throw new BusinessException(404, "用户不存在");
         }
         String err = profileSmsPasswordService.sendResetCode(user, ClientIpUtils.resolve(request), reqVO.getCode());
         if (err != null) {
-            return CommonResult.error(400, err);
+            throw new BusinessException(400, err);
         }
         return CommonResult.success(true);
     }
@@ -213,12 +214,12 @@ public class ProfileController {
         Long userId = StpUtil.getLoginIdAsLong();
         UserDO user = userMapper.selectById(userId);
         if (user == null) {
-            return CommonResult.error(404, "用户不存在");
+            throw new BusinessException(404, "用户不存在");
         }
         String err = profileSmsPasswordService.resetPasswordBySms(
                 user, reqVO.getSmsCode(), reqVO.getNewPassword(), reqVO.getConfirmPassword());
         if (err != null) {
-            return CommonResult.error(400, err);
+            throw new BusinessException(400, err);
         }
         userMapper.updateById(user);
         return CommonResult.success(true);
@@ -229,14 +230,14 @@ public class ProfileController {
     @PostMapping("/avatar")
     public CommonResult<Map<String, String>> uploadAvatar(@RequestParam("file") MultipartFile file) {
         if (file == null || file.isEmpty()) {
-            return CommonResult.error(400, "请选择图片文件");
+            throw new BusinessException(400, "请选择图片文件");
         }
         String contentType = file.getContentType();
         if (contentType == null || !contentType.startsWith("image/")) {
-            return CommonResult.error(400, "仅支持上传图片作为头像");
+            throw new BusinessException(400, "仅支持上传图片作为头像");
         }
         if (file.getSize() > AVATAR_MAX_BYTES) {
-            return CommonResult.error(400, "头像大小不能超过 2MB");
+            throw new BusinessException(400, "头像大小不能超过 2MB");
         }
 
         Long userId = StpUtil.getLoginIdAsLong();
@@ -258,7 +259,7 @@ public class ProfileController {
             result.put("url", url);
             return CommonResult.success(result);
         } catch (IOException e) {
-            return CommonResult.error(500, "头像上传失败");
+            throw new BusinessException(500, "头像上传失败");
         }
     }
 
@@ -268,7 +269,7 @@ public class ProfileController {
         Long userId = StpUtil.getLoginIdAsLong();
         UserDO user = userMapper.selectById(userId);
         if (user == null) {
-            return CommonResult.error(404, "用户不存在");
+            throw new BusinessException(404, "用户不存在");
         }
         Page<LoginLogDO> page = loginLogMapper.selectPage(
                 new Page<>(pageParam.getPageNo(), pageParam.getPageSize()),

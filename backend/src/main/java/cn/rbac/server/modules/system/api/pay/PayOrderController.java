@@ -1,5 +1,6 @@
 package cn.rbac.server.modules.system.api.pay;
 
+import cn.rbac.server.common.pojo.BusinessException;
 import cn.rbac.server.common.pojo.CommonResult;
 import cn.rbac.server.modules.system.pay.PayNotifyService;
 import cn.rbac.server.modules.system.pay.PayOrderRecord;
@@ -23,7 +24,7 @@ public class PayOrderController {
     public CommonResult<PayOrderRecord> getOrderStatus(@PathVariable String orderNo) {
         PayOrderRecord record = payNotifyService.syncOrderStatus(orderNo);
         if (record == null) {
-            return CommonResult.error(404, "订单不存在");
+            throw new BusinessException(404, "订单不存在");
         }
         return CommonResult.success(record);
     }

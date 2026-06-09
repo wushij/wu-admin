@@ -170,40 +170,42 @@ const router = createRouter({
   routes
 })
 
-// 路由守卫
 router.beforeEach(async (to, _from, next) => {
-  const token = localStorage.getItem('token')
   const userStore = useUserStore()
-  
-  // 设置页面标题
+
   document.title = to.meta.title ? `${to.meta.title} - Admin Platform` : 'Admin Platform'
-  
+
   if (to.meta.requiresAuth === false) {
-    // 不需要认证的页面
-    if (to.path === '/login' && token) {
+    if (to.path === '/login' && userStore.isLoggedIn) {
       next('/')
     } else {
       next()
     }
-  } else {
-    // 需要认证的页面
-    if (!token) {
-      next('/login')
-    } else {
-      // 有 token 但没有菜单信息（刷新页面），重新获取用户信息
-      if (!userStore.menus || userStore.menus.length === 0) {
-        try {
-          await userStore.refreshUserStore()
-          next() // 获取成功后继续导航
-        } catch (error) {
-          console.error('获取用户信息失败:', error)
-          next('/login') // 失败则跳转登录页
-        }
-      } else {
-        next()
-      }
-    }
+    return
   }
+
+  if (!userStore.isLoggedIn) {
+    try {
+      await userStore.refreshUserStore()
+      next()
+    } catch {
+      next('/login')
+    }
+    return
+  }
+
+  if (!userStore.menus || userStore.menus.length === 0) {
+    try {
+      await userStore.refreshUserStore()
+      next()
+    } catch (error) {
+      console.error('获取用户信息失败:', error)
+      next('/login')
+    }
+    return
+  }
+
+  next()
 })
 
 export default router

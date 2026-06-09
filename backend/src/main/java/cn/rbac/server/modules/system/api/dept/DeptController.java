@@ -1,5 +1,6 @@
 package cn.rbac.server.modules.system.api.dept;
 
+import cn.rbac.server.common.pojo.BusinessException;
 import cn.rbac.server.common.pojo.CommonResult;
 import cn.rbac.server.common.pojo.PageParam;
 import cn.rbac.server.common.pojo.PageResult;
@@ -114,7 +115,7 @@ public class DeptController {
     @PreAuthorize("@ss.hasPermission('system:dept:delete')")
     public CommonResult<Boolean> restore(@RequestParam Long id) {
         if (deptMapper.restoreById(id) == 0) {
-            return CommonResult.error(404, "回收站部门不存在");
+            throw new BusinessException(404, "回收站部门不存在");
         }
         return CommonResult.success(true);
     }
@@ -124,7 +125,7 @@ public class DeptController {
     @PreAuthorize("@ss.hasPermission('system:dept:delete')")
     public CommonResult<Boolean> deletePermanent(@RequestParam Long id) {
         if (deptMapper.deletePhysicalById(id) == 0) {
-            return CommonResult.error(404, "回收站部门不存在");
+            throw new BusinessException(404, "回收站部门不存在");
         }
         return CommonResult.success(true);
     }

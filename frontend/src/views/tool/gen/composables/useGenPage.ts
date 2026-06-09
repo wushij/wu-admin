@@ -251,10 +251,8 @@ export function useGenPage() {
   }
 
   async function downloadZip(ids: number[]) {
-    const token = localStorage.getItem('token')
     const res = await axios.get(downloadGenCodeUrl(ids), {
       responseType: 'blob',
-      headers: token ? { Authorization: token } : {},
       withCredentials: true,
     })
     const url = URL.createObjectURL(res.data)

@@ -6,7 +6,7 @@ const mockGet = vi.fn()
 const mockPost = vi.fn()
 const mockLogout = vi.fn()
 
-type RequestInterceptor = (config: InternalAxiosRequestConfig) => InternalAxiosRequestConfig | Promise<InternalAxiosRequestConfig>
+type RequestInterceptor = (config: InternalAxiosRequestConfig) => InternalAxiosRequestConfig
 type ResponseInterceptor = (response: AxiosResponse) => unknown
 type ResponseErrorInterceptor = (error: unknown) => Promise<never>
 
@@ -92,9 +92,9 @@ describe('request', () => {
   })
 
   describe('request interceptor', () => {
-    it('passes config through without Authorization header', async () => {
+    it('passes config through without Authorization header', () => {
       const config = { url: '/system/user/list', headers: {} } as InternalAxiosRequestConfig
-      const result = await requestInterceptor(config)
+      const result = requestInterceptor(config)
       expect(result.headers!['Authorization']).toBeUndefined()
     })
   })

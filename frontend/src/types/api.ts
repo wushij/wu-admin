@@ -54,9 +54,8 @@ export interface RegisterForm {
   code?: string
 }
 
-/** 登录响应 */
+/** 登录响应（Token 由后端写入 httpOnly Cookie，响应体不再返回） */
 export interface LoginResult {
-  token: string
   userId: number
   username: string
   nickname?: string

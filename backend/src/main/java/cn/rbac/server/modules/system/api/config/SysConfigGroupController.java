@@ -1,5 +1,6 @@
 package cn.rbac.server.modules.system.api.config;
 
+import cn.rbac.server.common.pojo.BusinessException;
 import cn.rbac.server.common.pojo.CommonResult;
 import cn.rbac.server.common.pojo.PageResult;
 import cn.rbac.server.framework.log.annotation.Log;
@@ -51,7 +52,7 @@ public class SysConfigGroupController {
     public CommonResult<SysConfigGroupDO> get(@PathVariable String groupCode) {
         SysConfigGroupDO row = configGroupService.getByGroupCode(groupCode);
         if (row == null) {
-            return CommonResult.error(404, "配置分组不存在");
+            throw new BusinessException(404, "配置分组不存在");
         }
         return CommonResult.success(row);
     }
@@ -63,14 +64,10 @@ public class SysConfigGroupController {
     public CommonResult<Boolean> update(@PathVariable String groupCode, @RequestBody Map<String, String> body) {
         String configValue = body.get("configValue");
         if (configValue == null || configValue.isBlank()) {
-            return CommonResult.error(400, "configValue 不能为空");
+            throw new BusinessException(400, "configValue 不能为空");
         }
-        try {
-            configGroupService.updateConfig(groupCode, configValue);
-            return CommonResult.success(true);
-        } catch (IllegalArgumentException e) {
-            return CommonResult.error(400, e.getMessage());
-        }
+        configGroupService.updateConfig(groupCode, configValue);
+        return CommonResult.success(true);
     }
 
     @Operation(summary = "创建测试支付订单")
@@ -78,17 +75,13 @@ public class SysConfigGroupController {
     @PreAuthorize("@ss.hasPermission('system:config:update')")
     public CommonResult<Map<String, String>> testPayment(@RequestBody TestPaymentRequest request) {
         if (request.getType() == null || request.getType().isBlank()) {
-            return CommonResult.error(400, "支付类型不能为空");
+            throw new BusinessException(400, "支付类型不能为空");
         }
         String type = request.getType().trim();
         if (!payServiceFactory.isSupported(type)) {
-            return CommonResult.error(400, "不支持的支付类型: " + type);
+            throw new BusinessException(400, "不支持的支付类型: " + type);
         }
-        try {
-            return CommonResult.success(payServiceFactory.createTestOrder(type));
-        } catch (Exception e) {
-            return CommonResult.error(500, e.getMessage());
-        }
+        return CommonResult.success(payServiceFactory.createTestOrder(type));
     }
 
     @Data
@@ -102,7 +95,7 @@ public class SysConfigGroupController {
     @PreAuthorize("@ss.hasPermission('system:config:update')")
     public CommonResult<Boolean> testSms(@RequestBody TestSmsRequest request) {
         if (request.getPhone() == null || !request.getPhone().matches("^1[3-9]\\d{9}$")) {
-            return CommonResult.error(400, "请输入正确的手机号");
+            throw new BusinessException(400, "请输入正确的手机号");
         }
         String code = String.valueOf((int) ((Math.random() * 9 + 1) * 100000));
         boolean success = smsServiceFactory.sendCode(request.getPhone(), code, request.getTemplateCode());
@@ -117,7 +110,7 @@ public class SysConfigGroupController {
         String detail = latest != null && latest.getResultMsg() != null && !latest.getResultMsg().isBlank()
                 ? latest.getResultMsg()
                 : "请检查签名、模板 ID 与密钥是否正确";
-        return CommonResult.error(500, "短信发送失败：" + detail);
+        throw new BusinessException(500, "短信发送失败：" + detail);
     }
 
     @Operation(summary = "最近短信发送记录")

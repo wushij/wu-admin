@@ -60,8 +60,6 @@ export interface ListExportOptions {
  */
 export async function downloadListExport(options: ListExportOptions): Promise<void> {
   const { url, params = {}, format = 'xlsx', scope = 'filtered', defaultFilename = 'export.xlsx' } = options
-  const token = localStorage.getItem('token')
-
   const query: Record<string, string | number> = {
     format,
     scope,
@@ -74,7 +72,6 @@ export async function downloadListExport(options: ListExportOptions): Promise<vo
   const res = await axios.get(`/api${url}`, {
     params: query,
     responseType: 'blob',
-    headers: token ? { Authorization: token } : {},
     withCredentials: true,
     timeout: 120_000,
   })

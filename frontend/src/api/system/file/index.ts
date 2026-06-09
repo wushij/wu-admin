@@ -164,15 +164,10 @@ export function getFileText(id: number) {
 }
 
 /**
- * 为静态资源 URL 附加 Sa-Token（存于 localStorage token）。
- * img 标签通过 ?Authorization= 传 token，后端 AuthorizationQueryFilter 会写入请求头。
+ * 同域资源 URL（img/video 等）依赖 httpOnly Cookie 鉴权，不再拼接 Token 查询参数。
  */
 export function withTokenQuery(url: string): string {
-  if (!url) return ''
-  const token = localStorage.getItem('token')
-  if (!token || !url.startsWith('/api')) return url
-  const sep = url.includes('?') ? '&' : '?'
-  return `${url}${sep}Authorization=${encodeURIComponent(token)}`
+  return url || ''
 }
 
 function normalizeFileApiUrl(url: string): string {
@@ -211,10 +206,8 @@ export function getDownloadApiUrl(id: number) {
 
 /** 带鉴权下载/预览（blob，不走 JSON 拦截器） */
 export async function fetchFileBlob(path: string): Promise<Blob> {
-  const token = localStorage.getItem('token')
   const res = await axios.get(`/api${path}`, {
     responseType: 'blob',
-    headers: token ? { Authorization: token } : {},
     withCredentials: true,
   })
   return res.data

@@ -42,7 +42,7 @@
 | 维度 | 改进要点 |
 |------|----------|
 | **分层** | 认证、用户、角色、工单、**工作台**、**消息汇总**等模块将业务逻辑从 Controller 下沉至 Service（`AuthService`、`UserService`、`RoleService`、`TicketService`、`DashboardService`、`NoticeService` 等）；Controller 负责参数校验、权限注解与结果封装 |
-| **异常** | 新增 `BusinessException`（可携带业务错误码）；`GlobalExceptionHandler` 统一处理校验失败、参数缺失、404 及兜底异常（共 11 种） |
+| **异常** | `BusinessException` + `GlobalExceptionHandler`（17 类异常）+ `BusinessHttpStatusMapper` 对齐 HTTP 状态；Security 401/403 JSON 化；详见 [全局异常处理](#全局异常处理与错误契约) |
 | **安全** | `UserDO.password` 添加 `@JsonIgnore`；管理端敏感接口补全 `@PreAuthorize`；CORS 改为 `app.cors.allowed-origins` 配置；URL 参数传 Token 仅限 `/files/**` |
 | **校验** | 核心 VO（登录/注册/用户/角色/工单/审批/聊天/个人中心）添加 JSR-303（`@NotBlank` / `@Pattern` / `@Size`）+ `@Validated` |
 | **事务** | 用户/工单/审批等多表写操作添加 `@Transactional(rollbackFor = Exception.class)` |
@@ -201,7 +201,7 @@ mysql -u wuadmin -p wuadmin < sql/add11_wuadmin.sql
 | 消息 | `/message/notice` | `notice/index.vue`，`module-page` |
 | 企业IM | `/message/chat` | `ChatPage.vue` + `useChatPage.ts` / `useChatRender` / `useMention` |
 
-**质量保障**：`npm run typecheck`（`vue-tsc --noEmit`）、`npm run test`（Vitest，37 用例）、`npm run build`（构建前自动类型检查）。
+**质量保障**：`npm run typecheck`（`vue-tsc --noEmit`）、`npm run test`（Vitest，约 86 用例）、`npm run build`（构建前自动类型检查）；后端 `mvn test`（JUnit 5 + Mockito，约 87 用例）。详见下文 [单元测试](#单元测试)。
 
 > 企业 IM 聊天区可进一步拆分子面板组件；`role` 等页已接入 `module-page`，逻辑 composable 拆分可继续做。
 
@@ -551,7 +551,7 @@ mysql -u wuadmin -p wuadmin < sql/add9_wuadmin.sql
 | 群聊 | `POST /system/chat/group/{groupId}/notify-muted?muted=` | 设置本群免打扰 |
 | 聊天图片 | `POST /system/chat/upload/image` | 上传至 `images/chat/`，**不出现在文件管理列表** |
 | 聊天文件 | `POST /system/chat/upload/file` | 上传至 `files/chat/`，受文件配置大小/扩展名约束 |
-| WebSocket | `ws(s)://{host}/api/ws/message?token=...` | 推送：`notice` / `chat` / `groupChat` / **`groupAnnouncement`** / `typing` / `presence`；群聊可带 `atMe`；撤回带 `recall` + `messageId` |
+| WebSocket | `ws(s)://{host}/api/ws/message` | 握手时从 **httpOnly Cookie**（或 Header）鉴权，不再 URL 传 Token；推送：`notice` / `chat` / `groupChat` / **`groupAnnouncement`** / `typing` / `presence`；群聊可带 `atMe`；撤回带 `recall` + `messageId` |
 
 ### 前端关键文件
 
@@ -691,11 +691,15 @@ wu-admin/
 │   │   ├── common/             # 通用 POJO、工具类
 │   │   ├── framework/          # 安全、MyBatis、Redis、Web 过滤器等
 │   │   └── modules/system/     # 系统业务（api / service / dal）
-│   └── src/main/resources/
-│       ├── application.yml          # 公共配置；默认 profile=prod
-│       ├── application-dev.yml      # 本地开发（wu-admin 库、无 Redis 密码）
-│       ├── application-prod.yml     # 生产（wuadmin 库、Redis 密码等）
-│       └── templates/gen/           # 代码生成 Velocity 模板
+│   ├── src/main/resources/
+│   │   ├── application.yml          # 公共配置；默认 profile=prod
+│   │   ├── application-dev.yml      # 本地开发（wu-admin 库、无 Redis 密码）
+│   │   ├── application-prod.yml     # 生产（wuadmin 库、Redis 密码等）
+│   │   └── templates/gen/           # 代码生成 Velocity 模板
+│   └── src/test/java/cn/rbac/server/
+│       ├── testsupport/        # MybatisLambdaTestBase、ServiceTestFixtures、MybatisMockMatchers
+│       ├── framework/web/core/ # GlobalExceptionHandlerTest 等
+│       └── modules/system/service/  # 各 *ServiceImplTest
 ├── frontend/                   # Vue 3 + TypeScript 前端
 │   ├── src/
 │   │   ├── api/                # 接口封装（system、message、monitor 等，均为 .ts）
@@ -715,7 +719,9 @@ wu-admin/
 │   │   ├── types/              # TS 类型（api、message、config）
 │   │   ├── utils/              # request、主题、菜单、org-tree、WebSocket 工具
 │   │   └── directives/         # v-permission 等指令
-│   ├── tsconfig.json
+│   ├── tests/unit/             # Vitest 单测（store、utils、api，与 src 分离）
+│   ├── tsconfig.json           # include 含 tests/**/*.ts
+│   ├── vitest.config.ts        # 合并 vite.config 别名
 │   └── vite.config.ts          # 开发代理 /api → localhost:8080
 ├── sql/
 │   ├── admin_platform.sql      # 本地全量（wu-admin，MySQL 8）+ 附录
@@ -757,8 +763,9 @@ cn.rbac.server/
 │   │   ├── config/                   # SecurityConfig（CORS 从 yml 读取）
 │   │   └── core/                     # TokenService、SecurityUtils
 │   ├── web/
-│   │   ├── core/                     # GlobalExceptionHandler（含 BusinessException）
-│   │   └── filter/                   # AuthorizationQueryFilter、Knife4jIframeHeaderFilter
+│   │   ├── core/                     # GlobalExceptionHandler、BusinessHttpStatusMapper、ApiErrorResponseWriter
+│   │   └── filter/                   # SaTokenAuthenticationFilter、AuthorizationQueryFilter 等
+│   ├── security/handler/             # JsonAuthenticationEntryPoint、JsonAccessDeniedHandler（401/403 JSON）
 │   ├── log/annotation/               # @Log
 │   ├── mybatis/、redis/、storage/
 └── modules/
@@ -783,6 +790,90 @@ cn.rbac.server/
 | 新增业务接口 | 在 `service/` 写业务逻辑，Controller 只做入参校验与 `CommonResult` 封装；业务错误抛 `BusinessException` |
 | 新增业务模块 | 增加 `modules/xxx`，在 `xxx/framework` 实现 SPI，勿让 `framework` 依赖业务 |
 | 复用基础层 | 将 `common` + `framework` 打成 jar，供其它 Spring Boot 项目依赖 |
+
+### 全局异常处理与错误契约
+
+前后端统一约定：**业务可预期错误在 Service 层抛 `BusinessException`，由 `GlobalExceptionHandler` 转为 `CommonResult`；HTTP 状态码与 body.`code` 对齐**。Controller **不要** `return CommonResult.error(...)`，也不要 broad `catch (Exception)` 把内部堆栈返回前端。
+
+#### 处理链路
+
+```
+请求 → Filter（Sa-Token 桥接）→ Security（未登录/无权限 → JSON EntryPoint）
+     → Controller → Service 抛 BusinessException
+     → GlobalExceptionHandler → BusinessHttpStatusMapper → ResponseEntity + CommonResult
+     → 前端 request.ts 拦截器（401 跳登录 / 403 权限提示 / 429 限流 warning）
+```
+
+#### 核心类
+
+| 类 | 路径 | 职责 |
+|----|------|------|
+| `BusinessException` | `common/pojo/` | 业务异常，`code` 默认 400，可传 401/403/404/429/500 等 |
+| `BusinessHttpStatusMapper` | `framework/web/core/` | 业务码 → `HttpStatus`（401/403/404/405/415/429/500，其余 400） |
+| `GlobalExceptionHandler` | `framework/web/core/` | `@RestControllerAdvice`，17 个 `@ExceptionHandler` |
+| `ApiErrorResponseWriter` | `framework/web/core/` | 向 Servlet 响应写入 `CommonResult` JSON（供 Security 过滤器链使用） |
+| `JsonAuthenticationEntryPoint` | `framework/security/handler/` | 未登录 → HTTP 401 + `CommonResult` |
+| `JsonAccessDeniedHandler` | `framework/security/handler/` | 无权限 → HTTP 403 + `CommonResult` |
+
+#### 已覆盖的异常类型（17 个）
+
+| 异常 | HTTP | code | 典型场景 |
+|------|------|------|----------|
+| `BusinessException` | 动态 | 原始 code | 资源不存在、权限不足、限流等业务错误（**首选**） |
+| `IllegalArgumentException` | 400 | 400 | 定时任务调用格式、文件校验、Cron 表达式等（记 warn 日志） |
+| `IllegalStateException` | 400 | 400 | Quartz 任务状态异常等（记 warn 日志） |
+| `MethodArgumentNotValidException` | 400 | 400 | `@RequestBody` JSR-303 校验失败 |
+| `ConstraintViolationException` | 400 | 400 | 方法参数 `@Validated` 校验失败 |
+| `HttpMessageNotReadableException` | 400 | 400 | JSON 解析失败 |
+| `MissingServletRequestParameterException` | 400 | 400 | 缺少 `@RequestParam` |
+| `MissingPathVariableException` | 400 | 400 | 缺少 `@PathVariable` |
+| `MethodArgumentTypeMismatchException` | 400 | 400 | 参数类型不匹配 |
+| `MaxUploadSizeExceededException` | 400 | 400 | 上传超限（文案读取 `DynamicConfigProvider`） |
+| `SecurityException` | 403 | 403 | 文件路径穿越等安全拒绝（记 warn 日志 + IP） |
+| `AccessDeniedException` | 403 | 403 | `@PreAuthorize` 鉴权失败 |
+| `NotLoginException` | 401 | 401 | Sa-Token 注解鉴权未登录 |
+| `NoHandlerFoundException` | 404 | 404 | 路由不存在（需 `spring.mvc.throw-exception-if-no-handler-found: true`） |
+| `HttpRequestMethodNotSupportedException` | 405 | 405 | HTTP 方法不支持 |
+| `HttpMediaTypeNotSupportedException` | 415 | 415 | Content-Type 不支持 |
+| `Exception`（兜底） | 500 | 500 | 未预期异常；服务端记完整堆栈，对外仅「服务器内部错误」 |
+
+#### 开发约定
+
+```java
+// Service 层 — 推荐
+throw new BusinessException(404, "工单不存在");
+throw new BusinessException(403, "仅审批人可操作");
+throw new BusinessException(429, "操作过于频繁");
+throw new BusinessException("用户名已存在");  // 默认 code=400
+
+// Controller 层 — 禁止
+return CommonResult.error(404, "xxx");        // ❌ HTTP 200 与 body.code 不一致
+catch (Exception e) { return CommonResult.error(500, e.getMessage()); }  // ❌ 泄露内部信息
+```
+
+- **可观测性**：`handleBusiness` / `handleException` / `handleSecurity` 记录 method、URI、IP；`IllegalArgumentException` / `IllegalStateException` 记 warn；`SaTokenAuthenticationFilter` 鉴权异常记 debug（不静默吞掉）。
+- **配置**：`application.yml` 已启用 `spring.mvc.throw-exception-if-no-handler-found: true`，404 走统一 JSON 而非默认错误页。
+
+#### 前端对齐（`frontend/src/utils/request.ts`）
+
+| body.code / HTTP status | 行为 |
+|-------------------------|------|
+| 200 / 0 | 成功，返回 `res.data` |
+| 401 | 公开登录接口 Toast 错误文案；已登录态清会话 Cookie 并跳转 `/login` |
+| 403 | Toast「权限不足」（`silent403: true` 可抑制；2 秒防抖） |
+| 429 | `ElMessage.warning` 限流提示 |
+| 其它 | Toast `message` 字段 |
+
+页面 `catch` 时可用 `getErrorMessage` / `isErrorToastShown`（`utils/axiosError.ts`）避免与拦截器重复弹窗。
+
+#### 单测
+
+| 测试类 | 说明 |
+|--------|------|
+| `GlobalExceptionHandlerTest` | 约 20 用例，覆盖业务码 HTTP 映射、校验拼接、401/403/404/405/415、兜底不泄露等 |
+| `BusinessHttpStatusMapperTest` | 业务码 → HTTP 状态映射 |
+
+运行：`cd backend && mvn test -Dtest=GlobalExceptionHandlerTest`
 
 ---
 
@@ -866,6 +957,15 @@ npm run dev
 ```
 
 访问：**http://localhost:3000**
+
+### 5. 运行单元测试（可选）
+
+```powershell
+cd frontend && npm run test
+cd backend && mvn test
+```
+
+说明见 [单元测试](#单元测试)。
 
 ---
 
@@ -1034,9 +1134,56 @@ GET /auth/config  // 实际请求 /api/auth/config
 - 业务 API（`api/system/*`、`api/message`、`api/monitor`）为各模块定义了 **VO / SaveDTO / PageQuery** 类型。
 - Pinia `store/user`、`store/message` 与 API 类型对齐（`AuthInfo`、`NoticeVO`）。
 - 类型检查：`cd frontend && npm run typecheck`（`vue-tsc --noEmit`）。
-- 单元测试：`cd frontend && npm run test`（Vitest）。
+- 单元测试：`cd frontend && npm run test`（Vitest）；开发时监听 `npm run test:watch`。
 - ESLint：`cd frontend && npm run lint`。
 - 生产构建会先跑类型检查：`npm run build`。
+
+### 单元测试
+
+项目采用**前后端分离的单测目录**，不依赖真实 MySQL/Redis，核心 Service 与工具函数用 Mock 隔离。
+
+#### 运行命令
+
+```powershell
+# 前端（Vitest + happy-dom）
+cd frontend
+npm run test          # 一次性执行
+npm run test:watch    # 监听模式
+
+# 后端（JUnit 5 + Mockito + Spring Test）
+cd backend
+mvn test              # 全量单测
+mvn test -Dtest=AuthServiceImplTest   # 指定类
+```
+
+打包仍可跳过测试：`mvn clean package -DskipTests`（见下文「构建与打包」）。
+
+#### 前端覆盖（`frontend/tests/unit/`，约 86 用例）
+
+| 目录 | 文件 | 说明 |
+|------|------|------|
+| `store/` | `user.test.ts`、`message.test.ts`、`tagsView.test.ts` | 登录态、消息 WebSocket 未读、页签缓存 |
+| `utils/` | `request.test.ts`、`menu-tree.test.ts`、`org-tree.test.ts`、`hasMenuPerm.test.ts`、`chat-message.test.ts`、`message-push.test.ts`、`loginRemember.test.ts`、`api-response.test.ts`、`axiosError.test.ts` | 拦截器、菜单/组织树、权限判断、聊天文案、推送防抖 |
+| `api/` | `system/file/with-token-query.test.ts` | 带 Token 的文件 URL |
+
+配置：`vitest.config.ts` 合并 `vite.config.ts` 的 `@` 别名；`tsconfig.json` 的 `include` 含 `tests/**/*.ts`，IDE 可正确解析测试文件中的路径别名。
+
+#### 后端覆盖（`backend/src/test/java/`，约 87 用例）
+
+| 测试类 | 覆盖要点 |
+|--------|----------|
+| `AuthServiceImplTest` | 账号登录成功/失败/限流/锁定；注册；短信登录；短信发码限流 |
+| `PermissionServiceImplTest` | 权限码匹配、菜单树过滤、角色/菜单分配 |
+| `UserServiceImplTest` / `RoleServiceImplTest` / `DeptServiceImplTest` | CRUD 校验、树操作、回收站 |
+| `RegisterApprovalServiceImplTest` | 注册审批通过/拒绝、待审去重 |
+| `ChatServiceTest` | 私聊/群聊发送、撤回、建群、成员管理、解散 |
+| `TicketServiceImplTest` | 工单创建、评论、状态流转 |
+| `MenuServiceImplTest` / `DictDataServiceImplTest` | 菜单树、字典缓存刷新 |
+| `GlobalExceptionHandlerTest` / `BusinessHttpStatusMapperTest` | 17 类异常处理、HTTP 状态对齐、安全/兜底/校验场景 |
+
+公共支撑：`testsupport/MybatisLambdaTestBase`（MyBatis-Plus `LambdaQueryWrapper` 元数据初始化）、`ServiceTestFixtures`（User/Role/Menu 等测试数据构造）。
+
+> 当前以 **Service 层单元测试** 为主，尚未接入 JaCoCo 覆盖率报告与 Controller 层 `MockMvc` 集成测试；新增核心业务逻辑时建议同步补充对应 `*Test.java` / `*.test.ts`。
 
 ### 构建与打包
 
@@ -1084,14 +1231,14 @@ java -jar backend.jar --spring.datasource.password=xxx --spring.data.redis.passw
 2. 页面目录：`views/<模块>/index.vue` 仅作路由入口，业务放在 `*Page.vue` + `composables/use*Page.ts`。
 3. 可复用 UI 拆到同目录 `components/`；登录注册类共用 `views/auth/components/`。
 4. 列表页优先用 `DictSelect` / `DictTag`；按钮权限用 `v-permission`。
-5. 提交前执行 `npm run typecheck` 与 `npm run test`。
+5. 提交前执行 `npm run typecheck` 与 `npm run test`；涉及后端 Service 变更时执行 `mvn test`。
 
 ---
 
 ## 常见问题
 
 **Q：生产环境登录失败，接口返回 HTML 或「检查网络连接」？**  
-A：① 浏览器访问 `https://域名/api/auth/config`，若返回 `index.html` 则是 **Nginx 未反代 `/api`**（见上文「生产部署排障实录」）；② 若返回 JSON 仍失败，检查 `application-prod.yml` 中 **CORS 域名**是否为实际站点（dev 相对 master 从 `*` 改为可配域名，占位符会导致异常）；③ 验证码须填写；④ 清 `localStorage` 中旧 `token` 后重试。
+A：① 浏览器访问 `https://域名/api/auth/config`，若返回 `index.html` 则是 **Nginx 未反代 `/api`**（见上文「生产部署排障实录」）；② 若返回 JSON 仍失败，检查 `application-prod.yml` 中 **CORS 域名**是否为实际站点（dev 相对 master 从 `*` 改为可配域名，占位符会导致异常）；③ 验证码须填写；④ 清除站点 Cookie 后重新登录（Token 已改为 **httpOnly Cookie**，不再使用 `localStorage`）。
 
 **Q：登录后菜单为空或 403？**  
 A：确认已导入 `admin_platform.sql` 或为角色分配菜单，然后重新登录。
@@ -1226,7 +1373,13 @@ A：升级后账号/密码错误统一返回「账号或密码错误」；若仍
 A：升级后 `PageParam` 自动将 `pageSize` 上限限制为 **200**；非法 `pageNo` 会修正为 1。
 
 **Q：业务错误返回格式不统一？**  
-A：Service 层应抛 `BusinessException`，由 `GlobalExceptionHandler` 统一返回 `CommonResult`；勿在 Controller 手工 catch 后吞掉异常。
+A：统一走 [全局异常处理](#全局异常处理与错误契约)：Service 抛 `BusinessException(code, message)`，由 `GlobalExceptionHandler` 返回 `CommonResult` 且 HTTP 状态与 `code` 对齐；Controller 勿 `return CommonResult.error`、勿 broad catch 泄露 `e.getMessage()`。未登录/无权限由 Security JSON EntryPoint 返回相同结构。前端读 `res.code` 与 `res.message`（非 `msg`）。
+
+**Q：接口 HTTP 200 但 body 里 code 是 403/404？**  
+A：升级后 `BusinessException` 已通过 `ResponseEntity` 对齐 HTTP 状态；若仍出现，检查是否 Controller 直接 `return CommonResult.error` 或未抛异常的旧代码路径。
+
+**Q：文件路径穿越或安全相关错误返回 400？**  
+A：升级后 `SecurityException`（如 `LocalFileStorage` 非法路径）返回 **403** 并记 warn 日志含 IP。
 
 **Q：Git 仓库？**  
 A：https://github.com/wushij/wu-admin
@@ -1236,6 +1389,7 @@ A：https://github.com/wushij/wu-admin
 ## 相关文档
 
 - [GitHub 上传与推送](./GitHub上传与推送全流程.md)
+- [GlobalExceptionHandler 代码质量分析](./code-quality-analysis-global-exception-handler.md)
 
 ---
 

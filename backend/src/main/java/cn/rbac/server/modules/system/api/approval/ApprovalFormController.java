@@ -1,5 +1,6 @@
 package cn.rbac.server.modules.system.api.approval;
 
+import cn.rbac.server.common.pojo.BusinessException;
 import cn.rbac.server.common.pojo.CommonResult;
 import cn.rbac.server.common.pojo.PageParam;
 import cn.rbac.server.common.pojo.PageResult;
@@ -100,7 +101,7 @@ public class ApprovalFormController {
     public CommonResult<ApprovalFormDO> get(@RequestParam Long id) {
         ApprovalFormDO form = approvalFormMapper.selectById(id);
         if (form == null) {
-            return CommonResult.error(404, "审批单不存在");
+            throw new BusinessException(404, "审批单不存在");
         }
         fillUserName(java.util.Collections.singletonList(form));
         return CommonResult.success(form);
@@ -124,7 +125,7 @@ public class ApprovalFormController {
     @Transactional(rollbackFor = Exception.class)
     public CommonResult<Long> create(@Validated @RequestBody ApprovalCreateReqVO reqVO) {
         if (reqVO.getApproverUserId() == null || reqVO.getApproverUserId() <= 0) {
-            return CommonResult.error(400, "请选择审批人");
+            throw new BusinessException(400, "请选择审批人");
         }
         ApprovalFormDO form = new ApprovalFormDO();
         form.setFormNo(generateFormNo());
@@ -149,7 +150,7 @@ public class ApprovalFormController {
     public CommonResult<Boolean> approve(@Validated @RequestBody ApprovalApproveReqVO reqVO) {
         ApprovalFormDO form = approvalFormMapper.selectById(reqVO.getId());
         if (form == null) {
-            return CommonResult.error(404, "审批单不存在");
+            throw new BusinessException(404, "审批单不存在");
         }
         Long userId = SecurityUtils.getLoginUserIdOrZero();
         boolean canApproveAny = permissionService.hasRole(userId, "super_admin");
@@ -158,15 +159,15 @@ public class ApprovalFormController {
                 && permissionService.hasPermission(userId, "system:approval:approve");
         if (!canApproveAny && !canApproveRegister
                 && (form.getApproverUserId() == null || !form.getApproverUserId().equals(userId))) {
-            return CommonResult.error(403, "仅审批人可操作");
+            throw new BusinessException(403, "仅审批人可操作");
         }
         if (!"SUBMITTED".equals(form.getStatus())) {
-            return CommonResult.error(400, "仅待审批状态可审批");
+            throw new BusinessException(400, "仅待审批状态可审批");
         }
         String action = reqVO.getAction();
         Set<String> actions = new HashSet<>(Arrays.asList("APPROVE", "REJECT"));
         if (!actions.contains(action)) {
-            return CommonResult.error(400, "审批动作非法");
+            throw new BusinessException(400, "审批动作非法");
         }
         form.setStatus("APPROVE".equals(action) ? "APPROVED" : "REJECTED");
         form.setResultRemark(reqVO.getRemark());
@@ -193,10 +194,10 @@ public class ApprovalFormController {
     public CommonResult<Boolean> archive(@Validated @RequestBody ApprovalArchiveReqVO reqVO) {
         ApprovalFormDO form = approvalFormMapper.selectById(reqVO.getId());
         if (form == null) {
-            return CommonResult.error(404, "审批单不存在");
+            throw new BusinessException(404, "审批单不存在");
         }
         if (!"APPROVED".equals(form.getStatus()) && !"REJECTED".equals(form.getStatus())) {
-            return CommonResult.error(400, "仅审批结束单据可归档");
+            throw new BusinessException(400, "仅审批结束单据可归档");
         }
         Long userId = SecurityUtils.getLoginUserIdOrZero();
         boolean canArchiveAny = permissionService.hasRole(userId, "super_admin");
@@ -204,7 +205,7 @@ public class ApprovalFormController {
         boolean canArchiveRegister = isRegisterForm
                 && permissionService.hasPermission(userId, "system:approval:archive");
         if (!canArchiveAny && !canArchiveRegister && !userId.equals(form.getApplicantUserId())) {
-            return CommonResult.error(403, "仅申请人可归档");
+            throw new BusinessException(403, "仅申请人可归档");
         }
         form.setStatus("ARCHIVED");
         approvalFormMapper.updateById(form);
@@ -220,7 +221,7 @@ public class ApprovalFormController {
     public CommonResult<Boolean> delete(@RequestParam Long id) {
         ApprovalFormDO form = approvalFormMapper.selectById(id);
         if (form == null) {
-            return CommonResult.error(404, "审批单不存在");
+            throw new BusinessException(404, "审批单不存在");
         }
         approvalRecordMapper.delete(new LambdaQueryWrapper<ApprovalRecordDO>()
                 .eq(ApprovalRecordDO::getFormId, id));
@@ -247,7 +248,7 @@ public class ApprovalFormController {
     public CommonResult<Boolean> restore(@RequestParam Long id) {
         int rows = approvalFormMapper.restoreById(id);
         if (rows == 0) {
-            return CommonResult.error(404, "回收站审批单不存在");
+            throw new BusinessException(404, "回收站审批单不存在");
         }
         approvalRecordMapper.restoreByFormId(id);
         return CommonResult.success(true);
@@ -260,7 +261,7 @@ public class ApprovalFormController {
         approvalRecordMapper.deletePhysicalByFormId(id);
         int rows = approvalFormMapper.deletePhysicalById(id);
         if (rows == 0) {
-            return CommonResult.error(404, "回收站审批单不存在");
+            throw new BusinessException(404, "回收站审批单不存在");
         }
         return CommonResult.success(true);
     }

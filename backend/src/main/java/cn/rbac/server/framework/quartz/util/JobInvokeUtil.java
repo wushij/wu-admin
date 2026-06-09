@@ -6,6 +6,7 @@ import org.springframework.lang.NonNull;
 import org.springframework.util.StringUtils;
 
 import java.lang.reflect.Method;
+import java.util.Objects;
 
 @Slf4j
 public final class JobInvokeUtil {
@@ -36,18 +37,27 @@ public final class JobInvokeUtil {
         }
     }
 
-    @SuppressWarnings("null")
     private static @NonNull String getBeanName(String invokeTarget) {
-        return invokeTarget.substring(0, invokeTarget.indexOf('.'));
+        int dotIndex = invokeTarget.indexOf('.');
+        if (dotIndex < 1) {
+            throw new IllegalArgumentException("调用目标格式错误，缺少 bean 名称");
+        }
+        return Objects.requireNonNull(invokeTarget.substring(0, dotIndex));
     }
 
-    @SuppressWarnings("null")
     private static @NonNull String getMethodName(String invokeTarget) {
-        String methodName = invokeTarget.substring(invokeTarget.indexOf('.') + 1);
+        int dotIndex = invokeTarget.indexOf('.');
+        if (dotIndex < 0 || dotIndex >= invokeTarget.length() - 1) {
+            throw new IllegalArgumentException("调用目标格式错误，缺少方法名");
+        }
+        String methodName = invokeTarget.substring(dotIndex + 1);
         if (methodName.contains("(")) {
             methodName = methodName.substring(0, methodName.indexOf('('));
         }
-        return methodName;
+        if (!StringUtils.hasText(methodName)) {
+            throw new IllegalArgumentException("调用目标格式错误，方法名不能为空");
+        }
+        return Objects.requireNonNull(methodName);
     }
 
     private static Object[] getMethodParams(String invokeTarget) {
