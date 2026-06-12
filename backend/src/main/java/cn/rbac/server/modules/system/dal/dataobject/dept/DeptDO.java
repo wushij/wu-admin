@@ -18,6 +18,7 @@ public class DeptDO extends BaseEntity {
     private Integer sort;
     private Integer status;
     private String leaderName;
+    private Long leaderUserId;
     private String phone;
     private String email;
     

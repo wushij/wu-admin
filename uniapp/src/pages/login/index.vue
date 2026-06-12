@@ -3,7 +3,6 @@
     <AuthParticleBackground />
 
     <view class="login-page__content">
-      <!-- #ifdef H5 -->
       <view class="login-page__brand">
         <AuthEarth
           class="login-page__globe"
@@ -13,7 +12,6 @@
           :enable-zoom="false"
         />
       </view>
-      <!-- #endif -->
 
       <AuthGlassForm>
         <view class="auth-form__head">
@@ -30,20 +28,11 @@
             账号登录
           </view>
           <view
-            v-if="smsLoginEnabled && smsEnabled"
             class="login-mode-switch__item"
             :class="{ 'login-mode-switch__item--active': loginMode === 'sms' }"
             @click="switchLoginMode('sms')"
           >
             短信登录
-          </view>
-          <view
-            v-if="emailLoginEnabled && emailEnabled"
-            class="login-mode-switch__item"
-            :class="{ 'login-mode-switch__item--active': loginMode === 'email' }"
-            @click="switchLoginMode('email')"
-          >
-            邮箱登录
           </view>
         </view>
 
@@ -55,7 +44,6 @@
             placeholder="请输入用户名"
           />
           <AuthPasswordInput
-            :key="passwordFieldKey"
             v-model="formData.password"
             custom-class="auth-anim auth-anim--2"
             placeholder="请输入密码"
@@ -81,7 +69,7 @@
           </view>
         </view>
 
-        <view v-else-if="loginMode === 'sms'" class="form-block">
+        <view v-else class="form-block">
           <AuthInput
             v-model="formData.phone"
             icon="phone-o"
@@ -109,33 +97,6 @@
           </view>
         </view>
 
-        <view v-else-if="loginMode === 'email'" class="form-block">
-          <AuthInput
-            v-model="formData.email"
-            icon="envelop-o"
-            custom-class="auth-anim"
-            placeholder="请输入绑定的邮箱地址"
-            :maxlength="60"
-          />
-          <view class="sms-row auth-anim auth-anim--2">
-            <AuthInput
-              v-model="formData.code"
-              icon="key"
-              custom-class="sms-input"
-              placeholder="请输入验证码"
-              :maxlength="6"
-            />
-            <button
-              class="sms-btn"
-              :disabled="!emailEnabled || sendingEmail || emailCountdown > 0"
-              :loading="sendingEmail"
-              @click="handleSendEmail"
-            >
-              {{ emailCountdown > 0 ? `${emailCountdown}s` : '获取验证码' }}
-            </button>
-          </view>
-        </view>
-
         <view class="remember-row auth-anim auth-anim--4">
           <label v-if="rememberMeEnabled" class="remember-label">
             <checkbox :checked="formData.rememberMe" @click="formData.rememberMe = !formData.rememberMe" />
@@ -154,32 +115,9 @@
           @click="goRegister"
         />
       </AuthGlassForm>
-
-      <view v-if="appStore.copyright || (appStore.icpEnabled && appStore.icpNumber)" class="login-page__footer auth-anim auth-anim--5">
-        <text v-if="appStore.copyright" class="footer-text">{{ appStore.copyright }}</text>
-        <text v-if="appStore.copyright && appStore.icpEnabled && appStore.icpNumber" class="footer-divider">|</text>
-        <!-- #ifdef H5 -->
-        <a
-          v-if="appStore.icpEnabled && appStore.icpNumber"
-          class="footer-icp-link"
-          :href="appStore.icpUrl || 'https://beian.miit.gov.cn/'"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          {{ appStore.icpNumber }}
-        </a>
-        <!-- #endif -->
-        <!-- #ifndef H5 -->
-        <text v-if="appStore.icpEnabled && appStore.icpNumber" class="footer-text">{{ appStore.icpNumber }}</text>
-        <!-- #endif -->
-      </view>
     </view>
 
-    <SliderCaptcha
-      v-model:show="showSliderModal"
-      :scene="sliderPurpose"
-      @success="onSliderSuccess"
-    />
+    <SliderCaptcha v-model:show="showSliderModal" @success="onSliderSuccess" />
   </view>
 </template>
 
@@ -187,9 +125,7 @@
 import { ref, onMounted } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import SliderCaptcha from '@/components/business/SliderCaptcha/index.vue'
-// #ifdef H5
 import AuthEarth from '@/components/business/AuthEarth/index.vue'
-// #endif
 import AuthParticleBackground from '@/components/business/AuthParticleBackground/index.vue'
 import AuthGlassForm from '@/components/business/AuthGlassForm/index.vue'
 import AuthInput from '@/components/business/AuthInput/index.vue'
@@ -198,11 +134,8 @@ import AuthFooterLink from '@/components/business/AuthFooterLink/index.vue'
 import { useLoginForm } from '@/composables/useLoginForm'
 import { useH5PageHead } from '@/composables/useH5PageHead'
 
-const pageReady = ref(false)
-
-// #ifdef H5
 const globeSize = ref(240)
-// #endif
+const pageReady = ref(false)
 
 useH5PageHead('登录')
 
@@ -210,30 +143,22 @@ const {
   appStore,
   captchaEnabled,
   captchaType,
-  smsLoginEnabled,
-  emailLoginEnabled,
   loginMode,
   rememberMeEnabled,
   registerEnabled,
   showSliderModal,
-  sliderPurpose,
   captchaImg,
   formData,
-  passwordFieldKey,
   loading,
   sendingSms,
-  sendingEmail,
   smsCountdown,
-  emailCountdown,
   smsEnabled,
-  emailEnabled,
   showLoginModeSwitch,
   loadConfig,
   refreshCaptcha,
   restoreRemember,
   switchLoginMode,
   handleSendSms,
-  handleSendEmail,
   handleSubmit,
   onSliderSuccess,
   goRegister,
@@ -241,16 +166,10 @@ const {
 } = useLoginForm()
 
 onMounted(async () => {
-  // #ifdef H5
   const sysInfo = uni.getSystemInfoSync()
   globeSize.value = Math.min(Math.round(sysInfo.windowWidth * 0.6), 280)
-  // #endif
 
-  try {
-    await appStore.loadPublicConfig()
-  } catch {
-    /* 离线或后端未启动时使用默认文案 */
-  }
+  await appStore.loadPublicConfig()
   await loadConfig()
   restoreRemember()
   await refreshCaptcha()
@@ -265,6 +184,7 @@ onShow(() => {
 </script>
 
 <style lang="scss" scoped>
+@import '@/styles/mixins.scss';
 
 .login-page {
   position: relative;
@@ -284,13 +204,6 @@ onShow(() => {
   justify-content: flex-start;
   box-sizing: border-box;
 }
-
-/* #ifdef MP-WEIXIN */
-.login-page__content {
-  justify-content: center;
-  padding: calc(32rpx + env(safe-area-inset-top)) 40rpx calc(48rpx + env(safe-area-inset-bottom));
-}
-/* #endif */
 
 .login-page__brand {
   position: relative;
@@ -476,39 +389,6 @@ onShow(() => {
     opacity: 1;
     transform: translateY(0);
   }
-}
-
-.login-page__footer {
-  margin-top: auto;
-  padding: 40rpx 20rpx 16rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: 12rpx;
-  text-align: center;
-  font-size: 24rpx;
-  color: #000000;
-}
-
-.footer-divider {
-  color: #000000;
-  opacity: 0.5;
-}
-
-.footer-text {
-  color: #000000;
-}
-
-.footer-icp-link {
-  color: #000000;
-  text-decoration: none !important;
-}
-
-.footer-icp-link:hover {
-  color: #000000;
-  text-decoration: none !important;
-  opacity: 0.75;
 }
 
 </style>

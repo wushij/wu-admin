@@ -80,6 +80,18 @@ public final class ServiceTestFixtures {
         return form;
     }
 
+    public static ApprovalFormDO generalApprovalForm(long id, long applicantUserId, long approverUserId, String status) {
+        ApprovalFormDO form = new ApprovalFormDO();
+        form.setId(id);
+        form.setFormType("GENERAL");
+        form.setFormNo("AP-TEST");
+        form.setTitle("测试审批");
+        form.setApplicantUserId(applicantUserId);
+        form.setApproverUserId(approverUserId);
+        form.setStatus(status);
+        return form;
+    }
+
     public static TicketDO ticket(long id, long assigneeUserId, String status) {
         TicketDO ticket = new TicketDO();
         ticket.setId(id);

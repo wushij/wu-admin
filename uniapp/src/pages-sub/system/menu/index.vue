@@ -1,26 +1,32 @@
 <template>
   <PermissionBlock v-if="!allowed" />
   <view v-else class="menu-page page-padded">
-    <ModuleDarkHero title="菜单管理" subtitle="目录、菜单与按钮权限" icon="apps-o" theme="menu">
-      <template #aside>
-        <view class="module-dark-hero__stats-row">
-          <view class="module-dark-hero__mini-stat">
-            <text class="module-dark-hero__mini-stat-num">{{ menuRows.length }}</text>
-            <text class="module-dark-hero__mini-stat-label">全部</text>
-          </view>
-          <view class="module-dark-hero__mini-stat">
-            <text class="module-dark-hero__mini-stat-num">{{ typeCount(1) }}</text>
-            <text class="module-dark-hero__mini-stat-label">目录</text>
-          </view>
-          <view class="module-dark-hero__mini-stat">
-            <text class="module-dark-hero__mini-stat-num">{{ typeCount(2) }}</text>
-            <text class="module-dark-hero__mini-stat-label">菜单</text>
-          </view>
+    <view class="menu-hero">
+      <view class="menu-hero__main">
+        <view class="menu-hero__icon">
+          <IconFont name="apps-o" :size="40" color="#fff" />
         </view>
-      </template>
-    </ModuleDarkHero>
+        <view class="menu-hero__text">
+          <text class="menu-hero__title">菜单管理</text>
+          <text class="menu-hero__sub">目录、菜单与按钮权限</text>
+        </view>
+      </view>
+      <view class="menu-hero__stats">
+        <view class="menu-hero__stat">
+          <text class="menu-hero__stat-num">{{ menuRows.length }}</text>
+          <text class="menu-hero__stat-label">全部</text>
+        </view>
+        <view class="menu-hero__stat">
+          <text class="menu-hero__stat-num">{{ typeCount(1) }}</text>
+          <text class="menu-hero__stat-label">目录</text>
+        </view>
+        <view class="menu-hero__stat">
+          <text class="menu-hero__stat-num">{{ typeCount(2) }}</text>
+          <text class="menu-hero__stat-label">菜单</text>
+        </view>
+      </view>
+    </view>
 
-    <SegmentTabs v-model="statusMode" :tabs="statusTabs" compact />
     <SearchBar v-model="keyword" placeholder="搜索菜单名称、路由、权限" @search="refresh" />
 
     <ListLoading v-if="loading && !menuRows.length" />
@@ -76,12 +82,9 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, nextTick } from 'vue'
 import { onPullDownRefresh } from '@dcloudio/uni-app'
-import { useListPageShowRefresh } from '@/composables/useListPageShowRefresh'
 import { useAppDialogBackPress } from '@/composables/useAppDialogBackPress'
-import ModuleDarkHero from '@/components/common/ModuleDarkHero/index.vue'
 import IconFont from '@/components/common/IconFont/index.vue'
 import SearchBar from '@/components/common/SearchBar/index.vue'
-import SegmentTabs from '@/components/common/SegmentTabs/index.vue'
 import ListLoading from '@/components/common/ListLoading/index.vue'
 import EmptyState from '@/components/common/EmptyState/index.vue'
 import FabButton from '@/components/common/FabButton/index.vue'
@@ -115,22 +118,11 @@ useAppDialogBackPress()
 const keyword = ref('')
 const loading = ref(false)
 const menuRows = ref<MenuRow[]>([])
-const statusMode = ref<'all' | '1' | '0'>('all')
-const statusTabs = [
-  { key: 'all', label: '全部' },
-  { key: '1', label: '启用' },
-  { key: '0', label: '停用' },
-]
 
 const filteredRows = computed(() => {
-  const mode = statusMode.value
-  const base =
-    mode === 'all'
-      ? menuRows.value
-      : menuRows.value.filter((r) => (r.status ?? 1) === Number(mode))
   const q = keyword.value.trim().toLowerCase()
-  if (!q) return base
-  return base.filter(
+  if (!q) return menuRows.value
+  return menuRows.value.filter(
     (r) =>
       r.label.toLowerCase().includes(q) ||
       (r.path && r.path.toLowerCase().includes(q)) ||
@@ -255,7 +247,6 @@ async function confirmDelete(row: MenuRow) {
   await refresh()
 }
 
-useListPageShowRefresh(refresh, { loading })
 onMounted(refresh)
 onPullDownRefresh(async () => {
   await refresh()
@@ -264,28 +255,93 @@ onPullDownRefresh(async () => {
 </script>
 
 <style lang="scss" scoped>
-@use '@/styles/common.scss' as *;
+@import '@/styles/variables.scss';
+@import '@/styles/common.scss';
 
 .menu-page {
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
-  /* #ifdef H5 */
-  height: calc(100vh - var(--window-top, 0px));
-  /* #endif */
+  min-height: 100vh;
   box-sizing: border-box;
-  overflow: hidden;
   background: $color-bg-page;
 }
 
-.menu-page__scroll {
-  flex: 1;
-  min-height: 0;
-  margin-top: 16rpx;
+.menu-hero {
+  display: flex;
+  align-items: stretch;
+  justify-content: space-between;
+  gap: 16rpx;
+  margin-bottom: 20rpx;
+  padding: 28rpx 24rpx;
+  border-radius: $radius-xl;
+  background: linear-gradient(135deg, #312e81 0%, #4f46e5 52%, #6366f1 100%);
+  box-shadow: $shadow-hero;
+}
 
-  :deep(.uni-scroll-view-content) {
-    padding-bottom: calc(160rpx + env(safe-area-inset-bottom));
-  }
+.menu-hero__main {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  min-width: 0;
+  flex: 1;
+}
+
+.menu-hero__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: $radius-lg;
+  background: rgba(255, 255, 255, 0.18);
+  flex-shrink: 0;
+}
+
+.menu-hero__title {
+  display: block;
+  font-size: $font-size-lg;
+  font-weight: $font-weight-bold;
+  color: #fff;
+}
+
+.menu-hero__sub {
+  display: block;
+  margin-top: 8rpx;
+  font-size: $font-size-xs;
+  color: rgba(255, 255, 255, 0.82);
+  line-height: 1.45;
+}
+
+.menu-hero__stats {
+  display: flex;
+  gap: 12rpx;
+  flex-shrink: 0;
+}
+
+.menu-hero__stat {
+  min-width: 72rpx;
+  padding: 12rpx 14rpx;
+  border-radius: $radius-md;
+  background: rgba(255, 255, 255, 0.14);
+  text-align: center;
+}
+
+.menu-hero__stat-num {
+  display: block;
+  font-size: 32rpx;
+  font-weight: $font-weight-bold;
+  color: #fff;
+  line-height: 1.1;
+}
+
+.menu-hero__stat-label {
+  display: block;
+  margin-top: 4rpx;
+  font-size: 18rpx;
+  color: rgba(255, 255, 255, 0.76);
+}
+
+.menu-page__scroll {
+  height: calc(100vh - 340rpx);
+  margin-top: 16rpx;
 }
 
 .menu-tree {

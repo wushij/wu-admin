@@ -31,12 +31,12 @@ withDefaults(
 </script>
 
 <style lang="scss" scoped>
+@import '@/styles/variables.scss';
 
 .stat-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 20rpx;
-  margin-bottom: $card-gap;
+  gap: 16rpx;
 }
 
 .stat-grid--cols-2 {

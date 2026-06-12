@@ -57,7 +57,8 @@ onPullDownRefresh(async () => {
 </script>
 
 <style lang="scss" scoped>
-@use '@/styles/common.scss' as *;
+@import '@/styles/variables.scss';
+@import '@/styles/common.scss';
 
 .sms-logs-page {
   height: 100vh;

@@ -1,7 +1,6 @@
 import { ref, computed } from 'vue'
 import { getUserList } from '@/api/system/user'
 import type { UserVO } from '@/types/user'
-import { getUserSelectMultiIds } from '@/utils/user-select-multi-init'
 
 function userLabel(user: UserVO) {
   const name = user.nickname || user.username
@@ -19,8 +18,6 @@ export function useUserSelectPage() {
   const keyword = ref('')
   const users = ref<UserVO[]>([])
   const selectedId = ref<number | null>(null)
-  const selectedIds = ref<number[]>([])
-  const multiMode = ref(false)
   const allowEmpty = ref(true)
   const emptyLabel = ref('不设置')
   const usersLoaded = ref(false)
@@ -44,20 +41,12 @@ export function useUserSelectPage() {
     return Number.isFinite(n) && n > 0 ? n : null
   }
 
-  function initFromRoute(options: { initialId?: string; multi?: string }, session: string) {
+  function initFromRoute(options: { initialId?: string }, session: string) {
     if (!session || session === activeSession.value) return
     activeSession.value = session
     userTouched.value = false
+    selectedId.value = parseInitialId(options.initialId)
     keyword.value = ''
-    if (options.multi === '1') {
-      multiMode.value = true
-      selectedIds.value = getUserSelectMultiIds()
-      selectedId.value = null
-    } else {
-      multiMode.value = false
-      selectedIds.value = []
-      selectedId.value = parseInitialId(options.initialId)
-    }
   }
 
   async function ensureUsers() {
@@ -74,26 +63,10 @@ export function useUserSelectPage() {
 
   function selectId(id: number | null) {
     userTouched.value = true
-    if (multiMode.value) {
-      if (id == null) {
-        selectedIds.value = []
-        return
-      }
-      const n = normalizeId(id)
-      if (n == null) return
-      const idx = selectedIds.value.findIndex((sid) => Number(sid) === n)
-      if (idx >= 0) selectedIds.value.splice(idx, 1)
-      else selectedIds.value.push(n)
-      return
-    }
     selectedId.value = normalizeId(id)
   }
 
   function isSelected(id: number | null) {
-    if (multiMode.value) {
-      if (id == null) return selectedIds.value.length === 0
-      return selectedIds.value.some((sid) => Number(sid) === Number(id))
-    }
     const picked = selectedId.value
     if (id == null) return picked == null
     return Number(picked) === Number(id)
@@ -110,24 +83,12 @@ export function useUserSelectPage() {
     return user ? userLabel(user) : emptyLabel.value
   }
 
-  function resolveMultiLabelText(ids = selectedIds.value) {
-    if (!ids.length) return '未选择'
-    const labels = ids.map((id) => {
-      const user = users.value.find((u) => Number(u.id) === Number(id))
-      return user ? userLabel(user) : String(id)
-    })
-    if (labels.length <= 2) return labels.join('、')
-    return `${labels.slice(0, 2).join('、')} 等${labels.length}人`
-  }
-
   return {
     loading,
     keyword,
     users,
     filteredUsers,
     selectedId,
-    selectedIds,
-    multiMode,
     allowEmpty,
     emptyLabel,
     initFromRoute,
@@ -137,6 +98,5 @@ export function useUserSelectPage() {
     userLabel,
     resolveSelectedUser,
     resolveSelectedLabel,
-    resolveMultiLabelText,
   }
 }

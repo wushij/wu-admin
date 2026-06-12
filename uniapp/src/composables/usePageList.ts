@@ -37,15 +37,15 @@ export function usePageList<T>(fetcher: PageFetcher<T>, pageSize = 15) {
     }
   }
 
-  async function refresh(options?: { silent?: boolean }) {
-    if (!options?.silent) refreshing.value = true
+  async function refresh() {
+    refreshing.value = true
     pageNo.value = 1
     total.value = 0
-    loading.value = true
+    loading.value = false
     try {
       await loadPage(true)
     } catch {
-      if (!options?.silent) refreshing.value = false
+      refreshing.value = false
       loading.value = false
     }
   }
@@ -61,7 +61,6 @@ export function usePageList<T>(fetcher: PageFetcher<T>, pageSize = 15) {
     refreshing,
     finished,
     empty,
-    total,
     refresh,
     loadMore,
   }

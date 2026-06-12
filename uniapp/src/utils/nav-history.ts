@@ -1,9 +1,6 @@
 import { getFromQueryParent, isPickerRoute } from '@/utils/nav-from'
-import { scheduleSyncH5BackButton } from '@/store/h5-back-button'
-import { suppressPopstate } from '@/utils/nav-transition'
 
 const PARENT_KEY = 'wu_nav_parent_map'
-const PINNED_KEY = 'wu_nav_pinned_map'
 
 const TAB_PAGES = new Set([
   '/pages/index/index',
@@ -18,31 +15,8 @@ const EXPLICIT_PARENT: Record<string, string> = {
   'pages-sub/system/user/detail': '/pages-sub/system/user/index',
   'pages-sub/system/user/edit': '/pages-sub/system/user/index',
   'pages-sub/system/user/index': '/pages/work/index',
-  'pages-sub/system/role/edit': '/pages-sub/system/role/index',
-  'pages-sub/system/role/index': '/pages/work/index',
   'pages-sub/system/org/edit': '/pages-sub/system/org/index',
   'pages-sub/system/org/index': '/pages/work/index',
-  'pages-sub/system/menu/edit': '/pages-sub/system/menu/index',
-  'pages-sub/system/menu/index': '/pages/work/index',
-  'pages-sub/system/dict/type-form': '/pages-sub/system/dict/index',
-  'pages-sub/system/dict/data-form': '/pages-sub/system/dict/index',
-  'pages-sub/system/dict/index': '/pages/work/index',
-  'pages-sub/system/file/index': '/pages/work/index',
-  'pages-sub/system/config/index': '/pages/work/index',
-  'pages-sub/mine/mobile-bind': '/pages-sub/mine/profile',
-  'pages-sub/mine/email-bind': '/pages-sub/mine/profile',
-  'pages-sub/mine/profile': '/pages/mine/index',
-  'pages-sub/mine/password': '/pages/mine/index',
-  'pages-sub/mine/login-logs': '/pages/mine/index',
-  'pages-sub/mine/account': '/pages/mine/index',
-  'pages-sub/mine/about': '/pages/mine/index',
-  'pages-sub/log/oper-log': '/pages/work/index',
-  'pages-sub/log/login-log': '/pages/work/index',
-  'pages-sub/monitor/online': '/pages/work/index',
-  'pages-sub/monitor/server': '/pages/work/index',
-  'pages-sub/monitor/job': '/pages/work/index',
-  'pages-sub/monitor/cache': '/pages/work/index',
-  'pages-sub/monitor/api-access': '/pages/work/index',
 }
 
 function normalizeRoute(route: string): string {
@@ -90,36 +64,11 @@ export function normalizeNavUrl(url: string): string {
   return `${path}${queryPart}`
 }
 
-function readPinnedMap(): Record<string, string> {
-  // #ifdef H5
-  if (typeof localStorage === 'undefined') return {}
-  try {
-    return JSON.parse(localStorage.getItem(PINNED_KEY) || '{}') as Record<string, string>
-  } catch {
-    return {}
-  }
-  // #endif
-  // #ifndef H5
-  return {}
-  // #endif
-}
-
-function writePinnedMap(map: Record<string, string>) {
-  // #ifdef H5
-  if (typeof localStorage === 'undefined') return
-  try {
-    localStorage.setItem(PINNED_KEY, JSON.stringify(map))
-  } catch {
-    /* ignore */
-  }
-  // #endif
-}
-
 function readParentMap(): Record<string, string> {
   // #ifdef H5
-  if (typeof localStorage === 'undefined') return {}
+  if (typeof sessionStorage === 'undefined') return {}
   try {
-    return JSON.parse(localStorage.getItem(PARENT_KEY) || '{}') as Record<string, string>
+    return JSON.parse(sessionStorage.getItem(PARENT_KEY) || '{}') as Record<string, string>
   } catch {
     return {}
   }
@@ -131,9 +80,9 @@ function readParentMap(): Record<string, string> {
 
 function writeParentMap(map: Record<string, string>) {
   // #ifdef H5
-  if (typeof localStorage === 'undefined') return
+  if (typeof sessionStorage === 'undefined') return
   try {
-    localStorage.setItem(PARENT_KEY, JSON.stringify(map))
+    sessionStorage.setItem(PARENT_KEY, JSON.stringify(map))
   } catch {
     /* ignore */
   }
@@ -143,7 +92,7 @@ function writeParentMap(map: Record<string, string>) {
 /** navigateTo 时记录：目标页 <- 来源页（刷新后仍有效） */
 export function recordNavParent(targetUrl: string, fromUrl?: string) {
   // #ifdef H5
-  if (!fromUrl || typeof localStorage === 'undefined') return
+  if (!fromUrl || typeof sessionStorage === 'undefined') return
   const map = readParentMap()
   map[routeKey(targetUrl)] = normalizeNavUrl(fromUrl)
   writeParentMap(map)
@@ -154,7 +103,6 @@ export function recordNavParent(targetUrl: string, fromUrl?: string) {
 export function ensureNavParent(route: string, currentUrl?: string) {
   // #ifdef H5
   const key = routeKey(currentUrl || route)
-  if (readPinnedMap()[key]) return
   const map = readParentMap()
   if (map[key]) return
 
@@ -172,31 +120,10 @@ export function ensureNavParent(route: string, currentUrl?: string) {
   // #endif
 }
 
-/** 强制写入当前页的返回目标（刷新后仍有效，供 navigateToParent 使用） */
-export function pinNavParent(parentUrl: string) {
-  // #ifdef H5
-  const route = getCurrentRoute()
-  if (!route) return
-  const parent = normalizeNavUrl(parentUrl)
-  const keys = [routeKey(getCurrentPageUrl() || route), routeKey(route)]
-  const parentMap = readParentMap()
-  const pinnedMap = readPinnedMap()
-  keys.forEach((key) => {
-    if (!key) return
-    parentMap[key] = parent
-    pinnedMap[key] = parent
-  })
-  writeParentMap(parentMap)
-  writePinnedMap(pinnedMap)
-  // #endif
-}
-
 export function getNavParent(routeOrUrl?: string): string | null {
   // #ifdef H5
   const key = routeKey(routeOrUrl || '')
   if (!key) return null
-  const pinned = readPinnedMap()[key]
-  if (pinned) return pinned
   return readParentMap()[key] || null
   // #endif
   // #ifndef H5
@@ -238,73 +165,37 @@ export function resolveBackTarget(route?: string, currentUrl?: string): string {
 function openTargetPage(targetUrl: string) {
   const target = normalizeNavUrl(targetUrl)
   const path = pathOnly(target)
-  const route = normalizeRoute(path)
-
-  const finish = () => scheduleSyncH5BackButton()
-
-  const go = (fn: () => void) => {
-    suppressPopstate()
-    fn()
-  }
 
   if (TAB_PAGES.has(path)) {
-    go(() => uni.switchTab({ url: path, complete: finish }))
+    uni.switchTab({ url: path })
     return
   }
 
+  const route = normalizeRoute(path)
   const isModuleList = route.startsWith('pages-sub/') && route.endsWith('/index')
-  const currentRoute = normalizeRoute(getCurrentRoute())
-  const alreadyInSubPackage = currentRoute.startsWith('pages-sub/')
-
-  if (isModuleList && alreadyInSubPackage) {
-    go(() =>
-      uni.redirectTo({
-        url: target,
-        complete: finish,
-        fail: () => uni.reLaunch({ url: target, complete: finish }),
-      }),
-    )
-    return
-  }
-
   if (isModuleList) {
     const tab = pathOnly(resolveInferredParent(route))
     if (TAB_PAGES.has(tab)) {
-      go(() =>
-        uni.switchTab({
-          url: tab,
-          success: () => {
-            suppressPopstate()
-            uni.navigateTo({
-              url: target,
-              animationType: 'none',
-              animationDuration: 0,
-              complete: finish,
-              fail: () =>
-                uni.redirectTo({
-                  url: target,
-                  complete: finish,
-                }),
-            })
-          },
-          fail: () =>
-            uni.redirectTo({
-              url: target,
-              complete: finish,
-            }),
-        }),
-      )
+      uni.switchTab({
+        url: tab,
+        success: () => {
+          uni.navigateTo({
+            url: target,
+            animationType: 'none',
+            animationDuration: 0,
+            fail: () => uni.redirectTo({ url: target }),
+          })
+        },
+        fail: () => uni.redirectTo({ url: target }),
+      })
       return
     }
   }
 
-  go(() =>
-    uni.redirectTo({
-      url: target,
-      complete: finish,
-      fail: () => uni.reLaunch({ url: target, complete: finish }),
-    }),
-  )
+  uni.redirectTo({
+    url: target,
+    fail: () => uni.reLaunch({ url: target }),
+  })
 }
 
 /**
@@ -312,31 +203,15 @@ function openTargetPage(targetUrl: string) {
  * - 栈深 > 1：uni.navigateBack
  * - 刷新/浅栈：session 来源 / URL from / 路由推断
  */
-let navigatingParent = false
-
 export function navigateToParent() {
-  if (navigatingParent) return
-
   const pages = getCurrentPages()
-  const route = getCurrentRoute()
-  const currentUrl = getCurrentPageUrl()
-
   if (pages.length > 1) {
-    navigatingParent = true
-    uni.navigateBack({
-      complete: () => {
-        navigatingParent = false
-        scheduleSyncH5BackButton()
-      },
-      fail: () => {
-        navigatingParent = false
-        ensureNavParent(route, currentUrl)
-        openTargetPage(resolveBackTarget(route, currentUrl))
-      },
-    })
+    uni.navigateBack()
     return
   }
 
+  const route = getCurrentRoute()
+  const currentUrl = getCurrentPageUrl()
   ensureNavParent(route, currentUrl)
   openTargetPage(resolveBackTarget(route, currentUrl))
 }

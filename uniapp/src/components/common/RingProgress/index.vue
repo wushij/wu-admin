@@ -42,6 +42,7 @@ const ringStyle = computed(() => {
 </script>
 
 <style lang="scss" scoped>
+@import '@/styles/variables.scss';
 
 .ring-progress {
   display: flex;

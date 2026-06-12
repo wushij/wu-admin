@@ -9,7 +9,7 @@ import cn.rbac.server.modules.system.dal.dataobject.message.ChatGroupDO;
 import cn.rbac.server.modules.system.dal.dataobject.message.ChatGroupMessageDO;
 import cn.rbac.server.modules.system.dal.dataobject.message.ChatMessageDO;
 import cn.rbac.server.modules.system.service.message.AnnounceService;
-import cn.rbac.server.modules.system.service.message.NoticeService;
+import cn.rbac.server.modules.system.service.notice.NoticeService;
 import cn.rbac.server.modules.system.dal.dataobject.file.SysFileDO;
 import cn.rbac.server.modules.system.service.message.ChatService;
 import cn.rbac.server.modules.system.service.message.vo.ChatGroupLogVO;

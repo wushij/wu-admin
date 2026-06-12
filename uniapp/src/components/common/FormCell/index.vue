@@ -16,34 +16,17 @@
     </view>
     <view class="form-cell__body">
       <slot>
-        <view
+        <input
           v-if="editable"
-          class="form-cell__input-wrap"
-          :class="{
-            'form-cell__input-wrap--password': password,
-            'form-cell__input-wrap--boxed': password && boxed,
-          }"
-        >
-          <input
-            :value="modelValue"
-            class="form-cell__input"
-            :class="{ 'form-cell__input--masked': useMask }"
-            :type="resolvedInputType"
-            :password="useNativePassword"
-            :maxlength="maxlength"
-            :placeholder="placeholder"
-            :disabled="disabled"
-            autocomplete="new-password"
-            @input="onInput"
-          />
-          <view
-            v-if="password && !disabled"
-            class="form-cell__input-toggle"
-            @tap.stop="togglePasswordVisible"
-          >
-            <PasswordEyeIcon :slashed="passwordVisible" />
-          </view>
-        </view>
+          :value="modelValue"
+          class="form-cell__input"
+          :type="inputType"
+          :password="password"
+          :maxlength="maxlength"
+          :placeholder="placeholder"
+          :disabled="disabled"
+          @input="onInput"
+        />
         <text v-else class="form-cell__value" :class="{ 'form-cell__value--muted': muted }">{{ displayValue }}</text>
       </slot>
       <IconFont v-if="arrow" name="arrow" :size="28" color="#c0c4cc" />
@@ -52,11 +35,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 import IconFont from '@/components/common/IconFont/index.vue'
-import PasswordEyeIcon from '@/components/common/PasswordEyeIcon/index.vue'
-
-const isH5 = import.meta.env.UNI_PLATFORM === 'h5'
 
 const props = withDefaults(
   defineProps<{
@@ -103,24 +83,6 @@ function onInput(e: { detail: { value: string } }) {
 }
 
 const lastTapAt = ref(0)
-const passwordVisible = ref(false)
-
-const useMask = computed(
-  () => props.password && isH5 && !passwordVisible.value && !!props.modelValue,
-)
-const useNativePassword = computed(
-  () => props.password && !isH5 && !!props.modelValue && !passwordVisible.value,
-)
-
-const resolvedInputType = computed((): 'text' | 'number' | 'digit' => {
-  if (props.password) return 'text'
-  return props.inputType
-})
-
-function togglePasswordVisible() {
-  if (props.disabled) return
-  passwordVisible.value = !passwordVisible.value
-}
 
 function onTap() {
   if (!props.clickable) return
@@ -132,6 +94,7 @@ function onTap() {
 </script>
 
 <style lang="scss" scoped>
+@import '@/styles/variables.scss';
 
 .form-cell {
   display: flex;
@@ -185,48 +148,12 @@ function onTap() {
   background: $color-bg-muted;
 }
 
-.form-cell__input-wrap {
-  flex: 1;
-  min-width: 0;
-}
-
-.form-cell__input-wrap--password {
-  display: flex;
-  align-items: center;
-}
-
-.form-cell__input-wrap--password .form-cell__input {
-  flex: 1;
-  min-width: 0;
-  padding-right: 0;
-}
-
-.form-cell__input-toggle {
-  flex-shrink: 0;
-  width: 40rpx;
-  height: 40rpx;
-  margin-left: 8rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.form-cell__input-toggle :deep(.password-eye-icon) {
-  width: 36rpx;
-  height: 36rpx;
-}
-
 .form-cell__input,
 .form-cell__value {
-  width: 100%;
+  flex: 1;
+  text-align: right;
   font-size: $font-size-md;
   color: $color-text-primary;
-  box-sizing: border-box;
-  text-align: right;
-}
-
-.form-cell__input-wrap .form-cell__input {
-  text-align: right;
 }
 
 .form-cell__value--muted {
@@ -237,70 +164,23 @@ function onTap() {
   color: $color-text-placeholder;
 }
 
-.form-cell__input--masked {
-  -webkit-text-security: disc;
-}
-
-.form-cell--boxed .form-cell__input-wrap:not(.form-cell__input-wrap--password) .form-cell__input {
-  width: 100%;
-  min-height: 72rpx;
-  padding: 0 24rpx;
-  border: 1px solid $color-border-light;
-  border-radius: $radius-full;
-  background: $color-bg-card;
-  text-align: left;
-  line-height: normal;
-  height: 72rpx;
-  font-size: $font-size-base;
-  box-sizing: border-box;
-}
-
-.form-cell--boxed .form-cell__input-wrap--boxed {
-  width: 100%;
-  min-height: 72rpx;
-  padding: 0 12rpx 0 24rpx;
-  border: 1px solid $color-border-light;
-  border-radius: $radius-full;
-  background: $color-bg-card;
-  box-sizing: border-box;
-  display: flex;
-  align-items: center;
-}
-
-.form-cell--boxed .form-cell__input-wrap--boxed .form-cell__input {
-  width: auto;
-  flex: 1;
-  min-width: 0;
-  min-height: 70rpx;
-  height: 70rpx;
-  padding: 0;
-  border: none;
-  background: transparent;
-  text-align: left;
-  font-size: $font-size-base;
-}
-
-.form-cell--boxed .form-cell__input-wrap--boxed .form-cell__input-toggle {
-  margin-right: 4rpx;
-}
-
-.form-cell--boxed .form-cell__input::placeholder {
-  font-size: $font-size-sm;
-  color: $color-text-placeholder;
-}
-
+.form-cell--boxed .form-cell__input,
 .form-cell--boxed .form-cell__value,
 .form-cell--boxed :deep(.picker-value) {
   width: 100%;
   min-height: 72rpx;
-  padding: 0 24rpx;
+  padding: 0 20rpx;
   border: 1px solid $color-border-light;
-  border-radius: $radius-full;
+  border-radius: $radius-md;
   background: $color-bg-card;
   text-align: left;
-  font-size: $font-size-base;
   line-height: 72rpx;
   box-sizing: border-box;
+}
+
+.form-cell--boxed .form-cell__input {
+  line-height: normal;
+  height: 72rpx;
 }
 
 .form-cell--boxed .form-cell__body {
@@ -325,24 +205,4 @@ function onTap() {
   transform: scale(0.78);
   transform-origin: right center;
 }
-
-/* #ifdef H5 */
-.form-cell__input-wrap--password .form-cell__input::-ms-reveal,
-.form-cell__input-wrap--password .form-cell__input::-ms-clear {
-  display: none !important;
-  width: 0 !important;
-  height: 0 !important;
-}
-
-.form-cell__input-wrap--password .form-cell__input::-webkit-credentials-auto-fill-button,
-.form-cell__input-wrap--password .form-cell__input::-webkit-contacts-auto-fill-button,
-.form-cell__input-wrap--password .form-cell__input::-webkit-textfield-decoration-container {
-  display: none !important;
-  visibility: hidden !important;
-  pointer-events: none !important;
-  width: 0 !important;
-  height: 0 !important;
-}
-/* #endif */
 </style>
-

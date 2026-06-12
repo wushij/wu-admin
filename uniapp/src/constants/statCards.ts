@@ -19,7 +19,6 @@ export const mobileStatCards: StatCardConfig[] = [
     valueKey: 'userCount',
     icon: 'friends-o',
     theme: 'user',
-    permission: 'system:user:list',
     path: '/pages-sub/system/user/index',
     footer: (s) => {
       const trend = s.userTrend ?? 0
@@ -38,17 +37,17 @@ export const mobileStatCards: StatCardConfig[] = [
   },
   {
     key: 'approval',
-    title: '待我审批',
+    title: '待审批',
     valueKey: 'approvalPendingCount',
     icon: 'completed',
     theme: 'approval',
     permission: 'system:approval:list',
     path: '/pages-sub/system/approval/index',
-    footer: () => '待我处理的审批',
+    footer: () => '审批单中心',
   },
   {
     key: 'ticket',
-    title: '待我处理',
+    title: '待处理工单',
     valueKey: 'ticketOpenCount',
     icon: 'records-o',
     theme: 'ticket',
@@ -56,7 +55,7 @@ export const mobileStatCards: StatCardConfig[] = [
     path: '/pages-sub/system/ticket/index',
     footer: (s) => {
       const overdue = s.ticketOverdueCount ?? 0
-      return overdue > 0 ? `超时 ${overdue} 个` : '待我处理的工单'
+      return overdue > 0 ? `超时 ${overdue} 个` : '工单中心'
     },
   },
   {
@@ -81,32 +80,6 @@ export const mobileStatCards: StatCardConfig[] = [
       const running = s.jobRunningCount ?? 0
       const paused = s.jobPausedCount ?? 0
       return `运行 ${running} · 暂停 ${paused}`
-    },
-  },
-  {
-    key: 'chat',
-    title: '企业 IM',
-    valueKey: 'chatUnreadCount',
-    icon: 'chat-o',
-    theme: 'chat',
-    permission: 'system:chat:list',
-    path: '/pages-sub/msg/chat/index',
-    footer: (s) => {
-      const unread = s.chatUnreadCount ?? 0
-      return unread > 0 ? `${unread} 条未读` : '私聊与群聊'
-    },
-  },
-  {
-    key: 'config',
-    title: '系统配置',
-    valueKey: 'configGroupCount',
-    icon: 'setting-o',
-    theme: 'config',
-    permission: 'system:config:list',
-    path: '/pages-sub/system/config/index',
-    footer: (s) => {
-      const hours = s.tokenExpireHours ?? 0
-      return hours > 0 ? `会话 ${hours}h` : '登录注册与会话'
     },
   },
 ]

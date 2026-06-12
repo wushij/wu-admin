@@ -52,17 +52,18 @@
 
 <script setup lang="ts">
 
-import { computed } from 'vue'
+import { computed, defineAsyncComponent } from 'vue'
 
 // #ifdef H5
-import { defineAsyncComponent } from 'vue'
 
 const Earth3D = defineAsyncComponent(() => import('@/components/business/Earth3D/index.vue'))
+
 // #endif
 
 // #ifndef H5
-// 小程序/App 不支持 defineAsyncComponent，须静态引入
-import GlobeCanvas from '@/components/business/GlobeCanvas/index.vue'
+
+const GlobeCanvas = defineAsyncComponent(() => import('@/components/business/GlobeCanvas/index.vue'))
+
 // #endif
 
 

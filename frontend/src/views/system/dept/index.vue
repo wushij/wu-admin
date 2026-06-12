@@ -123,8 +123,8 @@
         <el-form-item label="部门名称" prop="name">
           <el-input v-model="form.name" placeholder="请输入部门名称" />
         </el-form-item>
-        <el-form-item label="负责人" prop="leaderName">
-          <el-input v-model="form.leaderName" placeholder="请输入负责人" />
+        <el-form-item label="负责人" prop="leaderUserId">
+          <DeptLeaderSelect v-model="form.leaderUserId" />
         </el-form-item>
         <el-form-item label="联系电话" prop="phone">
           <el-input v-model="form.phone" placeholder="请输入联系电话" />
@@ -197,6 +197,7 @@ import { MODULE_PAGE_ICON } from '@/constants/module-page-icons'
 import { ElMessage, ElMessageBox, type FormInstance } from 'element-plus'
 import type { DeptVO, DeptSaveDTO, DeptRecycleQuery, DeptTreeQuery } from '@/api/system/dept'
 import { getDeptList, createDept, updateDept, deleteDept, updateDeptStatus, getRecycleDeptPage, restoreDept, deleteDeptPermanent } from '@/api/system/dept'
+import DeptLeaderSelect from '@/components/DeptLeaderSelect.vue'
 
 const tableHeaderStyle = { textAlign: 'center' as const }
 const tableCellStyle = { textAlign: 'center' as const }
@@ -227,7 +228,7 @@ const form = reactive<DeptSaveDTO>({
   id: null,
   parentId: null,
   name: '',
-  leaderName: '',
+  leaderUserId: null as number | null,
   phone: '',
   email: '',
   sort: 0,
@@ -338,7 +339,7 @@ const resetForm = () => {
   form.id = null
   form.parentId = null
   form.name = ''
-  form.leaderName = ''
+  form.leaderUserId = null
   form.phone = ''
   form.email = ''
   form.sort = 0
@@ -349,11 +350,16 @@ const submitForm = async () => {
   if (!formRef.value) return
   await formRef.value.validate(async (valid) => {
     if (valid) {
+      const payload = {
+        ...form,
+        leaderUserId: form.leaderUserId ?? null,
+      }
+      delete (payload as { leaderName?: string }).leaderName
       if (form.id) {
-        await updateDept(form)
+        await updateDept(payload)
         ElMessage.success('修改成功')
       } else {
-        await createDept(form)
+        await createDept(payload)
         ElMessage.success('新增成功')
       }
       dialogVisible.value = false

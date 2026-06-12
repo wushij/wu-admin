@@ -30,8 +30,6 @@ public class DashboardStatsRow {
     private Long todayLoginFail;
     private Long yesterdayLoginSuccess;
 
-    private Long fileCount;
-
     private Long ticketOpenCount;
     private Long ticketOverdueCount;
 

@@ -1,7 +1,7 @@
 package cn.rbac.server.modules.system.api.dashboard;
 
 import cn.rbac.server.common.pojo.CommonResult;
-import cn.rbac.server.modules.system.dal.dataobject.loginlog.LoginLogDO;
+import cn.rbac.server.modules.system.service.dashboard.vo.RecentLoginVO;
 import cn.rbac.server.modules.system.service.dashboard.DashboardService;
 import cn.dev33.satoken.stp.StpUtil;
 import io.swagger.v3.oas.annotations.Operation;
@@ -34,7 +34,7 @@ public class DashboardController {
     @Operation(summary = "最近登录记录")
     @GetMapping("/recent-logins")
     @PreAuthorize("@ss.hasRead('dashboard:stats:view')")
-    public CommonResult<List<LoginLogDO>> recentLogins() {
+    public CommonResult<List<RecentLoginVO>> recentLogins() {
         return CommonResult.success(dashboardService.getRecentLogins());
     }
 

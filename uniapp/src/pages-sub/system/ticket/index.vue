@@ -1,14 +1,7 @@
 <template>
   <PermissionBlock v-if="!allowed" />
   <view v-else class="page-padded page-list">
-    <ModuleDarkHero
-      title="工单管理"
-      subtitle="跟踪处理进度"
-      icon="records-o"
-      theme="ticket"
-      :count="total || list.length"
-      count-label="工单"
-    />
+    <ModuleHero title="工单管理" :count="total || list.length" subtitle="跟踪处理进度" />
     <SegmentTabs v-model="statusMode" :tabs="statusTabs" scroll compact />
     <SearchBar v-model="keyword" placeholder="搜索工单标题" @search="onSearch" />
 
@@ -22,10 +15,7 @@
     >
       <ListCard v-for="item in list" :key="item.id" @click="goDetail(item.id)">
         <view class="list-card__top">
-          <view class="list-card__title-row">
-            <text class="list-card__title">{{ item.title }}</text>
-            <view v-if="needsMyHandle(item)" class="list-card__dot" />
-          </view>
+          <text class="list-card__title">{{ item.title }}</text>
           <DictTag :dict-type="DICT_TYPE.TICKET_STATUS" :value="item.status" />
         </view>
         <text class="list-card__sub">
@@ -47,8 +37,8 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
-import { onPullDownRefresh, onShow } from '@dcloudio/uni-app'
-import ModuleDarkHero from '@/components/common/ModuleDarkHero/index.vue'
+import { onPullDownRefresh } from '@dcloudio/uni-app'
+import ModuleHero from '@/components/common/ModuleHero/index.vue'
 import SearchBar from '@/components/common/SearchBar/index.vue'
 import ListFooter from '@/components/common/ListFooter/index.vue'
 import ListLoading from '@/components/common/ListLoading/index.vue'
@@ -59,34 +49,28 @@ import SegmentTabs from '@/components/common/SegmentTabs/index.vue'
 import ListCard from '@/components/common/ListCard/index.vue'
 import PermissionBlock from '@/components/common/PermissionBlock/index.vue'
 import { usePageList } from '@/composables/usePageList'
-import { useListPageShowRefresh } from '@/composables/useListPageShowRefresh'
 import { useModulePermission } from '@/composables/useModulePermission'
-import { useUserStore } from '@/store/user'
-import { getDashboardStats } from '@/api/dashboard'
 import { getTicketPage } from '@/api/system/ticket'
-import { isTicketPendingForUser } from '@/utils/ticket-display'
 import { getDictLabel, preloadDicts } from '@/composables/useDict'
 import { formatListTime, formatDateTime } from '@/utils/format'
 import { DICT_TYPE } from '@/constants/dict'
 import type { TicketVO } from '@/types/system'
 
 const { allowed, hasPerm } = useModulePermission('system:ticket:list')
-const userStore = useUserStore()
 const canCreate = computed(() => hasPerm('system:ticket:create'))
 const keyword = ref('')
 const total = ref(0)
 const statusMode = ref('all')
-const myPendingCount = ref(0)
 
-const statusTabs = computed(() => [
+const statusTabs = [
   { key: 'all', label: '全部' },
-  { key: 'OPEN', label: '待处理', badge: myPendingCount.value },
+  { key: 'OPEN', label: '待处理' },
   { key: 'IN_PROGRESS', label: '处理中' },
   { key: 'RESOLVED', label: '已解决' },
   { key: 'CLOSED', label: '已关闭' },
-])
+]
 
-const { list, loading, finished, empty, refresh, loadMore, refreshing } = usePageList<TicketVO>(
+const { list, loading, finished, empty, refresh, loadMore } = usePageList<TicketVO>(
   async (pageNo, pageSize) => {
     const res = await getTicketPage({
       pageNo,
@@ -108,19 +92,6 @@ function isOverdue(item: TicketVO) {
   return new Date(item.deadline).getTime() < Date.now()
 }
 
-function needsMyHandle(item: TicketVO) {
-  return isTicketPendingForUser(item, userStore.userInfo.userId)
-}
-
-async function loadMyPendingCount() {
-  try {
-    const res = await getDashboardStats()
-    myPendingCount.value = res.data?.ticketOpenCount ?? 0
-  } catch {
-    /* 非关键路径 */
-  }
-}
-
 function goDetail(id: number) {
   uni.navigateTo({ url: `/pages-sub/system/ticket/detail?id=${id}` })
 }
@@ -135,44 +106,22 @@ function onSearch() {
 
 watch(statusMode, () => refresh())
 
-useListPageShowRefresh(refresh, { loading, refreshing })
-
-onShow(() => {
-  loadMyPendingCount()
-})
-
 onMounted(() => {
   preloadDicts([DICT_TYPE.TICKET_STATUS, DICT_TYPE.TICKET_PRIORITY])
-  loadMyPendingCount()
   refresh()
 })
 
 onPullDownRefresh(async () => {
-  await Promise.all([refresh(), loadMyPendingCount()])
+  await refresh()
   uni.stopPullDownRefresh()
 })
 </script>
 
 <style lang="scss" scoped>
-@use '@/styles/common.scss' as *;
+@import '@/styles/variables.scss';
+@import '@/styles/common.scss';
 
 .list-card__sub--danger {
   color: $color-danger;
-}
-
-.list-card__title-row {
-  display: flex;
-  align-items: center;
-  gap: 12rpx;
-  flex: 1;
-  min-width: 0;
-}
-
-.list-card__dot {
-  width: 14rpx;
-  height: 14rpx;
-  border-radius: 50%;
-  background: #fa5151;
-  flex-shrink: 0;
 }
 </style>

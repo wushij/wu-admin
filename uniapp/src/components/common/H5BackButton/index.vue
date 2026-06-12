@@ -5,7 +5,7 @@
     class="h5-back-btn"
     :style="{ paddingTop: statusBarHeight + 'px' }"
   >
-    <view class="h5-back-btn__hit" @click="onBack">
+    <view class="h5-back-btn__hit" @click="triggerH5BackButton">
       <text class="h5-back-btn__icon">‹</text>
     </view>
   </view>
@@ -14,18 +14,12 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { h5BackButtonState, scheduleSyncH5BackButton } from '@/store/h5-back-button'
-import { navigateToParent } from '@/utils/nav-history'
+import { h5BackButtonState, triggerH5BackButton } from '@/store/h5-back-button'
 
 const statusBarHeight = ref(0)
 
-function onBack() {
-  navigateToParent()
-}
-
 onMounted(() => {
   // #ifdef H5
-  scheduleSyncH5BackButton()
   try {
     statusBarHeight.value = uni.getSystemInfoSync().statusBarHeight || 0
   } catch {

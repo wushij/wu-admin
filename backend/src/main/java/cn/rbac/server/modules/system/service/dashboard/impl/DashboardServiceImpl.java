@@ -2,12 +2,15 @@ package cn.rbac.server.modules.system.service.dashboard.impl;
 
 import cn.hutool.json.JSONUtil;
 import cn.rbac.server.modules.system.dal.dataobject.loginlog.LoginLogDO;
+import cn.rbac.server.modules.system.dal.dataobject.user.UserDO;
 import cn.rbac.server.modules.system.dal.mysql.dashboard.DashboardMapper;
 import cn.rbac.server.modules.system.dal.mysql.loginlog.LoginLogMapper;
+import cn.rbac.server.modules.system.dal.mysql.user.UserMapper;
 import cn.rbac.server.modules.system.service.config.SystemConfigHelper;
 import cn.rbac.server.modules.system.service.dashboard.DashboardService;
+import cn.rbac.server.modules.system.service.dashboard.vo.RecentLoginVO;
 import cn.rbac.server.modules.system.service.dashboard.vo.DashboardStatsRow;
-import cn.rbac.server.modules.system.service.file.impl.SysFileServiceImpl;
+import cn.rbac.server.modules.system.service.file.SysFileService;
 import cn.rbac.server.modules.system.service.monitor.OnlineUserService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import jakarta.annotation.Resource;
@@ -21,14 +24,17 @@ import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.concurrent.TimeUnit;
 
 @Service
 public class DashboardServiceImpl implements DashboardService {
 
     private static final String VISIT_COUNT_KEY = "dashboard:visit:date:";
-    /** v2：含定时任务统计字段，升级后避免旧缓存缺字段 */
-    private static final String STATS_AGGREGATE_CACHE_KEY = "dashboard:stats:aggregate:v2";
+    /** v3：fileCount 改为实时查文件管理服务，与列表口径一致 */
+    private static final String STATS_AGGREGATE_CACHE_KEY = "dashboard:stats:aggregate:v3";
     /** 计数类统计缓存时长（分钟级延迟可接受） */
     private static final long STATS_CACHE_MINUTES = 2;
 
@@ -37,11 +43,15 @@ public class DashboardServiceImpl implements DashboardService {
     @Resource
     private LoginLogMapper loginLogMapper;
     @Resource
+    private UserMapper userMapper;
+    @Resource
     private RedissonClient redissonClient;
     @Resource
     private OnlineUserService onlineUserService;
     @Resource
     private SystemConfigHelper systemConfigHelper;
+    @Resource
+    private SysFileService sysFileService;
 
     @Override
     public Map<String, Object> getStats(Long loginUserId) {
@@ -57,6 +67,7 @@ public class DashboardServiceImpl implements DashboardService {
 
         DashboardStatsRow row = loadAggregateStatsRow(todayStart, yesterdayStart);
         putAggregateFields(stats, row);
+        putFileCountFresh(stats);
         putJobStatsFresh(stats);
 
         stats.put("onlineCount", onlineUserService.listOnlineUsers().size());
@@ -67,10 +78,35 @@ public class DashboardServiceImpl implements DashboardService {
     }
 
     @Override
-    public List<LoginLogDO> getRecentLogins() {
-        return loginLogMapper.selectList(new LambdaQueryWrapper<LoginLogDO>()
+    public List<RecentLoginVO> getRecentLogins() {
+        List<LoginLogDO> logs = loginLogMapper.selectList(new LambdaQueryWrapper<LoginLogDO>()
                 .orderByDesc(LoginLogDO::getLoginTime)
                 .last("LIMIT 8"));
+        Set<Long> userIds = logs.stream()
+                .map(LoginLogDO::getUserId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        Map<Long, UserDO> userMap = userIds.isEmpty()
+                ? Map.of()
+                : userMapper.selectByIds(userIds).stream()
+                        .collect(Collectors.toMap(UserDO::getId, u -> u, (a, b) -> a));
+        return logs.stream().map(log -> {
+            RecentLoginVO vo = new RecentLoginVO();
+            vo.setUserId(log.getUserId());
+            vo.setUsername(log.getUsername());
+            vo.setIpaddr(log.getIpaddr());
+            vo.setLoginLocation(log.getLoginLocation());
+            vo.setBrowser(log.getBrowser());
+            vo.setOs(log.getOs());
+            vo.setStatus(log.getStatus());
+            vo.setLoginTime(log.getLoginTime());
+            UserDO user = log.getUserId() != null ? userMap.get(log.getUserId()) : null;
+            if (user != null) {
+                vo.setNickname(user.getNickname());
+                vo.setAvatar(user.getAvatar());
+            }
+            return vo;
+        }).collect(Collectors.toList());
     }
 
     @Override
@@ -94,9 +130,7 @@ public class DashboardServiceImpl implements DashboardService {
         DashboardStatsRow row = dashboardMapper.selectAggregateStats(
                 todayStart,
                 yesterdayStart,
-                LocalDateTime.now(),
-                SysFileServiceImpl.CHAT_IMAGE_PATH_PREFIX,
-                SysFileServiceImpl.CHAT_FILE_PATH_PREFIX);
+                LocalDateTime.now());
         setWithTtl(cacheBucket, JSONUtil.toJsonStr(row), STATS_CACHE_MINUTES, TimeUnit.MINUTES);
         return row;
     }
@@ -126,8 +160,6 @@ public class DashboardServiceImpl implements DashboardService {
         stats.put("userPendingCount", longVal(row.getUserPendingCount()));
         stats.put("userDisabledCount", longVal(row.getUserDisabledCount()));
 
-        stats.put("fileCount", longVal(row.getFileCount()));
-
         stats.put("todayLoginSuccess", longVal(row.getTodayLoginSuccess()));
         stats.put("todayLoginFail", longVal(row.getTodayLoginFail()));
         stats.put("yesterdayLoginSuccess", longVal(row.getYesterdayLoginSuccess()));
@@ -140,6 +172,11 @@ public class DashboardServiceImpl implements DashboardService {
         stats.put("roleTrend", trendPercent(longVal(row.getRoleToday()), longVal(row.getRoleYesterday())));
         stats.put("deptTrend", trendPercent(longVal(row.getDeptToday()), longVal(row.getDeptYesterday())));
         stats.put("menuTrend", 0);
+    }
+
+    /** 文件数量每次实时查询，与文件管理列表口径一致（排除聊天目录、仅未删除） */
+    private void putFileCountFresh(Map<String, Object> stats) {
+        stats.put("fileCount", sysFileService.countForGroupSidebar(null, null, null));
     }
 
     /** 定时任务数量每次实时查询，不走聚合缓存 */

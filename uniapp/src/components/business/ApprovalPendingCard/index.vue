@@ -1,7 +1,7 @@
 <template>
   <HomeActionRow
     v-if="(count ?? 0) > 0"
-    :title="'待我审批'"
+    :title="`待审批 ${count} 条`"
     subtitle="点击进入审批中心"
     icon="completed"
     theme="approval"

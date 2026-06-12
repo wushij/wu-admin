@@ -38,8 +38,6 @@ export interface DashboardStats {
   jobTotalCount?: number
   jobRunningCount?: number
   jobPausedCount?: number
-  chatUnreadCount?: number
-  configGroupCount?: number
 }
 
 export interface RecentLogin {

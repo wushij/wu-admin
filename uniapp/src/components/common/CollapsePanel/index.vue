@@ -54,6 +54,7 @@ function toggle() {
 </script>
 
 <style lang="scss" scoped>
+@import '@/styles/variables.scss';
 
 .collapse-panel {
   margin-bottom: 16rpx;

@@ -1,6 +1,5 @@
-import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
-import { storeToRefs } from 'pinia'
 import {
   getMyAnnounce,
   getChatGroups,
@@ -14,8 +13,6 @@ import { MESSAGE_CHANNELS } from '@/constants/messageChannels'
 import { previewMessageText } from '@/utils/chat-message'
 import { formatListTime, summarizeText } from '@/utils/format'
 import { inboxContentPreview } from '@/utils/inbox-nav'
-import { isViewingChat } from '@/utils/message-push'
-import { onMessageWebSocket, type WsPushMessage } from '@/utils/webSocket'
 import type { AnnounceMyVO, ChatGroup, ChatUser, NoticeVO } from '@/types/message'
 
 export type MessageTabKey = 'announce' | 'inbox' | 'chat'
@@ -31,7 +28,6 @@ export interface ChatSessionPreview {
   desc: string
   time?: string
   badge: number
-  atMe?: boolean
   online?: boolean
   avatar?: string
 }
@@ -62,48 +58,18 @@ function saveTabMode(mode: MessageTabKey) {
   }
 }
 
-function pickDefaultTab(tabs: { key: string }[]): MessageTabKey {
-  // 与 MESSAGE_CHANNELS 展示顺序一致：公告 → 企业 IM → 业务消息
-  for (const ch of MESSAGE_CHANNELS) {
-    if (tabs.some((t) => t.key === ch.key)) return ch.key as MessageTabKey
-  }
-  return (tabs[0]?.key || 'announce') as MessageTabKey
-}
-
-function resolveAvailableTabKeys(hasMenuPerm: (perm: string) => boolean): MessageTabKey[] {
-  return MESSAGE_CHANNELS.filter(
-    (ch) => !ch.permission || hasMenuPerm(ch.permission),
-  ).map((ch) => ch.key as MessageTabKey)
-}
-
-function resolveInitialTab(hasMenuPerm: (perm: string) => boolean): MessageTabKey {
-  const saved = readSavedTabMode()
-  const keys = resolveAvailableTabKeys(hasMenuPerm)
-  if (saved && keys.includes(saved)) return saved
-  // 权限尚未加载完时先恢复用户上次停留的 tab，避免刷新/重进页面闪到业务消息
-  if (saved) return saved
-  return pickDefaultTab(keys.map((key) => ({ key })))
-}
-
 export function useMessageTab() {
   const messageStore = useMessageStore()
-  const { groupUnreadById, groupAtMeById, privateReadTick, lastPrivateReadUserId } =
-    storeToRefs(messageStore)
-  const { hasMenuPerm } = usePermission()
-  const tabInitialized = ref(true)
+  const { hasPerm } = usePermission()
+  const mode = ref<MessageTabKey>('inbox')
+  const tabInitialized = ref(false)
   const loading = ref(false)
   const announceList = ref<AnnounceMyVO[]>([])
   const inboxList = ref<NoticeVO[]>([])
-  const chatUsers = ref<ChatUser[]>([])
-  const chatGroups = ref<ChatGroup[]>([])
-
-  // 同步从 storage 恢复 tab，避免刷新/重进时闪回默认业务消息
-  const mode = ref<MessageTabKey>(resolveInitialTab(hasMenuPerm))
-
-  let offWs: (() => void) | null = null
+  const chatSessions = ref<ChatSessionPreview[]>([])
 
   const availableTabs = computed(() =>
-    MESSAGE_CHANNELS.filter((ch) => !ch.permission || hasMenuPerm(ch.permission)).map((ch) => {
+    MESSAGE_CHANNELS.filter((ch) => !ch.permission || hasPerm(ch.permission)).map((ch) => {
       const key = ch.key as MessageTabKey
       let badge = 0
       if (ch.countKey === 'announceCount') badge = messageStore.announceCount
@@ -121,11 +87,9 @@ export function useMessageTab() {
 
   const listPath = computed(() => TAB_META[mode.value].listPath)
 
-  const chatSessions = computed(() => {
-    const unreadMap = groupUnreadById.value
-    const atMeMap = groupAtMeById.value
+  function buildChatSessions(users: ChatUser[], groups: ChatGroup[]): ChatSessionPreview[] {
     const sessions: ChatSessionPreview[] = [
-      ...chatUsers.value.map((u) => ({
+      ...users.map((u) => ({
         key: `u-${u.id}`,
         type: 'user' as const,
         id: u.id,
@@ -136,15 +100,14 @@ export function useMessageTab() {
         online: u.online,
         avatar: u.avatar,
       })),
-      ...chatGroups.value.map((g) => ({
+      ...groups.map((g) => ({
         key: `g-${g.id}`,
         type: 'group' as const,
         id: g.id,
         title: g.name,
         desc: g.lastMessage || `${g.memberCount || 0} 人`,
         time: g.lastMessageTime,
-        badge: unreadMap[g.id] || 0,
-        atMe: !!atMeMap[g.id],
+        badge: g.unreadCount || 0,
       })),
     ]
     return sessions
@@ -154,45 +117,6 @@ export function useMessageTab() {
         return tb - ta
       })
       .slice(0, MESSAGE_PREVIEW_LIMIT)
-  })
-
-  function patchChatPreview(msg: WsPushMessage) {
-    if (msg.type === 'chat' && msg.senderId) {
-      const u = chatUsers.value.find((x) => x.id === msg.senderId)
-      const preview = previewMessageText({ content: msg.content, msgType: msg.msgType })
-      const time = msg.time ? String(msg.time) : new Date().toISOString()
-      if (u) {
-        u.lastMessage = preview
-        u.lastMessageTime = time
-        if (!isViewingChat(messageStore.activeChatTarget, msg)) {
-          u.unreadCount = (u.unreadCount || 0) + 1
-        }
-        return
-      }
-      loadChat()
-      return
-    }
-
-    if (msg.type === 'groupChat' && msg.groupId) {
-      const g = chatGroups.value.find((x) => x.id === msg.groupId)
-      const preview = msg.senderName
-        ? `${msg.senderName}: ${previewMessageText({ content: msg.content, msgType: msg.msgType })}`
-        : previewMessageText({ content: msg.content, msgType: msg.msgType })
-      const time = msg.time ? String(msg.time) : new Date().toISOString()
-      if (g) {
-        g.lastMessage = preview
-        g.lastMessageTime = time
-        return
-      }
-      loadChat()
-    }
-  }
-
-  function handleWs(msg: WsPushMessage) {
-    if (msg.recall) return
-    if (msg.type === 'chat' || msg.type === 'groupChat') {
-      patchChatPreview(msg)
-    }
   }
 
   async function loadAnnounce() {
@@ -207,19 +131,7 @@ export function useMessageTab() {
 
   async function loadChat() {
     const [userRes, groupRes] = await Promise.all([getChatUsers(), getChatGroups()])
-    chatUsers.value = userRes.data || []
-    chatGroups.value = groupRes.data || []
-    messageStore.syncGroupNotifySettings(chatGroups.value)
-  }
-
-  /** 后台同步会话列表（不触发 loading），用于返回页面时刷新角标 */
-  async function silentRefreshChat() {
-    try {
-      await loadChat()
-      await messageStore.refreshSummary()
-    } catch {
-      /* ignore */
-    }
+    chatSessions.value = buildChatSessions(userRes.data || [], groupRes.data || [])
   }
 
   async function loadCurrent() {
@@ -234,11 +146,7 @@ export function useMessageTab() {
   }
 
   async function refresh() {
-    const currentMode = mode.value
     await messageStore.refreshSummary()
-    if (mode.value !== currentMode) {
-      mode.value = currentMode
-    }
     await loadCurrent()
   }
 
@@ -266,26 +174,33 @@ export function useMessageTab() {
   }
 
   function chatDesc(item: ChatSessionPreview) {
-    let text = item.type === 'group' && item.desc.includes(':') ? item.desc : previewMessageText({ content: item.desc })
-    if (item.atMe && item.badge > 0) {
-      text = `[有人@你] ${text}`
-    }
-    return text
+    if (item.type === 'group' && item.desc.includes(':')) return item.desc
+    return previewMessageText({ content: item.desc })
+  }
+
+  function pickDefaultTab(tabs: { key: string }[]): MessageTabKey {
+    const saved = readSavedTabMode()
+    if (saved && tabs.some((t) => t.key === saved)) return saved
+    const prefer: MessageTabKey[] = ['inbox', 'chat', 'announce']
+    const hit = prefer.find((key) => tabs.some((t) => t.key === key))
+    return (hit || tabs[0]?.key || 'inbox') as MessageTabKey
   }
 
   watch(
-    () => resolveAvailableTabKeys(hasMenuPerm).join(','),
-    () => {
-      const keys = resolveAvailableTabKeys(hasMenuPerm)
-      if (!keys.length) return
-      if (keys.includes(mode.value)) return
-      const saved = readSavedTabMode()
-      if (saved && keys.includes(saved)) {
-        mode.value = saved
+    availableTabs,
+    (tabs) => {
+      if (!tabs.length) return
+      if (!tabInitialized.value) {
+        tabInitialized.value = true
+        mode.value = pickDefaultTab(tabs)
         return
       }
-      mode.value = pickDefaultTab(keys.map((key) => ({ key })))
+      if (!tabs.some((t) => t.key === mode.value)) {
+        mode.value = pickDefaultTab(tabs)
+        saveTabMode(mode.value)
+      }
     },
+    { immediate: true },
   )
 
   watch(mode, (next) => {
@@ -293,28 +208,8 @@ export function useMessageTab() {
     if (tabInitialized.value) loadCurrent()
   })
 
-  watch(privateReadTick, () => {
-    const userId = lastPrivateReadUserId.value
-    if (!userId) return
-    const u = chatUsers.value.find((x) => x.id === userId)
-    if (u) u.unreadCount = 0
-  })
-
-  onMounted(() => {
-    offWs = onMessageWebSocket(handleWs)
-  })
-
-  onBeforeUnmount(() => {
-    offWs?.()
-    offWs = null
-  })
-
   onShow(() => {
-    const run = () => {
-      refresh().catch(() => {})
-      silentRefreshChat()
-    }
-    run()
+    refresh()
   })
 
   return {

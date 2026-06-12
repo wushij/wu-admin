@@ -41,9 +41,12 @@ export interface DashboardStats {
 }
 
 export interface RecentLogin {
+  userId?: number
   username?: string
   nickname?: string
+  avatar?: string
   ipaddr?: string
+  loginLocation?: string
   loginTime?: string
   browser?: string
   os?: string

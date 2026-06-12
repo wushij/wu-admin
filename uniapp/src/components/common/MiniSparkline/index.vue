@@ -21,14 +21,13 @@ const props = defineProps<{
   title?: string
   values: number[]
   max?: number
-  scaleMax?: number
   latestLabel?: string
 }>()
 
 const points = computed(() => {
   const vals = props.values.filter((v) => !Number.isNaN(v))
   if (!vals.length) return []
-  const max = props.scaleMax ?? props.max ?? Math.max(...vals, 1)
+  const max = props.max ?? Math.max(...vals, 1)
   return vals.map((v) => ({
     value: v,
     height: `${Math.max(6, (v / max) * 100)}%`,
@@ -43,6 +42,7 @@ function barColor(v: number) {
 </script>
 
 <style lang="scss" scoped>
+@import '@/styles/variables.scss';
 
 .sparkline {
   margin-top: 8rpx;

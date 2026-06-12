@@ -1,8 +1,8 @@
 <template>
-  <view class="emoji-picker" :style="pickerStyle">
+  <view class="emoji-picker">
     <scroll-view scroll-x class="emoji-picker__tabs" :show-scrollbar="false">
       <view
-        v-for="cat in tabs"
+        v-for="cat in CHAT_EMOJI_CATEGORIES"
         :key="cat.key"
         class="emoji-picker__tab"
         :class="{ 'emoji-picker__tab--active': activeTab === cat.key }"
@@ -12,15 +12,12 @@
       </view>
     </scroll-view>
     <scroll-view scroll-y class="emoji-picker__grid-wrap">
-      <view v-if="activeTab === RECENT_KEY && !currentEmojis.length" class="emoji-picker__empty">
-        <text class="emoji-picker__empty-text">暂无最近表情</text>
-      </view>
-      <view v-else class="emoji-picker__grid">
+      <view class="emoji-picker__grid">
         <text
           v-for="e in currentEmojis"
           :key="`${activeTab}-${e}`"
           class="emoji-picker__item"
-          @click="onPick(e)"
+          @click="emit('pick', e)"
         >{{ e }}</text>
       </view>
     </scroll-view>
@@ -28,70 +25,31 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, ref } from 'vue'
 import { CHAT_EMOJI_CATEGORIES } from '@/constants/chat-emojis'
-import { getRecentEmojis, recordRecentEmoji } from '@/utils/recent-emojis'
-import { getSafeAreaBottom } from '@/utils/safe-area'
-
-const isH5 = import.meta.env.UNI_PLATFORM === 'h5'
-const safeAreaBottom = isH5 ? 0 : getSafeAreaBottom()
-
-const pickerStyle = computed(() => (isH5 ? {} : { paddingBottom: `${safeAreaBottom}px` }))
-
-const RECENT_KEY = 'recent'
 
 const emit = defineEmits<{
   pick: [emoji: string]
 }>()
 
-const props = defineProps<{
-  visible?: boolean
-}>()
+const activeTab = ref(CHAT_EMOJI_CATEGORIES[0].key)
 
-const tabs = [{ key: RECENT_KEY, label: '最近' }, ...CHAT_EMOJI_CATEGORIES]
-
-const activeTab = ref(RECENT_KEY)
-const recentEmojis = ref<string[]>(getRecentEmojis())
-
-const currentEmojis = computed(() => {
-  if (activeTab.value === RECENT_KEY) return recentEmojis.value
-  return CHAT_EMOJI_CATEGORIES.find((c) => c.key === activeTab.value)?.emojis ?? []
-})
-
-function refreshRecent() {
-  recentEmojis.value = getRecentEmojis()
-}
-
-function onPick(emoji: string) {
-  recentEmojis.value = recordRecentEmoji(emoji) ?? recentEmojis.value
-  emit('pick', emoji)
-}
-
-watch(
-  () => props.visible,
-  (visible) => {
-    if (visible) refreshRecent()
-  },
-  { immediate: true },
+const currentEmojis = computed(
+  () => CHAT_EMOJI_CATEGORIES.find((c) => c.key === activeTab.value)?.emojis ?? [],
 )
 </script>
 
 <style lang="scss" scoped>
 .emoji-picker {
-  flex-shrink: 0;
-  background: #ededed;
-
-  /* #ifdef H5 */
-  padding-bottom: env(safe-area-inset-bottom);
-  /* #endif */
+  background: #f7f7f7;
+  border-top: 1px solid #e5e5e5;
 }
 
 .emoji-picker__tabs {
   display: flex;
   white-space: nowrap;
-  padding: 12rpx 16rpx;
-  background: #f7f7f7;
-  border-bottom: 1px solid #e5e5e5;
+  padding: 8rpx 16rpx;
+  border-bottom: 1px solid #ebebeb;
 }
 
 .emoji-picker__tab {
@@ -109,8 +67,7 @@ watch(
 }
 
 .emoji-picker__grid-wrap {
-  height: 480rpx;
-  background: #ededed;
+  height: 360rpx;
 }
 
 .emoji-picker__grid {
@@ -120,27 +77,10 @@ watch(
 }
 
 .emoji-picker__item {
-  width: 80rpx;
-  height: 80rpx;
-  line-height: 80rpx;
+  width: 72rpx;
+  height: 72rpx;
+  line-height: 72rpx;
   text-align: center;
-  font-size: 44rpx;
-
-  &:active {
-    background: rgba(0, 0, 0, 0.06);
-    border-radius: 8rpx;
-  }
-}
-
-.emoji-picker__empty {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-}
-
-.emoji-picker__empty-text {
-  font-size: 26rpx;
-  color: #909399;
+  font-size: 40rpx;
 }
 </style>

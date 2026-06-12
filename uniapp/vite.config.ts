@@ -9,15 +9,6 @@ export default defineConfig({
       '@': path.resolve(__dirname, 'src'),
     },
   },
-  css: {
-    preprocessorOptions: {
-      scss: {
-        api: 'modern-compiler',
-        silenceDeprecations: ['legacy-js-api'],
-        additionalData: `@use "@/styles/variables.scss" as *;\n@use "@/styles/mixins.scss" as *;\n`,
-      },
-    },
-  },
   server: {
     host: true,
     port: 5174,

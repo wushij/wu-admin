@@ -1,6 +1,6 @@
 package cn.rbac.server.modules.system.service.dashboard;
 
-import cn.rbac.server.modules.system.dal.dataobject.loginlog.LoginLogDO;
+import cn.rbac.server.modules.system.service.dashboard.vo.RecentLoginVO;
 
 import java.util.List;
 import java.util.Map;
@@ -17,8 +17,8 @@ public interface DashboardService {
      */
     Map<String, Object> getStats(Long loginUserId);
 
-    /** 最近登录记录（最多 8 条） */
-    List<LoginLogDO> getRecentLogins();
+    /** 最近登录记录（最多 8 条，含用户头像） */
+    List<RecentLoginVO> getRecentLogins();
 
     /**
      * 记录工作台访问（Redis 日计数 +1）

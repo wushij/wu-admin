@@ -29,17 +29,6 @@ export function summarizeText(text?: string, max = 48) {
   return plain.length > max ? `${plain.slice(0, max)}…` : plain
 }
 
-/** 清理 Markdown 标记符号（如 **加粗**、### 标题等），保留纯文本 */
-export function cleanMarkdownText(text?: string) {
-  if (!text) return ''
-  return text
-    .replace(/\*\*(.*?)\*\*/g, '$1')
-    .replace(/\*(.*?)\*/g, '$1')
-    .replace(/#{1,6}\s?/g, '')
-    .replace(/`{1,3}(.*?)`{1,3}/g, '$1')
-    .trim()
-}
-
 export function formatBytes(bytes?: number) {
   if (bytes == null || Number.isNaN(bytes)) return '—'
   if (bytes < 1024) return `${bytes} B`
@@ -51,17 +40,4 @@ export function formatBytes(bytes?: number) {
 export function formatPercent(value?: number | null, digits = 1) {
   if (value == null || Number.isNaN(value)) return '—'
   return `${Number(value).toFixed(digits)}%`
-}
-
-const USER_STATUS_LABELS: Record<number, string> = {
-  0: '已停用',
-  1: '正常',
-  2: '待审核',
-  3: '审核驳回',
-}
-
-/** 用户账号状态文案，与 PC 个人中心一致 */
-export function formatUserStatus(status?: number | null) {
-  if (status == null) return '—'
-  return USER_STATUS_LABELS[status] ?? '未知'
 }

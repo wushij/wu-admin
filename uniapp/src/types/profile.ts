@@ -43,7 +43,6 @@ export interface ProfilePasswordSmsResetDTO {
 
 export interface ProfileMobileBindSmsCodeDTO {
   mobile: string
-  uuid: string
   code: string
 }
 

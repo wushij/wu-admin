@@ -125,24 +125,6 @@ export const mobileQuickEntries: QuickEntry[] = [
     path: '/pages-sub/system/recycle/index',
   },
   {
-    key: 'ai-model',
-    name: 'AI 模型配置',
-    desc: '供应商接入',
-    permission: 'system:ai-model:list',
-    icon: 'setting-o',
-    theme: 'ai',
-    path: '/pages-sub/ai/model/index',
-  },
-  {
-    key: 'ai-log',
-    name: 'AI 对话日志',
-    desc: '问答审计',
-    permission: 'system:ai-log:list',
-    icon: 'records-o',
-    theme: 'ai',
-    path: '/pages-sub/ai/log/index',
-  },
-  {
     key: 'online',
     name: '在线用户',
     desc: '会话强退',
@@ -153,8 +135,8 @@ export const mobileQuickEntries: QuickEntry[] = [
   },
   {
     key: 'server',
-    name: '服务器监控',
-    desc: 'CPU / 内存 / JVM / 磁盘',
+    name: '服务监控',
+    desc: 'CPU / 内存',
     permission: 'monitor:server:list',
     icon: 'desktop-o',
     theme: 'server',
@@ -192,7 +174,7 @@ export const mobileQuickEntries: QuickEntry[] = [
     name: '操作日志',
     desc: '行为审计',
     permission: 'system:operLog:list',
-    icon: 'edit',
+    icon: 'records-o',
     theme: 'log',
     path: '/pages-sub/log/oper-log',
   },
@@ -208,11 +190,9 @@ export const mobileQuickEntries: QuickEntry[] = [
 ]
 
 export const quickEntryGroups: QuickEntryGroup[] = [
-  { title: '系统管理', keys: ['user', 'role', 'menu', 'org', 'dict', 'config', 'recycle'] },
-  { title: '文件管理', keys: ['file'] },
+  { title: '系统管理', keys: ['user', 'org', 'role', 'menu', 'dict', 'config', 'file', 'recycle'] },
   { title: '流程中心', keys: ['approval', 'ticket'] },
   { title: '消息协作', keys: ['chat', 'notice'] },
-  { title: 'AI 管理', keys: ['ai-model', 'ai-log'] },
   { title: '监控运维', keys: ['online', 'server', 'cache', 'job', 'api-access'] },
   { title: '日志审计', keys: ['oper-log', 'login-log'] },
 ]

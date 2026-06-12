@@ -1,13 +1,13 @@
 <template>
   <view class="login-logs-page">
-    <view class="login-logs-hero">
-      <view class="login-logs-hero__pattern" />
-      <view class="login-logs-hero__glow" />
-      <view class="login-logs-hero__body">
-        <ModuleIcon icon="clock-o" theme="cyan" size="lg" />
-        <view class="login-logs-hero__text">
-          <text class="login-logs-hero__title">登录记录</text>
-          <text class="login-logs-hero__sub">共 {{ total }} 条全部记录</text>
+    <view class="login-logs-page__summary">
+      <view class="summary-card">
+        <view class="summary-card__icon">
+          <IconFont name="clock-o" :size="36" color="#ffffff" />
+        </view>
+        <view class="summary-card__text">
+          <text class="summary-card__title">登录记录</text>
+          <text class="summary-card__sub">共 {{ list.length }} 条近期记录</text>
         </view>
       </view>
     </view>
@@ -28,8 +28,7 @@
           <view class="log-item__dot" :class="item.status === 0 ? 'log-item__dot--ok' : 'log-item__dot--fail'" />
           <view v-if="index < list.length - 1" class="log-item__line" />
         </view>
-
-        <view class="log-item__card card--elevated">
+        <view class="log-item__card">
           <view class="log-item__head">
             <text class="log-item__time">{{ formatDateTime(item.loginTime) }}</text>
             <DictTag
@@ -37,19 +36,18 @@
               :effect="item.status === 0 ? 'success' : 'danger'"
             />
           </view>
-
           <view class="log-item__meta">
-            <view class="log-item__chip">
-              <ModuleIcon icon="cluster-o" theme="dept" size="xs" />
-              <text class="log-item__chip-text">{{ item.loginLocation || item.ipaddr || '—' }}</text>
+            <view class="log-item__row">
+              <IconFont name="cluster-o" :size="26" color="#94a3b8" />
+              <text>{{ item.loginLocation || item.ipaddr || '—' }}</text>
             </view>
-            <view v-if="item.ipaddr" class="log-item__chip">
-              <ModuleIcon icon="desktop-o" theme="indigo" size="xs" />
-              <text class="log-item__chip-text">{{ item.ipaddr }}</text>
+            <view v-if="item.ipaddr" class="log-item__row">
+              <IconFont name="desktop-o" :size="26" color="#94a3b8" />
+              <text>{{ item.ipaddr }}</text>
             </view>
-            <view v-if="item.browser || item.os" class="log-item__chip">
-              <ModuleIcon icon="apps-o" theme="violet" size="xs" />
-              <text class="log-item__chip-text">{{ [item.browser, item.os].filter(Boolean).join(' · ') }}</text>
+            <view v-if="item.browser || item.os" class="log-item__row">
+              <IconFont name="apps-o" :size="26" color="#94a3b8" />
+              <text>{{ [item.browser, item.os].filter(Boolean).join(' · ') }}</text>
             </view>
           </view>
         </view>
@@ -64,7 +62,7 @@
 <script setup lang="ts">
 import { onMounted } from 'vue'
 import { onPullDownRefresh } from '@dcloudio/uni-app'
-import ModuleIcon from '@/components/common/ModuleIcon/index.vue'
+import IconFont from '@/components/common/IconFont/index.vue'
 import ListLoading from '@/components/common/ListLoading/index.vue'
 import ListFooter from '@/components/common/ListFooter/index.vue'
 import EmptyState from '@/components/common/EmptyState/index.vue'
@@ -74,7 +72,7 @@ import { getMyLoginLogs } from '@/api/system/profile'
 import { formatDateTime } from '@/utils/format'
 import type { LoginLogVO } from '@/types/profile'
 
-const { list, loading, refreshing, finished, empty, total, refresh, loadMore } = usePageList<LoginLogVO>(
+const { list, loading, refreshing, finished, empty, refresh, loadMore } = usePageList<LoginLogVO>(
   async (pageNo, pageSize) => {
     const res = await getMyLoginLogs({ pageNo, pageSize })
     return { list: res.data?.list || [], total: res.data?.total || 0 }
@@ -93,45 +91,54 @@ onPullDownRefresh(async () => {
 </script>
 
 <style lang="scss" scoped>
-@use '@/styles/mine.scss' as *;
+@import '@/styles/variables.scss';
+@import '@/styles/mine.scss';
 
 .login-logs-page {
   @include mine-page-bg;
   height: 100vh;
   box-sizing: border-box;
-  padding: $page-padding-y $page-padding-x 0;
+  padding: 24rpx 24rpx 0;
 }
 
-.login-logs-hero {
-  @include mine-dark-hero-shell;
+.login-logs-page__summary {
+  margin-bottom: 24rpx;
 }
 
-.login-logs-hero__pattern {
-  @include mine-dark-hero-pattern;
+.summary-card {
+  display: flex;
+  align-items: center;
+  gap: 24rpx;
+  padding: 28rpx 32rpx;
+  @include mine-card;
 }
 
-.login-logs-hero__glow {
-  @include mine-dark-hero-glow(rgba(8, 145, 178, 0.28));
+.summary-card__icon {
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: 24rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #4f46e5, #818cf8);
 }
 
-.login-logs-hero__body {
-  @include mine-dark-hero-body;
+.summary-card__title {
+  display: block;
+  font-size: $font-size-md;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
 }
 
-.login-logs-hero__text {
-  @include mine-dark-hero-text;
-}
-
-.login-logs-hero__title {
-  @include mine-dark-hero-title;
-}
-
-.login-logs-hero__sub {
-  @include mine-dark-hero-sub;
+.summary-card__sub {
+  display: block;
+  margin-top: 6rpx;
+  font-size: $font-size-xs;
+  color: $color-text-secondary;
 }
 
 .login-logs-page__scroll {
-  height: calc(100% - 220rpx);
+  height: calc(100% - 160rpx);
 }
 
 .log-item {
@@ -145,7 +152,7 @@ onPullDownRefresh(async () => {
   flex-direction: column;
   align-items: center;
   width: 24rpx;
-  padding-top: 40rpx;
+  padding-top: 36rpx;
 }
 
 .log-item__dot {
@@ -170,13 +177,14 @@ onPullDownRefresh(async () => {
   width: 2rpx;
   min-height: 40rpx;
   margin-top: 8rpx;
-  background: linear-gradient(180deg, $color-border-light 0%, transparent 100%);
+  background: $color-border-light;
 }
 
 .log-item__card {
   flex: 1;
   margin-bottom: 16rpx;
-  padding: 28rpx 24rpx 24rpx;
+  padding: 28rpx 28rpx 24rpx;
+  @include mine-card;
 }
 
 .log-item__head {
@@ -185,13 +193,11 @@ onPullDownRefresh(async () => {
   justify-content: space-between;
   gap: 16rpx;
   margin-bottom: 20rpx;
-  padding-bottom: 20rpx;
-  border-bottom: 1px solid $color-border-light;
 }
 
 .log-item__time {
   font-size: $font-size-base;
-  font-weight: $font-weight-bold;
+  font-weight: $font-weight-semibold;
   color: $color-text-primary;
 }
 
@@ -201,22 +207,11 @@ onPullDownRefresh(async () => {
   gap: 12rpx;
 }
 
-.log-item__chip {
+.log-item__row {
   display: flex;
   align-items: center;
-  gap: 14rpx;
-  padding: 14rpx 16rpx;
-  border-radius: $radius-md;
-  background: linear-gradient(135deg, rgba(79, 70, 229, 0.03) 0%, $color-bg-muted 100%);
-}
-
-.log-item__chip-text {
-  flex: 1;
-  min-width: 0;
+  gap: 12rpx;
   font-size: $font-size-sm;
-  font-weight: $font-weight-semibold;
-  color: $color-text-primary;
-  word-break: break-all;
-  line-height: 1.45;
+  color: $color-text-secondary;
 }
 </style>

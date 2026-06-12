@@ -28,6 +28,7 @@ function onAutoChange() {
 </script>
 
 <style lang="scss" scoped>
+@import '@/styles/variables.scss';
 
 .monitor-toolbar {
   display: flex;

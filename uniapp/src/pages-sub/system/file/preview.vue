@@ -1,6 +1,10 @@
 <template>
   <view class="media-preview">
-    <view v-if="error" class="media-preview__state">
+    <view v-if="loading" class="media-preview__state">
+      <text class="media-preview__hint">加载中…</text>
+    </view>
+
+    <view v-else-if="error" class="media-preview__state">
       <text class="media-preview__hint">{{ error }}</text>
       <view class="media-preview__actions">
         <button class="media-preview__btn" @click="loadMedia">重试</button>
@@ -10,11 +14,7 @@
 
     <view v-else class="media-preview__player-wrap">
       <text v-if="mediaType === 'audio'" class="media-preview__name">{{ mediaName }}</text>
-      <view v-if="buffering" class="media-preview__buffer">
-        <text class="media-preview__hint">缓冲中…</text>
-      </view>
       <video
-        v-if="mediaSrc"
         id="previewVideo"
         class="media-preview__player"
         :class="{ 'media-preview__player--audio': mediaType === 'audio' }"
@@ -24,13 +24,7 @@
         webkit-playsinline
         show-center-play-btn
         enable-play-gesture
-        preload="metadata"
         object-fit="contain"
-        @loadedmetadata="onMediaReady"
-        @canplay="onMediaReady"
-        @waiting="buffering = true"
-        @playing="buffering = false"
-        @error="onMediaError"
         @fullscreenchange="onFullscreenChange"
       />
     </view>
@@ -41,6 +35,7 @@
 import { ref, onUnmounted } from 'vue'
 import { onLoad, onBackPress, onUnload } from '@dcloudio/uni-app'
 import { getPreviewApiUrl } from '@/api/system/file/index'
+import { getToken } from '@/utils/auth'
 
 const FILE_LIST_URL = '/pages-sub/system/file/index'
 const VIDEO_ID = 'previewVideo'
@@ -49,11 +44,24 @@ const mediaType = ref<'video' | 'audio'>('video')
 const mediaName = ref('媒体文件')
 const mediaSrc = ref('')
 const fileId = ref(0)
-const buffering = ref(true)
+const loading = ref(true)
 const error = ref('')
 const isFullscreen = ref(false)
+let blobUrl: string | null = null
 let videoCtx: UniApp.VideoContext | null = null
 let leaving = false
+
+function authHeader(): Record<string, string> {
+  const token = getToken()
+  return token ? { Authorization: token } : {}
+}
+
+function clearBlobUrl() {
+  if (blobUrl) {
+    URL.revokeObjectURL(blobUrl)
+    blobUrl = null
+  }
+}
 
 function ensureVideoCtx() {
   if (!videoCtx) {
@@ -78,27 +86,54 @@ function onFullscreenChange(e: UniHelper.VideoOnFullscreenchangeEvent) {
   isFullscreen.value = !!e.detail?.fullScreen
 }
 
-function onMediaReady() {
-  buffering.value = false
-  error.value = ''
+async function loadMediaH5(id: number) {
+  const url = getPreviewApiUrl(id)
+  const res = await fetch(url, { headers: authHeader() })
+  if (!res.ok) throw new Error(res.status === 404 ? '文件不存在' : '加载失败')
+  const blob = await res.blob()
+  clearBlobUrl()
+  blobUrl = URL.createObjectURL(blob)
+  mediaSrc.value = blobUrl
 }
 
-function onMediaError() {
-  error.value = '加载失败，请检查网络后重试'
-  buffering.value = false
-  mediaSrc.value = ''
+async function loadMediaNative(id: number) {
+  const url = getPreviewApiUrl(id)
+  const res = await new Promise<UniApp.DownloadSuccessData>((resolve, reject) => {
+    uni.downloadFile({
+      url,
+      header: authHeader(),
+      success: (r) => {
+        if (r.statusCode && r.statusCode >= 400) reject(new Error('load failed'))
+        else resolve(r)
+      },
+      fail: reject,
+    })
+  })
+  mediaSrc.value = res.tempFilePath
 }
 
-/** 直连预览 URL，依赖 HTTP Range 分段加载，避免整文件下载 */
-function loadMedia() {
+async function loadMedia() {
   if (!fileId.value) {
     error.value = '文件信息无效'
-    buffering.value = false
+    loading.value = false
     return
   }
+  loading.value = true
   error.value = ''
-  buffering.value = true
-  mediaSrc.value = getPreviewApiUrl(fileId.value)
+  mediaSrc.value = ''
+  clearBlobUrl()
+  try {
+    // #ifdef H5
+    await loadMediaH5(fileId.value)
+    // #endif
+    // #ifndef H5
+    await loadMediaNative(fileId.value)
+    // #endif
+  } catch {
+    error.value = '加载失败，请检查网络后重试'
+  } finally {
+    loading.value = false
+  }
 }
 
 function goBack() {
@@ -147,6 +182,7 @@ onBackPress(() => {
     return true
   }
 
+  // 非全屏时交给系统默认返回，避免原生 video 拦截 navigateBack
   return false
 })
 
@@ -160,14 +196,18 @@ onLoad((options) => {
 
 onUnload(() => {
   stopPlayback()
+  clearBlobUrl()
 })
 
 onUnmounted(() => {
   stopPlayback()
+  clearBlobUrl()
 })
 </script>
 
 <style lang="scss" scoped>
+@import '@/styles/variables.scss';
+
 .media-preview {
   min-height: 100vh;
   display: flex;
@@ -189,11 +229,6 @@ onUnmounted(() => {
   font-size: $font-size-base;
   color: rgba(255, 255, 255, 0.75);
   line-height: 1.6;
-}
-
-.media-preview__buffer {
-  margin-bottom: 16rpx;
-  text-align: center;
 }
 
 .media-preview__actions {

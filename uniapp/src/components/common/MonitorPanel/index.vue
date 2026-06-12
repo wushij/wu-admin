@@ -15,6 +15,8 @@ defineProps<{
 </script>
 
 <style lang="scss" scoped>
+@import '@/styles/variables.scss';
+@import '@/styles/mixins.scss';
 
 .monitor-panel {
   padding: 28rpx 32rpx;

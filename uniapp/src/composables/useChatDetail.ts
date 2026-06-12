@@ -25,23 +25,14 @@ import {
   groupMemberDisplayName,
   markMessageRecalled,
   resolveRecallMessageId,
-  isImageFileMeta,
 } from '@/utils/chat-message'
 import { useMention } from '@/composables/useMention'
 import { showActionSheet } from '@/utils/app-dialog'
 import { onMessageWebSocket, type WsPushMessage } from '@/utils/webSocket'
 import { buildUserAvatarMap, resolveChatAvatar } from '@/utils/chat-avatar'
-import { isUserCancelError } from '@/utils/file-preview'
-import { compressChatImage } from '@/utils/image-compress'
 import type { ChatGroup, ChatMessage, ChatUser, GroupMember } from '@/types/message'
 
 const TYPING_HIDE_MS = 4000
-let tempMessageSeq = 0
-
-function nextTempMessageId() {
-  tempMessageSeq += 1
-  return -(Date.now() + tempMessageSeq)
-}
 
 function mapWsToMessage(data: WsPushMessage): ChatMessage {
   const time =
@@ -161,77 +152,6 @@ export function useChatDetail() {
     return messages.value.some((m) => Number(m.id) === id)
   }
 
-  function replaceMessageById(messageId: number, next: ChatMessage) {
-    const idx = messages.value.findIndex((m) => Number(m.id) === messageId)
-    if (idx < 0) {
-      if (!hasMessageId(Number(next.id))) messages.value.push(next)
-      return
-    }
-    messages.value[idx] = next
-  }
-
-  function markMessageFailed(messageId: number) {
-    const idx = messages.value.findIndex((m) => Number(m.id) === messageId)
-    if (idx < 0) return
-    messages.value[idx] = { ...messages.value[idx], sendStatus: 'failed' }
-  }
-
-  function absorbPendingSelfMessage(data: WsPushMessage): boolean {
-    if (data.senderId !== selfId.value) return false
-    const id = Number(data.id || data.messageId || 0)
-    if (id && hasMessageId(id)) return true
-    const idx = messages.value.findIndex(
-      (m) => m.id < 0 && m.sendStatus === 'pending' && m.senderId === selfId.value,
-    )
-    if (idx < 0) return false
-    messages.value[idx] = mapWsToMessage(data)
-    return true
-  }
-
-  function buildOptimisticImageMessage(localPreview: string): ChatMessage {
-    const self = userStore.userInfo
-    return {
-      id: nextTempMessageId(),
-      senderId: self.userId,
-      senderName: self.nickname || self.username || '我',
-      senderAvatar: self.avatar,
-      content: localPreview,
-      msgType: CHAT_MSG_TYPE.IMAGE,
-      localPreview,
-      sendStatus: 'pending',
-      sendTime: new Date().toISOString(),
-    }
-  }
-
-  async function sendChatImageOptimistic(rawPath: string) {
-    const optimistic = buildOptimisticImageMessage(rawPath)
-    const tempId = optimistic.id
-    messages.value.push(optimistic)
-
-    try {
-      const filePath = await compressChatImage(rawPath)
-      const uploadRes = await uploadChatImage(filePath)
-      const url = uploadRes.data?.url
-      if (!url) throw new Error('图片上传失败')
-
-      const res =
-        targetType.value === 'user'
-          ? await sendChat({ receiverId: targetId.value, content: url, msgType: CHAT_MSG_TYPE.IMAGE })
-          : await sendGroupMessage(targetId.value, { content: url, msgType: CHAT_MSG_TYPE.IMAGE })
-
-      if (!res.data) throw new Error('消息发送失败')
-      const serverMsg: ChatMessage = {
-        ...res.data,
-        msgType: res.data.msgType ?? CHAT_MSG_TYPE.IMAGE,
-        content: res.data.content ?? url,
-      }
-      replaceMessageById(tempId, serverMsg)
-    } catch {
-      markMessageFailed(tempId)
-      uni.showToast({ title: '图片发送失败', icon: 'none' })
-    }
-  }
-
   function updateNavTitle(name: string) {
     if (targetType.value === 'group') {
       uni.setNavigationBarTitle({ title: '\u200b' })
@@ -310,7 +230,6 @@ export function useChatDetail() {
 
       const id = Number(data.id || data.messageId || 0)
       if (id && hasMessageId(id)) return
-      if (fromSelf && absorbPendingSelfMessage(data)) return
 
       if (fromPeer) clearTypingHint()
       messages.value.push(mapWsToMessage(data))
@@ -323,7 +242,6 @@ export function useChatDetail() {
     if (data.type === 'groupChat' && targetType.value === 'group' && data.groupId === targetId.value) {
       const id = Number(data.id || data.messageId || 0)
       if (id && hasMessageId(id)) return
-      if (data.senderId === selfId.value && absorbPendingSelfMessage(data)) return
       messages.value.push(mapWsToMessage(data))
     }
   }
@@ -358,7 +276,6 @@ export function useChatDetail() {
       const peer = (userRes.data || []).find((u) => u.id === id)
       peerUser.value = peer || { id, nickname: name, username: name }
       await readChat(id)
-      messageStore.markPrivateChatRead(id)
       messageStore.refreshSummary()
     } else {
       messageStore.clearGroupUnread(id)
@@ -413,14 +330,8 @@ export function useChatDetail() {
     }
   }
 
-  function closeEmojiPanel() {
-    emojiVisible.value = false
-  }
-
   function toggleEmoji() {
-    const next = !emojiVisible.value
-    emojiVisible.value = next
-    if (next) uni.hideKeyboard()
+    emojiVisible.value = !emojiVisible.value
   }
 
   function pickEmoji(emoji: string) {
@@ -477,8 +388,7 @@ export function useChatDetail() {
       input.value = ''
       mention.resetMention()
       clearTypingHint()
-      // 发送后保持键盘；表情面板仅收起面板本身
-      if (emojiVisible.value) closeEmojiPanel()
+      emojiVisible.value = false
     } finally {
       sending.value = false
     }
@@ -491,72 +401,44 @@ export function useChatDetail() {
         : await sendGroupMessage(targetId.value, { content, msgType })
     if (res.data) {
       const id = Number(res.data.id)
-      const msg: ChatMessage = {
-        ...res.data,
-        msgType: res.data.msgType ?? msgType,
-        content: res.data.content ?? content,
-      }
-      if (!id || !hasMessageId(id)) messages.value.push(msg)
+      if (!id || !hasMessageId(id)) messages.value.push(res.data)
     }
   }
 
   async function pickImage() {
-    let filePath: string | undefined
     try {
       const choose = await uni.chooseImage({ count: 1, sizeType: ['compressed'] })
-      filePath = choose.tempFilePaths?.[0]
-    } catch (err) {
-      if (isUserCancelError(err)) return
+      const filePath = choose.tempFilePaths?.[0]
+      if (!filePath) return
+      sending.value = true
+      const uploadRes = await uploadChatImage(filePath)
+      const url = uploadRes.data?.url
+      if (!url) {
+        uni.showToast({ title: '图片上传失败', icon: 'none' })
+        return
+      }
+      await sendMediaMessage(url, CHAT_MSG_TYPE.IMAGE)
+    } catch {
       uni.showToast({ title: '图片发送失败', icon: 'none' })
-      return
+    } finally {
+      sending.value = false
     }
-    if (!filePath) return
-    closeEmojiPanel()
-    await sendChatImageOptimistic(filePath)
   }
 
   async function pickFile() {
-    let filePath: string | undefined
-    let fileName: string | undefined
-    let fileMime: string | undefined
     try {
-      const picked = await new Promise<{
-        path?: string
-        name?: string
-        mime?: string
-      }>((resolve, reject) => {
+      const filePath = await new Promise<string>((resolve, reject) => {
         uni.chooseFile({
           count: 1,
           success: (res) => {
-            const file = (res.tempFiles as { path?: string; name?: string; type?: string }[])?.[0]
-            resolve({
-              path: res.tempFilePaths?.[0] || file?.path,
-              name: file?.name,
-              mime: file?.type,
-            })
+            const path = res.tempFilePaths?.[0] || (res.tempFiles as { path?: string }[])?.[0]?.path
+            if (path) resolve(path)
+            else reject(new Error('no file'))
           },
           fail: reject,
         })
       })
-      filePath = picked.path
-      fileName = picked.name || filePath?.split(/[/\\]/).pop()
-      fileMime = picked.mime
-    } catch (err) {
-      if (isUserCancelError(err)) return
-      uni.showToast({ title: '文件发送失败', icon: 'none' })
-      return
-    }
-    if (!filePath) return
-
-    const asImage = isImageFileMeta(fileName, fileMime)
-    if (asImage) {
-      closeEmojiPanel()
-      await sendChatImageOptimistic(filePath)
-      return
-    }
-
-    sending.value = true
-    try {
+      sending.value = true
       const uploadRes = await uploadChatFile(filePath)
       if (!uploadRes.data?.url) {
         uni.showToast({ title: '文件上传失败', icon: 'none' })
@@ -650,7 +532,6 @@ export function useChatDetail() {
     clearTypingHint()
     if (typingSignalTimer) clearTimeout(typingSignalTimer)
     messageStore.setActiveChatTarget(null)
-    messageStore.refreshSummary()
   })
 
   return {
@@ -680,7 +561,6 @@ export function useChatDetail() {
     refreshGroupContext,
     send,
     pickAttachment,
-    closeEmojiPanel,
     toggleEmoji,
     pickEmoji,
     openAnnouncement,

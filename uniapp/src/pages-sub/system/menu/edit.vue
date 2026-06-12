@@ -1,114 +1,28 @@
 <template>
-  <view class="module-form-page">
-    <ModuleDarkHero
-      :title="isCreate ? '新增菜单' : '编辑菜单'"
-      :subtitle="isCreate ? '配置目录、菜单或按钮权限' : '修改菜单路由与权限标识'"
-      icon="apps-o"
-      theme="menu"
-    />
-
+  <view class="page-padded edit-page">
     <ListLoading v-if="loading" />
-
-    <template v-else>
-      <view class="form-section card--elevated">
-        <view class="form-section__head">
-          <ModuleIcon icon="apps-o" theme="menu" size="sm" />
-          <view class="form-section__intro">
-            <text class="form-section__title">菜单信息</text>
-            <text class="form-section__desc">上级、名称与类型为必填项</text>
-          </view>
-        </view>
-
-        <view class="form-fields">
-          <FormCell label="上级菜单" clickable boxed arrow @click="pickParent">
-            <text class="picker-value">{{ parentOptions[parentIndex]?.label || '请选择' }}</text>
-          </FormCell>
-          <FormCell
-            v-model="form.name"
-            label="菜单名称"
-            editable
-            boxed
-            placeholder="请输入菜单名称"
-          />
-          <FormCell label="菜单类型" clickable boxed arrow last @click="pickType">
-            <text class="picker-value">{{ typeOptions[typeIndex]?.label }}</text>
-          </FormCell>
-        </view>
-      </view>
-
-      <view v-if="form.type !== 3" class="form-section card--elevated">
-        <view class="form-section__head">
-          <ModuleIcon icon="desktop-o" theme="menu" size="sm" />
-          <view class="form-section__intro">
-            <text class="form-section__title">路由与图标</text>
-            <text class="form-section__desc">前端路由与展示图标</text>
-          </view>
-        </view>
-
-        <view class="form-fields">
-          <FormCell
-            v-model="form.path"
-            label="路由地址"
-            editable
-            boxed
-            placeholder="如 /system/user"
-          />
-          <FormCell
-            v-if="form.type === 2"
-            v-model="form.component"
-            label="组件路径"
-            editable
-            boxed
-            placeholder="如 system/user/index"
-          />
-          <FormCell
-            v-model="form.icon"
-            label="图标"
-            editable
-            boxed
-            placeholder="如 user-o"
-            last
-          />
-        </view>
-      </view>
-
-      <view class="form-section card--elevated">
-        <view class="form-section__head">
-          <ModuleIcon icon="setting-o" theme="menu" size="sm" />
-          <view class="form-section__intro">
-            <text class="form-section__title">权限与状态</text>
-            <text class="form-section__desc">权限标识用于接口鉴权</text>
-          </view>
-        </view>
-
-        <view class="form-fields">
-          <FormCell
-            v-model="form.permission"
-            label="权限标识"
-            editable
-            boxed
-            placeholder="如 system:menu:list"
-          />
-          <FormCell
-            v-model="sortText"
-            label="排序"
-            editable
-            boxed
-            input-type="number"
-            placeholder="0"
-          />
-          <FormCell label="状态" clickable boxed arrow last @click="pickStatus">
-            <text class="picker-value">{{ statusOptions[statusIndex]?.label }}</text>
-          </FormCell>
-        </view>
-      </view>
-
-      <PageFooter>
-        <button class="page-footer__btn" :loading="saving" @click="save(menuId)">
-          {{ isCreate ? '创建菜单' : '保存' }}
-        </button>
-      </PageFooter>
-    </template>
+    <view v-else class="form-panel">
+      <FormCell label="上级菜单" clickable arrow @click="pickParent">
+        <text class="picker-value">{{ parentOptions[parentIndex]?.label }}</text>
+      </FormCell>
+      <FormCell v-model="form.name" label="菜单名称" editable placeholder="必填" />
+      <FormCell label="菜单类型" clickable arrow @click="pickType">
+        <text class="picker-value">{{ typeOptions[typeIndex]?.label }}</text>
+      </FormCell>
+      <FormCell v-if="form.type !== 3" v-model="form.path" label="路由地址" editable placeholder="选填" />
+      <FormCell v-if="form.type === 2" v-model="form.component" label="组件路径" editable placeholder="选填" />
+      <FormCell v-if="form.type !== 3" v-model="form.icon" label="图标" editable placeholder="选填" />
+      <FormCell v-model="form.permission" label="权限标识" editable placeholder="如 system:user:list" />
+      <FormCell v-model="sortText" label="排序" editable input-type="number" />
+      <FormCell label="状态" clickable arrow @click="pickStatus">
+        <text class="picker-value">{{ statusOptions[statusIndex]?.label }}</text>
+      </FormCell>
+    </view>
+    <PageFooter>
+      <button class="page-footer__btn" :loading="saving" @tap="save(menuId)">
+        {{ isCreate ? '创建菜单' : '保存' }}
+      </button>
+    </PageFooter>
 
     <AppDialogHost />
   </view>
@@ -117,8 +31,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
-import ModuleDarkHero from '@/components/common/ModuleDarkHero/index.vue'
-import ModuleIcon from '@/components/common/ModuleIcon/index.vue'
 import ListLoading from '@/components/common/ListLoading/index.vue'
 import FormCell from '@/components/common/FormCell/index.vue'
 import PageFooter from '@/components/common/PageFooter/index.vue'
@@ -129,22 +41,8 @@ import { showActionSheet } from '@/utils/app-dialog'
 
 const menuId = ref(0)
 const {
-  loading,
-  saving,
-  isCreate,
-  form,
-  typeOptions,
-  statusOptions,
-  typeIndex,
-  statusIndex,
-  parentOptions,
-  parentIndex,
-  initCreate,
-  loadMenu,
-  onTypeChange,
-  onStatusChange,
-  onParentChange,
-  save,
+  loading, saving, isCreate, form, typeOptions, statusOptions, typeIndex, statusIndex,
+  parentOptions, parentIndex, initCreate, loadMenu, onTypeChange, onStatusChange, onParentChange, save,
 } = useMenuForm()
 
 const { resetBaseline } = useEditPageGuard(
@@ -159,9 +57,7 @@ const { resetBaseline } = useEditPageGuard(
 
 const sortText = computed({
   get: () => String(form.sort ?? 0),
-  set: (v) => {
-    form.sort = Number(v) || 0
-  },
+  set: (v) => { form.sort = Number(v) || 0 },
 })
 
 async function pickType() {
@@ -219,6 +115,14 @@ onLoad(async (options) => {
 </script>
 
 <style lang="scss" scoped>
-@use '@/styles/common.scss' as *;
-@use '@/styles/module-form-page.scss' as *;
+@import '@/styles/common.scss';
+
+.edit-page {
+  min-height: 100vh;
+  padding-bottom: calc(140rpx + env(safe-area-inset-bottom));
+}
+
+.picker-value {
+  color: $color-text-primary;
+}
 </style>

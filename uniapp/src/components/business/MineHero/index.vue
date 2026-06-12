@@ -1,230 +1,268 @@
 <template>
-  <view class="mine-hero card--elevated" @click="emit('click')">
-    <view class="mine-hero__profile">
-      <view class="mine-hero__avatar-wrap">
-        <view
-          class="mine-hero__avatar"
-          :class="{ 'mine-hero__avatar--photo': showPhoto }"
-        >
-          <image
-            v-if="showPhoto"
-            class="mine-hero__avatar-img"
-            :src="avatarSrc"
-            mode="aspectFill"
-            @error="avatarBroken = true"
-          />
-          <text v-else class="mine-hero__fallback-text">{{ avatarFallback }}</text>
+
+  <view class="profile-card card--elevated">
+
+    <view class="profile-card__main">
+
+      <view class="profile-card__avatar">
+
+        <image
+
+          v-if="avatarSrc && !avatarBroken"
+
+          class="profile-card__img"
+
+          :src="avatarSrc"
+
+          mode="aspectFill"
+
+          @error="avatarBroken = true"
+
+        />
+
+        <view v-else class="profile-card__fallback">
+
+          <text>{{ avatarFallback }}</text>
+
         </view>
+
       </view>
 
-      <view class="mine-hero__info">
-        <view class="mine-hero__top">
-          <text class="mine-hero__name">{{ nickname }}</text>
-          <view v-if="roleTags.length" class="mine-hero__roles">
-            <text v-for="role in roleTags" :key="role" class="mine-hero__role">{{ role }}</text>
-          </view>
+      <view class="profile-card__info">
+
+        <text class="profile-card__name">{{ nickname }}</text>
+
+        <view v-if="primaryRole" class="profile-card__role">
+
+          <text>{{ primaryRole }}</text>
+
         </view>
-        <text v-if="orgLine" class="mine-hero__org">{{ orgLine }}</text>
+
+        <text v-if="orgLine" class="profile-card__org">{{ orgLine }}</text>
+
       </view>
 
-      <view class="mine-hero__edit">
-        <IconFont name="edit" :size="32" color="#6366f1" />
-      </view>
     </view>
 
-    <view v-if="stats.length" class="mine-hero__stats">
-      <view v-for="item in stats" :key="item.label" class="mine-hero__stat">
-        <text class="mine-hero__stat-value">{{ item.value }}</text>
-        <text class="mine-hero__stat-label">{{ item.label }}</text>
-      </view>
-    </view>
   </view>
+
 </template>
 
+
+
 <script setup lang="ts">
+
 import { computed, ref, watch } from 'vue'
-import IconFont from '@/components/common/IconFont/index.vue'
+
 import { fileDisplayUrl } from '@/api/system/file/index'
-import { formatListTime, formatUserStatus } from '@/utils/format'
+
+
 
 const props = withDefaults(
+
   defineProps<{
+
     nickname: string
+
     avatar?: string
+
     roles?: string[]
+
     deptName?: string
+
     postNames?: string
-    lastLoginTime?: string
-    lastLoginIp?: string
-    status?: number
+
   }>(),
+
   { roles: () => [] },
+
 )
 
-const emit = defineEmits<{ click: [] }>()
+
 
 const avatarBroken = ref(false)
 
+
+
 const avatarSrc = computed(() => (props.avatar ? fileDisplayUrl(props.avatar) : ''))
-const showPhoto = computed(() => !!avatarSrc.value && !avatarBroken.value)
+
 const avatarFallback = computed(() => (props.nickname || 'U').slice(0, 1).toUpperCase())
-const roleTags = computed(() => props.roles.slice(0, 2))
+
+const primaryRole = computed(() => props.roles[0] || '')
+
 const orgLine = computed(() => {
+
   const parts = [props.deptName, props.postNames].filter(Boolean)
+
   return parts.length ? parts.join(' · ') : ''
+
 })
 
-const stats = computed(() => [
-  {
-    label: '最近登录',
-    value: props.lastLoginTime ? formatListTime(props.lastLoginTime) : '—',
-  },
-  {
-    label: '登录 IP',
-    value: props.lastLoginIp || '—',
-  },
-  {
-    label: '账号状态',
-    value: formatUserStatus(props.status),
-  },
-])
+
 
 watch(
+
   () => props.avatar,
+
   () => {
+
     avatarBroken.value = false
+
   },
+
 )
+
 </script>
+
+
 
 <style lang="scss" scoped>
 
-.mine-hero {
+@import '@/styles/variables.scss';
+
+
+
+.profile-card {
+
   margin-bottom: $section-gap;
-  padding: 32rpx 32rpx 24rpx;
-}
 
-.mine-hero__profile {
-  display: flex;
-  align-items: center;
-  gap: 24rpx;
-  padding-left: 12rpx;
-}
+  padding: 32rpx;
 
-.mine-hero__avatar-wrap {
-  flex-shrink: 0;
-}
-
-.mine-hero__info {
-  flex: 1;
-  min-width: 0;
-}
-
-.mine-hero__top {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 12rpx;
-  min-width: 0;
-}
-
-.mine-hero__avatar {
-  width: 120rpx;
-  height: 120rpx;
-  border-radius: 50%;
   overflow: hidden;
-  box-shadow: 0 8rpx 24rpx rgba(79, 70, 229, 0.16);
+
+}
+
+
+
+.profile-card__main {
+
   display: flex;
+
   align-items: center;
-  justify-content: center;
-  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+
+  gap: 28rpx;
+
 }
 
-.mine-hero__avatar-img {
-  width: 100%;
-  height: 100%;
-}
 
-.mine-hero__avatar--photo {
-  background-color: #f3f4f6;
-  background-image: none;
-}
 
-.mine-hero__fallback-text {
-  font-size: 44rpx;
-  font-weight: $font-weight-bold;
-  color: #fff;
-  line-height: 1;
-}
+.profile-card__avatar {
 
-.mine-hero__name {
-  font-size: $font-size-xl;
-  font-weight: $font-weight-bold;
-  color: $color-text-primary;
-  line-height: 1.35;
-}
-
-.mine-hero__roles {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10rpx;
-}
-
-.mine-hero__role {
-  padding: 4rpx 16rpx;
-  border-radius: $radius-full;
-  background: $color-primary-muted;
-  font-size: $font-size-xs;
-  font-weight: $font-weight-semibold;
-  color: $color-primary;
-}
-
-.mine-hero__org {
-  display: block;
-  margin-top: 10rpx;
-  font-size: $font-size-sm;
-  color: $color-text-secondary;
-  line-height: 1.45;
-}
-
-.mine-hero__edit {
   flex-shrink: 0;
-  width: 56rpx;
-  height: 56rpx;
-  border-radius: 16rpx;
-  background: rgba(99, 102, 241, 0.1);
+
+  width: 112rpx;
+
+  height: 112rpx;
+
+  border-radius: 28rpx;
+
+  overflow: hidden;
+
+  box-shadow: 0 8rpx 24rpx rgba(79, 70, 229, 0.18);
+
+}
+
+
+
+.profile-card__img,
+
+.profile-card__fallback {
+
+  width: 100%;
+
+  height: 100%;
+
+}
+
+
+
+.profile-card__fallback {
+
   display: flex;
+
   align-items: center;
+
   justify-content: center;
+
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+
+  font-size: 44rpx;
+
+  font-weight: $font-weight-bold;
+
+  color: #fff;
+
 }
 
-.mine-hero__stats {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 16rpx;
-  margin-top: 28rpx;
-  padding-top: 24rpx;
-  border-top: 1px solid $color-border-light;
-}
 
-.mine-hero__stat {
+
+.profile-card__info {
+
+  flex: 1;
+
   min-width: 0;
-  text-align: center;
+
 }
 
-.mine-hero__stat-value {
+
+
+.profile-card__name {
+
   display: block;
-  font-size: $font-size-sm;
-  font-weight: $font-weight-semibold;
+
+  font-size: $font-size-xl;
+
+  font-weight: $font-weight-bold;
+
   color: $color-text-primary;
-  word-break: break-all;
-  line-height: 1.4;
+
+  line-height: 1.3;
+
 }
 
-.mine-hero__stat-label {
-  display: block;
-  margin-top: 8rpx;
-  font-size: 22rpx;
-  color: $color-text-placeholder;
+
+
+.profile-card__role {
+
+  display: inline-flex;
+
+  margin-top: 12rpx;
+
+  padding: 4rpx 16rpx;
+
+  border-radius: $radius-full;
+
+  background: $color-primary-muted;
+
+
+
+  text {
+
+    font-size: $font-size-xs;
+
+    font-weight: $font-weight-semibold;
+
+    color: $color-primary;
+
+  }
+
 }
+
+
+
+.profile-card__org {
+
+  display: block;
+
+  margin-top: 12rpx;
+
+  font-size: $font-size-sm;
+
+  color: $color-text-secondary;
+
+  line-height: 1.45;
+
+}
+
 </style>
+

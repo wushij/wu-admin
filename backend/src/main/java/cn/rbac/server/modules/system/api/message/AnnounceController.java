@@ -7,6 +7,8 @@ import cn.rbac.server.common.pojo.PageResult;
 import cn.rbac.server.framework.security.core.service.SecurityUtils;
 import cn.rbac.server.modules.system.dal.dataobject.message.AnnounceDO;
 import cn.rbac.server.modules.system.dal.dataobject.message.AnnounceSendLogDO;
+import cn.rbac.server.modules.system.dal.dataobject.user.UserDO;
+import cn.rbac.server.modules.system.dal.mysql.user.UserMapper;
 import cn.rbac.server.modules.system.service.message.AnnounceService;
 import cn.rbac.server.modules.system.service.message.vo.AnnounceMyVO;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -20,6 +22,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Tag(name = "????")
@@ -31,6 +34,8 @@ public class AnnounceController {
     private AnnounceService announceService;
     @Resource
     private ObjectMapper objectMapper;
+    @Resource
+    private UserMapper userMapper;
 
     @GetMapping("/page")
     @PreAuthorize("@ss.hasRead('system:announce:list')")
@@ -59,7 +64,19 @@ public class AnnounceController {
         if (entity == null) {
             throw new BusinessException(404, "?????");
         }
-        return CommonResult.success(AnnounceRequest.from(entity, objectMapper));
+        AnnounceRequest resp = AnnounceRequest.from(entity, objectMapper);
+        resp.setCreateName(entity.getCreateName());
+        resp.setCreateTime(entity.getCreateTime());
+        if (entity.getCreateBy() != null) {
+            UserDO publisher = userMapper.selectById(entity.getCreateBy());
+            if (publisher != null) {
+                resp.setCreateAvatar(publisher.getAvatar());
+                if (!StringUtils.hasText(resp.getCreateName())) {
+                    resp.setCreateName(publisher.getNickname() != null ? publisher.getNickname() : publisher.getUsername());
+                }
+            }
+        }
+        return CommonResult.success(resp);
     }
 
     @PostMapping
@@ -155,6 +172,9 @@ public class AnnounceController {
         private Integer targetType;
         private List<Long> targetIds;
         private Integer status;
+        private String createName;
+        private LocalDateTime createTime;
+        private String createAvatar;
 
         static AnnounceRequest from(AnnounceDO e, ObjectMapper mapper) {
             AnnounceRequest r = new AnnounceRequest();

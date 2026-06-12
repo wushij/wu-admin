@@ -1,14 +1,7 @@
 <template>
   <PermissionBlock v-if="!allowed" />
   <view v-else class="page-padded page-list">
-    <ModuleDarkHero
-      title="用户管理"
-      subtitle="账号、状态与权限"
-      icon="friends-o"
-      theme="user"
-      :count="total || list.length"
-      count-label="用户"
-    />
+    <ModuleHero title="用户管理" :count="total || list.length" subtitle="账号、状态与权限" />
     <SegmentTabs v-model="statusMode" :tabs="statusTabs" />
     <SearchBar v-model="keyword" placeholder="搜索用户名 / 昵称 / 手机号" @search="onSearch" />
 
@@ -31,27 +24,10 @@
             <view class="user-row__main">
               <view class="list-card__top">
                 <text class="list-card__title">{{ user.nickname || user.username }}</text>
-                <view class="user-row__tags">
-                  <DictTag
-                    :label="user.status === 1 ? '启用' : '停用'"
-                    :effect="user.status === 1 ? 'success' : 'danger'"
-                  />
-                  <DictTag
-                    v-if="user.loginLocked"
-                    label="登录锁定"
-                    effect="warning"
-                  />
-                  <DictTag
-                    v-if="user.loginIpLocked"
-                    label="IP 锁定"
-                    effect="danger"
-                  />
-                  <DictTag
-                    v-else-if="(user.loginFailCount ?? 0) > 0"
-                    :label="`失败 ${user.loginFailCount} 次`"
-                    effect="default"
-                  />
-                </view>
+                <DictTag
+                  :label="user.status === 1 ? '启用' : '停用'"
+                  :effect="user.status === 1 ? 'success' : 'danger'"
+                />
               </view>
               <text class="list-card__sub">{{ user.mobile || user.username }}</text>
               <text v-if="user.deptName" class="list-card__sub">{{ user.deptName }}</text>
@@ -70,7 +46,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { onPullDownRefresh, onShow } from '@dcloudio/uni-app'
-import ModuleDarkHero from '@/components/common/ModuleDarkHero/index.vue'
+import ModuleHero from '@/components/common/ModuleHero/index.vue'
 import SearchBar from '@/components/common/SearchBar/index.vue'
 import ListFooter from '@/components/common/ListFooter/index.vue'
 import ListLoading from '@/components/common/ListLoading/index.vue'
@@ -99,7 +75,6 @@ const statusTabs = [
   { key: 'all', label: '全部' },
   { key: '1', label: '启用' },
   { key: '0', label: '停用' },
-  { key: 'locked', label: '锁定' },
 ]
 
 const { list, loading, refreshing, finished, empty, refresh, loadMore } = usePageList<UserVO>(
@@ -109,10 +84,7 @@ const { list, loading, refreshing, finished, empty, refresh, loadMore } = usePag
       pageNo,
       pageSize,
       keyword: q || undefined,
-      status: statusMode.value === 'all' || statusMode.value === 'locked'
-        ? undefined
-        : Number(statusMode.value),
-      loginLocked: statusMode.value === 'locked' ? true : undefined,
+      status: statusMode.value === 'all' ? undefined : Number(statusMode.value),
     })
     total.value = res.data?.total || 0
     return { list: res.data?.list || [], total: total.value }
@@ -131,7 +103,7 @@ function onSearch() {
   refresh()
 }
 
-watch(statusMode, () => refresh({ silent: true }))
+watch(statusMode, () => refresh())
 
 onMounted(refresh)
 
@@ -155,7 +127,7 @@ onPullDownRefresh(async () => {
 </script>
 
 <style lang="scss" scoped>
-@use '@/styles/common.scss' as *;
+@import '@/styles/common.scss';
 
 .user-row {
   display: flex;
@@ -170,12 +142,5 @@ onPullDownRefresh(async () => {
 .user-row__main {
   flex: 1;
   min-width: 0;
-}
-
-.user-row__tags {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 8rpx;
 }
 </style>

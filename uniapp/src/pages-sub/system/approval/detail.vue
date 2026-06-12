@@ -116,7 +116,6 @@ import { preloadDicts } from '@/composables/useDict'
 import { DICT_TYPE } from '@/constants/dict'
 import { formatDateTime } from '@/utils/format'
 import { showConfirm } from '@/utils/app-dialog'
-import { navigateToFallback } from '@/utils/navigate-back'
 import {
   approvalActionLabel,
   parseRegisterApprovalContent,
@@ -192,7 +191,6 @@ async function submit(action: 'APPROVE' | 'REJECT') {
   })
   uni.showToast({ title: '操作成功', icon: 'success' })
   await load(approval.value.id)
-  await messageStore.refreshSummary()
 }
 
 function onApprove() {
@@ -228,9 +226,7 @@ async function onDelete() {
   await deleteApproval(approval.value.id)
   await messageStore.refreshSummary()
   uni.showToast({ title: '已删除', icon: 'success' })
-  setTimeout(() => {
-    navigateToFallback('/pages-sub/system/approval/index')
-  }, 400)
+  setTimeout(() => uni.navigateBack(), 400)
 }
 
 onMounted(() => {
@@ -245,7 +241,8 @@ onLoad(async (options) => {
 </script>
 
 <style lang="scss" scoped>
-@use '@/styles/common.scss' as *;
+@import '@/styles/variables.scss';
+@import '@/styles/common.scss';
 
 .approval-page {
   min-height: 100vh;

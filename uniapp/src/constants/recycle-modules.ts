@@ -14,7 +14,7 @@ import {
 import { getRecycleTicketPage, restoreTicket, deleteTicketPermanent } from '@/api/system/ticket'
 import { getRecycleApprovalPage, restoreApproval, deleteApprovalPermanent } from '@/api/system/approval'
 import { getRecycleAnnouncePage, restoreAnnounce, deleteAnnouncePermanent } from '@/api/message'
-import { getRecycleJobPage, restoreJob, deleteJobPermanent, getRecycleJobLogPage, restoreJobLog, deleteJobLogPermanent } from '@/api/monitor/job'
+import { getRecycleJobPage, restoreJob, deleteJobPermanent } from '@/api/monitor/job'
 import {
   getRecycleDictTypePage,
   restoreDictType,
@@ -40,8 +40,8 @@ export interface RecycleDetailField {
 }
 
 export interface RecycleThumbConfig {
-  type: 'avatar' | 'image' | 'file'
-  srcField?: string
+  type: 'avatar' | 'image'
+  srcField: string
   nameField?: string
 }
 
@@ -291,7 +291,7 @@ export const RECYCLE_MODULES: RecycleModule[] = [
     label: '定时任务',
     theme: 'job',
     icon: 'clock-o',
-    listPerm: 'monitor:job:delete',
+    listPerm: 'monitor:job:list',
     deletePerm: 'monitor:job:delete',
     titleField: 'jobName',
     subField: 'jobGroup',
@@ -307,30 +307,6 @@ export const RECYCLE_MODULES: RecycleModule[] = [
     fetchPage: (p) => getRecycleJobPage(p as never) as never,
     restore: restoreJob,
     deletePermanent: deleteJobPermanent,
-  },
-  {
-    key: 'jobLog',
-    label: '调度日志',
-    theme: 'job',
-    icon: 'records-o',
-    listPerm: 'monitor:job:delete',
-    deletePerm: 'monitor:job:delete',
-    titleField: 'jobName',
-    subField: 'jobGroup',
-    subFieldLabel: '任务组',
-    hint: '清空调度日志后会进入此处，恢复后可在定时任务日志中重新查看。',
-    searchFields: [{ key: 'jobName', label: '任务名', placeholder: '请输入任务名称' }],
-    detailFields: [
-      { prop: 'id', label: 'ID' },
-      { prop: 'jobName', label: '任务名称' },
-      { prop: 'jobGroup', label: '任务组' },
-      { prop: 'startTime', label: '开始时间', format: 'datetime' },
-      { prop: 'durationMs', label: '耗时(ms)' },
-      { prop: 'updateTime', label: '删除时间', format: 'datetime' },
-    ],
-    fetchPage: (p) => getRecycleJobLogPage(p as never) as never,
-    restore: restoreJobLog,
-    deletePermanent: deleteJobLogPermanent,
   },
   {
     key: 'file',
@@ -350,7 +326,7 @@ export const RECYCLE_MODULES: RecycleModule[] = [
       { prop: 'fileSize', label: '大小(B)', format: 'bytes' },
       { prop: 'updateTime', label: '删除时间', format: 'datetime' },
     ],
-    thumb: { type: 'file' },
+    thumb: { type: 'image', srcField: 'url' },
     fetchPage: (p) => getRecycleFilePage(p as never) as never,
     restore: restoreFile,
     deletePermanent: deleteFilePermanent,

@@ -132,6 +132,27 @@ public class RegisterApprovalServiceImpl implements RegisterApprovalService {
         }
     }
 
+    /** 注册审批单 content 中的展示名（用户被驳回删除后仍可从 JSON 还原） */
+    public static String displayNameFromContent(String content) {
+        if (content == null || content.isBlank()) {
+            return null;
+        }
+        try {
+            JSONObject obj = JSONUtil.parseObj(content);
+            if (!BIZ_TYPE.equals(obj.getStr("bizType"))) {
+                return null;
+            }
+            String nickname = obj.getStr("nickname");
+            if (nickname != null && !nickname.isBlank()) {
+                return nickname.trim();
+            }
+            String username = obj.getStr("username");
+            return username != null && !username.isBlank() ? username.trim() : null;
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
     private String buildContent(UserDO user) {
         JSONObject obj = new JSONObject();
         obj.set("bizType", BIZ_TYPE);

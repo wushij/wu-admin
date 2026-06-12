@@ -12,7 +12,6 @@ export interface RecycleSummary {
   dictData: number
   announce: number
   job: number
-  jobLog: number
   file: number
   gen: number
   total: number

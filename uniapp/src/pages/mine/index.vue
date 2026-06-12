@@ -6,26 +6,18 @@
       :roles="roles"
       :dept-name="deptName"
       :post-names="postNames"
-      :last-login-time="profile?.lastLoginTime"
-      :last-login-ip="profile?.lastLoginIp"
-      :status="profile?.status"
-      @click="go('/pages-sub/mine/profile')"
     />
 
-    <MenuSection
-      v-for="group in menuGroups"
-      :key="group.key"
-      :title="group.title"
-    >
+    <MenuSection>
+      <MenuCell icon="contact-o" label="编辑资料" desc="昵称、邮箱、头像" theme="indigo" @click="go('/pages-sub/mine/profile')" />
+      <MenuCell icon="clock-o" label="登录记录" desc="最近登录活动" theme="cyan" @click="go('/pages-sub/mine/login-logs')" />
+      <MenuCell icon="shield-o" label="修改密码" desc="密码与短信重置" theme="violet" @click="go('/pages-sub/mine/password')" />
       <MenuCell
-        v-for="item in group.items"
-        :key="item.key"
-        :icon="item.icon"
-        :label="item.label"
-        :desc="item.desc"
-        :theme="item.theme"
-        :badge="item.badge"
-        @click="go(item.path)"
+        icon="info-o"
+        label="关于应用"
+        :desc="`版本 ${versionName}`"
+        theme="slate"
+        @click="go('/pages-sub/mine/about')"
       />
     </MenuSection>
 
@@ -38,42 +30,28 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
-import { onShow } from '@dcloudio/uni-app'
+import { computed } from 'vue'
 import PageTabShell from '@/components/common/PageTabShell/index.vue'
 import MineHero from '@/components/business/MineHero/index.vue'
 import MenuSection from '@/components/common/MenuSection/index.vue'
 import MenuCell from '@/components/common/MenuCell/index.vue'
 import AppDialogHost from '@/components/common/AppDialogHost/index.vue'
 import { useUserStore } from '@/store/user'
-import { useMessageStore } from '@/store/message'
 import { useTabBarPage } from '@/composables/useTabBarPage'
 import { useMinePage } from '@/composables/useMinePage'
-import { useMineMenu } from '@/composables/useMineMenu'
 import { showConfirm } from '@/utils/app-dialog'
+import { getAppVersionName } from '@/utils/app-version'
 
 useTabBarPage(3)
 
 const userStore = useUserStore()
-const messageStore = useMessageStore()
 const { profile, nickname, avatar, roles } = useMinePage()
-const { menuGroups } = useMineMenu()
+const versionName = getAppVersionName()
 
 const deptName = computed(() => profile.value?.deptName || '')
 const postNames = computed(() => profile.value?.postNames?.join('、') || '')
 
-const TAB_PAGES = new Set([
-  '/pages/index/index',
-  '/pages/work/index',
-  '/pages/message/index',
-  '/pages/mine/index',
-])
-
 function go(url: string) {
-  if (TAB_PAGES.has(url)) {
-    uni.switchTab({ url })
-    return
-  }
   uni.navigateTo({ url })
 }
 
@@ -88,17 +66,10 @@ async function onLogout() {
   if (!confirmed) return
   await userStore.logoutAction()
 }
-
-onMounted(() => {
-  messageStore.refreshSummary()
-})
-
-onShow(() => {
-  messageStore.refreshSummary()
-})
 </script>
 
 <style lang="scss" scoped>
+@import '@/styles/variables.scss';
 
 .logout-btn {
   display: flex;

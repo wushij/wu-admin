@@ -102,12 +102,10 @@ import {
 } from '@/api/system/ticket'
 import { usePermission } from '@/composables/usePermission'
 import { useUserStore } from '@/store/user'
-import { useMessageStore } from '@/store/message'
 import { getDictLabel, getDictOptions, preloadDicts } from '@/composables/useDict'
 import { showConfirm, showActionSheet } from '@/utils/app-dialog'
 import { DICT_TYPE } from '@/constants/dict'
 import { formatDateTime } from '@/utils/format'
-import { navigateToFallback } from '@/utils/navigate-back'
 import type { TicketCommentVO, TicketVO } from '@/types/system'
 
 const ticket = ref<TicketVO | null>(null)
@@ -186,7 +184,6 @@ async function onTransition() {
     await transitionTicket({ id: ticket.value!.id, status })
     uni.showToast({ title: '状态已更新', icon: 'success' })
     await load(ticket.value!.id)
-    await useMessageStore().refreshSummary()
   } catch {
     /* cancelled */
   }
@@ -202,9 +199,7 @@ async function onDelete() {
   if (!confirmed) return
   await deleteTicket(ticketId.value)
   uni.showToast({ title: '已删除', icon: 'success' })
-  setTimeout(() => {
-    navigateToFallback('/pages-sub/system/ticket/index')
-  }, 400)
+  setTimeout(() => uni.navigateBack(), 400)
 }
 
 onMounted(() => {
@@ -220,7 +215,8 @@ onLoad(async (options) => {
 </script>
 
 <style lang="scss" scoped>
-@use '@/styles/common.scss' as *;
+@import '@/styles/variables.scss';
+@import '@/styles/common.scss';
 
 .ticket-page {
   min-height: 100vh;

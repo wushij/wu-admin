@@ -26,13 +26,8 @@
         :show-scrollbar="false"
         upper-threshold="80"
         @scrolltoupper="onScrollToUpper"
-        @click="closeEmojiPanel"
       >
-        <view
-          id="chat-scroll-content"
-          class="chat-page__list"
-          :style="{ paddingBottom: `${messagesPadBottom}px` }"
-        >
+        <view id="chat-scroll-content" class="chat-page__list">
           <ChatMessageFeed
             :messages="messages"
             :mode="chatMode"
@@ -51,28 +46,23 @@
       </scroll-view>
     </view>
 
-    <view class="chat-page__footer" :style="{ bottom: `${footerBottom}px` }">
+    <view class="chat-page__footer">
       <view v-if="typingHint" class="chat-page__typing">{{ typingHint }}</view>
       <MentionPanel
         v-if="mentionVisible && targetType === 'group'"
         :candidates="mentionCandidates"
         @pick="pickMention"
       />
+      <EmojiPicker v-if="emojiVisible" @pick="pickEmoji" />
       <ChatComposer
-        ref="composerRef"
         v-model="input"
         :loading="sending"
-        :emoji-active="emojiVisible"
         :placeholder="chatMode === 'group' ? '输入消息，@ 提醒成员…' : '输入消息…'"
         @send="onSend"
         @pick-attach="pickAttachment"
-        @toggle-emoji="onToggleEmoji"
-        @close-panels="closeEmojiPanel"
+        @toggle-emoji="toggleEmoji"
       />
-      <EmojiPicker v-if="emojiVisible" :visible="emojiVisible" @pick="pickEmoji" />
     </view>
-
-    <AppDialogHost />
 
     <view v-if="showAnnouncementModal" class="announce-modal" @click.self="showAnnouncementModal = false">
       <view class="announce-modal__panel">
@@ -88,27 +78,16 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from 'vue'
-import { onLoad, onShow } from '@dcloudio/uni-app'
+import { watch } from 'vue'
+import { onLoad, onReady, onShow } from '@dcloudio/uni-app'
 import ChatAvatar from '@/components/business/ChatAvatar/index.vue'
 import ChatComposer from '@/components/business/ChatComposer/index.vue'
 import ChatMessageFeed from '@/components/business/ChatMessageFeed/index.vue'
 import MentionPanel from '@/components/business/MentionPanel/index.vue'
 import EmojiPicker from '@/components/business/EmojiPicker/index.vue'
 import GroupAnnouncementBar from '@/components/business/GroupAnnouncementBar/index.vue'
-import AppDialogHost from '@/components/common/AppDialogHost/index.vue'
 import { useChatDetail } from '@/composables/useChatDetail'
-import { useChatKeyboardInset } from '@/composables/useChatKeyboardInset'
 import { useChatScroll } from '@/composables/useChatScroll'
-import { getSafeAreaBottom } from '@/utils/safe-area'
-
-const isH5 = import.meta.env.UNI_PLATFORM === 'h5'
-const safeAreaBottom = isH5 ? 0 : getSafeAreaBottom()
-const COMPOSER_BASE = uni.upx2px(104)
-const EMOJI_PANEL_BASE = uni.upx2px(540)
-
-const composerRef = ref<{ focusInput?: () => Promise<void> | void } | null>(null)
-const { keyboardHeight } = useChatKeyboardInset()
 
 const {
   messages,
@@ -136,7 +115,6 @@ const {
   refreshGroupContext,
   send,
   pickAttachment,
-  closeEmojiPanel,
   toggleEmoji,
   pickEmoji,
   openAnnouncement,
@@ -148,25 +126,12 @@ const {
   mentionCandidates,
 } = useChatDetail()
 
-const footerBottom = computed(() => (emojiVisible.value ? 0 : keyboardHeight.value))
-
-const messagesPadBottom = computed(() => {
-  if (emojiVisible.value) {
-    return COMPOSER_BASE + EMOJI_PANEL_BASE + safeAreaBottom
-  }
-  return COMPOSER_BASE + safeAreaBottom + keyboardHeight.value
-})
-
 const { scrollTop, scrollAnimated, scrollToBottom, scrollToBottomSettle, onMediaLoaded, preserveScrollAfterPrepend } =
   useChatScroll()
 
 async function onSend() {
   await send()
-  scrollToBottomSettle()
-  const refocus = () => composerRef.value?.focusInput?.()
-  await nextTick()
-  await refocus()
-  setTimeout(refocus, 160)
+  await scrollToBottom(true)
 }
 
 async function onLoadMore() {
@@ -177,27 +142,11 @@ function onScrollToUpper() {
   if (!loadingMore.value && hasMoreHistory.value) onLoadMore()
 }
 
-async function onToggleEmoji() {
-  const closing = emojiVisible.value
-  toggleEmoji()
-  if (closing) {
-    await nextTick()
-    await composerRef.value?.focusInput?.()
-  }
-}
-
-watch(
-  () => emojiVisible.value,
-  (visible) => {
-    if (visible) scrollToBottom(true)
-  },
-)
-
 watch(
   () => messages.value[messages.value.length - 1]?.id,
   (id, prevId) => {
     if (!id || id === prevId) return
-    if (prependingHistory.value || loadingMore.value || loading.value) return
+    if (prependingHistory.value || loadingMore.value || loading.value || sending.value) return
     scrollToBottom(false)
   },
 )
@@ -314,11 +263,7 @@ page {
 }
 
 .chat-page__footer {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 50;
+  flex-shrink: 0;
   background: #f7f7f7;
   border-top: 1px solid #e5e5e5;
 }

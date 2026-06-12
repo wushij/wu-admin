@@ -33,12 +33,11 @@
         <text class="section-head">待办提醒</text>
         <view class="todo-panel card--elevated">
           <ApprovalPendingCard
-            v-if="showApprovalTodo"
+            v-if="hasPerm('system:approval:list')"
             :count="stats.approvalPendingCount"
             @click="goApproval"
           />
           <DashboardTodoCard
-            v-if="showTicketTodo"
             :open-count="stats.ticketOpenCount"
             :overdue-count="stats.ticketOverdueCount"
             @click="goTicket"
@@ -47,7 +46,7 @@
       </view>
 
       <RecentLoginList
-        v-if="recentLogins.length"
+        v-if="hasPerm('system:loginLog:list') && recentLogins.length"
         :rows="recentLogins"
       />
     </FadeIn>
@@ -76,8 +75,10 @@ import { mobileStatCards, statValue, type StatCardConfig } from '@/constants/sta
 useTabBarPage(0)
 
 const userStore = useUserStore()
-const { hasMenuPerm } = usePermission()
-const { loading, stats, recentLogins, refresh } = useDashboard()
+const { hasPerm } = usePermission()
+const { loading, stats, recentLogins, refresh } = useDashboard({
+  recentLogins: hasPerm('system:loginLog:list'),
+})
 
 const nickname = computed(() => userStore.userInfo.nickname || userStore.userInfo.username || '用户')
 const heroAvatar = computed(() =>
@@ -90,23 +91,19 @@ const heroStats = computed(() => [
   { label: '今日登录', value: stats.value.todayLoginSuccess ?? 0 },
 ])
 
-const showApprovalTodo = computed(
-  () => hasMenuPerm('system:approval:list') && (stats.value.approvalPendingCount ?? 0) > 0,
-)
-
-const showTicketTodo = computed(
-  () => hasMenuPerm('system:ticket:list') && (stats.value.ticketOpenCount ?? 0) > 0,
-)
-
-const hasTodoSection = computed(() => showApprovalTodo.value || showTicketTodo.value)
-
 const visibleCards = computed(() =>
-  mobileStatCards.filter((card) => !card.permission || hasMenuPerm(card.permission)),
+  mobileStatCards.filter((card) => !card.permission || hasPerm(card.permission)),
+)
+
+const hasTodoSection = computed(
+  () =>
+    (hasPerm('system:approval:list') && (stats.value.approvalPendingCount ?? 0) > 0) ||
+    (stats.value.ticketOpenCount ?? 0) > 0,
 )
 
 function onCardTap(card: StatCardConfig) {
   if (!card.path) return
-  if (card.permission && !hasMenuPerm(card.permission)) {
+  if (card.permission && !hasPerm(card.permission)) {
     uni.showToast({ title: '暂无权限', icon: 'none' })
     return
   }
@@ -114,7 +111,7 @@ function onCardTap(card: StatCardConfig) {
 }
 
 function goTicket() {
-  if (!hasMenuPerm('system:ticket:list')) {
+  if (!hasPerm('system:ticket:list')) {
     uni.showToast({ title: '暂无工单权限', icon: 'none' })
     return
   }
@@ -122,41 +119,14 @@ function goTicket() {
 }
 
 function goApproval() {
-  if (!hasMenuPerm('system:approval:list')) {
-    uni.showToast({ title: '暂无审批权限', icon: 'none' })
-    return
-  }
   uni.navigateTo({ url: '/pages-sub/system/approval/index' })
 }
 
-let hasInitialized = false
-async function initDashboard() {
-  if (hasInitialized) return
-  hasInitialized = true
-  if (userStore.token && !userStore.userInfo.permissions?.length) {
-    try {
-      await userStore.ensureUserLoaded()
-    } catch {
-      // 若加载失败且已注销会话，不继续发起后续数据请求
-      if (!userStore.token) return
-    }
-  }
-  if (userStore.token) {
-    await refresh()
-  }
-}
+onMounted(refresh)
 
-onMounted(() => {
-  initDashboard()
-})
-
-onShow(async () => {
-  if (userStore.token) {
-    if (!hasInitialized) {
-      await initDashboard()
-    } else {
-      refresh()
-    }
+onShow(() => {
+  if (userStore.isLoggedIn) {
+    userStore.getUserInfo().catch(() => {})
   }
 })
 
@@ -167,6 +137,7 @@ onPullDownRefresh(async () => {
 </script>
 
 <style lang="scss" scoped>
+@import '@/styles/variables.scss';
 
 .section-head {
   display: block;

@@ -1,2 +1,2 @@
-/** @deprecated 滑块验证改传 uuid（token）+ code（offsetX），见 utils/slider-captcha.ts */
+/** 滑块验证通过后传给后端的 code（对齐 SystemConfigHelper.SLIDER_VERIFIED_CODE） */
 export const SLIDER_VERIFIED_CODE = 'slider_verified'

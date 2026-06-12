@@ -19,16 +19,6 @@ export function getApprovalRecords(formId: number) {
   return get<ApprovalRecordVO[]>('/system/approval/record/list', { formId })
 }
 
-export interface ApprovalApproverOptionVO {
-  id: number
-  username: string
-  nickname?: string
-}
-
-export function getApprovalApproverOptions() {
-  return get<ApprovalApproverOptionVO[]>('/system/approval/approver-options')
-}
-
 export function createApproval(data: ApprovalCreateDTO) {
   return post('/system/approval/create', data)
 }

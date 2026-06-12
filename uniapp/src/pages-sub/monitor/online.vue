@@ -1,14 +1,7 @@
 <template>
   <PermissionBlock v-if="!allowed" />
   <view v-else class="page-padded page-list">
-    <ModuleDarkHero
-      title="在线用户"
-      subtitle="会话管理与强退"
-      icon="manager-o"
-      theme="online"
-      :count="filteredList.length"
-      count-label="在线"
-    />
+    <ModuleHero theme="online" title="在线用户" :count="filteredList.length" subtitle="会话管理与强退" />
     <SearchBar v-model="keyword" placeholder="搜索昵称 / 账号 / IP" @search="() => {}" />
 
     <ListLoading v-if="loading && !list.length" />
@@ -50,8 +43,8 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { onPullDownRefresh, onShow } from '@dcloudio/uni-app'
-import ModuleDarkHero from '@/components/common/ModuleDarkHero/index.vue'
+import { onPullDownRefresh } from '@dcloudio/uni-app'
+import ModuleHero from '@/components/common/ModuleHero/index.vue'
 import SearchBar from '@/components/common/SearchBar/index.vue'
 import ListCard from '@/components/common/ListCard/index.vue'
 import ListLoading from '@/components/common/ListLoading/index.vue'
@@ -88,14 +81,7 @@ function displayName(user: OnlineUser) {
 
 function goDetail(user: OnlineUser) {
   setOnlineUserDetail(user as unknown as Record<string, unknown>)
-  uni.navigateTo({
-    url: `/pages-sub/monitor/online-detail?id=${user.userId}`,
-    events: {
-      forceLogout: ({ userId }: { userId: number }) => {
-        list.value = list.value.filter((u) => u.userId !== userId)
-      },
-    },
-  })
+  uni.navigateTo({ url: `/pages-sub/monitor/online-detail?id=${user.userId}` })
 }
 
 async function refresh() {
@@ -121,20 +107,7 @@ async function onForce(user: OnlineUser) {
   await refresh()
 }
 
-const skipNextShowRefresh = ref(true)
-
 onMounted(refresh)
-
-onShow(async () => {
-  if (skipNextShowRefresh.value) {
-    skipNextShowRefresh.value = false
-    return
-  }
-  if (allowed.value) {
-    await refresh()
-  }
-})
-
 onPullDownRefresh(async () => {
   await refresh()
   uni.stopPullDownRefresh()
@@ -142,16 +115,11 @@ onPullDownRefresh(async () => {
 </script>
 
 <style lang="scss" scoped>
-@use '@/styles/common.scss' as *;
+@import '@/styles/variables.scss';
+@import '@/styles/common.scss';
 
 .page-list__scroll {
-  flex: 1;
-  min-height: 0;
-  width: 100%;
-
-  :deep(.uni-scroll-view-content) {
-    padding-bottom: calc(160rpx + env(safe-area-inset-bottom));
-  }
+  height: calc(100vh - 280rpx);
 }
 
 .online-row {

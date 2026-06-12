@@ -124,6 +124,7 @@ CREATE TABLE sys_dept (
     sort INT DEFAULT 0 COMMENT '排序',
     status TINYINT DEFAULT 1 COMMENT '状态 0:禁用 1:启用',
     leader_name VARCHAR(50) DEFAULT NULL COMMENT '负责人',
+    leader_user_id BIGINT DEFAULT NULL COMMENT '负责人用户ID',
     phone VARCHAR(20) DEFAULT NULL COMMENT '联系电话',
     email VARCHAR(100) DEFAULT NULL COMMENT '邮箱',
     create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
@@ -710,13 +711,13 @@ CREATE TABLE gen_table_column (
 -- =============================================================================
 
 -- 部门（id=1 为本部虚拟根，界面隐藏；二级为各中心）
-INSERT INTO sys_dept (id, name, parent_id, ancestors, sort, status, leader_name) VALUES
-(1, '本部', 0, '0', 0, 1, '管理员'),
-(2, '技术中心', 1, '0,1', 1, 1, NULL),
-(3, '业务中心', 1, '0,1', 2, 1, NULL),
-(4, '职能中心', 1, '0,1', 3, 1, NULL),
-(5, '运营中心', 1, '0,1', 4, 1, NULL),
-(6, '研发部', 2, '0,1,2', 1, 1, '张三'),
+INSERT INTO sys_dept (id, name, parent_id, ancestors, sort, status, leader_name, leader_user_id) VALUES
+(1, '本部', 0, '0', 0, 1, '管理员', 1),
+(2, '技术中心', 1, '0,1', 1, 1, NULL, NULL),
+(3, '业务中心', 1, '0,1', 2, 1, NULL, NULL),
+(4, '职能中心', 1, '0,1', 3, 1, NULL, NULL),
+(5, '运营中心', 1, '0,1', 4, 1, NULL, NULL),
+(6, '研发部', 2, '0,1,2', 1, 1, '张三', 2),
 (7, '运维部', 2, '0,1,2', 2, 1, NULL),
 (8, '产品部', 2, '0,1,2', 3, 1, NULL),
 (9, '市场部', 3, '0,1,3', 1, 1, '李四'),

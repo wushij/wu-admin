@@ -4,6 +4,7 @@ export interface OnlineUser {
   userId: number
   loginName?: string
   deptName?: string
+  avatar?: string
   username?: string
   nickname?: string
   ipaddr?: string

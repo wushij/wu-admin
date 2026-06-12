@@ -75,6 +75,7 @@ function onCancel() {
 </script>
 
 <style lang="scss" scoped>
+@import '@/styles/variables.scss';
 
 .app-sheet {
   position: fixed;
@@ -128,7 +129,7 @@ function onCancel() {
 .app-sheet__item {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   width: 100%;
   box-sizing: border-box;
   min-height: 104rpx;
@@ -153,7 +154,7 @@ function onCancel() {
 .app-sheet__label {
   display: block;
   width: 100%;
-  text-align: center;
+  text-align: left;
   line-height: 1.45;
 }
 

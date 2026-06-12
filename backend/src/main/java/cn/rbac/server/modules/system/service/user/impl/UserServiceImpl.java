@@ -15,6 +15,7 @@ import cn.rbac.server.modules.system.dal.mysql.dept.DeptMapper;
 import cn.rbac.server.modules.system.dal.mysql.post.PostMapper;
 import cn.rbac.server.modules.system.dal.mysql.user.UserMapper;
 import cn.rbac.server.modules.system.dal.mysql.user.UserPostMapper;
+import cn.rbac.server.modules.system.service.dept.DeptService;
 import cn.rbac.server.modules.system.service.permission.PermissionService;
 import cn.rbac.server.modules.system.service.user.UserService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
@@ -50,6 +51,8 @@ public class UserServiceImpl implements UserService {
     private PostMapper postMapper;
     @Resource
     private PasswordEncoder passwordEncoder;
+    @Resource
+    private DeptService deptService;
 
     @Override
     public List<UserDO> listAll() {
@@ -57,14 +60,20 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public PageResult<UserDO> page(PageParam pageParam, String username, String mobile,
+    public PageResult<UserDO> page(PageParam pageParam, String keyword, String username, String mobile,
                                     Integer status, Long deptId, Long postId) {
         LambdaQueryWrapper<UserDO> wrapper = new LambdaQueryWrapper<>();
-        if (username != null && !username.isEmpty()) {
-            wrapper.like(UserDO::getUsername, username);
-        }
-        if (mobile != null && !mobile.isEmpty()) {
-            wrapper.like(UserDO::getMobile, mobile);
+        if (keyword != null && !keyword.isEmpty()) {
+            wrapper.and(w -> w.like(UserDO::getUsername, keyword)
+                    .or().like(UserDO::getNickname, keyword)
+                    .or().like(UserDO::getMobile, keyword));
+        } else {
+            if (username != null && !username.isEmpty()) {
+                wrapper.like(UserDO::getUsername, username);
+            }
+            if (mobile != null && !mobile.isEmpty()) {
+                wrapper.like(UserDO::getMobile, mobile);
+            }
         }
         if (status != null) {
             wrapper.eq(UserDO::getStatus, status);
@@ -72,7 +81,12 @@ public class UserServiceImpl implements UserService {
             wrapper.in(UserDO::getStatus, 0, 1);
         }
         if (deptId != null) {
-            wrapper.eq(UserDO::getDeptId, deptId);
+            List<Long> deptIds = deptService.listSelfAndDescendantIds(deptId);
+            if (deptIds.isEmpty()) {
+                wrapper.eq(UserDO::getDeptId, -1L);
+            } else {
+                wrapper.in(UserDO::getDeptId, deptIds);
+            }
         }
         if (postId != null) {
             List<Long> userIds = userPostMapper.selectUserIdsByPostId(postId);
@@ -123,12 +137,14 @@ public class UserServiceImpl implements UserService {
         if (user == null) {
             throw new BusinessException(404, "用户不存在");
         }
+        String previousNickname = user.getNickname();
         user.setNickname(reqVO.getNickname());
         user.setMobile(reqVO.getMobile());
         user.setEmail(reqVO.getEmail());
         user.setStatus(reqVO.getStatus());
         user.setDeptId(reqVO.getDeptId());
         userMapper.updateById(user);
+        deptService.syncLeaderByUserId(user.getId(), previousNickname, user.getNickname());
         if (reqVO.getRoleId() != null) {
             permissionService.assignUserRole(user.getId(), Collections.singleton(reqVO.getRoleId()));
         }

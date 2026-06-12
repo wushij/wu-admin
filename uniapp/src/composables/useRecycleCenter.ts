@@ -19,10 +19,7 @@ export function useRecycleCenter() {
   const searchForm = reactive<Record<string, string>>({})
   const searchKeyword = ref('')
 
-  const visibleModules = computed(() => {
-    if (hasPerm('system:recycle:query')) return RECYCLE_MODULES
-    return RECYCLE_MODULES.filter((m) => hasPerm(m.deletePerm))
-  })
+  const visibleModules = computed(() => RECYCLE_MODULES.filter((m) => hasPerm(m.listPerm)))
   const currentModule = computed(() => visibleModules.value.find((m) => m.key === activeType.value))
 
   const visiblePendingTotal = computed(() => {
@@ -38,14 +35,9 @@ export function useRecycleCenter() {
     return (summary.value as Record<string, number>)[activeType.value] || 0
   })
 
-  const canRestore = computed(() => {
+  const canDelete = computed(() => {
     const mod = currentModule.value
-    return mod ? hasPerm('system:recycle:restore') || hasPerm(mod.deletePerm) : false
-  })
-
-  const canDeletePermanent = computed(() => {
-    const mod = currentModule.value
-    return mod ? hasPerm('system:recycle:delete') || hasPerm(mod.deletePerm) : false
+    return mod ? hasPerm(mod.deletePerm) : false
   })
 
   const searchFields = computed(() => currentModule.value?.searchFields || [])
@@ -186,12 +178,12 @@ export function useRecycleCenter() {
     const mod = currentModule.value
     const id = Number(item.id)
     if (!mod || !id) return
-    const { confirmed } = await showConfirm({
+    const ok = await showConfirm({
       title: '恢复确认',
       content: `确定恢复该${mod.label}吗？`,
       confirmText: '恢复',
     })
-    if (!confirmed) return
+    if (!ok) return
     await mod.restore(id)
     uni.showToast({ title: '已恢复', icon: 'success' })
     await Promise.all([loadSummary(), refresh()])
@@ -201,13 +193,13 @@ export function useRecycleCenter() {
     const mod = currentModule.value
     const id = Number(item.id)
     if (!mod || !id) return
-    const { confirmed } = await showConfirm({
+    const ok = await showConfirm({
       title: '彻底删除',
       content: '删除后无法恢复，是否继续？',
       confirmText: '删除',
       tone: 'danger',
     })
-    if (!confirmed) return
+    if (!ok) return
     await mod.deletePermanent(id)
     uni.showToast({ title: '已清除', icon: 'success' })
     await Promise.all([loadSummary(), refresh()])
@@ -246,8 +238,7 @@ export function useRecycleCenter() {
     currentModule,
     visiblePendingTotal,
     activePendingCount,
-    canRestore,
-    canDeletePermanent,
+    canDelete,
     searchFields,
     list,
     loading,

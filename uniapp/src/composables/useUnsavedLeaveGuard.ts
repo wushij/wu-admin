@@ -1,45 +1,47 @@
 import { onBackPress, onShow } from '@dcloudio/uni-app'
-import { closeTopAppDialog, isAppDialogOpen } from '@/utils/dialog-back-guard'
+import { toValue, type MaybeRefOrGetter } from 'vue'
+import { showConfirm } from '@/utils/app-dialog'
+import { closeTopAppDialog } from '@/utils/dialog-back-guard'
 import {
   registerPageShallowFallback,
   safeNavigateBack,
   shouldUseFallbackBack,
-  isFormLeaveActive,
 } from '@/utils/navigate-back'
 
-let suppressLeaveUntil = 0
+const LEAVE_CONFIRM = {
+  title: '提示',
+  content: '当前有未保存的修改，确定离开吗？',
+  confirmText: '离开',
+  cancelText: '继续编辑',
+} as const
 
-function markLeaveDialogDismissed() {
-  suppressLeaveUntil = Date.now() + 500
+export function confirmUnsavedLeave() {
+  return showConfirm(LEAVE_CONFIRM)
 }
 
-function scheduleNavigateBack(fallbackUrl?: string) {
-  setTimeout(() => safeNavigateBack(fallbackUrl), 0)
-}
-
-/** 弹窗/表单页返回处理进行中（供全局 onBackPress 避免冲突） */
-export function isLeaveConfirmActive() {
-  return isAppDialogOpen() || isFormLeaveActive()
-}
-
-/** 表单页返回：关闭弹层；浅栈时回列表。栈深>1 时不拦截，一次返回即可退出 */
-export function useUnsavedLeaveGuard(options?: { fallbackUrl?: string }) {
+/** 拦截返回键：有未保存修改时弹窗确认（对齐 PC 系统配置） */
+export function useUnsavedLeaveGuard(
+  isDirty: MaybeRefOrGetter<boolean>,
+  options?: { fallbackUrl?: string },
+) {
   onShow(() => {
     if (options?.fallbackUrl) registerPageShallowFallback(options.fallbackUrl)
   })
 
   onBackPress(() => {
-    if (closeTopAppDialog()) {
-      markLeaveDialogDismissed()
-      return true
-    }
-    if (isAppDialogOpen()) return true
-    if (Date.now() < suppressLeaveUntil) return true
+    if (closeTopAppDialog()) return true
 
-    if (options?.fallbackUrl && shouldUseFallbackBack()) {
-      scheduleNavigateBack(options.fallbackUrl)
-      return true
+    if (!toValue(isDirty)) {
+      if (shouldUseFallbackBack() && options?.fallbackUrl) {
+        safeNavigateBack(options.fallbackUrl)
+        return true
+      }
+      return false
     }
-    return false
+
+    confirmUnsavedLeave().then((result) => {
+      if (result.confirmed) safeNavigateBack(options?.fallbackUrl)
+    })
+    return true
   })
 }

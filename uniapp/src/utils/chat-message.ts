@@ -20,63 +20,20 @@ export function parseFilePayload(content?: string): ChatFilePayload | null {
   return null
 }
 
-const IMAGE_EXT_RE = /\.(jpe?g|png|gif|webp|bmp|svg)$/i
-
-function isImageContent(content: string): boolean {
-  const trimmed = content.trim()
-  if (!trimmed || trimmed.startsWith('{')) return false
-  return IMAGE_EXT_RE.test(trimmed.split('?')[0])
+export function getFileInfo(msg?: Pick<ChatMessage, 'msgType' | 'content'>): ChatFilePayload | null {
+  if (!msg || (msg.msgType ?? CHAT_MSG_TYPE.TEXT) !== CHAT_MSG_TYPE.FILE) return null
+  return parseFilePayload(msg.content)
 }
 
-/** 兼容 msgType 缺失时按 content 推断（如历史消息或接口未返回类型） */
-export function resolveEffectiveMsgType(msg?: Pick<ChatMessage, 'msgType' | 'content'>): number {
-  const type = msg?.msgType ?? CHAT_MSG_TYPE.TEXT
-  const content = msg?.content?.trim() || ''
-  if (!content) return type
-
-  const file = parseFilePayload(content)
-  if (file?.url) {
-    if (isImageContent(file.url) || isImageFileMeta(file.name)) return CHAT_MSG_TYPE.IMAGE
-    return CHAT_MSG_TYPE.FILE
-  }
-
-  if (type !== CHAT_MSG_TYPE.TEXT) return type
-  if (isImageContent(content)) return CHAT_MSG_TYPE.IMAGE
-  return type
-}
-
-export function resolveMediaUrl(
-  msg?: Pick<ChatMessage, 'msgType' | 'content' | 'localPreview' | 'sendStatus'>,
-): string {
-  if (!msg) return ''
-  const type = resolveEffectiveMsgType(msg)
-  if (type === CHAT_MSG_TYPE.IMAGE) {
-    if (
-      msg.localPreview &&
-      (msg.sendStatus === 'pending' || msg.sendStatus === 'failed')
-    ) {
-      return msg.localPreview
-    }
-    if (!msg.content) return ''
-    const file = parseFilePayload(msg.content)
-    return fileDisplayUrl(file?.url || msg.content)
-  }
+export function resolveMediaUrl(msg?: Pick<ChatMessage, 'msgType' | 'content'>): string {
+  if (!msg?.content) return ''
+  const type = msg.msgType ?? CHAT_MSG_TYPE.TEXT
+  if (type === CHAT_MSG_TYPE.IMAGE) return fileDisplayUrl(msg.content)
   if (type === CHAT_MSG_TYPE.FILE) {
     const f = parseFilePayload(msg.content)
     return f ? fileDisplayUrl(f.url) : ''
   }
   return ''
-}
-
-export function isImageFileMeta(name?: string, mime?: string): boolean {
-  if (mime?.startsWith('image/')) return true
-  if (!name?.trim()) return false
-  return IMAGE_EXT_RE.test(name.trim().split('?')[0])
-}
-
-export function getFileInfo(msg?: Pick<ChatMessage, 'msgType' | 'content'>): ChatFilePayload | null {
-  if (!msg || resolveEffectiveMsgType(msg) !== CHAT_MSG_TYPE.FILE) return null
-  return parseFilePayload(msg.content)
 }
 
 export function formatFilePayload(file: {
@@ -96,7 +53,7 @@ export function formatFilePayload(file: {
 
 export function previewMessageText(msg?: Pick<ChatMessage, 'msgType' | 'content'>): string {
   if (!msg) return ''
-  const type = resolveEffectiveMsgType(msg)
+  const type = msg.msgType ?? CHAT_MSG_TYPE.TEXT
   if (type === CHAT_MSG_TYPE.IMAGE) return '[图片]'
   if (type === CHAT_MSG_TYPE.FILE) {
     const f = parseFilePayload(msg.content)
@@ -140,12 +97,10 @@ export function recallNoticeText(
 }
 
 export function canRecallMessage(
-  msg: Pick<ChatMessage, 'id' | 'senderId' | 'sendTime' | 'msgType' | 'sendStatus'>,
+  msg: Pick<ChatMessage, 'senderId' | 'sendTime' | 'msgType'>,
   currentUserId?: number,
   windowMinutes = 2,
 ): boolean {
-  if (msg.sendStatus === 'pending' || msg.sendStatus === 'failed') return false
-  if (msg.id != null && msg.id < 0) return false
   if (msg.msgType === CHAT_MSG_TYPE.RECALLED) return false
   if (!currentUserId || msg.senderId !== currentUserId) return false
   if (!msg.sendTime) return false

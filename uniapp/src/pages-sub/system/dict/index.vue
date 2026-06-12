@@ -1,100 +1,75 @@
 <template>
   <PermissionBlock v-if="!allowed" />
-  <view v-else class="dict-page">
-    <ModuleDarkHero
-      title="字典管理"
-      :subtitle="`类型与字典项维护 · 共 ${total} 类`"
-      icon="notes-o"
-      theme="dict"
-    >
-      <template #extra>
-        <view v-if="canUpdate" class="module-dark-hero__chip" @click.stop="refreshCache">
-          <IconFont name="chart-trending-o" :size="24" color="rgba(255,255,255,0.9)" />
-          <text>刷新缓存</text>
-        </view>
-        <view class="module-dark-hero__chip" @click.stop="goRecycle">
-          <IconFont name="balance-list-o" :size="24" color="rgba(255,255,255,0.9)" />
-          <text>回收中心</text>
-        </view>
-      </template>
-    </ModuleDarkHero>
-
-    <SegmentTabs v-model="statusMode" :tabs="statusTabs" />
+  <view v-else class="page-padded page-list">
+    <ModuleHero title="字典管理" :count="total || list.length" subtitle="类型与字典项维护" />
     <SearchBar v-model="keyword" placeholder="搜索字典名称 / 类型" @search="onSearch" />
+
+    <view v-if="canUpdate" class="dict-toolbar">
+      <button class="dict-toolbar__btn" size="mini" @click="refreshCache">刷新缓存</button>
+    </view>
 
     <ListLoading v-if="loading && !list.length" />
 
     <scroll-view
       v-else
       scroll-y
-      class="dict-page__scroll"
-      refresher-enabled
-      :refresher-triggered="refreshing"
-      @refresherrefresh="onRefresh"
+      class="page-list__scroll"
+      :class="{ 'page-list__scroll--filter': canUpdate }"
       @scrolltolower="loadMore"
     >
-      <view
-        v-for="item in list"
-        :key="item.id"
-        class="dict-card card--elevated"
-        @click="goDataList(item)"
-        @longpress="onTypeMenu(item)"
-      >
-        <ModuleIcon icon="records-o" theme="dict" size="sm" />
-        <view class="dict-card__main">
-          <view class="dict-card__head">
-            <text class="dict-card__title">{{ item.dictName }}</text>
-            <DictTag
-              :label="item.status === 1 ? '启用' : '停用'"
-              :effect="item.status === 1 ? 'success' : 'danger'"
-            />
-          </view>
-          <text class="dict-card__code">{{ item.dictType }}</text>
-          <view class="dict-card__meta">
-            <text class="dict-card__count">{{ item.dataCount ?? 0 }} 项字典数据</text>
-            <text v-if="item.remark" class="dict-card__remark">{{ item.remark }}</text>
-          </view>
+      <ListCard v-for="item in list" :key="item.id" @click="onTypeTap(item)">
+        <view class="list-card__top">
+          <text class="list-card__title">{{ item.dictName }}</text>
+          <DictTag
+            :label="item.status === 1 ? '启用' : '停用'"
+            :effect="item.status === 1 ? 'success' : 'danger'"
+          />
         </view>
-        <view class="dict-card__more" @click.stop="onTypeMenu(item)">
-          <IconFont name="apps-o" :size="32" color="#94a3b8" />
+        <text class="list-card__sub">{{ item.dictType }} · {{ item.dataCount ?? 0 }} 项</text>
+        <view v-if="expandedId === item.id && dictData.length" class="dict-data">
+          <view
+            v-for="d in dictData"
+            :key="d.id"
+            class="dict-data__row"
+            @click.stop="onDataTap(item.dictType, d)"
+          >
+            <text class="dict-data__label">{{ d.dictLabel }}</text>
+            <text class="dict-data__value">{{ d.dictValue }}</text>
+          </view>
+          <button v-if="canCreate" class="dict-data__add" size="mini" @click.stop="addData(item.dictType)">+ 新增字典项</button>
         </view>
-      </view>
-
+      </ListCard>
       <EmptyState v-if="empty" title="暂无字典" icon="notes-o" />
       <ListFooter v-else :loading="loading" :finished="finished" :empty="empty" />
     </scroll-view>
 
     <FabButton v-if="canCreate" @click="goCreateType" />
-    <AppDialogHost />
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
-import { onPullDownRefresh, onShow } from '@dcloudio/uni-app'
-import ModuleDarkHero from '@/components/common/ModuleDarkHero/index.vue'
-import ModuleIcon from '@/components/common/ModuleIcon/index.vue'
-import IconFont from '@/components/common/IconFont/index.vue'
+import { ref, computed, onMounted } from 'vue'
+import { onPullDownRefresh } from '@dcloudio/uni-app'
+import ModuleHero from '@/components/common/ModuleHero/index.vue'
 import SearchBar from '@/components/common/SearchBar/index.vue'
 import ListFooter from '@/components/common/ListFooter/index.vue'
 import ListLoading from '@/components/common/ListLoading/index.vue'
 import EmptyState from '@/components/common/EmptyState/index.vue'
 import DictTag from '@/components/common/DictTag/index.vue'
 import FabButton from '@/components/common/FabButton/index.vue'
-import SegmentTabs from '@/components/common/SegmentTabs/index.vue'
+import ListCard from '@/components/common/ListCard/index.vue'
 import PermissionBlock from '@/components/common/PermissionBlock/index.vue'
-import AppDialogHost from '@/components/common/AppDialogHost/index.vue'
-import { showConfirm, showActionSheet, type ActionSheetItem } from '@/utils/app-dialog'
 import { usePageList } from '@/composables/usePageList'
 import { useModulePermission } from '@/composables/useModulePermission'
-import { reloadDictTypes } from '@/composables/useDict'
-import { clearDictCache as clearStorageDictCache } from '@/utils/cache'
 import {
   pageDictType,
+  listDictDataForManage,
   deleteDictType,
+  deleteDictData,
   copyDictType,
   refreshDictCache,
 } from '@/api/system/dict'
+import type { DictDataItem } from '@/types/api'
 import type { DictTypeVO } from '@/types/system'
 
 const { allowed, hasPerm } = useModulePermission('system:dict:list')
@@ -105,66 +80,83 @@ const canCopy = computed(() => hasPerm('system:dict:copy'))
 
 const keyword = ref('')
 const total = ref(0)
-const statusMode = ref('all')
-const statusTabs = [
-  { key: 'all', label: '全部' },
-  { key: '1', label: '启用' },
-  { key: '0', label: '停用' },
-]
+const expandedId = ref<number | null>(null)
+const dictData = ref<DictDataItem[]>([])
+const expandedType = ref('')
 
-const { list, loading, refreshing, finished, empty, refresh, loadMore } = usePageList<DictTypeVO>(
+const { list, loading, finished, empty, refresh, loadMore } = usePageList<DictTypeVO>(
   async (pageNo, pageSize) => {
     const q = keyword.value.trim()
-    const res = await pageDictType({
-      pageNo,
-      pageSize,
-      dictName: q || undefined,
-      dictType: q || undefined,
-      status: statusMode.value === 'all' ? undefined : Number(statusMode.value),
-    })
+    const res = await pageDictType({ pageNo, pageSize, dictName: q || undefined, dictType: q || undefined })
     total.value = res.data?.total || 0
     return { list: res.data?.list || [], total: total.value }
   },
 )
 
-function goDataList(item: DictTypeVO) {
-  uni.navigateTo({
-    url: `/pages-sub/system/dict/data-list?typeId=${item.id}&dictType=${encodeURIComponent(item.dictType)}&dictName=${encodeURIComponent(item.dictName)}`,
+async function toggleExpand(item: DictTypeVO) {
+  if (expandedId.value === item.id) {
+    expandedId.value = null
+    dictData.value = []
+    return
+  }
+  expandedId.value = item.id
+  expandedType.value = item.dictType
+  const res = await listDictDataForManage(item.dictType)
+  dictData.value = res.data || []
+}
+
+function onTypeTap(item: DictTypeVO) {
+  const actions = ['展开字典项']
+  if (canUpdate.value) actions.push('编辑类型')
+  if (canCopy.value) actions.push('复制类型')
+  if (canDelete.value) actions.push('删除类型')
+  uni.showActionSheet({
+    itemList: actions,
+    success: async (res) => {
+      const action = actions[res.tapIndex]
+      if (action === '展开字典项') await toggleExpand(item)
+      else if (action === '编辑类型') editType(item.id)
+      else if (action === '复制类型') {
+        await copyDictType(item.id)
+        uni.showToast({ title: '已复制', icon: 'success' })
+        await refresh()
+      } else if (action === '删除类型') {
+        uni.showModal({
+          title: '删除字典类型',
+          content: `确定删除「${item.dictName}」？`,
+          confirmColor: '#f56c6c',
+          success: async (r) => {
+            if (!r.confirm) return
+            await deleteDictType(item.id)
+            uni.showToast({ title: '已删除', icon: 'success' })
+            await refresh()
+          },
+        })
+      }
+    },
   })
 }
 
-async function onTypeMenu(item: DictTypeVO) {
-  const actions: ActionSheetItem[] = [{ label: '查看字典项' }]
-  if (canUpdate.value) actions.push({ label: '编辑类型' })
-  if (canCopy.value) actions.push({ label: '复制类型' })
-  if (canDelete.value) actions.push({ label: '删除类型', danger: true })
-
-  try {
-    const tapIndex = await showActionSheet({
-      title: item.dictName || '字典类型操作',
-      items: actions,
-    })
-    const action = actions[tapIndex]?.label
-    if (action === '查看字典项') goDataList(item)
-    else if (action === '编辑类型') editType(item.id)
-    else if (action === '复制类型') {
-      await copyDictType(item.id)
-      uni.showToast({ title: '已复制', icon: 'success' })
-      await refresh({ silent: true })
-    } else if (action === '删除类型') {
-      const n = item.dataCount ?? 0
-      const { confirmed } = await showConfirm({
-        title: '删除字典类型',
-        content: `确定删除「${item.dictName}」？将同时删除其下 ${n} 条字典数据。`,
-        confirmText: '删除',
-        tone: 'danger',
-      })
-      if (!confirmed) return
-      await deleteDictType(item.id)
-      uni.showToast({ title: '已删除', icon: 'success' })
-      await refresh({ silent: true })
-    }
-  } catch {}
+function onDataTap(dictType: string, d: DictDataItem) {
+  if (!canUpdate.value && !canDelete.value) return
+  const actions: string[] = []
+  if (canUpdate.value) actions.push('编辑')
+  if (canDelete.value) actions.push('删除')
+  uni.showActionSheet({
+    itemList: actions,
+    success: async (res) => {
+      if (actions[res.tapIndex] === '编辑') {
+        uni.navigateTo({
+          url: `/pages-sub/system/dict/data-form?dictType=${dictType}&dataId=${d.id}`,
+        })
+      } else if (actions[res.tapIndex] === '删除' && d.id) {
+        await deleteDictData(d.id)
+        uni.showToast({ title: '已删除', icon: 'success' })
+        const type = list.value.find((t) => t.dictType === dictType)
+        if (type) await toggleExpand(type)
+      }
+    },
+  })
 }
 
 function goCreateType() {
@@ -175,127 +167,54 @@ function editType(id: number) {
   uni.navigateTo({ url: `/pages-sub/system/dict/type-form?id=${id}` })
 }
 
-function goRecycle() {
-  uni.navigateTo({ url: '/pages-sub/system/recycle/index?type=dict' })
+function addData(dictType: string) {
+  uni.navigateTo({ url: `/pages-sub/system/dict/data-form?mode=create&dictType=${dictType}` })
 }
 
 async function refreshCache() {
   await refreshDictCache()
-  clearStorageDictCache()
-  await reloadDictTypes(list.value.map((t) => t.dictType))
   uni.showToast({ title: '缓存已刷新', icon: 'success' })
 }
 
-function onSearch() {
-  refresh({ silent: true })
-}
-
-async function onRefresh() {
-  await refresh()
-}
-
-watch(statusMode, () => refresh({ silent: true }))
-
-const skipNextShowRefresh = ref(true)
-onMounted(() => refresh())
-onShow(async () => {
-  if (skipNextShowRefresh.value) {
-    skipNextShowRefresh.value = false
-    return
-  }
-  if (loading.value || refreshing.value) return
-  await refresh({ silent: true })
-})
-onPullDownRefresh(async () => {
-  try {
-    await refresh()
-  } finally {
-    uni.stopPullDownRefresh()
-  }
-})
+function onSearch() { refresh() }
+onMounted(refresh)
+onPullDownRefresh(async () => { await refresh(); uni.stopPullDownRefresh() })
 </script>
 
 <style lang="scss" scoped>
-@use '@/styles/mine.scss' as *;
+@import '@/styles/variables.scss';
+@import '@/styles/common.scss';
 
-.dict-page {
-  @include mine-page-bg;
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
-  /* #ifdef H5 */
-  height: calc(100vh - var(--window-top, 0px));
-  /* #endif */
-  box-sizing: border-box;
-  overflow: hidden;
-  padding: $page-padding-y $page-padding-x 0;
+.dict-toolbar {
+  margin-bottom: 16rpx;
+  text-align: right;
 }
 
-.dict-page__scroll {
-  flex: 1;
-  min-height: 0;
-  margin-top: 8rpx;
-
-  :deep(.uni-scroll-view-content) {
-    padding-bottom: calc(160rpx + env(safe-area-inset-bottom));
-  }
-}
-
-.dict-card {
-  display: flex;
-  align-items: flex-start;
-  gap: 20rpx;
-  padding: 28rpx 24rpx;
-  margin-bottom: $card-gap;
-}
-
-.dict-card__main {
-  flex: 1;
-  min-width: 0;
-}
-
-.dict-card__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12rpx;
-}
-
-.dict-card__title {
-  font-size: $font-size-md;
-  font-weight: $font-weight-semibold;
-  color: $color-text-primary;
-}
-
-.dict-card__code {
-  display: block;
-  margin-top: 8rpx;
-  font-size: $font-size-sm;
+.dict-toolbar__btn {
+  background: $color-primary-muted;
   color: $color-primary;
-  font-family: monospace;
 }
 
-.dict-card__meta {
+.dict-data {
+  margin-top: 20rpx;
+  padding-top: 20rpx;
+  border-top: 1px solid $color-border-light;
+}
+
+.dict-data__row {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 12rpx;
-  margin-top: 10rpx;
+  justify-content: space-between;
+  gap: 16rpx;
+  padding: 12rpx 0;
+  font-size: $font-size-sm;
 }
 
-.dict-card__count {
-  font-size: $font-size-xs;
-  color: $color-text-secondary;
-}
+.dict-data__label { color: $color-text-regular; }
+.dict-data__value { color: $color-text-secondary; }
 
-.dict-card__remark {
-  font-size: $font-size-xs;
-  color: $color-text-placeholder;
-}
-
-.dict-card__more {
-  flex-shrink: 0;
-  padding: 8rpx;
-  margin: -8rpx -8rpx 0 0;
+.dict-data__add {
+  margin-top: 12rpx;
+  background: $color-primary-muted;
+  color: $color-primary;
 }
 </style>

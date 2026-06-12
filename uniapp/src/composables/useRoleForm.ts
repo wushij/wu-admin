@@ -1,6 +1,5 @@
 import { ref, reactive } from 'vue'
 import { createRole, getRole, updateRole } from '@/api/system/role'
-import { leaveFormPageAfterSave } from '@/utils/navigate-back'
 
 export function useRoleForm() {
   const loading = ref(false)
@@ -75,7 +74,7 @@ export function useRoleForm() {
         await updateRole({ id, ...payload })
       }
       uni.showToast({ title: isCreate.value ? '创建成功' : '保存成功', icon: 'success' })
-      leaveFormPageAfterSave('/pages-sub/system/role/index')
+      setTimeout(() => uni.navigateBack(), 400)
     } finally {
       saving.value = false
     }

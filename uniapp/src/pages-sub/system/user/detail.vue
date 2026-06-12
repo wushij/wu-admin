@@ -19,14 +19,13 @@
 
             <text class="user-hero__name">{{ user.nickname || user.username }}</text>
 
-            <view class="user-hero__tags">
-              <DictTag
-                :label="user.status === 1 ? '启用' : '停用'"
-                :effect="user.status === 1 ? 'success' : 'danger'"
-              />
-              <DictTag v-if="user.loginLocked" label="登录锁定" effect="warning" />
-              <DictTag v-if="user.loginIpLocked" label="IP 锁定" effect="danger" />
-            </view>
+            <DictTag
+
+              :label="user.status === 1 ? '启用' : '停用'"
+
+              :effect="user.status === 1 ? 'success' : 'danger'"
+
+            />
 
           </view>
 
@@ -102,90 +101,6 @@
 
 
 
-      <view class="section card--elevated user-lock">
-
-        <text class="section__title">登录安全</text>
-
-        <view class="info-grid user-lock__grid">
-
-          <view class="info-item info-item--full user-lock__row">
-
-            <text class="info-item__label">账号锁定</text>
-
-            <view class="user-lock__value">
-
-              <DictTag v-if="user.loginLocked" label="登录锁定" effect="warning" />
-
-              <DictTag v-else label="未锁定" effect="success" />
-
-            </view>
-
-          </view>
-
-          <view v-if="user.loginLocked" class="info-item info-item--full user-lock__row">
-
-            <text class="info-item__label">账号剩余</text>
-
-            <text class="info-item__value">{{ lockRemainText }}</text>
-
-          </view>
-
-          <view v-if="(user.loginFailCount ?? 0) > 0" class="info-item info-item--full user-lock__row">
-
-            <text class="info-item__label">账号失败</text>
-
-            <text class="info-item__value">
-
-              {{ user.loginLocked ? '锁定前累计' : '已累计' }}失败 {{ user.loginFailCount }} 次
-
-            </text>
-
-          </view>
-
-          <view class="info-item info-item--full user-lock__row">
-
-            <text class="info-item__label">最近登录 IP</text>
-
-            <text class="info-item__value">{{ user.loginRecentIp || '—' }}</text>
-
-          </view>
-
-          <view class="info-item info-item--full user-lock__row">
-
-            <text class="info-item__label">IP 锁定</text>
-
-            <view class="user-lock__value">
-
-              <DictTag v-if="user.loginIpLocked" label="IP 锁定" effect="danger" />
-
-              <DictTag v-else label="未锁定" effect="success" />
-
-            </view>
-
-          </view>
-
-          <view v-if="user.loginIpLocked" class="info-item info-item--full user-lock__row">
-
-            <text class="info-item__label">IP 剩余</text>
-
-            <text class="info-item__value">{{ ipLockRemainText }}</text>
-
-          </view>
-
-          <view class="info-item info-item--full user-lock__row user-lock__hint">
-
-            <text class="info-item__label">说明</text>
-
-            <text class="info-item__value">登录密码错误过多时会临时锁定账号或 IP</text>
-
-          </view>
-
-        </view>
-
-      </view>
-
-
-
       <view class="section card--elevated">
 
         <text class="section__title">其他信息</text>
@@ -215,13 +130,6 @@
       <view v-if="canEdit || canDelete" class="section card--elevated user-actions">
         <text class="section__title">管理操作</text>
         <view class="user-actions__list">
-          <button
-            v-if="canEdit && canUnlock"
-            class="outline-btn outline-btn--warning user-actions__btn"
-            @click="onUnlockLogin"
-          >
-            {{ unlockButtonText }}
-          </button>
           <button v-if="canEdit" class="outline-btn outline-btn--primary user-actions__btn" @click="onResetPassword">重置密码</button>
           <button v-if="canDelete" class="outline-btn outline-btn--danger user-actions__btn" @click="onDelete">删除用户</button>
         </view>
@@ -248,19 +156,12 @@ import ListLoading from '@/components/common/ListLoading/index.vue'
 import PageFooter from '@/components/common/PageFooter/index.vue'
 import AppDialogHost from '@/components/common/AppDialogHost/index.vue'
 import UserAvatar from '@/components/business/UserAvatar/index.vue'
-import { getUser, getUserRoleIds, resetUserPassword, deleteUser, unlockUserLogin } from '@/api/system/user'
+import { getUser, getUserRoleIds, resetUserPassword, deleteUser } from '@/api/system/user'
 import { getRoleList } from '@/api/system/role'
 import { useModulePermission } from '@/composables/useModulePermission'
 import { formatDateTime } from '@/utils/format'
-import { formatLoginLockRemain, buildUnlockLoginConfirm, canUnlockLoginLock, hasAccountLoginLock, hasIpLoginLock } from '@/utils/login-lock'
 import { showConfirm } from '@/utils/app-dialog'
 import type { UserVO } from '@/types/user'
-import { appendNavFromParam } from '@/utils/nav-from'
-import { registerPageShallowFallback, installH5ShallowStackTrapIfNeeded, navigateToFallback } from '@/utils/navigate-back'
-import { pinNavParent } from '@/utils/nav-history'
-import { scheduleSyncH5BackButton } from '@/store/h5-back-button'
-
-const USER_LIST_URL = '/pages-sub/system/user/index'
 
 const user = ref<UserVO | null>(null)
 
@@ -276,49 +177,13 @@ const canEdit = computed(() => hasPerm('system:user:update'))
 
 const canDelete = computed(() => hasPerm('system:user:delete'))
 
-const lockRemainText = computed(() => formatLoginLockRemain(user.value?.loginLockRemainSeconds))
-
-const ipLockRemainText = computed(() => formatLoginLockRemain(user.value?.loginIpLockRemainSeconds))
-
-const canUnlock = computed(() => canUnlockLoginLock(user.value))
-
-const unlockButtonText = computed(() => {
-  if (hasAccountLoginLock(user.value) && hasIpLoginLock(user.value)) return '解除登录锁定'
-  if (hasIpLoginLock(user.value)) return '解除 IP 锁定'
-  return '解除登录锁定'
-})
-
 function goEdit() {
-  uni.navigateTo({
-    url: appendNavFromParam(`/pages-sub/system/user/edit?id=${userId.value}`),
-  })
+
+  uni.navigateTo({ url: `/pages-sub/system/user/edit?id=${userId.value}` })
+
 }
 
 
-
-async function onUnlockLogin() {
-  if (!user.value || !canUnlockLoginLock(user.value)) return
-  const { title, content } = buildUnlockLoginConfirm({
-    username: user.value.username,
-    nickname: user.value.nickname,
-    loginLocked: user.value.loginLocked,
-    loginIpLocked: user.value.loginIpLocked,
-    loginRecentIp: user.value.loginRecentIp,
-  })
-  const { confirmed } = await showConfirm({
-    title,
-    content,
-    confirmText: '解除锁定',
-  })
-  if (!confirmed) return
-  try {
-    await unlockUserLogin(userId.value)
-    uni.showToast({ title: '已解除登录锁定', icon: 'success' })
-    await loadUserDetail(userId.value, { silent: true })
-  } catch (e) {
-    console.error(e)
-  }
-}
 
 async function onResetPassword() {
   const { confirmed, content } = await showConfirm({
@@ -354,9 +219,7 @@ async function onDelete() {
   try {
     await deleteUser(userId.value)
     uni.showToast({ title: '已删除', icon: 'success' })
-    setTimeout(() => {
-      navigateToFallback(USER_LIST_URL)
-    }, 400)
+    setTimeout(() => uni.navigateBack(), 400)
   } catch (e) {
     console.error(e)
   }
@@ -397,17 +260,11 @@ function syncUserIdFromRoute() {
 
 onLoad(async (options) => {
   userId.value = Number(options?.id)
-  registerPageShallowFallback(USER_LIST_URL)
-  pinNavParent(USER_LIST_URL)
   if (!userId.value) return
   await loadUserDetail(userId.value)
 })
 
 onShow(async () => {
-  registerPageShallowFallback(USER_LIST_URL)
-  pinNavParent(USER_LIST_URL)
-  installH5ShallowStackTrapIfNeeded()
-  scheduleSyncH5BackButton()
   syncUserIdFromRoute()
   if (skipNextShowRefresh.value) {
     skipNextShowRefresh.value = false
@@ -426,8 +283,9 @@ onShow(async () => {
 
 <style lang="scss" scoped>
 
+@import '@/styles/variables.scss';
 
-@use '@/styles/common.scss' as *;
+@import '@/styles/common.scss';
 
 
 
@@ -520,11 +378,7 @@ onShow(async () => {
 
 }
 
-.user-hero__tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8rpx;
-}
+
 
 .user-hero__username {
 
@@ -645,36 +499,6 @@ onShow(async () => {
 .user-actions__btn {
   width: 100%;
   height: 80rpx;
-}
-
-.user-lock__row {
-  display: flex;
-  align-items: center;
-  gap: 20rpx;
-
-  .info-item__label {
-    margin-bottom: 0;
-    flex-shrink: 0;
-  }
-
-  .info-item__value {
-    flex: 1;
-    min-width: 0;
-  }
-}
-
-.user-lock__value {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8rpx;
-}
-
-.user-lock__hint .info-item__value {
-  color: $color-text-secondary;
-  font-size: $font-size-xs;
 }
 
 </style>

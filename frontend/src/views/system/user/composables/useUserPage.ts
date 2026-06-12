@@ -86,12 +86,8 @@ export function useUserPage() {
     }
   }
 
-  const handleDeptClick = (data: DeptVO) => {
-    if (data.parentId === null || data.parentId === 0) {
-      queryParams.deptId = null
-    } else {
-      queryParams.deptId = data.id
-    }
+  const handleDeptClick = (data: DeptVO | null) => {
+    queryParams.deptId = data?.id ?? null
     queryParams.pageNo = 1
     getList()
   }

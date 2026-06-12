@@ -52,7 +52,7 @@
               icon="key"
               type="number"
               custom-class="sms-input"
-              placeholder="请输入验证码"
+              placeholder="6 位验证码"
               :maxlength="6"
             />
             <button
@@ -92,7 +92,7 @@
       </AuthGlassForm>
     </view>
 
-    <SliderCaptcha v-model:show="showSlider" scene="forgot" @success="onSliderSuccess" />
+    <SliderCaptcha v-model:show="showSlider" @success="onSliderSuccess" />
   </view>
 </template>
 
@@ -145,6 +145,7 @@ onMounted(loadConfig)
 </script>
 
 <style lang="scss" scoped>
+@import '@/styles/mixins.scss';
 
 .forgot-page {
   position: relative;

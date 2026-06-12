@@ -1,14 +1,7 @@
 <template>
   <PermissionBlock v-if="!allowed" />
   <view v-else class="page-padded page-list">
-    <ModuleDarkHero
-      title="角色管理"
-      subtitle="角色、权限与菜单"
-      icon="shield-o"
-      theme="role"
-      :count="total || list.length"
-      count-label="角色"
-    />
+    <ModuleHero title="角色管理" :count="total || list.length" subtitle="角色、权限与菜单" />
     <SearchBar v-model="keyword" placeholder="搜索角色名称" @search="onSearch" />
 
     <ListLoading v-if="loading && !list.length" />
@@ -35,15 +28,13 @@
     </scroll-view>
 
     <FabButton v-if="canCreate" @click="goCreate" />
-    <AppDialogHost />
   </view>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { onPullDownRefresh } from '@dcloudio/uni-app'
-import { useListPageShowRefresh } from '@/composables/useListPageShowRefresh'
-import ModuleDarkHero from '@/components/common/ModuleDarkHero/index.vue'
+import ModuleHero from '@/components/common/ModuleHero/index.vue'
 import SearchBar from '@/components/common/SearchBar/index.vue'
 import ListFooter from '@/components/common/ListFooter/index.vue'
 import ListLoading from '@/components/common/ListLoading/index.vue'
@@ -52,8 +43,6 @@ import DictTag from '@/components/common/DictTag/index.vue'
 import FabButton from '@/components/common/FabButton/index.vue'
 import ListCard from '@/components/common/ListCard/index.vue'
 import PermissionBlock from '@/components/common/PermissionBlock/index.vue'
-import AppDialogHost from '@/components/common/AppDialogHost/index.vue'
-import { showConfirm, showActionSheet, type ActionSheetItem } from '@/utils/app-dialog'
 import { usePageList } from '@/composables/usePageList'
 import { useModulePermission } from '@/composables/useModulePermission'
 import { getRolePage, deleteRole } from '@/api/system/role'
@@ -66,7 +55,7 @@ const canDelete = computed(() => hasPerm('system:role:delete'))
 const keyword = ref('')
 const total = ref(0)
 
-const { list, loading, finished, empty, refresh, loadMore, refreshing } = usePageList<RoleVO>(
+const { list, loading, finished, empty, refresh, loadMore } = usePageList<RoleVO>(
   async (pageNo, pageSize) => {
     const res = await getRolePage({ pageNo, pageSize, name: keyword.value.trim() || undefined })
     total.value = res.data?.total || 0
@@ -74,25 +63,20 @@ const { list, loading, finished, empty, refresh, loadMore, refreshing } = usePag
   },
 )
 
-async function onCardTap(item: RoleVO) {
-  const actions: ActionSheetItem[] = []
-  if (canUpdate.value) {
-    actions.push({ label: '编辑' }, { label: '分配权限' })
-  }
-  if (canDelete.value) {
-    actions.push({ label: '删除', danger: true })
-  }
+function onCardTap(item: RoleVO) {
+  const actions: string[] = []
+  if (canUpdate.value) actions.push('编辑', '分配权限')
+  if (canDelete.value) actions.push('删除')
   if (!actions.length) return
-  try {
-    const tapIndex = await showActionSheet({
-      title: item.name ? `角色: ${item.name}` : '角色操作',
-      items: actions,
-    })
-    const action = actions[tapIndex]?.label
-    if (action === '编辑') goEdit(item.id)
-    else if (action === '分配权限') goMenuAssign(item)
-    else if (action === '删除') confirmDelete(item)
-  } catch {}
+  uni.showActionSheet({
+    itemList: actions,
+    success: (res) => {
+      const action = actions[res.tapIndex]
+      if (action === '编辑') goEdit(item.id)
+      else if (action === '分配权限') goMenuAssign(item)
+      else if (action === '删除') confirmDelete(item)
+    },
+  })
 }
 
 function goCreate() {
@@ -109,25 +93,25 @@ function goMenuAssign(item: RoleVO) {
   })
 }
 
-async function confirmDelete(item: RoleVO) {
-  const { confirmed } = await showConfirm({
+function confirmDelete(item: RoleVO) {
+  uni.showModal({
     title: '删除角色',
     content: `确定删除「${item.name}」？`,
-    confirmText: '删除',
-    tone: 'danger',
+    confirmColor: '#f56c6c',
+    success: async (res) => {
+      if (!res.confirm) return
+      await deleteRole(item.id)
+      uni.showToast({ title: '已删除', icon: 'success' })
+      await refresh()
+    },
   })
-  if (!confirmed) return
-  await deleteRole(item.id)
-  uni.showToast({ title: '已删除', icon: 'success' })
-  await refresh()
 }
 
 function onSearch() { refresh() }
-useListPageShowRefresh(refresh, { loading, refreshing })
 onMounted(refresh)
 onPullDownRefresh(async () => { await refresh(); uni.stopPullDownRefresh() })
 </script>
 
 <style lang="scss" scoped>
-@use '@/styles/common.scss' as *;
+@import '@/styles/common.scss';
 </style>

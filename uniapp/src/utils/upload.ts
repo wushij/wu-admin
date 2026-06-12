@@ -1,9 +1,8 @@
 import { isApiSuccessCode } from '@/utils/api-response'
 import { getToken, removeToken } from '@/utils/auth'
 import type { ApiResult } from '@/types/api'
-import { resolveApiBaseUrl } from '@/utils/api-base'
 
-const BASE_URL = resolveApiBaseUrl()
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api'
 
 let lastForbiddenToastAt = 0
 

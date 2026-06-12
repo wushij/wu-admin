@@ -94,14 +94,6 @@ export function updateUserStatus(id: number, status: number) {
 
 
 
-export function unlockUserLogin(id: number) {
-
-  return put('/system/user/unlock-login', null, { params: { id } })
-
-}
-
-
-
 export function getUserRoleIds(userId: number) {
 
   return get<number[]>('/system/user/get-role-ids', { userId })

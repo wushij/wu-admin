@@ -1,7 +1,6 @@
 import { ref, computed } from 'vue'
 import { getMenuList } from '@/api/system/menu'
 import { getRoleMenuIds, assignRoleMenu } from '@/api/system/role'
-import { leaveFormPageAfterSave } from '@/utils/navigate-back'
 import { buildMenuTree, collectMenuNodeIds } from '@/utils/menu-tree'
 import type { MenuVO } from '@/types/system'
 
@@ -171,7 +170,7 @@ export function useRoleMenuAssign() {
       await assignRoleMenu({ roleId: roleId.value, menuIds: [...checkedIds.value] })
       syncSavedBaseline()
       uni.showToast({ title: '权限已保存', icon: 'success' })
-      leaveFormPageAfterSave('/pages-sub/system/role/index')
+      setTimeout(() => uni.navigateBack(), 400)
     } finally {
       saving.value = false
     }

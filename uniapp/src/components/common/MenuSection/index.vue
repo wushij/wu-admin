@@ -14,6 +14,7 @@ defineProps<{
 </script>
 
 <style lang="scss" scoped>
+@import '@/styles/variables.scss';
 
 .menu-section {
   margin-bottom: $section-gap;

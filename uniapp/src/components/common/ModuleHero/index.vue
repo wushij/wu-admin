@@ -62,6 +62,7 @@ const themeClass = computed(() => (props.theme === 'default' ? '' : `module-hero
 
 <style lang="scss" scoped>
 
+@import '@/styles/mixins.scss';
 
 
 
@@ -128,14 +129,6 @@ const themeClass = computed(() => (props.theme === 'default' ? '' : `module-hero
 .module-hero--monitor {
 
   background: linear-gradient(135deg, #4338ca 0%, #6366f1 55%, #14b8a6 100%);
-
-}
-
-
-
-.module-hero--log {
-
-  background: linear-gradient(135deg, #d97706 0%, #f59e0b 100%);
 
 }
 

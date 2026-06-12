@@ -15,22 +15,14 @@
         @click="emit('update:modelValue', tab.key)"
       >
         <text class="segment-tabs__label">{{ tab.label }}</text>
-        <view v-if="tab.dot" class="segment-tabs__dot" />
-        <view v-else-if="tab.badge && tab.badge > 0" class="segment-tabs__badge">
+        <view v-if="tab.badge && tab.badge > 0" class="segment-tabs__badge">
           {{ tab.badge > 99 ? '99+' : tab.badge }}
         </view>
       </view>
     </view>
   </scroll-view>
 
-  <view
-    v-else
-    class="segment-tabs"
-    :class="{
-      'segment-tabs--compact': compact,
-      'segment-tabs--teal': theme === 'teal',
-    }"
-  >
+  <view v-else class="segment-tabs" :class="{ 'segment-tabs--compact': compact }">
     <view
       v-for="tab in tabs"
       :key="tab.key"
@@ -39,8 +31,7 @@
       @click="emit('update:modelValue', tab.key)"
     >
       <text class="segment-tabs__label">{{ tab.label }}</text>
-      <view v-if="tab.dot" class="segment-tabs__dot" />
-      <view v-else-if="tab.badge && tab.badge > 0" class="segment-tabs__badge">
+      <view v-if="tab.badge && tab.badge > 0" class="segment-tabs__badge">
         {{ tab.badge > 99 ? '99+' : tab.badge }}
       </view>
     </view>
@@ -51,36 +42,33 @@
 withDefaults(
   defineProps<{
     modelValue: string
-    tabs: Array<{ key: string; label: string; badge?: number; dot?: boolean }>
+    tabs: Array<{ key: string; label: string; badge?: number }>
     compact?: boolean
     scroll?: boolean
-    theme?: 'default' | 'teal'
   }>(),
-  { compact: false, scroll: false, theme: 'default' },
+  { compact: false, scroll: false },
 )
 
 const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
 </script>
 
 <style lang="scss" scoped>
+@import '@/styles/variables.scss';
 
 .segment-tabs-scroll {
   width: 100%;
-  height: 92rpx;
   margin-bottom: 24rpx;
   white-space: nowrap;
 }
 
 .segment-tabs {
   display: flex;
-  gap: 12rpx;
-  padding: 10rpx;
+  gap: 8rpx;
+  padding: 8rpx;
   border-radius: $radius-lg;
   background: $color-bg-card;
   border: 1px solid $color-border-light;
   box-shadow: $shadow-card;
-  width: 100%;
-  box-sizing: border-box;
 }
 
 .segment-tabs--compact {
@@ -100,7 +88,6 @@ const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
 }
 
 .segment-tabs__item {
-  position: relative;
   flex: 1;
   display: flex;
   align-items: center;
@@ -131,16 +118,6 @@ const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
   text-align: center;
 }
 
-.segment-tabs__dot {
-  position: absolute;
-  top: 10rpx;
-  right: 16rpx;
-  width: 14rpx;
-  height: 14rpx;
-  border-radius: 50%;
-  background: #fa5151;
-}
-
 .segment-tabs__item--active {
   background: linear-gradient(135deg, #4f46e5, #6366f1);
 
@@ -153,15 +130,5 @@ const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
     background: rgba(255, 255, 255, 0.92);
     color: #ef4444;
   }
-
-  .segment-tabs__dot {
-    background: #fa5151;
-    box-shadow: 0 0 0 2rpx rgba(255, 255, 255, 0.95);
-  }
-}
-
-.segment-tabs--teal .segment-tabs__item--active {
-  background: linear-gradient(135deg, #14b8a6, #2dd4bf);
-  box-shadow: 0 8rpx 20rpx rgba(20, 184, 166, 0.28);
 }
 </style>

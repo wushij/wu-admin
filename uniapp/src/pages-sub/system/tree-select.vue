@@ -79,19 +79,13 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { onLoad, onShow } from '@dcloudio/uni-app'
+import { onLoad } from '@dcloudio/uni-app'
 import ListLoading from '@/components/common/ListLoading/index.vue'
 import PageFooter from '@/components/common/PageFooter/index.vue'
 import IconFont from '@/components/common/IconFont/index.vue'
 import { useTreeSelectPage } from '@/composables/useTreeSelectPage'
 import { setPagePickerResult } from '@/utils/page-picker-result'
 import { getTreeSelectPostIds, getTreeSelectDeptIds } from '@/utils/tree-select-init'
-import { getFromQueryParent } from '@/utils/nav-from'
-import { registerPageShallowFallback, installH5ShallowStackTrapIfNeeded } from '@/utils/navigate-back'
-import { pinNavParent } from '@/utils/nav-history'
-import { scheduleSyncH5BackButton } from '@/store/h5-back-button'
-
-const USER_LIST_URL = '/pages-sub/system/user/index'
 
 const panelTitle = ref('选择部门')
 const pickKind = ref('dept')
@@ -155,15 +149,6 @@ function confirm() {
   uni.navigateBack()
 }
 
-onShow(() => {
-  const from = getFromQueryParent()
-  const parent = from || USER_LIST_URL
-  registerPageShallowFallback(parent)
-  pinNavParent(parent)
-  installH5ShallowStackTrapIfNeeded()
-  scheduleSyncH5BackButton()
-})
-
 onLoad((options) => {
   pickKind.value = String(options?.type || 'dept')
   panelTitle.value = decodeURIComponent(String(options?.title || (pickKind.value === 'post' ? '选择岗位' : '选择部门')))
@@ -207,7 +192,8 @@ onLoad((options) => {
 </script>
 
 <style lang="scss" scoped>
-@use '@/styles/common.scss' as *;
+@import '@/styles/variables.scss';
+@import '@/styles/common.scss';
 
 .tree-select-page {
   height: 100vh;

@@ -5,9 +5,6 @@ export interface SiteConfig {
   loginWelcome?: string
   registerTitle?: string
   copyright?: string
-  icpEnabled?: boolean
-  icpNumber?: string
-  icpUrl?: string
 }
 
 export interface LoginConfig {
@@ -15,11 +12,8 @@ export interface LoginConfig {
   captchaType?: string
   smsLoginEnabled?: boolean
   smsLoginSliderCaptchaEnabled?: boolean
-  emailLoginEnabled?: boolean
-  emailLoginSliderCaptchaEnabled?: boolean
   rememberMe?: boolean
   smsEnabled?: boolean
-  emailEnabled?: boolean
 }
 
 export interface RegisterConfig {
@@ -34,11 +28,8 @@ export interface LoginAdminConfig {
   captchaType: string
   smsLoginEnabled: boolean
   smsLoginSliderCaptchaEnabled: boolean
-  emailLoginEnabled?: boolean
-  emailLoginSliderCaptchaEnabled?: boolean
   rememberMe: boolean
   maxRetryCount: number
-  maxRetryCountIp: number
   lockTime: number
 }
 
@@ -49,7 +40,6 @@ export interface RegisterAdminConfig {
   defaultRoleCode: string
   needAudit: boolean
   minPasswordLength: number
-  auditorUserIds: number[]
 }
 
 export interface SiteAdminConfig {
@@ -58,24 +48,15 @@ export interface SiteAdminConfig {
   loginWelcome: string
   registerTitle: string
   copyright: string
-  icpEnabled: boolean
-  icpNumber: string
-  icpUrl: string
 }
 
 export interface SessionAdminConfig {
   tokenExpireHours: number
-  sessionSignExpireHours: number
 }
 
 export interface SecurityAdminConfig {
   disableDevtool: boolean
   isConcurrent: boolean
-  sm4EncryptEnabled?: boolean
-  sm2SignEnabled?: boolean
-  timestampEnabled?: boolean
-  nonceEnabled?: boolean
-  sm4SecretKey?: string
 }
 
 export interface SmsAdminConfig {
@@ -107,22 +88,6 @@ export interface RateLimitConfig {
   smsSendIntervalSeconds: number
   smsPerPhoneDaily: number
   smsPerIpDaily: number
-  /** AI 对话：单用户每分钟请求次数上限（0 表示不限制） */
-  aiChatPerUserMinute: number
-}
-
-/** AI 对话角色级每日 token 配额项 */
-export interface RoleTokenQuota {
-  roleId: number
-  tokensDaily: number
-}
-
-export interface AiAdminConfig {
-  assistantEnabled?: boolean
-  globalKnowledge: string
-  answerScope: 'focus' | 'open'
-  tokensPerUserDaily: number
-  roleTokenQuotas: RoleTokenQuota[]
 }
 
 export interface ThirdPartyOAuthConfig {
@@ -169,25 +134,10 @@ export interface PaymentConfig {
   alipay: AlipayPayConfig
 }
 
-export interface SecurityPublicConfig {
-  disableDevtool?: boolean
-  /** 是否启用接口 SM4 加密 */
-  sm4EncryptEnabled?: boolean
-  /** 是否启用接口 HMAC-SM3 签名（sm2SignEnabled 为历史开关名） */
-  sm2SignEnabled?: boolean
-  sm3SignEnabled?: boolean
-}
-
-export interface AiPublicConfig {
-  assistantEnabled?: boolean
-}
-
 export interface AuthPublicConfig {
   site?: SiteConfig
   login?: LoginConfig
   register?: RegisterConfig
-  security?: SecurityPublicConfig
-  ai?: AiPublicConfig
 }
 
 export interface SmsLogRecord {
@@ -200,44 +150,10 @@ export interface SmsLogRecord {
   createTime?: string
 }
 
-export interface EmailLogRecord {
-  id?: number
-  email?: string
-  subject?: string
-  content?: string
-  scene?: string
-  provider?: string
-  status?: number
-  resultMsg?: string
-  ip?: string
-  createTime?: string
-}
-
 export interface PayOrderRecord {
   orderNo?: string
   status?: string
   amount?: number
-}
-
-export interface EmailAdminConfig {
-  enabled: boolean
-  provider: 'qq' | '163' | 'gmail' | 'custom'
-  host: string
-  port: number
-  username: string
-  password: string
-  fromName: string
-  authEnabled: boolean
-  securityType: 'SSL' | 'TLS' | 'STARTTLS' | 'NONE'
-  connectionTimeoutMs: number
-  timeoutMs: number
-  writeTimeoutMs: number
-  encoding: string
-  debug: boolean
-  codeExpireMinutes: number
-  codeLength: number
-  dailyLimitPerEmail: number
-  sendIntervalSeconds: number
 }
 
 export type ConfigGroupCode =
@@ -250,6 +166,4 @@ export type ConfigGroupCode =
   | 'thirdParty'
   | 'payment'
   | 'sms'
-  | 'email'
   | 'security'
-  | 'ai'

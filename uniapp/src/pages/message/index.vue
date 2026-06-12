@@ -44,7 +44,6 @@
             class="message-item"
             :class="{ 'message-item--unread': item.readStatus === 0 }"
             @click="onInboxTap(item)"
-            @longpress="onInboxLongPress(item)"
           >
             <MessageListIcon icon="notes-o" theme="inbox" />
             <view class="message-item__body">
@@ -84,16 +83,16 @@
               </view>
               <text class="message-item__desc">{{ chatDesc(item) }}</text>
             </view>
-            <view v-if="item.badge" class="message-item__badge" :class="{ 'message-item__badge--at': item.atMe }">
-              {{ item.atMe ? '@' : (item.badge > 99 ? '99+' : item.badge) }}
-            </view>
+            <view v-if="item.badge" class="message-item__badge">{{ item.badge > 99 ? '99+' : item.badge }}</view>
           </view>
           <EmptyState v-if="!chatSessions.length" title="暂无会话" icon="chat-o" />
         </template>
       </view>
 
       <view v-if="hasPreview && !loading" class="message-hub__more card--elevated" @click="goList">
-        <ModuleIcon :icon="moreIcon" :theme="moreTheme" size="ml" />
+        <view class="message-hub__more-icon" :class="`message-hub__more-icon--${mode}`">
+          <IconFont :name="moreIcon" :size="32" color="#ffffff" />
+        </view>
         <view class="message-hub__more-body">
           <text class="message-hub__more-title">{{ moreTitle }}</text>
           <text class="message-hub__more-sub">{{ moreSub }}</text>
@@ -108,7 +107,6 @@
       description="请联系管理员分配消息相关权限"
       icon="chat-o"
     />
-    <AppDialogHost />
   </PageTabShell>
 </template>
 
@@ -120,15 +118,11 @@ import SegmentTabs from '@/components/common/SegmentTabs/index.vue'
 import ListLoading from '@/components/common/ListLoading/index.vue'
 import EmptyState from '@/components/common/EmptyState/index.vue'
 import IconFont from '@/components/common/IconFont/index.vue'
-import ModuleIcon from '@/components/common/ModuleIcon/index.vue'
 import MessageListIcon from '@/components/business/MessageListIcon/index.vue'
 import ChatAvatar from '@/components/business/ChatAvatar/index.vue'
-import AppDialogHost from '@/components/common/AppDialogHost/index.vue'
 import { useMessageTab, type ChatSessionPreview } from '@/composables/useMessageTab'
 import { useTabBarPage } from '@/composables/useTabBarPage'
 import { openInboxItem, inboxBizLabel } from '@/utils/inbox-nav'
-import { showConfirm } from '@/utils/app-dialog'
-import { deleteNotice } from '@/api/system/notice'
 import type { IconName } from '@/constants/iconfont'
 import type { NoticeVO } from '@/types/message'
 
@@ -187,31 +181,12 @@ const moreIcon = computed((): IconName => {
   return 'chat-o'
 })
 
-const moreTheme = computed(() => {
-  if (mode.value === 'announce') return 'notice'
-  if (mode.value === 'inbox') return 'inbox'
-  return 'monitor'
-})
-
 function goAnnounceDetail(id: number) {
   uni.navigateTo({ url: `/pages-sub/msg/announce/detail?id=${id}` })
 }
 
 function onInboxTap(item: NoticeVO) {
   openInboxItem(item)
-}
-
-async function onInboxLongPress(item: NoticeVO) {
-  const { confirmed } = await showConfirm({
-    title: '删除消息',
-    content: '确定删除该条业务消息？',
-    tone: 'danger',
-    confirmText: '删除',
-  })
-  if (!confirmed) return
-  await deleteNotice(item.id)
-  uni.showToast({ title: '已删除', icon: 'success' })
-  await refresh()
 }
 
 function goChat(item: ChatSessionPreview) {
@@ -237,6 +212,7 @@ onPullDownRefresh(async () => {
 </script>
 
 <style lang="scss" scoped>
+@import '@/styles/variables.scss';
 
 .message-hub__head {
   display: flex;
@@ -328,7 +304,6 @@ onPullDownRefresh(async () => {
   text-overflow: ellipsis;
   display: -webkit-box;
   -webkit-line-clamp: 2;
-  line-clamp: 2;
   -webkit-box-orient: vertical;
 }
 
@@ -356,18 +331,34 @@ onPullDownRefresh(async () => {
   text-align: center;
 }
 
-.message-item__badge--at {
-  min-width: 40rpx;
-  font-size: 24rpx;
-  font-weight: $font-weight-bold;
-}
-
 .message-hub__more {
   display: flex;
   align-items: center;
   gap: 20rpx;
   margin-top: 24rpx;
   padding: 24rpx 28rpx;
+}
+
+.message-hub__more-icon {
+  width: 72rpx;
+  height: 72rpx;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 20rpx;
+
+  &--announce {
+    background: linear-gradient(135deg, #f59e0b, #fbbf24);
+  }
+
+  &--inbox {
+    background: linear-gradient(135deg, #6366f1, #818cf8);
+  }
+
+  &--chat {
+    background: linear-gradient(135deg, #14b8a6, #2dd4bf);
+  }
 }
 
 .message-hub__more-body {

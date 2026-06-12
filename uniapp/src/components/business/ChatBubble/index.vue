@@ -22,22 +22,13 @@
         ]"
         @click="onBubbleClick"
       >
-        <view v-if="isImage && mediaUrl" class="chat-bubble__image-wrap">
-          <image
-            class="chat-bubble__image"
-            :class="{ 'chat-bubble__image--dim': isPending }"
-            :src="mediaUrl"
-            :style="imageDisplayStyle"
-            mode="scaleToFill"
-            @load="onImageLoad"
-          />
-          <view v-if="isPending" class="chat-bubble__image-mask">
-            <view class="chat-bubble__spinner" />
-          </view>
-          <view v-else-if="isFailed" class="chat-bubble__image-mask chat-bubble__image-mask--failed">
-            <text class="chat-bubble__failed-text">发送失败</text>
-          </view>
-        </view>
+        <image
+          v-if="isImage && mediaUrl"
+          class="chat-bubble__image"
+          :src="mediaUrl"
+          mode="widthFix"
+          @load="emit('media-loaded')"
+        />
         <view v-else-if="isFile && fileInfo" class="chat-bubble__file">
           <text class="chat-bubble__file-icon">📎</text>
           <text class="chat-bubble__file-name">{{ fileInfo.name }}</text>
@@ -49,7 +40,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed } from 'vue'
 import ChatAvatar from '@/components/business/ChatAvatar/index.vue'
 import { CHAT_MSG_TYPE } from '@/constants/chat'
 import { fileDisplayUrl } from '@/api/system/file/index'
@@ -58,13 +49,12 @@ import {
   isRecalledMessage,
   resolveMediaUrl,
   getFileInfo,
-  resolveEffectiveMsgType,
 } from '@/utils/chat-message'
 import type { ChatMessage } from '@/types/message'
 
 const props = withDefaults(
   defineProps<{
-    message: Pick<ChatMessage, 'content' | 'msgType' | 'senderAvatar' | 'localPreview' | 'sendStatus'>
+    message: Pick<ChatMessage, 'content' | 'msgType' | 'senderAvatar'>
     self?: boolean
     senderName?: string
     avatar?: string
@@ -80,42 +70,13 @@ const showAvatar = computed(() => !recalled.value)
 const showSenderLabel = computed(
   () => props.mode === 'group' && !props.self && !!props.senderName?.trim(),
 )
-const isImage = computed(() => resolveEffectiveMsgType(props.message) === CHAT_MSG_TYPE.IMAGE)
-const isFile = computed(() => resolveEffectiveMsgType(props.message) === CHAT_MSG_TYPE.FILE)
-const isPending = computed(() => props.message.sendStatus === 'pending')
-const isFailed = computed(() => props.message.sendStatus === 'failed')
+const isImage = computed(() => (props.message.msgType ?? CHAT_MSG_TYPE.TEXT) === CHAT_MSG_TYPE.IMAGE)
+const isFile = computed(() => (props.message.msgType ?? CHAT_MSG_TYPE.TEXT) === CHAT_MSG_TYPE.FILE)
 const mediaUrl = computed(() => (isImage.value ? resolveMediaUrl(props.message) : ''))
 const fileInfo = computed(() => getFileInfo(props.message))
 const text = computed(() => previewMessageText(props.message))
 
-const IMAGE_MAX_RPX = 320
-const imageDisplayStyle = ref<Record<string, string>>({})
-
-watch(
-  () => mediaUrl.value,
-  () => {
-    imageDisplayStyle.value = {}
-  },
-)
-
-function onImageLoad(e: { detail?: { width?: string | number; height?: string | number } }) {
-  const width = Number(e.detail?.width) || 0
-  const height = Number(e.detail?.height) || 0
-  if (!width || !height) {
-    emit('media-loaded')
-    return
-  }
-  const maxPx = uni.upx2px(IMAGE_MAX_RPX)
-  const scale = Math.min(maxPx / width, maxPx / height, 1)
-  imageDisplayStyle.value = {
-    width: `${Math.round(width * scale)}px`,
-    height: `${Math.round(height * scale)}px`,
-  }
-  emit('media-loaded')
-}
-
 function onBubbleClick() {
-  if (isPending.value) return
   if (isImage.value && mediaUrl.value) {
     uni.previewImage({ urls: [mediaUrl.value] })
     return
@@ -140,6 +101,7 @@ function onBubbleClick() {
 </script>
 
 <style lang="scss" scoped>
+@import '@/styles/variables.scss';
 
 /* 对齐 PC：DOM 顺序始终 [头像][气泡]，自己消息 row-reverse + margin-left:auto */
 .chat-bubble-row {
@@ -174,7 +136,7 @@ function onBubbleClick() {
 }
 
 .chat-bubble-wrap {
-  max-width: 100%;
+  flex: 1;
   min-width: 0;
 }
 
@@ -192,8 +154,6 @@ function onBubbleClick() {
 }
 
 .chat-bubble {
-  display: inline-block;
-  max-width: 100%;
   padding: 18rpx 24rpx;
   border-radius: $radius-sm;
   font-size: $font-size-base;
@@ -203,28 +163,8 @@ function onBubbleClick() {
 
 .chat-bubble--image,
 .chat-bubble--file {
-  padding: 0;
-  background: transparent !important;
-  box-shadow: none;
-}
-
-.chat-bubble--other.chat-bubble--file {
   padding: 8rpx;
-  background: $color-chat-bubble-other !important;
-  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.04);
-}
-
-.chat-bubble--self.chat-bubble--file {
-  padding: 8rpx;
-  background: $color-chat-bubble-self !important;
-}
-
-.chat-bubble--self.chat-bubble--image,
-.chat-bubble--other.chat-bubble--image {
-  padding: 0;
-  background: transparent !important;
-  box-shadow: none;
-  border-radius: 0;
+  background: #ededed !important;
 }
 
 .chat-bubble--other {
@@ -249,56 +189,9 @@ function onBubbleClick() {
   border-radius: 8rpx;
 }
 
-.chat-bubble__image-wrap {
-  position: relative;
-  display: inline-block;
-  line-height: 0;
-}
-
 .chat-bubble__image {
-  display: block;
-  max-width: 320rpx;
-  max-height: 320rpx;
-  border-radius: 8rpx;
-  vertical-align: top;
-}
-
-.chat-bubble__image--dim {
-  opacity: 0.88;
-}
-
-.chat-bubble__image-mask {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 8rpx;
-  background: rgba(0, 0, 0, 0.28);
-}
-
-.chat-bubble__image-mask--failed {
-  background: rgba(0, 0, 0, 0.45);
-}
-
-.chat-bubble__spinner {
-  width: 48rpx;
-  height: 48rpx;
-  border: 4rpx solid rgba(255, 255, 255, 0.35);
-  border-top-color: #fff;
-  border-radius: 50%;
-  animation: chat-bubble-spin 0.8s linear infinite;
-}
-
-.chat-bubble__failed-text {
-  color: #fff;
-  font-size: 24rpx;
-}
-
-@keyframes chat-bubble-spin {
-  to {
-    transform: rotate(360deg);
-  }
+  max-width: 360rpx;
+  border-radius: $radius-sm;
 }
 
 .chat-bubble__file {

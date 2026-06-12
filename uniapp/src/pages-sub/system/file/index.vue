@@ -1,14 +1,21 @@
 <template>
   <PermissionBlock v-if="!allowed" />
   <view v-else class="file-page">
-    <ModuleDarkHero
-      title="文件管理"
-      subtitle="点击预览 · 更多操作下载或删除"
-      icon="coupon-o"
-      theme="file-store"
-      :count="total || list.length"
-      count-label="文件"
-    />
+    <view class="file-hero">
+      <view class="file-hero__main">
+        <view class="file-hero__icon">
+          <IconFont name="coupon-o" :size="40" color="#fff" />
+        </view>
+        <view class="file-hero__text">
+          <text class="file-hero__title">文件管理</text>
+          <text class="file-hero__sub">点击预览 · 更多操作下载或删除</text>
+        </view>
+      </view>
+      <view class="file-hero__stat">
+        <text class="file-hero__stat-num">{{ total || list.length }}</text>
+        <text class="file-hero__stat-label">文件</text>
+      </view>
+    </view>
 
     <view class="file-top">
       <SearchBar v-model="keyword" placeholder="搜索文件名" @search="onSearch" />
@@ -66,7 +73,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { onPullDownRefresh } from '@dcloudio/uni-app'
-import ModuleDarkHero from '@/components/common/ModuleDarkHero/index.vue'
 import IconFont from '@/components/common/IconFont/index.vue'
 import SearchBar from '@/components/common/SearchBar/index.vue'
 import ListFooter from '@/components/common/ListFooter/index.vue'
@@ -177,19 +183,83 @@ onPullDownRefresh(async () => {
 </script>
 
 <style lang="scss" scoped>
-@use '@/styles/common.scss' as *;
+@import '@/styles/variables.scss';
+@import '@/styles/common.scss';
 
 .file-page {
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
-  /* #ifdef H5 */
-  height: calc(100vh - var(--window-top, 0px));
-  /* #endif */
+  min-height: 100vh;
   box-sizing: border-box;
-  overflow: hidden;
-  padding: $page-padding-y $page-padding-x 0;
+  padding: $page-padding-y $page-padding-x;
   background: $color-bg-page;
+}
+
+.file-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+  margin-bottom: 20rpx;
+  padding: 28rpx 24rpx;
+  border-radius: $radius-xl;
+  background: linear-gradient(135deg, #7c3aed 0%, #8b5cf6 55%, #a78bfa 100%);
+  box-shadow: 0 16rpx 48rpx rgba(124, 58, 237, 0.2);
+}
+
+.file-hero__main {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  min-width: 0;
+  flex: 1;
+}
+
+.file-hero__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: $radius-lg;
+  background: rgba(255, 255, 255, 0.18);
+  flex-shrink: 0;
+}
+
+.file-hero__title {
+  display: block;
+  font-size: $font-size-lg;
+  font-weight: $font-weight-bold;
+  color: #fff;
+}
+
+.file-hero__sub {
+  display: block;
+  margin-top: 8rpx;
+  font-size: $font-size-xs;
+  color: rgba(255, 255, 255, 0.88);
+  line-height: 1.45;
+}
+
+.file-hero__stat {
+  flex-shrink: 0;
+  min-width: 88rpx;
+  padding: 12rpx 16rpx;
+  border-radius: $radius-md;
+  background: rgba(255, 255, 255, 0.16);
+  text-align: center;
+}
+
+.file-hero__stat-num {
+  display: block;
+  font-size: 32rpx;
+  font-weight: $font-weight-bold;
+  color: #fff;
+}
+
+.file-hero__stat-label {
+  display: block;
+  margin-top: 4rpx;
+  font-size: 18rpx;
+  color: rgba(255, 255, 255, 0.82);
 }
 
 .file-top {
@@ -197,12 +267,7 @@ onPullDownRefresh(async () => {
 }
 
 .file-page__scroll {
-  flex: 1;
-  min-height: 0;
-
-  :deep(.uni-scroll-view-content) {
-    padding-bottom: calc(160rpx + env(safe-area-inset-bottom));
-  }
+  height: calc(100vh - 320rpx);
 }
 
 .file-list {

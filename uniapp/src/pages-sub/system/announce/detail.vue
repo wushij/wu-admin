@@ -65,7 +65,6 @@ import { useModulePermission } from '@/composables/useModulePermission'
 import { buildDeptLabels, buildDeptNodeMaps } from '@/utils/dept-tree'
 import { formatDateTime } from '@/utils/format'
 import { showConfirm } from '@/utils/app-dialog'
-import { navigateToFallback } from '@/utils/navigate-back'
 import type { AnnounceVO } from '@/types/message'
 
 const loading = ref(true)
@@ -152,9 +151,7 @@ async function onDelete() {
   if (!confirmed) return
   await deleteAnnounce(announceId.value)
   uni.showToast({ title: '已删除', icon: 'success' })
-  setTimeout(() => {
-    navigateToFallback('/pages-sub/system/announce/index')
-  }, 400)
+  setTimeout(() => uni.navigateBack(), 400)
 }
 
 onLoad((options) => {
@@ -164,7 +161,8 @@ onLoad((options) => {
 </script>
 
 <style lang="scss" scoped>
-@use '@/styles/common.scss' as *;
+@import '@/styles/variables.scss';
+@import '@/styles/common.scss';
 
 .announce-detail-page {
   min-height: 100vh;

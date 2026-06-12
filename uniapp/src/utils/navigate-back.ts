@@ -6,13 +6,8 @@ import {
   navigateToParent,
   resolveBackTarget,
   resolveInferredParent,
-  pinNavParent,
-  ensureNavParent,
 } from '@/utils/nav-history'
 import { getFromQueryParent, isPickerRoute } from '@/utils/nav-from'
-import { scheduleSyncH5BackButton } from '@/store/h5-back-button'
-import { dialogState, forceCollapseOverlayHistory } from '@/store/dialog'
-import { shouldSuppressPopstate, suppressPopstate } from '@/utils/nav-transition'
 
 const TAB_PAGES = new Set([
   '/pages/index/index',
@@ -78,8 +73,13 @@ const fallbackByRoute = new Map<string, string>()
 
 let trapRoute = ''
 let handlingShallowBack = false
+let skipNextPopstate = false
+
 export function markNativeNavigateBack() {
-  suppressPopstate()
+  skipNextPopstate = true
+  setTimeout(() => {
+    skipNextPopstate = false
+  }, 400)
 }
 
 export function isAuthRoute(route: string) {
@@ -99,7 +99,6 @@ export function getActiveRoutePath(): string {
 export function registerPageShallowFallback(fallbackUrl: string) {
   const route = getCurrentRoute()
   if (route) fallbackByRoute.set(route, fallbackUrl)
-  pinNavParent(fallbackUrl)
 }
 
 /** 根据 route 推断上一级（扩展规则，供非 H5 或兜底） */
@@ -128,13 +127,10 @@ export function resolveFallbackForRoute(route: string): string {
     'pages-sub/system/dict/data-form': '/pages-sub/system/dict/index',
     'pages-sub/system/announce/detail': '/pages-sub/system/announce/index',
     'pages-sub/system/announce/form': '/pages-sub/system/announce/index',
-    'pages-sub/system/ticket/create': '/pages-sub/system/ticket/index',
-    'pages-sub/system/approval/create': '/pages-sub/system/approval/index',
     'pages-sub/system/file/preview': '/pages-sub/system/file/index',
     'pages-sub/system/user/detail': '/pages-sub/system/user/index',
+    'pages-sub/system/user/edit': '/pages-sub/system/user/index',
     'pages-sub/system/user/index': '/pages/work/index',
-    'pages-sub/mine/mobile-bind': '/pages-sub/mine/profile',
-    'pages-sub/mine/profile': '/pages/mine/index',
     'pages-sub/log/oper-log': '/pages/work/index',
     'pages-sub/log/login-log': '/pages/work/index',
   }
@@ -197,19 +193,7 @@ export function installH5ShallowStackTrapIfNeeded() {
   if (window.history.state?.wuAdminShallowTrap && window.history.state?.route === route) return
 
   trapRoute = route
-  const currentState = window.history.state || {}
-  // 1. 将当前页面（刷新后的初始帧）通过 replaceState 标注为 Base 帧
-  window.history.replaceState(
-    { ...currentState, wuAdminShallowTrap: 'base', route, fallback },
-    '',
-    window.location.href
-  )
-  // 2. 向上 pushState 压入 Top 顶层帧，确保手机右滑/返回时弹退至 Base 帧而非直接退出应用
-  window.history.pushState(
-    { ...currentState, wuAdminShallowTrap: 'top', route, fallback },
-    '',
-    window.location.href
-  )
+  window.history.pushState({ wuAdminShallowTrap: 1, route, fallback }, '', window.location.href)
 }
 
 function clearTrapRoute() {
@@ -223,21 +207,18 @@ function clearTrapRoute() {
 }
 
 export function handleGlobalBackPress(): boolean {
-  if (handlingShallowBack || formLeaveInProgress) return true
+  if (handlingShallowBack) return true
   if (!hasToken()) return false
   if (getCurrentPages().length > 1) return false
 
   const route = getCurrentRoute()
   if (!route || isAuthRoute(route)) return false
 
+  handlingShallowBack = true
+  navigateToParent()
   setTimeout(() => {
-    if (handlingShallowBack) return
-    handlingShallowBack = true
-    navigateToParent()
-    setTimeout(() => {
-      handlingShallowBack = false
-    }, 400)
-  }, 0)
+    handlingShallowBack = false
+  }, 400)
   return true
 }
 
@@ -246,114 +227,50 @@ function performShallowBack() {
   handlingShallowBack = true
   const fallback = readShallowBackTarget()
   clearTrapRoute()
-  
-  const target = normalizePageUrl(fallback)
-  const path = pathOnly(target)
-
-  const finish = () => {
+  navigateToFallback(fallback, { rebuildStack: needsStackRebuild(fallback) })
+  setTimeout(() => {
     handlingShallowBack = false
-    scheduleSyncH5BackButton()
-  }
-
-  if (TAB_PAGES.has(path)) {
-    uni.switchTab({
-      url: path,
-      complete: finish,
-    })
-  } else {
-    uni.reLaunch({
-      url: target,
-      complete: finish,
-    })
-  }
+  }, 400)
 }
 
 export function handleShallowStackPopstate() {
-  if (typeof window === 'undefined' || handlingShallowBack || formLeaveInProgress) return
+  if (typeof window === 'undefined' || handlingShallowBack) return
 
-  const route = getCurrentRoute()
-  const normalizedRoute = route ? pathOnly(route) : ''
-
-  if (normalizedRoute && TAB_PAGES.has(normalizedRoute)) {
-    clearTrapRoute()
+  const path = getActiveRoutePath()
+  if (hasToken() && path && isAuthRoute(path)) {
+    performShallowBack()
     return
   }
-
   if (!hasToken()) {
     clearTrapRoute()
     return
   }
-
-  if (window.history.state?.wuAdminShallowTrap === 'base' || getCurrentPages().length <= 1) {
-    performShallowBack()
-  }
-}
-
-function isFormChildRoute(route: string): boolean {
-  const normalized = route.replace(/^\//, '').split('?')[0]
-  const last = normalized.split('/').pop() || ''
-  return (
-    last === 'create' ||
-    last === 'edit' ||
-    last === 'form' ||
-    last.endsWith('-form')
-  )
-}
-
-/** 新建/编辑表单页：离开时应 redirect 到列表，避免 H5 历史栈残留 */
-export function isFormChildLeaveRoute(route?: string): boolean {
-  return isFormChildRoute(route || getCurrentRoute())
-}
-
-let formLeaveInProgress = false
-
-export function isFormLeaveActive() {
-  return formLeaveInProgress
-}
-
-function prepareFormPageLeave(collapseOverlay = false) {
-  clearTrapRoute()
-  suppressPopstate(1000)
-  dialogState.historyLocked = false
-  if (collapseOverlay) forceCollapseOverlayHistory()
-  formLeaveInProgress = true
-  setTimeout(() => {
-    formLeaveInProgress = false
-  }, 1000)
-}
-
-function formLeaveToParent(fallbackUrl: string, collapseOverlay = false) {
-  prepareFormPageLeave(collapseOverlay)
-  const target = normalizePageUrl(fallbackUrl)
-  uni.redirectTo({
-    url: target,
-    complete: () => scheduleSyncH5BackButton(),
-    fail: () => uni.reLaunch({ url: target, complete: () => scheduleSyncH5BackButton() }),
-  })
-}
-
-/** 表单保存成功后回到列表页（H5 浅栈下 redirect 比 navigateBack 更可靠） */
-export function leaveFormPageAfterSave(fallbackUrl: string, delayMs = 400) {
-  setTimeout(() => safeNavigateBack(fallbackUrl), delayMs)
-}
-
-export function safeNavigateBack(fallbackUrl?: string, options?: { collapseOverlay?: boolean }) {
-  const route = getCurrentRoute()
-
-  if (fallbackUrl && isFormChildRoute(route)) {
-    formLeaveToParent(fallbackUrl, options?.collapseOverlay ?? false)
+  if (getCurrentPages().length > 1) {
+    clearTrapRoute()
     return
   }
 
+  const route = getCurrentRoute()
+  if (!route || isAuthRoute(route)) return
+  if (skipNextPopstate) {
+    clearTrapRoute()
+    return
+  }
+
+  clearTrapRoute()
+  handlingShallowBack = true
+  navigateToParent()
+  setTimeout(() => {
+    handlingShallowBack = false
+  }, 400)
+}
+
+export function safeNavigateBack(fallbackUrl?: string) {
   const pages = getCurrentPages()
   if (pages.length > 1) {
     uni.navigateBack({
       fail: () => {
-        if (fallbackUrl) {
-          navigateToFallback(fallbackUrl)
-        } else {
-          navigateToParent()
-        }
+        if (fallbackUrl) navigateToFallback(fallbackUrl)
       },
     })
     return
@@ -428,25 +345,19 @@ function rebuildStackAndOpen(parentUrl: string, targetUrl: string) {
 export function navigateToFallback(url: string, options?: { rebuildStack?: boolean }) {
   const target = normalizePageUrl(url)
   const path = pathOnly(url)
-  const finish = () => scheduleSyncH5BackButton()
   if (TAB_PAGES.has(path)) {
-    suppressPopstate()
-    uni.switchTab({ url: path, complete: finish })
+    uni.switchTab({ url: path })
     return
   }
   if (options?.rebuildStack) {
     const route = path.replace(/^\//, '')
     const parentPath = resolveFallbackForRoute(route)
-    suppressPopstate()
     rebuildStackAndOpen(parentPath, target)
-    finish()
     return
   }
-  suppressPopstate()
   uni.redirectTo({
     url: target,
-    complete: finish,
-    fail: () => uni.reLaunch({ url: target, complete: finish }),
+    fail: () => uni.reLaunch({ url: target }),
   })
 }
 
@@ -455,13 +366,7 @@ export function patchNavigateBackFail(args?: { fail?: (err: unknown) => void }) 
   if (!route || !args) return
   const origFail = args.fail
   args.fail = (err: unknown) => {
-    if (getCurrentPages().length > 1) {
-      const currentUrl = getCurrentPageUrl()
-      ensureNavParent(route, currentUrl)
-      navigateToFallback(resolveBackTarget(route, currentUrl))
-    } else {
-      navigateToParent()
-    }
+    navigateToParent()
     origFail?.(err)
   }
 }

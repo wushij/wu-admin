@@ -64,8 +64,10 @@ export function runJob(id: number) {
 
 
 
-export function cleanJobLogs(params?: { jobName?: string; jobGroup?: string }) {
-  return del<boolean>('/monitor/job/log/clean', { params })
+export function cleanJobLogs() {
+
+  return del<boolean>('/monitor/job/log/clean')
+
 }
 
 
@@ -89,24 +91,6 @@ export function restoreJob(id: number) {
 export function deleteJobPermanent(id: number) {
 
   return del<boolean>('/monitor/job/delete-permanent', { params: { id } })
-
-}
-
-export function getRecycleJobLogPage(params: Record<string, unknown>) {
-
-  return get<PageResult<SysJobLog>>('/monitor/job/log/recycle/page', params)
-
-}
-
-export function restoreJobLog(id: number) {
-
-  return put<boolean>('/monitor/job/log/restore', null, { params: { id } })
-
-}
-
-export function deleteJobLogPermanent(id: number) {
-
-  return del<boolean>('/monitor/job/log/delete-permanent', { params: { id } })
 
 }
 

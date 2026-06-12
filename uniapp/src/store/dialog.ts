@@ -11,8 +11,6 @@ export interface ConfirmOptions {
   editable?: boolean
   placeholderText?: string
   inputType?: 'text' | 'password'
-  showCancel?: boolean
-  contentAlign?: 'left' | 'center'
 }
 
 export interface ConfirmResult {
@@ -57,7 +55,6 @@ export const dialogState = reactive<DialogState>({
 })
 
 let suppressNextPopstate = false
-let pendingConfirm: Promise<ConfirmResult> | null = null
 
 export function consumeSuppressedPopstate() {
   if (!suppressNextPopstate) return false
@@ -82,20 +79,6 @@ export function syncDialogHistoryAfterClose() {
   // #endif
 }
 
-/** 表单页确认离开前：清掉选项/确认弹层残留的 H5 history 条目 */
-export function forceCollapseOverlayHistory() {
-  // #ifdef H5
-  if (typeof window === 'undefined') return
-  dialogState.historyLocked = false
-  let guard = 0
-  while (history.state?.wuAdminDialog && guard < 4) {
-    suppressNextPopstate = true
-    history.back()
-    guard += 1
-  }
-  // #endif
-}
-
 /** 选中 ActionSheet 项后：只释放锁，不 history.back（H5 下 back 会触发 uni.navigateBack） */
 function releaseDialogHistorySoft() {
   // #ifdef H5
@@ -107,35 +90,23 @@ function releaseDialogHistorySoft() {
   // #endif
 }
 
-function dismissDialogHistory() {
-  releaseDialogHistorySoft()
-}
-
 function openDialogSurface() {
   lockDialogHistory()
 }
 
 export function showConfirm(options: ConfirmOptions): Promise<ConfirmResult> {
-  if (dialogState.confirmVisible && pendingConfirm) {
-    return pendingConfirm
-  }
-  pendingConfirm = new Promise((resolve) => {
+  return new Promise((resolve) => {
     dialogState.confirmOptions = {
       title: '提示',
       confirmText: '确定',
       cancelText: '取消',
       tone: 'default',
-      showCancel: true,
-      contentAlign: 'center',
       ...options,
     }
     dialogState.confirmInput = ''
     dialogState.confirmResolve = resolve
     dialogState.confirmVisible = true
     openDialogSurface()
-  })
-  return pendingConfirm.finally(() => {
-    pendingConfirm = null
   })
 }
 
@@ -147,7 +118,7 @@ export function resolveConfirm(confirmed: boolean, content?: string) {
   const resolveFn = dialogState.confirmResolve
   dialogState.confirmResolve = null
   dialogState.confirmInput = ''
-  dismissDialogHistory()
+  syncDialogHistoryAfterClose()
   resolveFn?.({
     confirmed,
     content: input,
@@ -164,7 +135,7 @@ export function showActionSheet(options: ActionSheetOptions): Promise<number> {
     dialogState.actionSheetResolve = resolve
     dialogState.actionSheetReject = reject
     dialogState.actionSheetVisible = true
-    // 选项层不 pushState，避免 H5 多次返回才退出；关闭由 onBackPress + closeTopAppDialog 处理
+    openDialogSurface()
   })
 }
 
@@ -173,6 +144,7 @@ export function resolveActionSheet(index: number) {
   const resolveFn = dialogState.actionSheetResolve
   dialogState.actionSheetResolve = null
   dialogState.actionSheetReject = null
+  releaseDialogHistorySoft()
   resolveFn?.(index)
 }
 
@@ -181,4 +153,5 @@ export function cancelActionSheet() {
   dialogState.actionSheetReject?.(new Error('cancel'))
   dialogState.actionSheetResolve = null
   dialogState.actionSheetReject = null
+  syncDialogHistoryAfterClose()
 }

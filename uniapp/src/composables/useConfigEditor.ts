@@ -3,19 +3,14 @@ import {
   getConfigGroup,
   updateConfigGroup,
   testSms,
-  testEmail,
   testPayment,
   getPayOrderStatus,
   getRecentSmsLogs,
   getSmsLogs,
-  getRecentEmailLogs,
 } from '@/api/system/config'
 import { getRoleList } from '@/api/system/role'
-import { getUserList } from '@/api/system/user'
 import type {
   ConfigGroupCode,
-  AiAdminConfig,
-  EmailAdminConfig,
   FileStorageConfig,
   LoginAdminConfig,
   PaymentConfig,
@@ -26,14 +21,12 @@ import type {
   SiteAdminConfig,
   SmsAdminConfig,
   SmsLogRecord,
-  EmailLogRecord,
   ThirdPartyConfig,
 } from '@/types/config-types'
 import type { RoleVO } from '@/types/system'
-import type { UserVO } from '@/types/user'
 
 const GROUP_CODES: ConfigGroupCode[] = [
-  'site', 'session', 'file', 'rateLimit', 'login', 'register', 'thirdParty', 'payment', 'sms', 'email', 'security', 'ai',
+  'site', 'session', 'file', 'rateLimit', 'login', 'register', 'thirdParty', 'payment', 'sms', 'security',
 ]
 
 const SITE_DEFAULTS: SiteAdminConfig = {
@@ -42,23 +35,17 @@ const SITE_DEFAULTS: SiteAdminConfig = {
   loginWelcome: 'Welcome',
   registerTitle: 'Sign Up',
   copyright: '',
-  icpEnabled: true,
-  icpNumber: '粤ICP备XXXXXXXX号-1',
-  icpUrl: 'https://beian.miit.gov.cn',
 }
 
-const SESSION_DEFAULTS: SessionAdminConfig = { tokenExpireHours: 24, sessionSignExpireHours: 24 }
+const SESSION_DEFAULTS: SessionAdminConfig = { tokenExpireHours: 24 }
 const SECURITY_DEFAULTS: SecurityAdminConfig = { disableDevtool: false, isConcurrent: false }
 const LOGIN_DEFAULTS: LoginAdminConfig = {
   captchaEnabled: true,
   captchaType: 'image',
   smsLoginEnabled: false,
   smsLoginSliderCaptchaEnabled: false,
-  emailLoginEnabled: false,
-  emailLoginSliderCaptchaEnabled: false,
   rememberMe: true,
   maxRetryCount: 5,
-  maxRetryCountIp: 20,
   lockTime: 10,
 }
 const REGISTER_DEFAULTS: RegisterAdminConfig = {
@@ -68,7 +55,6 @@ const REGISTER_DEFAULTS: RegisterAdminConfig = {
   defaultRoleCode: 'user',
   needAudit: false,
   minPasswordLength: 6,
-  auditorUserIds: [],
 }
 const SMS_DEFAULTS: SmsAdminConfig = {
   enabled: false,
@@ -85,26 +71,6 @@ const SMS_DEFAULTS: SmsAdminConfig = {
   schemeName: '',
   codeExpireMinutes: 5,
 }
-const EMAIL_DEFAULTS: EmailAdminConfig = {
-  enabled: true,
-  provider: 'qq',
-  host: 'smtp.qq.com',
-  port: 465,
-  username: '',
-  password: '',
-  fromName: 'wu-admin 系统团队',
-  authEnabled: true,
-  securityType: 'SSL',
-  connectionTimeoutMs: 5000,
-  timeoutMs: 5000,
-  writeTimeoutMs: 5000,
-  encoding: 'UTF-8',
-  debug: false,
-  codeExpireMinutes: 5,
-  codeLength: 6,
-  dailyLimitPerEmail: 20,
-  sendIntervalSeconds: 60,
-}
 const FILE_DEFAULTS: FileStorageConfig = {
   maxSizeMb: 50,
   allowedExtensions:
@@ -118,14 +84,6 @@ const RATE_DEFAULTS: RateLimitConfig = {
   smsSendIntervalSeconds: 60,
   smsPerPhoneDaily: 10,
   smsPerIpDaily: 30,
-  aiChatPerUserMinute: 8,
-}
-const AI_DEFAULTS: AiAdminConfig = {
-  assistantEnabled: true,
-  globalKnowledge: '',
-  answerScope: 'focus',
-  tokensPerUserDaily: 100000,
-  roleTokenQuotas: [],
 }
 const THIRD_DEFAULTS: ThirdPartyConfig = {
   wechat: { enabled: false, appId: '', appSecret: '' },
@@ -170,18 +128,11 @@ function parseConfig<T>(raw?: string, defaults?: T): T {
 function normalizeLogin(payload: LoginAdminConfig): LoginAdminConfig {
   let result = payload.captchaEnabled ? payload : { ...payload, captchaType: 'image' }
   if (!result.smsLoginEnabled) result = { ...result, smsLoginSliderCaptchaEnabled: false }
-  if (result.maxRetryCountIp === undefined) result = { ...result, maxRetryCountIp: 20 }
   return result
 }
 
-function normalizeRegisterAuditorIds(ids: unknown): number[] {
-  if (!Array.isArray(ids)) return []
-  return [...new Set(ids.map(Number).filter((id) => Number.isFinite(id) && id > 0))]
-}
-
 function normalizeRegister(payload: RegisterAdminConfig): RegisterAdminConfig {
-  const base = payload.captchaEnabled ? payload : { ...payload, captchaType: 'image' }
-  return { ...base, auditorUserIds: normalizeRegisterAuditorIds(base.auditorUserIds) }
+  return payload.captchaEnabled ? payload : { ...payload, captchaType: 'image' }
 }
 
 function normalizeSms(payload: SmsAdminConfig): SmsAdminConfig {
@@ -215,7 +166,6 @@ function mergeLoadedConfig<K extends ConfigGroupCode>(code: K, raw: string | und
     }
     if (login.smsLoginEnabled === undefined) login.smsLoginEnabled = false
     if (login.smsLoginSliderCaptchaEnabled === undefined) login.smsLoginSliderCaptchaEnabled = false
-    if (login.maxRetryCountIp === undefined) login.maxRetryCountIp = 20
     merged = login
   }
   if (code === 'sms') merged = normalizeSms(merged as SmsAdminConfig)
@@ -225,23 +175,7 @@ function mergeLoadedConfig<K extends ConfigGroupCode>(code: K, raw: string | und
     if (rl.smsSendIntervalSeconds === undefined) rl.smsSendIntervalSeconds = 60
     if (rl.smsPerPhoneDaily === undefined) rl.smsPerPhoneDaily = 10
     if (rl.smsPerIpDaily === undefined) rl.smsPerIpDaily = 30
-    if (rl.aiChatPerUserMinute === undefined) rl.aiChatPerUserMinute = 8
     merged = rl
-  }
-  if (code === 'ai') {
-    const ai = merged as AiAdminConfig
-    if (ai.assistantEnabled === undefined) ai.assistantEnabled = true
-    if (ai.answerScope !== 'open') ai.answerScope = 'focus'
-    if (typeof ai.tokensPerUserDaily !== 'number') ai.tokensPerUserDaily = 100000
-    ai.roleTokenQuotas = Array.isArray(ai.roleTokenQuotas)
-      ? ai.roleTokenQuotas
-          .filter((q) => q && Number(q.roleId) > 0)
-          .map((q) => ({ roleId: Number(q.roleId), tokensDaily: Number(q.tokensDaily) || 0 }))
-      : []
-    merged = ai
-  }
-  if (code === 'register') {
-    merged = normalizeRegister(merged as RegisterAdminConfig)
   }
   return merged
 }
@@ -252,11 +186,9 @@ export function useConfigEditor() {
   const smsTesting = ref(false)
   const paymentTesting = ref(false)
   const roleOptions = ref<RoleVO[]>([])
-  const userOptions = ref<UserVO[]>([])
   const testSmsPhone = ref('')
   const testSmsTemplate = ref('100001')
   const recentSmsLogs = ref<SmsLogRecord[]>([])
-  const recentEmailLogs = ref<EmailLogRecord[]>([])
   const smsLogsExpanded = ref(false)
   const smsLogsLoading = ref(false)
   const smsLogsList = ref<SmsLogRecord[]>([])
@@ -284,10 +216,8 @@ export function useConfigEditor() {
   const loginDraft = reactive<LoginAdminConfig>({ ...LOGIN_DEFAULTS })
   const registerDraft = reactive<RegisterAdminConfig>({ ...REGISTER_DEFAULTS })
   const smsDraft = reactive<SmsAdminConfig>({ ...SMS_DEFAULTS })
-  const emailDraft = reactive<EmailAdminConfig>({ ...EMAIL_DEFAULTS })
   const fileDraft = reactive<FileStorageConfig>({ ...FILE_DEFAULTS })
   const rateDraft = reactive<RateLimitConfig>({ ...RATE_DEFAULTS })
-  const aiDraft = reactive<AiAdminConfig>(clone(AI_DEFAULTS))
   const thirdDraft = reactive<ThirdPartyConfig>(clone(THIRD_DEFAULTS))
   const paymentDraft = reactive<PaymentConfig>(clone(PAYMENT_DEFAULTS))
 
@@ -298,12 +228,10 @@ export function useConfigEditor() {
     login: clone(LOGIN_DEFAULTS),
     register: clone(REGISTER_DEFAULTS),
     sms: clone(SMS_DEFAULTS),
-    email: clone(EMAIL_DEFAULTS),
     file: clone(FILE_DEFAULTS),
     rateLimit: clone(RATE_DEFAULTS),
     thirdParty: clone(THIRD_DEFAULTS),
     payment: clone(PAYMENT_DEFAULTS),
-    ai: clone(AI_DEFAULTS),
   })
 
   const drafts = {
@@ -313,12 +241,10 @@ export function useConfigEditor() {
     login: loginDraft,
     register: registerDraft,
     sms: smsDraft,
-    email: emailDraft,
     file: fileDraft,
     rateLimit: rateDraft,
     thirdParty: thirdDraft,
     payment: paymentDraft,
-    ai: aiDraft,
   } as const
 
   const captchaTypeOptions = [
@@ -368,12 +294,10 @@ export function useConfigEditor() {
         login: LOGIN_DEFAULTS,
         register: REGISTER_DEFAULTS,
         sms: SMS_DEFAULTS,
-        email: EMAIL_DEFAULTS,
         file: FILE_DEFAULTS,
         rateLimit: RATE_DEFAULTS,
         thirdParty: THIRD_DEFAULTS,
         payment: PAYMENT_DEFAULTS,
-        ai: AI_DEFAULTS,
       }
       const configResults = await Promise.allSettled(GROUP_CODES.map((code) => getConfigGroup(code)))
       GROUP_CODES.forEach((code, i) => {
@@ -388,12 +312,6 @@ export function useConfigEditor() {
         roleOptions.value = roleRes.data || []
       } catch {
         roleOptions.value = []
-      }
-      try {
-        const userRes = await getUserList()
-        userOptions.value = (userRes.data || []).filter((u) => u.status !== 0)
-      } catch {
-        userOptions.value = []
       }
       testSmsTemplate.value = smsDraft.templateVerifyCode || '100001'
       await loadRecentSmsLogs()
@@ -452,7 +370,6 @@ export function useConfigEditor() {
   const saveRateLimit = () => saveGroup('rateLimit', '限流配置')
   const saveThirdParty = () => saveGroup('thirdParty', '第三方配置')
   const savePayment = () => saveGroup('payment', '支付配置')
-  const saveAi = () => saveGroup('ai', 'AI 助手配置')
   const saveLogin = () => saveGroup('login', '登录配置')
   const saveRegister = () => saveGroup('register', '注册配置')
   const saveSms = () => saveGroup('sms', '短信配置')
@@ -567,48 +484,6 @@ export function useConfigEditor() {
     }
   }
 
-  const emailTesting = ref(false)
-  const testEmailTo = ref('')
-
-  function emailStatusText(status?: number) {
-    if (status === 1) return '成功'
-    if (status === 2) return '失败'
-    return '发送中'
-  }
-
-  async function loadRecentEmailLogs() {
-    try {
-      const res = await getRecentEmailLogs(5)
-      recentEmailLogs.value = res.data || []
-    } catch {
-      recentEmailLogs.value = []
-    }
-  }
-
-  async function openEmailLogs() {
-    uni.navigateTo({ url: '/pages-sub/system/config/email-logs' })
-  }
-
-  async function sendTestEmailAction() {
-    if (isDirty.value) {
-      uni.showToast({ title: '请先保存邮件配置', icon: 'none' })
-      return
-    }
-    const toEmail = testEmailTo.value.trim()
-    if (!toEmail || !toEmail.includes('@')) {
-      uni.showToast({ title: '请输入正确的接收邮箱', icon: 'none' })
-      return
-    }
-    emailTesting.value = true
-    try {
-      await testEmail(toEmail)
-      uni.showToast({ title: '测试邮件已发送，请查收', icon: 'success' })
-      await loadRecentEmailLogs()
-    } finally {
-      emailTesting.value = false
-    }
-  }
-
   function closePaymentModal() {
     showPaymentModal.value = false
   }
@@ -617,8 +492,6 @@ export function useConfigEditor() {
     loading,
     saving,
     smsTesting,
-    emailTesting,
-    testEmailTo,
     paymentTesting,
     platformMaxFileMb,
     isDirty,
@@ -629,19 +502,14 @@ export function useConfigEditor() {
     loginDraft,
     registerDraft,
     smsDraft,
-    emailDraft,
     fileDraft,
     rateDraft,
     thirdDraft,
     paymentDraft,
-    aiDraft,
-    savedSnapshot,
     roleOptions,
-    userOptions,
     testSmsPhone,
     testSmsTemplate,
     recentSmsLogs,
-    recentEmailLogs,
     smsLogsExpanded,
     smsLogsLoading,
     smsLogsList,
@@ -659,7 +527,6 @@ export function useConfigEditor() {
     alipaySignOptions,
     alipayGatewayOptions,
     smsStatusText,
-    emailStatusText,
     load,
     saveAll,
     resetAll,
@@ -673,14 +540,10 @@ export function useConfigEditor() {
     saveRateLimit,
     saveThirdParty,
     savePayment,
-    saveAi,
     loadRecentSmsLogs,
     loadSmsLogs,
     openSmsLogs,
-    loadRecentEmailLogs,
-    openEmailLogs,
     sendTestSms,
-    sendTestEmailAction,
     sendTestPayment,
     pollPayOrderStatus,
     closePaymentModal,

@@ -1,6 +1,8 @@
 <template>
   <view class="data-card" @click="emit('click')">
-    <ModuleIcon :icon="icon" :theme="theme" size="md" />
+    <view class="data-card__icon" :class="`grad-${theme}`">
+      <IconFont :name="icon" :size="36" color="#ffffff" />
+    </view>
     <view class="data-card__body">
       <text class="data-card__value">{{ value }}</text>
       <text class="data-card__title">{{ title }}</text>
@@ -10,7 +12,7 @@
 </template>
 
 <script setup lang="ts">
-import ModuleIcon from '@/components/common/ModuleIcon/index.vue'
+import IconFont from '@/components/common/IconFont/index.vue'
 import type { IconName } from '@/constants/iconfont'
 
 defineProps<{
@@ -25,10 +27,11 @@ const emit = defineEmits<{ click: [] }>()
 </script>
 
 <style lang="scss" scoped>
+@import '@/styles/variables.scss';
 
 .data-card {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 20rpx;
   padding: 24rpx;
   border-radius: $radius-lg;
@@ -40,6 +43,16 @@ const emit = defineEmits<{ click: [] }>()
 
 .data-card:active {
   transform: scale(0.98);
+}
+
+.data-card__icon {
+  flex-shrink: 0;
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 18rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .data-card__body {

@@ -5,7 +5,7 @@
         <text class="section-title recent__title">最近登录</text>
         <text class="recent__link" @click="goAll">查看全部</text>
       </view>
-      <view v-for="row in rows" :key="`${row.loginTime}-${row.ipaddr}`" class="recent__row">
+      <view v-for="(row, idx) in rows" :key="idx" class="recent__row">
         <view class="recent__avatar-wrap">
           <ChatAvatar :src="row.avatar" :name="row.nickname || row.username" />
         </view>
@@ -38,6 +38,7 @@ function goAll() {
 </script>
 
 <style lang="scss" scoped>
+@import '@/styles/variables.scss';
 
 .recent {
   padding: 28rpx 32rpx 16rpx;

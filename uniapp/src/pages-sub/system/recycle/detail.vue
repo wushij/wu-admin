@@ -1,5 +1,5 @@
 <template>
-  <view class="recycle-detail-page" :class="{ 'has-page-footer': (canRestore || canDeletePermanent) && item }">
+  <view class="recycle-detail-page" :class="{ 'has-page-footer': canDelete && item }">
     <ListLoading v-if="loading" />
 
     <template v-else-if="item && moduleConfig">
@@ -10,11 +10,6 @@
             :src="String(item.avatar || '')"
             :name="heroTitle"
             size="lg"
-          />
-          <FileThumb
-            v-else-if="heroThumb?.type === 'file' && heroThumb.file"
-            :file="heroThumb.file"
-            class="recycle-detail-hero__file-thumb"
           />
           <image
             v-else-if="heroThumb?.type === 'image'"
@@ -60,9 +55,9 @@
 
     <EmptyState v-else-if="!loading" title="记录不存在或已失效" icon="notes-o" />
 
-    <PageFooter v-if="(canRestore || canDeletePermanent) && item">
-      <button v-if="canRestore" class="page-footer__btn page-footer__btn--primary-outline" @click="onRestore">恢复</button>
-      <button v-if="canDeletePermanent" class="page-footer__btn page-footer__btn--danger" @click="onDelete">清除</button>
+    <PageFooter v-if="canDelete && item">
+      <button class="page-footer__btn page-footer__btn--primary-outline" @click="onRestore">恢复</button>
+      <button class="page-footer__btn page-footer__btn--danger" @click="onDelete">清除</button>
     </PageFooter>
 
     <AppDialogHost />
@@ -76,7 +71,6 @@ import EmptyState from '@/components/common/EmptyState/index.vue'
 import ListLoading from '@/components/common/ListLoading/index.vue'
 import DictTag from '@/components/common/DictTag/index.vue'
 import UserAvatar from '@/components/business/UserAvatar/index.vue'
-import FileThumb from '@/components/business/FileThumb/index.vue'
 import PageFooter from '@/components/common/PageFooter/index.vue'
 import AppDialogHost from '@/components/common/AppDialogHost/index.vue'
 import { RECYCLE_MODULES } from '@/constants/recycle-modules'
@@ -85,7 +79,6 @@ import { resolveRecycleDetailItem } from '@/utils/recycle-detail-cache'
 import { formatRecycleFieldValue, isRecycleTagField } from '@/utils/recycle-field'
 import { resolveRecycleRowThumb } from '@/utils/recycle-thumb'
 import { showConfirm } from '@/utils/app-dialog'
-import { navigateToFallback } from '@/utils/navigate-back'
 
 const { hasPerm } = usePermission()
 
@@ -95,14 +88,9 @@ const loading = ref(true)
 
 const moduleConfig = computed(() => RECYCLE_MODULES.find((m) => m.key === recycleType.value))
 
-const canRestore = computed(() => {
+const canDelete = computed(() => {
   const mod = moduleConfig.value
-  return mod ? hasPerm('system:recycle:restore') || hasPerm(mod.deletePerm) : false
-})
-
-const canDeletePermanent = computed(() => {
-  const mod = moduleConfig.value
-  return mod ? hasPerm('system:recycle:delete') || hasPerm(mod.deletePerm) : false
+  return mod ? hasPerm(mod.deletePerm) : false
 })
 
 const heroTitle = computed(() => {
@@ -139,9 +127,7 @@ async function onRestore() {
   if (!ok.confirmed) return
   await mod.restore(id)
   uni.showToast({ title: '已恢复', icon: 'success' })
-  setTimeout(() => {
-    navigateToFallback('/pages-sub/system/recycle/index')
-  }, 400)
+  setTimeout(() => uni.navigateBack(), 400)
 }
 
 async function onDelete() {
@@ -157,9 +143,7 @@ async function onDelete() {
   if (!ok.confirmed) return
   await mod.deletePermanent(id)
   uni.showToast({ title: '已清除', icon: 'success' })
-  setTimeout(() => {
-    navigateToFallback('/pages-sub/system/recycle/index')
-  }, 400)
+  setTimeout(() => uni.navigateBack(), 400)
 }
 
 onLoad(async (options) => {
@@ -179,7 +163,8 @@ onLoad(async (options) => {
 </script>
 
 <style lang="scss" scoped>
-@use '@/styles/common.scss' as *;
+@import '@/styles/variables.scss';
+@import '@/styles/common.scss';
 
 .recycle-detail-page {
   min-height: 100vh;
@@ -194,14 +179,8 @@ onLoad(async (options) => {
 
 .recycle-detail-hero__head {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 24rpx;
-}
-
-.recycle-detail-hero__file-thumb :deep(.file-thumb) {
-  width: 120rpx;
-  height: 120rpx;
-  border-radius: 20rpx;
 }
 
 .recycle-detail-hero__image {

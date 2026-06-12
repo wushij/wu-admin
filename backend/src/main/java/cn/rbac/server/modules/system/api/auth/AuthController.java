@@ -4,10 +4,17 @@ import cn.dev33.satoken.stp.StpUtil;
 import cn.rbac.server.common.pojo.CommonResult;
 import cn.rbac.server.common.util.ClientIpUtils;
 import cn.rbac.server.framework.log.annotation.Log;
+import cn.rbac.server.common.pojo.BusinessException;
+import cn.rbac.server.modules.system.api.auth.vo.ForgotPasswordCheckReqVO;
+import cn.rbac.server.modules.system.api.auth.vo.ForgotPasswordResetReqVO;
+import cn.rbac.server.modules.system.api.auth.vo.ForgotPasswordSmsCodeReqVO;
 import cn.rbac.server.modules.system.api.auth.vo.LoginReqVO;
 import cn.rbac.server.modules.system.api.auth.vo.RegisterReqVO;
 import cn.rbac.server.modules.system.api.auth.vo.SmsCodeReqVO;
 import cn.rbac.server.modules.system.api.auth.vo.SmsCodeVerifyReqVO;
+import cn.rbac.server.modules.system.dal.dataobject.user.UserDO;
+import cn.rbac.server.modules.system.dal.mysql.user.UserMapper;
+import cn.rbac.server.modules.system.service.auth.AuthForgotPasswordService;
 import cn.rbac.server.modules.system.service.auth.AuthService;
 import cn.rbac.server.modules.system.service.config.SystemConfigHelper;
 import io.swagger.v3.oas.annotations.Operation;
@@ -26,6 +33,10 @@ public class AuthController {
 
     @Resource
     private AuthService authService;
+    @Resource
+    private AuthForgotPasswordService authForgotPasswordService;
+    @Resource
+    private UserMapper userMapper;
     @Resource
     private SystemConfigHelper systemConfigHelper;
 
@@ -95,5 +106,60 @@ public class AuthController {
         CommonResult<Boolean> result = CommonResult.success(true);
         result.setMessage(needAudit ? "注册成功，请等待管理员审核" : "注册成功");
         return result;
+    }
+
+    @Operation(summary = "忘记密码-校验用户名")
+    @PostMapping("/forgot-password/check")
+    public CommonResult<Map<String, Object>> forgotPasswordCheck(
+            @Validated @RequestBody ForgotPasswordCheckReqVO reqVO,
+            HttpServletRequest request) {
+        String clientIp = ClientIpUtils.resolve(request);
+        String rateErr = authForgotPasswordService.rateLimitCheck(clientIp);
+        if (rateErr != null) {
+            throw new BusinessException(429, rateErr);
+        }
+        UserDO user = authForgotPasswordService.resolveUser(reqVO.getUsername());
+        String err = authForgotPasswordService.validateUserForForgot(user);
+        if (err != null) {
+            throw new BusinessException(400, err);
+        }
+        return CommonResult.success(Map.of(
+                "maskedMobile", authForgotPasswordService.maskMobile(user.getMobile()),
+                "minPasswordLength", systemConfigHelper.getRegisterMinPasswordLength()));
+    }
+
+    @Operation(summary = "忘记密码-发送短信验证码")
+    @PostMapping("/forgot-password/sms-code")
+    public CommonResult<Boolean> forgotPasswordSmsCode(
+            @Validated @RequestBody ForgotPasswordSmsCodeReqVO reqVO,
+            HttpServletRequest request) {
+        UserDO user = authForgotPasswordService.resolveUser(reqVO.getUsername());
+        String validateErr = authForgotPasswordService.validateUserForForgot(user);
+        if (validateErr != null) {
+            throw new BusinessException(400, validateErr);
+        }
+        String err = authForgotPasswordService.sendResetCode(user, ClientIpUtils.resolve(request), reqVO.getCode());
+        if (err != null) {
+            throw new BusinessException(400, err);
+        }
+        return CommonResult.success(true);
+    }
+
+    @Log(title = "忘记密码重置", businessType = Log.BusinessType.UPDATE, isSaveRequestData = false)
+    @Operation(summary = "忘记密码-短信重置密码")
+    @PostMapping("/forgot-password/reset")
+    public CommonResult<Boolean> forgotPasswordReset(@Validated @RequestBody ForgotPasswordResetReqVO reqVO) {
+        UserDO user = authForgotPasswordService.resolveUser(reqVO.getUsername());
+        String validateErr = authForgotPasswordService.validateUserForForgot(user);
+        if (validateErr != null) {
+            throw new BusinessException(400, validateErr);
+        }
+        String err = authForgotPasswordService.resetPasswordBySms(
+                user, reqVO.getSmsCode(), reqVO.getNewPassword(), reqVO.getConfirmPassword());
+        if (err != null) {
+            throw new BusinessException(400, err);
+        }
+        userMapper.updateById(user);
+        return CommonResult.success(true);
     }
 }

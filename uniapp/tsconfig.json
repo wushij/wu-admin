@@ -2,7 +2,7 @@
   "compilerOptions": {
     "target": "ESNext",
     "module": "ESNext",
-    "moduleResolution": "bundler",
+    "moduleResolution": "node",
     "lib": ["ES2020", "DOM", "DOM.Iterable"],
     "jsx": "preserve",
     "strict": true,
@@ -14,14 +14,14 @@
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true,
     "sourceMap": true,
-    "noEmit": true,
+    "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"]
     },
     "types": ["@dcloudio/types", "@uni-helper/uni-app-types"]
   },
   "vueCompilerOptions": {
-    "plugins": ["@uni-helper/uni-app-types/volar-plugin"]
+    "nativeTags": ["block", "component", "template", "slot"]
   },
   "include": [
     "src/**/*.ts",

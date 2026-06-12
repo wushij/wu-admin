@@ -1,7 +1,7 @@
 <template>
   <HomeActionRow
     v-if="(openCount ?? 0) > 0"
-    :title="'待我处理'"
+    :title="`待处理工单 ${openCount}`"
     :subtitle="overdueCount ? `其中超时 ${overdueCount} 个` : '点击进入工单中心'"
     icon="records-o"
     theme="ticket"

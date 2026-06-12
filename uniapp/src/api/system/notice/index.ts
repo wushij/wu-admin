@@ -1,4 +1,4 @@
-import { get, put, del } from '@/utils/request'
+import { get, put } from '@/utils/request'
 import type { NoticeVO } from '@/types/message'
 
 export function getMyNoticeList() {
@@ -11,8 +11,4 @@ export function readNotice(id: number) {
 
 export function readAllNotice() {
   return put<boolean>('/system/notice/read-all')
-}
-
-export function deleteNotice(id: number) {
-  return del<boolean>(`/system/notice/${id}`)
 }

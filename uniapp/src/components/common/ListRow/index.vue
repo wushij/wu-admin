@@ -10,9 +10,7 @@
       </view>
       <view class="list-row__bottom">
         <text class="list-row__desc">{{ desc }}</text>
-        <view v-if="badge > 0" class="list-row__badge" :class="{ 'list-row__badge--at': atMe }">
-          {{ atMe ? '@' : (badge > 99 ? '99+' : badge) }}
-        </view>
+        <view v-if="badge > 0" class="list-row__badge">{{ badge > 99 ? '99+' : badge }}</view>
       </view>
     </view>
     <IconFont v-if="arrow" name="arrow" :size="28" color="#c0c4cc" />
@@ -29,13 +27,11 @@ withDefaults(
     time?: string
     unread?: boolean
     badge?: number
-    atMe?: boolean
     arrow?: boolean
   }>(),
   {
     desc: '',
     badge: 0,
-    atMe: false,
     arrow: true,
   },
 )
@@ -121,12 +117,6 @@ const emit = defineEmits<{ click: [] }>()
   font-size: 20rpx;
   line-height: 32rpx;
   text-align: center;
-}
-
-.list-row__badge--at {
-  min-width: 36rpx;
-  font-size: 22rpx;
-  font-weight: 600;
 }
 
 .list-row--unread .list-row__title::before {

@@ -100,8 +100,6 @@ export interface ChatGroupLogItem {
   createTime?: string
 }
 
-export type ChatMessageSendStatus = 'pending' | 'failed'
-
 export interface ChatMessage {
   id: number
   senderId?: number
@@ -112,8 +110,4 @@ export interface ChatMessage {
   content?: string
   msgType?: number
   sendTime?: string
-  /** 乐观发送：本地预览路径，上传完成前展示 */
-  localPreview?: string
-  /** pending=上传中 failed=发送失败 */
-  sendStatus?: ChatMessageSendStatus
 }

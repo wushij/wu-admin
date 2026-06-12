@@ -1,4 +1,4 @@
-@use './variables.scss' as *;
+@import './variables.scss';
 
 @mixin hero-gradient-dashboard {
   background: linear-gradient(135deg, #4f46e5 0%, #6366f1 45%, #7c3aed 100%);
