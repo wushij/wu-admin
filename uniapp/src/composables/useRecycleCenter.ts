@@ -178,12 +178,12 @@ export function useRecycleCenter() {
     const mod = currentModule.value
     const id = Number(item.id)
     if (!mod || !id) return
-    const ok = await showConfirm({
+    const { confirmed } = await showConfirm({
       title: '恢复确认',
       content: `确定恢复该${mod.label}吗？`,
       confirmText: '恢复',
     })
-    if (!ok) return
+    if (!confirmed) return
     await mod.restore(id)
     uni.showToast({ title: '已恢复', icon: 'success' })
     await Promise.all([loadSummary(), refresh()])
@@ -193,13 +193,13 @@ export function useRecycleCenter() {
     const mod = currentModule.value
     const id = Number(item.id)
     if (!mod || !id) return
-    const ok = await showConfirm({
+    const { confirmed } = await showConfirm({
       title: '彻底删除',
       content: '删除后无法恢复，是否继续？',
       confirmText: '删除',
       tone: 'danger',
     })
-    if (!ok) return
+    if (!confirmed) return
     await mod.deletePermanent(id)
     uni.showToast({ title: '已清除', icon: 'success' })
     await Promise.all([loadSummary(), refresh()])

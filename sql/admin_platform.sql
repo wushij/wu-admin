@@ -300,6 +300,10 @@ CREATE TABLE sys_job_log (
     exception_info VARCHAR(2000) DEFAULT NULL COMMENT '异常信息',
     start_time DATETIME DEFAULT NULL COMMENT '开始时间',
     stop_time DATETIME DEFAULT NULL COMMENT '停止时间',
+    duration_ms BIGINT DEFAULT NULL COMMENT '执行耗时(毫秒)',
+    deleted TINYINT DEFAULT 0 COMMENT '是否删除',
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     INDEX idx_job_name (job_name),
     INDEX idx_start_time (start_time),
     INDEX idx_status (status)
@@ -1693,10 +1697,28 @@ CREATE TABLE IF NOT EXISTS sys_job_log (
     exception_info VARCHAR(2000) DEFAULT NULL COMMENT '异常信息',
     start_time DATETIME DEFAULT NULL COMMENT '开始时间',
     stop_time DATETIME DEFAULT NULL COMMENT '停止时间',
+    duration_ms BIGINT DEFAULT NULL COMMENT '执行耗时(毫秒)',
+    deleted TINYINT DEFAULT 0 COMMENT '是否删除',
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     INDEX idx_job_name (job_name),
     INDEX idx_start_time (start_time),
     INDEX idx_status (status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='定时任务日志表';
+
+-- [附录·任务] sys_job_log 增加毫秒级耗时（#16；旧表补列）
+SET @col_exists := (
+    SELECT COUNT(*) FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'sys_job_log'
+      AND COLUMN_NAME = 'duration_ms'
+);
+SET @sql := IF(@col_exists = 0,
+    'ALTER TABLE sys_job_log ADD COLUMN duration_ms BIGINT DEFAULT NULL COMMENT ''执行耗时(毫秒)'' AFTER stop_time',
+    'SELECT ''duration_ms exists'' AS info');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
 
 INSERT IGNORE INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, component, status) VALUES
 (180, '定时任务', 'monitor:job:list', 2, 3, 100, '/monitor/job', 'Timer', 'monitor/job/index', 1),

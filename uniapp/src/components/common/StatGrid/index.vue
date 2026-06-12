@@ -36,7 +36,8 @@ withDefaults(
 .stat-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 16rpx;
+  gap: 20rpx;
+  margin-bottom: $card-gap;
 }
 
 .stat-grid--cols-2 {

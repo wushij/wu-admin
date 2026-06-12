@@ -1,23 +1,14 @@
-import { ref, reactive, computed, onUnmounted } from 'vue'
-import {
-  getProfile,
-  updateProfile,
-  uploadAvatar,
-  sendProfileMobileBindSmsCode,
-  bindProfileMobile,
-} from '@/api/system/profile'
+import { ref, reactive, computed } from 'vue'
+import { getProfile, updateProfile, uploadAvatar } from '@/api/system/profile'
 import { getConfig } from '@/api/system/auth'
 import { fileDisplayUrl } from '@/api/system/file/index'
 import { logger } from '@/utils/logger'
 import { useUserStore } from '@/store/user'
-import { SLIDER_VERIFIED_CODE } from '@/constants'
 
 export function useProfileForm() {
   const loading = ref(false)
   const saving = ref(false)
   const uploading = ref(false)
-  const sendingBindSms = ref(false)
-  const bindSmsCountdown = ref(0)
   const smsEnabled = ref(false)
   const avatarUrl = ref('')
   const form = reactive({
@@ -27,28 +18,24 @@ export function useProfileForm() {
     username: '',
     deptName: '',
     mobile: '',
-    bindMobile: '',
-    bindSmsCode: '',
     updateTime: '',
     roleNames: [] as string[],
     postNames: [] as string[],
   })
 
-  let bindSmsTimer: ReturnType<typeof setInterval> | null = null
-
-  const hasMobile = computed(() => !!form.mobile?.trim())
-  const canBindMobile = computed(() => smsEnabled.value && !hasMobile.value)
+  const hasBoundMobile = computed(() => /^1[3-9]\d{9}$/.test((form.mobile || '').trim()))
 
   function maskMobile(mobile?: string) {
-    if (!mobile || mobile.length < 7) return mobile || ''
-    return `${mobile.slice(0, 3)}****${mobile.slice(-4)}`
+    const m = (mobile || '').trim()
+    if (!/^1[3-9]\d{9}$/.test(m)) return m || '未绑定手机号'
+    return `${m.slice(0, 3)} **** ${m.slice(-4)}`
   }
 
   async function load() {
     loading.value = true
     try {
       const [cfgRes, profileRes] = await Promise.all([getConfig(), getProfile()])
-      smsEnabled.value = cfgRes.data?.login?.smsEnabled !== false
+      smsEnabled.value = cfgRes.data?.login?.smsEnabled === true
       const data = profileRes.data
       form.userId = data.userId
       form.nickname = data.nickname || ''
@@ -101,58 +88,6 @@ export function useProfileForm() {
     }
   }
 
-  function startBindSmsCountdown() {
-    bindSmsCountdown.value = 60
-    if (bindSmsTimer) clearInterval(bindSmsTimer)
-    bindSmsTimer = setInterval(() => {
-      bindSmsCountdown.value -= 1
-      if (bindSmsCountdown.value <= 0 && bindSmsTimer) {
-        clearInterval(bindSmsTimer)
-        bindSmsTimer = null
-      }
-    }, 1000)
-  }
-
-  async function sendBindSmsCode() {
-    const mobile = form.bindMobile.trim()
-    if (!/^1[3-9]\d{9}$/.test(mobile)) {
-      uni.showToast({ title: '请输入正确手机号', icon: 'none' })
-      return
-    }
-    sendingBindSms.value = true
-    try {
-      await sendProfileMobileBindSmsCode({ mobile, code: SLIDER_VERIFIED_CODE })
-      uni.showToast({ title: '验证码已发送', icon: 'success' })
-      startBindSmsCountdown()
-    } catch (e) {
-      logger.error(e)
-    } finally {
-      sendingBindSms.value = false
-    }
-  }
-
-  async function bindMobile() {
-    const mobile = form.bindMobile.trim()
-    const smsCode = form.bindSmsCode.trim()
-    if (!mobile || !smsCode) {
-      uni.showToast({ title: '请填写手机号和验证码', icon: 'none' })
-      return
-    }
-    saving.value = true
-    try {
-      await bindProfileMobile({ mobile, smsCode })
-      form.mobile = mobile
-      form.bindMobile = ''
-      form.bindSmsCode = ''
-      await syncUserStore()
-      uni.showToast({ title: '绑定成功', icon: 'success' })
-    } catch (e) {
-      logger.error(e)
-    } finally {
-      saving.value = false
-    }
-  }
-
   async function save() {
     if (!form.nickname.trim()) {
       uni.showToast({ title: '请输入昵称', icon: 'none' })
@@ -174,25 +109,17 @@ export function useProfileForm() {
     }
   }
 
-  onUnmounted(() => {
-    if (bindSmsTimer) clearInterval(bindSmsTimer)
-  })
-
   return {
     loading,
     saving,
     uploading,
-    sendingBindSms,
-    bindSmsCountdown,
+    smsEnabled,
     avatarUrl,
     form,
-    hasMobile,
-    canBindMobile,
+    hasBoundMobile,
     maskMobile,
     load,
     pickAvatar,
-    sendBindSmsCode,
-    bindMobile,
     save,
   }
 }

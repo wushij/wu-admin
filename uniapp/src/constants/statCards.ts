@@ -82,6 +82,32 @@ export const mobileStatCards: StatCardConfig[] = [
       return `运行 ${running} · 暂停 ${paused}`
     },
   },
+  {
+    key: 'chat',
+    title: '企业 IM',
+    valueKey: 'chatUnreadCount',
+    icon: 'chat-o',
+    theme: 'chat',
+    permission: 'system:chat:list',
+    path: '/pages-sub/msg/chat/index',
+    footer: (s) => {
+      const unread = s.chatUnreadCount ?? 0
+      return unread > 0 ? `${unread} 条未读` : '私聊与群聊'
+    },
+  },
+  {
+    key: 'config',
+    title: '系统配置',
+    valueKey: 'configGroupCount',
+    icon: 'setting-o',
+    theme: 'config',
+    permission: 'system:config:list',
+    path: '/pages-sub/system/config/index',
+    footer: (s) => {
+      const hours = s.tokenExpireHours ?? 0
+      return hours > 0 ? `会话 ${hours}h` : '登录注册与会话'
+    },
+  },
 ]
 
 export function statValue(stats: DashboardStats, key: keyof DashboardStats): number {

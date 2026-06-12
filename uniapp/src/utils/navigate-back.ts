@@ -6,8 +6,11 @@ import {
   navigateToParent,
   resolveBackTarget,
   resolveInferredParent,
+  pinNavParent,
 } from '@/utils/nav-history'
 import { getFromQueryParent, isPickerRoute } from '@/utils/nav-from'
+import { scheduleSyncH5BackButton } from '@/store/h5-back-button'
+import { shouldSuppressPopstate, suppressPopstate } from '@/utils/nav-transition'
 
 const TAB_PAGES = new Set([
   '/pages/index/index',
@@ -73,13 +76,8 @@ const fallbackByRoute = new Map<string, string>()
 
 let trapRoute = ''
 let handlingShallowBack = false
-let skipNextPopstate = false
-
 export function markNativeNavigateBack() {
-  skipNextPopstate = true
-  setTimeout(() => {
-    skipNextPopstate = false
-  }, 400)
+  suppressPopstate()
 }
 
 export function isAuthRoute(route: string) {
@@ -99,6 +97,7 @@ export function getActiveRoutePath(): string {
 export function registerPageShallowFallback(fallbackUrl: string) {
   const route = getCurrentRoute()
   if (route) fallbackByRoute.set(route, fallbackUrl)
+  pinNavParent(fallbackUrl)
 }
 
 /** 根据 route 推断上一级（扩展规则，供非 H5 或兜底） */
@@ -129,8 +128,9 @@ export function resolveFallbackForRoute(route: string): string {
     'pages-sub/system/announce/form': '/pages-sub/system/announce/index',
     'pages-sub/system/file/preview': '/pages-sub/system/file/index',
     'pages-sub/system/user/detail': '/pages-sub/system/user/index',
-    'pages-sub/system/user/edit': '/pages-sub/system/user/index',
     'pages-sub/system/user/index': '/pages/work/index',
+    'pages-sub/mine/mobile-bind': '/pages-sub/mine/profile',
+    'pages-sub/mine/profile': '/pages/mine/index',
     'pages-sub/log/oper-log': '/pages/work/index',
     'pages-sub/log/login-log': '/pages/work/index',
   }
@@ -252,7 +252,7 @@ export function handleShallowStackPopstate() {
 
   const route = getCurrentRoute()
   if (!route || isAuthRoute(route)) return
-  if (skipNextPopstate) {
+  if (shouldSuppressPopstate()) {
     clearTrapRoute()
     return
   }
@@ -345,19 +345,25 @@ function rebuildStackAndOpen(parentUrl: string, targetUrl: string) {
 export function navigateToFallback(url: string, options?: { rebuildStack?: boolean }) {
   const target = normalizePageUrl(url)
   const path = pathOnly(url)
+  const finish = () => scheduleSyncH5BackButton()
   if (TAB_PAGES.has(path)) {
-    uni.switchTab({ url: path })
+    suppressPopstate()
+    uni.switchTab({ url: path, complete: finish })
     return
   }
   if (options?.rebuildStack) {
     const route = path.replace(/^\//, '')
     const parentPath = resolveFallbackForRoute(route)
+    suppressPopstate()
     rebuildStackAndOpen(parentPath, target)
+    finish()
     return
   }
+  suppressPopstate()
   uni.redirectTo({
     url: target,
-    fail: () => uni.reLaunch({ url: target }),
+    complete: finish,
+    fail: () => uni.reLaunch({ url: target, complete: finish }),
   })
 }
 

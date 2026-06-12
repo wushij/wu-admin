@@ -7,10 +7,12 @@ import cn.rbac.server.modules.system.dal.mysql.dashboard.DashboardMapper;
 import cn.rbac.server.modules.system.dal.mysql.loginlog.LoginLogMapper;
 import cn.rbac.server.modules.system.dal.mysql.user.UserMapper;
 import cn.rbac.server.modules.system.service.config.SystemConfigHelper;
+import cn.rbac.server.modules.system.service.config.SysConfigGroupService;
 import cn.rbac.server.modules.system.service.dashboard.DashboardService;
 import cn.rbac.server.modules.system.service.dashboard.vo.RecentLoginVO;
 import cn.rbac.server.modules.system.service.dashboard.vo.DashboardStatsRow;
 import cn.rbac.server.modules.system.service.file.SysFileService;
+import cn.rbac.server.modules.system.service.message.ChatService;
 import cn.rbac.server.modules.system.service.monitor.OnlineUserService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import jakarta.annotation.Resource;
@@ -51,6 +53,10 @@ public class DashboardServiceImpl implements DashboardService {
     @Resource
     private SystemConfigHelper systemConfigHelper;
     @Resource
+    private SysConfigGroupService configGroupService;
+    @Resource
+    private ChatService chatService;
+    @Resource
     private SysFileService sysFileService;
 
     @Override
@@ -73,6 +79,10 @@ public class DashboardServiceImpl implements DashboardService {
         stats.put("onlineCount", onlineUserService.listOnlineUsers().size());
         stats.put("todayVisits", getDayVisitCount(LocalDate.now()));
         stats.put("yesterdayVisits", getDayVisitCount(LocalDate.now().minusDays(1)));
+        stats.put("configGroupCount", configGroupService.listAll().size());
+        if (loginUserId != null) {
+            stats.put("chatUnreadCount", chatService.unreadCount(loginUserId));
+        }
 
         return stats;
     }

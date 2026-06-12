@@ -31,7 +31,7 @@ const emit = defineEmits<{ click: [] }>()
 
 .data-card {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 20rpx;
   padding: 24rpx;
   border-radius: $radius-lg;

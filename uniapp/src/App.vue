@@ -51,4 +51,5 @@ onLaunch(async () => {
 @import '@/styles/iconfont.scss';
 @import '@/styles/module-themes.scss';
 @import '@/styles/common.scss';
+@import '@/styles/toast-h5.scss';
 </style>

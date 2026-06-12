@@ -47,7 +47,7 @@
       <el-button @click="$emit('open-all-logs')">
         <el-icon><List /></el-icon>调度日志
       </el-button>
-      <el-button v-permission="'monitor:job:delete'" type="danger" plain @click="$emit('clean-logs')">清空日志</el-button>
+      <el-button v-permission="'monitor:job:delete'" type="danger" plain @click="$emit('clean-logs')">清空全部日志</el-button>
     </div>
 
     <el-table

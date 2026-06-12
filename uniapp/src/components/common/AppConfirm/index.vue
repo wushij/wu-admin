@@ -3,7 +3,10 @@
     <view class="app-confirm__mask" @tap.stop="onCancel" />
     <view class="app-confirm__panel" @tap.stop>
       <text v-if="title" class="app-confirm__title">{{ title }}</text>
-      <text class="app-confirm__content">{{ content }}</text>
+      <text
+        class="app-confirm__content"
+        :class="{ 'app-confirm__content--left': contentAlign === 'left' }"
+      >{{ content }}</text>
       <input
         v-if="editable"
         v-model="inputValue"
@@ -13,8 +16,8 @@
         :placeholder="placeholderText || '请输入'"
         :maxlength="200"
       />
-      <view class="app-confirm__actions">
-        <view class="app-confirm__btn app-confirm__btn--ghost" @tap.stop="onCancel">
+      <view class="app-confirm__actions" :class="{ 'app-confirm__actions--solo': showCancel === false }">
+        <view v-if="showCancel !== false" class="app-confirm__btn app-confirm__btn--ghost" @tap.stop="onCancel">
           {{ cancelText }}
         </view>
         <view
@@ -44,6 +47,8 @@ const props = defineProps<{
   placeholderText?: string
   inputType?: 'text' | 'password'
   inputValue?: string
+  showCancel?: boolean
+  contentAlign?: 'left' | 'center'
 }>()
 
 const emit = defineEmits<{
@@ -114,6 +119,15 @@ function onCancel() {
   font-size: $font-size-base;
   color: $color-text-secondary;
   line-height: 1.65;
+  white-space: pre-line;
+
+  &--left {
+    text-align: left;
+    padding: 24rpx;
+    border-radius: $radius-md;
+    background: $color-bg-muted;
+    color: $color-text-regular;
+  }
 }
 
 .app-confirm__input {
@@ -133,6 +147,10 @@ function onCancel() {
   display: flex;
   gap: 20rpx;
   margin-top: 36rpx;
+
+  &--solo .app-confirm__btn {
+    flex: 1;
+  }
 }
 
 .app-confirm__btn {

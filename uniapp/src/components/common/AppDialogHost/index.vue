@@ -9,6 +9,8 @@
     :editable="dialogState.confirmOptions.editable"
     :placeholder-text="dialogState.confirmOptions.placeholderText"
     :input-type="dialogState.confirmOptions.inputType"
+    :show-cancel="dialogState.confirmOptions.showCancel"
+    :content-align="dialogState.confirmOptions.contentAlign"
     v-model:input-value="dialogState.confirmInput"
     @confirm="onConfirm"
     @cancel="resolveConfirm(false)"

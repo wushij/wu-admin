@@ -135,8 +135,8 @@ export const mobileQuickEntries: QuickEntry[] = [
   },
   {
     key: 'server',
-    name: '服务监控',
-    desc: 'CPU / 内存',
+    name: '服务器监控',
+    desc: 'CPU / 内存 / JVM / 磁盘',
     permission: 'monitor:server:list',
     icon: 'desktop-o',
     theme: 'server',
@@ -190,7 +190,8 @@ export const mobileQuickEntries: QuickEntry[] = [
 ]
 
 export const quickEntryGroups: QuickEntryGroup[] = [
-  { title: '系统管理', keys: ['user', 'org', 'role', 'menu', 'dict', 'config', 'file', 'recycle'] },
+  { title: '系统管理', keys: ['user', 'role', 'menu', 'org', 'dict', 'config', 'recycle'] },
+  { title: '文件管理', keys: ['file'] },
   { title: '流程中心', keys: ['approval', 'ticket'] },
   { title: '消息协作', keys: ['chat', 'notice'] },
   { title: '监控运维', keys: ['online', 'server', 'cache', 'job', 'api-access'] },

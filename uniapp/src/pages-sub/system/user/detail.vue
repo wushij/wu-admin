@@ -162,6 +162,12 @@ import { useModulePermission } from '@/composables/useModulePermission'
 import { formatDateTime } from '@/utils/format'
 import { showConfirm } from '@/utils/app-dialog'
 import type { UserVO } from '@/types/user'
+import { appendNavFromParam } from '@/utils/nav-from'
+import { registerPageShallowFallback, installH5ShallowStackTrapIfNeeded } from '@/utils/navigate-back'
+import { pinNavParent } from '@/utils/nav-history'
+import { scheduleSyncH5BackButton } from '@/store/h5-back-button'
+
+const USER_LIST_URL = '/pages-sub/system/user/index'
 
 const user = ref<UserVO | null>(null)
 
@@ -178,9 +184,9 @@ const canEdit = computed(() => hasPerm('system:user:update'))
 const canDelete = computed(() => hasPerm('system:user:delete'))
 
 function goEdit() {
-
-  uni.navigateTo({ url: `/pages-sub/system/user/edit?id=${userId.value}` })
-
+  uni.navigateTo({
+    url: appendNavFromParam(`/pages-sub/system/user/edit?id=${userId.value}`),
+  })
 }
 
 
@@ -260,11 +266,17 @@ function syncUserIdFromRoute() {
 
 onLoad(async (options) => {
   userId.value = Number(options?.id)
+  registerPageShallowFallback(USER_LIST_URL)
+  pinNavParent(USER_LIST_URL)
   if (!userId.value) return
   await loadUserDetail(userId.value)
 })
 
 onShow(async () => {
+  registerPageShallowFallback(USER_LIST_URL)
+  pinNavParent(USER_LIST_URL)
+  installH5ShallowStackTrapIfNeeded()
+  scheduleSyncH5BackButton()
   syncUserIdFromRoute()
   if (skipNextShowRefresh.value) {
     skipNextShowRefresh.value = false

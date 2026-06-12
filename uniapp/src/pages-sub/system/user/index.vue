@@ -1,6 +1,7 @@
 <template>
   <PermissionBlock v-if="!allowed" />
   <view v-else class="page-padded page-list">
+    <SubPageBackBar />
     <ModuleHero title="用户管理" :count="total || list.length" subtitle="账号、状态与权限" />
     <SegmentTabs v-model="statusMode" :tabs="statusTabs" />
     <SearchBar v-model="keyword" placeholder="搜索用户名 / 昵称 / 手机号" @search="onSearch" />
@@ -46,6 +47,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { onPullDownRefresh, onShow } from '@dcloudio/uni-app'
+import SubPageBackBar from '@/components/common/SubPageBackBar/index.vue'
 import ModuleHero from '@/components/common/ModuleHero/index.vue'
 import SearchBar from '@/components/common/SearchBar/index.vue'
 import ListFooter from '@/components/common/ListFooter/index.vue'

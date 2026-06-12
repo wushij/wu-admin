@@ -71,7 +71,7 @@
           :placeholder="searchFields[0]?.placeholder || '搜索'"
           @search="handleSearch"
         />
-        <text class="recycle-search__reset outline-btn" @click="resetSearch">重置</text>
+        <button class="recycle-search__reset" @click="resetSearch">重置</button>
       </view>
 
       <scroll-view
@@ -87,6 +87,11 @@
               :name="rowTitle(item)"
               size="sm"
               class="recycle-row__avatar"
+            />
+            <FileThumb
+              v-else-if="rowThumb(item)?.type === 'file' && rowThumb(item)?.file"
+              :file="rowThumb(item)!.file!"
+              class="recycle-row__file-thumb"
             />
             <image
               v-else-if="rowThumb(item)?.type === 'image'"
@@ -132,6 +137,7 @@ import ModuleHero from '@/components/common/ModuleHero/index.vue'
 import IconFont from '@/components/common/IconFont/index.vue'
 import ListCard from '@/components/common/ListCard/index.vue'
 import UserAvatar from '@/components/business/UserAvatar/index.vue'
+import FileThumb from '@/components/business/FileThumb/index.vue'
 import ListFooter from '@/components/common/ListFooter/index.vue'
 import EmptyState from '@/components/common/EmptyState/index.vue'
 import SearchBar from '@/components/common/SearchBar/index.vue'
@@ -394,13 +400,32 @@ onPullDownRefresh(async () => {
 
 .recycle-search :deep(.search-bar) {
   flex: 1;
+  min-width: 0;
+  margin-bottom: 0;
 }
 
 .recycle-search__reset {
   flex-shrink: 0;
-  min-width: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   height: 72rpx;
   padding: 0 28rpx;
+  margin: 0;
+  font-size: $font-size-sm;
+  line-height: 1;
+  color: $color-text-secondary;
+  background: $color-bg-muted;
+  border: none;
+  border-radius: 36rpx;
+
+  &::after {
+    border: none;
+  }
+
+  &:active {
+    opacity: 0.82;
+  }
 }
 
 .recycle-panel__scroll {
@@ -411,7 +436,7 @@ onPullDownRefresh(async () => {
 
 .recycle-row {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 20rpx;
 }
 
@@ -419,11 +444,15 @@ onPullDownRefresh(async () => {
   flex-shrink: 0;
 }
 
+.recycle-row__file-thumb,
+.recycle-row__thumb {
+  flex-shrink: 0;
+}
+
 .recycle-row__thumb {
   width: 88rpx;
   height: 88rpx;
-  flex-shrink: 0;
-  border-radius: 16rpx;
+  border-radius: 20rpx;
   background: $color-bg-muted;
   border: 1px solid $color-border-light;
 }
@@ -455,11 +484,20 @@ onPullDownRefresh(async () => {
 
 .recycle-row__actions {
   display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
-  gap: 16rpx;
-  margin-top: 24rpx;
-  padding-top: 24rpx;
-  border-top: 1px solid $color-border-light;
+  gap: 12rpx;
+  flex-shrink: 0;
+  align-self: center;
+  max-width: 220rpx;
+
+  .outline-btn {
+    min-width: auto;
+    height: 56rpx;
+    padding: 0 20rpx;
+    font-size: 22rpx;
+  }
 }
 </style>

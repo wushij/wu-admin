@@ -8,6 +8,13 @@
     @closed="$emit('closed')"
   >
     <div class="log-drawer-body">
+      <div v-if="scopedJobName" class="log-drawer-toolbar">
+        <el-tag type="info" effect="plain">当前任务：{{ scopedJobName }}</el-tag>
+        <div class="log-drawer-toolbar__actions">
+          <el-button size="small" type="danger" plain @click="$emit('clean-scoped')">清空本任务</el-button>
+          <el-button size="small" @click="$emit('clean-all')">清空全部</el-button>
+        </div>
+      </div>
       <el-radio-group
         :model-value="statusFilter"
         class="log-filter"
@@ -73,6 +80,7 @@ defineProps<{
   logTotal: number
   logQuery: { pageNo: number; pageSize: number }
   formatDuration: (row: SysJobLog) => string
+  scopedJobName?: string
 }>()
 
 const emit = defineEmits<{
@@ -81,6 +89,8 @@ const emit = defineEmits<{
   closed: []
   load: []
   'show-detail': [row: SysJobLog]
+  'clean-scoped': []
+  'clean-all': []
 }>()
 
 function onFilterChange(val: string | number | boolean | undefined) {
@@ -91,6 +101,18 @@ function onFilterChange(val: string | number | boolean | undefined) {
 </script>
 
 <style scoped>
+.log-drawer-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+.log-drawer-toolbar__actions {
+  display: flex;
+  gap: 8px;
+}
 .log-filter {
   margin-bottom: 12px;
 }

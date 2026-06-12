@@ -23,79 +23,36 @@
       </view>
 
       <text class="profile-page__section">基本信息</text>
-      <view class="form-card">
-        <view class="field field--readonly">
-          <text class="field__label">用户名</text>
-          <text class="field__value field__value--muted">{{ form.username || '—' }}</text>
-        </view>
-        <view class="field">
-          <text class="field__label">昵称</text>
-          <input v-model="form.nickname" class="field__input" placeholder="请输入昵称" />
-        </view>
-        <view class="field">
-          <text class="field__label">邮箱</text>
-          <input v-model="form.email" class="field__input" placeholder="选填" />
-        </view>
-        <view class="field field--last field--readonly">
-          <text class="field__label">手机号</text>
-          <text class="field__value field__value--muted">{{ hasMobile ? maskMobile(form.mobile) : '未绑定' }}</text>
-        </view>
+      <view class="form-panel card--elevated">
+        <FormCell label="用户名" :display-value="form.username || '—'" muted />
+        <FormCell v-model="form.nickname" label="昵称" editable placeholder="请输入昵称" />
+        <FormCell v-model="form.email" label="邮箱" editable placeholder="选填" />
+        <FormCell
+          label="手机号"
+          :hint="!smsEnabled && !hasBoundMobile ? '短信功能未启用，无法绑定手机号' : undefined"
+          last
+        >
+          <view class="mobile-row">
+            <text class="mobile-row__value">
+              {{ hasBoundMobile ? maskMobile(form.mobile) : '未绑定' }}
+            </text>
+            <text v-if="smsEnabled" class="mobile-row__link" @click.stop="goMobileBind">
+              {{ hasBoundMobile ? '更换手机号' : '绑定手机号' }}
+            </text>
+          </view>
+        </FormCell>
       </view>
 
       <text class="profile-page__section">组织信息</text>
-      <view class="form-card">
-        <view class="field field--readonly">
-          <text class="field__label">所属部门</text>
-          <text class="field__value field__value--muted">{{ form.deptName || '未分配' }}</text>
-        </view>
-        <view class="field field--last field--readonly">
-          <text class="field__label">岗位</text>
-          <text class="field__value field__value--muted">
-            {{ form.postNames?.length ? form.postNames.join('、') : '未分配' }}
-          </text>
-        </view>
+      <view class="form-panel card--elevated">
+        <FormCell label="所属部门" :display-value="form.deptName || '未分配'" muted />
+        <FormCell label="岗位" :display-value="postText" muted last />
       </view>
-
-      <template v-if="canBindMobile">
-        <text class="profile-page__section">绑定手机号</text>
-        <view class="form-card">
-          <view class="field">
-            <text class="field__label">手机号</text>
-            <input
-              v-model="form.bindMobile"
-              class="field__input"
-              type="number"
-              :maxlength="11"
-              placeholder="11 位手机号"
-            />
-          </view>
-          <view class="field field--last">
-            <text class="field__label">验证码</text>
-            <view class="field__row">
-              <input
-                v-model="form.bindSmsCode"
-                class="field__input field__input--grow"
-                :maxlength="6"
-                placeholder="短信验证码"
-              />
-              <button
-                class="field__sms-btn"
-                :disabled="bindSmsCountdown > 0 || sendingBindSms"
-                :loading="sendingBindSms"
-                @click="sendBindSmsCode"
-              >
-                {{ bindSmsCountdown > 0 ? `${bindSmsCountdown}s` : '获取' }}
-              </button>
-            </view>
-          </view>
-        </view>
-        <button class="profile-page__bind" :loading="saving" @click="bindMobile">确认绑定</button>
-      </template>
     </template>
 
-    <view class="profile-page__footer">
-      <button class="profile-page__submit" :loading="saving || uploading" @click="save">保存资料</button>
-    </view>
+    <PageFooter>
+      <button class="page-footer__btn" :loading="saving || uploading" @click="save">保存资料</button>
+    </PageFooter>
   </view>
 </template>
 
@@ -104,7 +61,10 @@ import { computed, ref, onMounted } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import IconFont from '@/components/common/IconFont/index.vue'
 import ListLoading from '@/components/common/ListLoading/index.vue'
+import FormCell from '@/components/common/FormCell/index.vue'
+import PageFooter from '@/components/common/PageFooter/index.vue'
 import { useProfileForm } from '@/composables/useProfileForm'
+import { appendNavFromParam } from '@/utils/nav-from'
 
 const avatarBroken = ref(false)
 
@@ -112,21 +72,26 @@ const {
   loading,
   saving,
   uploading,
-  sendingBindSms,
-  bindSmsCountdown,
+  smsEnabled,
   avatarUrl,
   form,
-  hasMobile,
-  canBindMobile,
+  hasBoundMobile,
   maskMobile,
   load,
   pickAvatar,
-  sendBindSmsCode,
-  bindMobile,
   save,
 } = useProfileForm()
 
 const avatarFallback = computed(() => (form.nickname || form.username || 'U').slice(0, 1).toUpperCase())
+const postText = computed(() => (form.postNames?.length ? form.postNames.join('、') : '未分配'))
+
+function goMobileBind() {
+  if (!smsEnabled.value) {
+    uni.showToast({ title: '短信功能未启用', icon: 'none' })
+    return
+  }
+  uni.navigateTo({ url: appendNavFromParam('/pages-sub/mine/mobile-bind') })
+}
 
 onMounted(load)
 onShow(load)
@@ -135,6 +100,7 @@ onShow(load)
 <style lang="scss" scoped>
 @import '@/styles/variables.scss';
 @import '@/styles/mine.scss';
+@import '@/styles/common.scss';
 
 .profile-page {
   @include mine-page-bg;
@@ -191,109 +157,24 @@ onShow(load)
   margin-top: 24rpx;
 }
 
-.form-card {
-  padding: 8rpx 0;
-  @include mine-card;
-}
-
-.field {
-  padding: 28rpx 32rpx;
-  border-bottom: 1px solid $color-border-light;
-
-  &--last {
-    border-bottom: none;
-  }
-
-  &--readonly {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 24rpx;
-  }
-}
-
-.field__label {
-  display: block;
-  margin-bottom: 16rpx;
-  font-size: $font-size-sm;
-  font-weight: $font-weight-semibold;
-  color: $color-text-secondary;
-
-  .field--readonly & {
-    margin-bottom: 0;
-    flex-shrink: 0;
-  }
-}
-
-.field__value {
-  font-size: $font-size-md;
-  color: $color-text-primary;
-  text-align: right;
-
-  &--muted {
-    color: $color-text-secondary;
-  }
-}
-
-.field__input {
-  width: 100%;
-  height: 80rpx;
-  padding: 0 24rpx;
-  border-radius: $radius-md;
-  background: $color-bg-muted;
-  font-size: $font-size-md;
-  color: $color-text-primary;
-  box-sizing: border-box;
-}
-
-.field__input--grow {
-  flex: 1;
-}
-
-.field__row {
+.mobile-row {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 16rpx;
+  width: 100%;
 }
 
-.field__sms-btn {
+.mobile-row__value {
+  font-size: $font-size-md;
+  color: $color-text-secondary;
+  text-align: right;
+}
+
+.mobile-row__link {
   flex-shrink: 0;
-  min-width: 140rpx;
-  height: 80rpx;
-  line-height: 80rpx;
-  margin: 0;
-  padding: 0 20rpx;
-  border-radius: $radius-md;
-  background: $color-primary-muted;
-  color: $color-primary;
   font-size: $font-size-sm;
   font-weight: $font-weight-semibold;
-}
-
-.profile-page__bind {
-  width: 100%;
-  height: 80rpx;
-  line-height: 80rpx;
-  margin-top: 20rpx;
-  border-radius: $radius-lg;
-  background: $color-primary-muted;
   color: $color-primary;
-  font-size: $font-size-base;
-  font-weight: $font-weight-semibold;
-}
-
-.profile-page__footer {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  padding: 16rpx 24rpx calc(16rpx + env(safe-area-inset-bottom));
-  background: rgba(255, 255, 255, 0.92);
-  backdrop-filter: blur(12px);
-}
-
-.profile-page__submit {
-  width: 100%;
-  @include mine-primary-btn;
 }
 </style>

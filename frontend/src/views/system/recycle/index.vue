@@ -187,6 +187,7 @@ const summary = reactive<RecycleSummary>({
   dictData: 0,
   announce: 0,
   job: 0,
+  jobLog: 0,
   file: 0,
   gen: 0,
   total: 0,

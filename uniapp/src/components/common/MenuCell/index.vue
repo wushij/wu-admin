@@ -10,6 +10,7 @@
       </view>
     </view>
     <view class="menu-cell__right">
+      <text v-if="badgeText" class="menu-cell__badge">{{ badgeText }}</text>
       <text v-if="value" class="menu-cell__value">{{ value }}</text>
       <IconFont v-if="arrow" name="arrow" :size="28" color="#c0c4cc" />
     </view>
@@ -28,7 +29,8 @@ const props = withDefaults(
     desc?: string
     value?: string
     arrow?: boolean
-    theme?: 'indigo' | 'cyan' | 'violet' | 'slate' | 'default'
+    theme?: 'indigo' | 'cyan' | 'violet' | 'slate' | 'amber' | 'emerald' | 'rose' | 'notice' | 'default'
+    badge?: number
   }>(),
   { arrow: true, theme: 'default' },
 )
@@ -36,6 +38,12 @@ const props = withDefaults(
 const emit = defineEmits<{ click: [] }>()
 
 const themeClass = computed(() => `menu-cell__icon-wrap--${props.theme}`)
+
+const badgeText = computed(() => {
+  const n = props.badge ?? 0
+  if (n <= 0) return ''
+  return n > 99 ? '99+' : String(n)
+})
 </script>
 
 <style lang="scss" scoped>
@@ -95,6 +103,22 @@ const themeClass = computed(() => `menu-cell__icon-wrap--${props.theme}`)
   background: linear-gradient(135deg, #334155, #64748b);
 }
 
+.menu-cell__icon-wrap--amber {
+  background: linear-gradient(135deg, #d97706, #f59e0b);
+}
+
+.menu-cell__icon-wrap--emerald {
+  background: linear-gradient(135deg, #059669, #34d399);
+}
+
+.menu-cell__icon-wrap--rose {
+  background: linear-gradient(135deg, #e11d48, #fb7185);
+}
+
+.menu-cell__icon-wrap--notice {
+  background: linear-gradient(135deg, #6366f1, #818cf8);
+}
+
 .menu-cell__texts {
   flex: 1;
   min-width: 0;
@@ -125,5 +149,18 @@ const themeClass = computed(() => `menu-cell__icon-wrap--${props.theme}`)
 .menu-cell__value {
   font-size: 26rpx;
   color: $color-text-secondary;
+}
+
+.menu-cell__badge {
+  min-width: 36rpx;
+  height: 36rpx;
+  padding: 0 10rpx;
+  border-radius: 999rpx;
+  background: $color-danger;
+  color: #fff;
+  font-size: 20rpx;
+  font-weight: $font-weight-bold;
+  line-height: 36rpx;
+  text-align: center;
 }
 </style>

@@ -1,6 +1,7 @@
 <template>
   <div class="app-container module-page job-page">
     <JobHeroOverview :overview="overview" />
+    <JobMetricsBar :overview="overview" />
 
     <el-row :gutter="16" class="charts-row">
       <el-col :xs="24" :lg="12">
@@ -57,6 +58,7 @@
       v-model:visible="logVisible"
       v-model:status-filter="logStatusFilter"
       :title="logTitle"
+      :scoped-job-name="logFilter?.jobName"
       :log-data="logData"
       :log-loading="logLoading"
       :log-total="logTotal"
@@ -65,6 +67,8 @@
       @closed="onLogClosed"
       @load="loadLogs"
       @show-detail="showLogDetail"
+      @clean-scoped="handleCleanScopedLogs"
+      @clean-all="handleCleanLogs"
     />
 
     <JobLogDetailDialog v-model:visible="logDetailVisible" :detail="logDetail" />
@@ -74,6 +78,7 @@
 <script setup lang="ts">
 import { ref, watchEffect } from 'vue'
 import JobHeroOverview from './JobHeroOverview.vue'
+import JobMetricsBar from './JobMetricsBar.vue'
 import JobTemplateSection from './JobTemplateSection.vue'
 import JobTableSection from './JobTableSection.vue'
 import JobFormDialog from './JobFormDialog.vue'
@@ -129,6 +134,8 @@ const {
   formatDuration,
   onLogClosed,
   handleCleanLogs,
+  handleCleanScopedLogs,
+  logFilter,
   resetForm,
 } = useJobPage({ pieChartRef, barChartRef })
 

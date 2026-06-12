@@ -12,8 +12,16 @@ public interface SysJobLogService {
 
     Map<String, Object> statistics();
 
-    void clean();
+    void cleanAll();
 
-    /** 清理早于指定天数的调度日志 */
+    void cleanScope(String jobName, String jobGroup);
+
+    PageResult<SysJobLogDO> recyclePage(cn.rbac.server.common.pojo.PageParam pageParam, String jobName, String jobGroup);
+
+    void restore(Long id);
+
+    void deletePermanent(Long id);
+
+    /** 物理清理早于指定天数的调度日志（定时任务保留策略） */
     int cleanOlderThan(int days);
 }

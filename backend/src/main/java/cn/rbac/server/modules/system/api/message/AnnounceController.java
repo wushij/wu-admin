@@ -65,15 +65,12 @@ public class AnnounceController {
             throw new BusinessException(404, "?????");
         }
         AnnounceRequest resp = AnnounceRequest.from(entity, objectMapper);
-        resp.setCreateName(entity.getCreateName());
         resp.setCreateTime(entity.getCreateTime());
+        resp.setCreateName(announceService.resolvePublisherName(entity));
         if (entity.getCreateBy() != null) {
             UserDO publisher = userMapper.selectById(entity.getCreateBy());
             if (publisher != null) {
                 resp.setCreateAvatar(publisher.getAvatar());
-                if (!StringUtils.hasText(resp.getCreateName())) {
-                    resp.setCreateName(publisher.getNickname() != null ? publisher.getNickname() : publisher.getUsername());
-                }
             }
         }
         return CommonResult.success(resp);

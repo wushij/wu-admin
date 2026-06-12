@@ -26,11 +26,13 @@ public class RecycleCenterServiceImpl implements RecycleCenterService {
         vo.setDictData(recycleCenterMapper.countDeletedDictData());
         vo.setAnnounce(recycleCenterMapper.countDeletedAnnounces());
         vo.setJob(recycleCenterMapper.countDeletedJobs());
+        vo.setJobLog(recycleCenterMapper.countDeletedJobLogs());
         vo.setFile(recycleCenterMapper.countDeletedFiles());
         vo.setGen(recycleCenterMapper.countDeletedGenTables());
         vo.setTotal(vo.getUser() + vo.getRole() + vo.getMenu() + vo.getDept()
                 + vo.getPost() + vo.getTicket() + vo.getApproval() + vo.getDict()
-                + vo.getDictData() + vo.getAnnounce() + vo.getJob() + vo.getFile() + vo.getGen());
+                + vo.getDictData() + vo.getAnnounce() + vo.getJob() + vo.getJobLog()
+                + vo.getFile() + vo.getGen());
         return vo;
     }
 }

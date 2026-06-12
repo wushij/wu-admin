@@ -134,6 +134,14 @@ const themeClass = computed(() => (props.theme === 'default' ? '' : `module-hero
 
 
 
+.module-hero--log {
+
+  background: linear-gradient(135deg, #d97706 0%, #f59e0b 100%);
+
+}
+
+
+
 .module-hero__inner {
 
   position: relative;
