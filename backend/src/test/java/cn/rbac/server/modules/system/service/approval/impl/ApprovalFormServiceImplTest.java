@@ -156,4 +156,29 @@ class ApprovalFormServiceImplTest extends MybatisLambdaTestBase {
         verify(approvalFormMapper).updateById(argThat((ApprovalFormDO f) -> "ARCHIVED".equals(f.getStatus())));
         verify(approvalRecordMapper).insert(any(ApprovalRecordDO.class));
     }
+
+    @Test
+    @DisplayName("delete：同步删除关联站内信")
+    void delete_removesRelatedNotices() {
+        ApprovalFormDO form = ServiceTestFixtures.generalApprovalForm(4L, 10L, 99L, "ARCHIVED");
+        when(approvalFormMapper.selectById(4L)).thenReturn(form);
+
+        approvalFormService.delete(4L);
+
+        verify(noticeMapper).delete(any());
+        verify(approvalRecordMapper).delete(any());
+        verify(approvalFormMapper).deleteById(4L);
+    }
+
+    @Test
+    @DisplayName("deletePermanent：物理删除关联站内信")
+    void deletePermanent_removesRelatedNotices() {
+        when(approvalFormMapper.deletePhysicalById(4L)).thenReturn(1);
+
+        approvalFormService.deletePermanent(4L);
+
+        verify(noticeMapper).deletePhysicalByBiz("APPROVAL", 4L);
+        verify(approvalRecordMapper).deletePhysicalByFormId(4L);
+        verify(approvalFormMapper).deletePhysicalById(4L);
+    }
 }

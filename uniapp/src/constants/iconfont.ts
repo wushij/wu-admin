@@ -1,0 +1,65 @@
+/** Iconfont 语义名 → Unicode（font_2553510 / Vant Icon 字符集） */
+export type IconName =
+  | 'home'
+  | 'home-o'
+  | 'apps-o'
+  | 'chat'
+  | 'chat-o'
+  | 'user'
+  | 'user-o'
+  | 'search'
+  | 'setting-o'
+  | 'arrow'
+  | 'edit'
+  | 'clock-o'
+  | 'manager-o'
+  | 'bell'
+  | 'desktop-o'
+  | 'balance-list-o'
+  | 'coupon-o'
+  | 'chart-trending-o'
+  | 'cluster-o'
+  | 'records-o'
+  | 'notes-o'
+  | 'completed'
+  | 'contact-o'
+  | 'phone-o'
+  | 'lock'
+  | 'shield-o'
+  | 'eye-o'
+  | 'closed-eye'
+  | 'info-o'
+  | 'friends-o'
+
+export const ICON_CHARS: Record<IconName, string> = {
+  home: '\ue73a',
+  'home-o': '\ue73e',
+  'apps-o': '\ue665',
+  chat: '\ue68a',
+  'chat-o': '\ue68c',
+  user: '\ue642',
+  'user-o': '\ue736',
+  search: '\ue710',
+  'setting-o': '\ue745',
+  arrow: '\ue660',
+  edit: '\ue6a8',
+  'clock-o': '\ue68f',
+  'manager-o': '\ue6e3',
+  bell: '\ue677',
+  'desktop-o': '\ue6a1',
+  'balance-list-o': '\ue673',
+  'coupon-o': '\ue69e',
+  'chart-trending-o': '\ue688',
+  'cluster-o': '\ue693',
+  'records-o': '\ue72a',
+  'notes-o': '\ue6f2',
+  completed: '\ue641',
+  'contact-o': '\ue69f',
+  'phone-o': '\ue6fc',
+  lock: '\ue6dc',
+  'shield-o': '\ue74b',
+  'eye-o': '\ue6b2',
+  'closed-eye': '\ue6b9',
+  'info-o': '\ue6d1',
+  'friends-o': '\ue6c2',
+}

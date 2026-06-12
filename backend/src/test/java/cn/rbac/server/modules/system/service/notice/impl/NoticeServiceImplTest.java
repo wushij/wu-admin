@@ -2,6 +2,7 @@ package cn.rbac.server.modules.system.service.notice.impl;
 
 import cn.rbac.server.common.pojo.BusinessException;
 import cn.rbac.server.modules.system.dal.dataobject.notice.NoticeDO;
+import cn.rbac.server.modules.system.dal.mysql.approval.ApprovalFormMapper;
 import cn.rbac.server.modules.system.dal.mysql.notice.NoticeMapper;
 import cn.rbac.server.testsupport.MybatisLambdaTestBase;
 import cn.rbac.server.testsupport.MybatisMockMatchers;
@@ -26,6 +27,8 @@ class NoticeServiceImplTest extends MybatisLambdaTestBase {
 
     @Mock
     private NoticeMapper noticeMapper;
+    @Mock
+    private ApprovalFormMapper approvalFormMapper;
 
     @InjectMocks
     private NoticeServiceImpl noticeService;
@@ -33,9 +36,27 @@ class NoticeServiceImplTest extends MybatisLambdaTestBase {
     @Test
     @DisplayName("unreadCount：返回未读数量")
     void unreadCount_returnsCount() {
-        when(noticeMapper.selectCount(MybatisMockMatchers.anyLambdaQueryWrapper())).thenReturn(5L);
+        NoticeDO notice = new NoticeDO();
+        notice.setId(1L);
+        notice.setReadStatus(0);
+        notice.setTitle("通知");
+        when(noticeMapper.selectList(MybatisMockMatchers.anyLambdaQueryWrapper())).thenReturn(List.of(notice));
 
-        assertEquals(5L, noticeService.unreadCount(USER_ID));
+        assertEquals(1L, noticeService.unreadCount(USER_ID));
+    }
+
+    @Test
+    @DisplayName("unreadCount：过滤审批单已删的孤立消息")
+    void unreadCount_filtersOrphanApprovalNotice() {
+        NoticeDO orphan = new NoticeDO();
+        orphan.setId(1L);
+        orphan.setReadStatus(0);
+        orphan.setBizType("APPROVAL");
+        orphan.setBizId(99L);
+        when(noticeMapper.selectList(MybatisMockMatchers.anyLambdaQueryWrapper())).thenReturn(List.of(orphan));
+        when(approvalFormMapper.selectById(99L)).thenReturn(null);
+
+        assertEquals(0L, noticeService.unreadCount(USER_ID));
     }
 
     @Test
@@ -51,6 +72,21 @@ class NoticeServiceImplTest extends MybatisLambdaTestBase {
 
         assertEquals(1, list.size());
         assertEquals("系统通知", list.get(0).getTitle());
+    }
+
+    @Test
+    @DisplayName("myList：过滤审批单已删的孤立消息")
+    void myList_filtersOrphanApprovalNotice() {
+        NoticeDO orphan = new NoticeDO();
+        orphan.setId(1L);
+        orphan.setUserId(USER_ID);
+        orphan.setTitle("注册待审核");
+        orphan.setBizType("APPROVAL");
+        orphan.setBizId(99L);
+        when(noticeMapper.selectList(MybatisMockMatchers.anyLambdaQueryWrapper())).thenReturn(List.of(orphan));
+        when(approvalFormMapper.selectById(99L)).thenReturn(null);
+
+        assertTrue(noticeService.myList(USER_ID).isEmpty());
     }
 
     @Test

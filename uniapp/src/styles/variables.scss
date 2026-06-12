@@ -1,0 +1,77 @@
+// —— 品牌主色 ——
+$color-primary: #4f46e5;
+$color-primary-hover: #4338ca;
+$color-primary-active: #3730a3;
+$color-primary-muted: rgba(79, 70, 229, 0.1);
+$color-primary-light: rgba(79, 70, 229, 0.16);
+
+// —— 功能色 ——
+$color-success: #67c23a;
+$color-warning: #e6a23c;
+$color-danger: #f56c6c;
+$color-info: #909399;
+
+// —— 文字色 ——
+$color-text-primary: #1e293b;
+$color-text-regular: #606266;
+$color-text-secondary: #64748b;
+$color-text-placeholder: #c0c4cc;
+$color-text-inverse: #ffffff;
+
+// —— 背景与边框 ——
+$color-bg-page: #eef2f7;
+$color-bg-card: #ffffff;
+$color-bg-muted: #f4f6fa;
+$color-border: #e2e8f0;
+$color-border-light: #edf0f5;
+
+// —— 认证页 ——
+$color-auth-bg: #000000;
+$color-auth-glass-border: rgba(255, 255, 255, 0.26);
+$color-auth-input-focus: #409eff;
+$color-auth-btn-from: rgba(79, 70, 229, 0.88);
+$color-auth-btn-to: rgba(99, 102, 241, 0.9);
+
+// —— 聊天 ——
+$color-chat-bg: #ededed;
+$color-chat-sidebar-bg: #f7f7f7;
+$color-chat-bubble-self: #95ec69;
+$color-chat-bubble-other: #ffffff;
+$color-chat-send: #07c160;
+$color-chat-link: #576b95;
+$color-chat-unread: #fa5151;
+$color-chat-online: #07c160;
+
+// —— 字号 ——
+$font-size-xs: 22rpx;
+$font-size-sm: 24rpx;
+$font-size-base: 28rpx;
+$font-size-md: 30rpx;
+$font-size-lg: 32rpx;
+$font-size-xl: 36rpx;
+$font-size-2xl: 48rpx;
+$font-size-hero: 52rpx;
+
+$font-weight-semibold: 600;
+$font-weight-bold: 700;
+
+// —— 间距 ——
+$page-padding-x: 24rpx;
+$page-padding-y: 24rpx;
+$card-gap: 24rpx;
+$section-gap: 32rpx;
+
+// —— 圆角 ——
+$radius-xs: 8rpx;
+$radius-sm: 12rpx;
+$radius-md: 16rpx;
+$radius-lg: 24rpx;
+$radius-xl: 32rpx;
+$radius-full: 9999rpx;
+
+// —— 阴影 ——
+$shadow-card: 0 2rpx 12rpx rgba(15, 23, 42, 0.04);
+$shadow-elevated: 0 8rpx 32rpx rgba(15, 23, 42, 0.06);
+$shadow-hero: 0 16rpx 48rpx rgba(79, 70, 229, 0.18);
+$shadow-auth: 0 8rpx 56rpx rgba(0, 0, 0, 0.06);
+$shadow-footer: 0 -4rpx 16rpx rgba(0, 0, 0, 0.06);

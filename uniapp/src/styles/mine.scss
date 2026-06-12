@@ -1,0 +1,39 @@
+@import './variables.scss';
+
+@mixin mine-page-bg {
+  min-height: 100vh;
+  background: linear-gradient(180deg, #eef2ff 0%, $color-bg-page 280rpx, $color-bg-page 100%);
+  box-sizing: border-box;
+}
+
+@mixin mine-card {
+  background: $color-bg-card;
+  border-radius: $radius-xl;
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  box-shadow: 0 12rpx 40rpx rgba(79, 70, 229, 0.06);
+}
+
+@mixin mine-section-title {
+  display: block;
+  margin-bottom: 16rpx;
+  padding: 0 8rpx;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-semibold;
+  color: $color-text-secondary;
+}
+
+@mixin mine-primary-btn {
+  height: 88rpx;
+  line-height: 88rpx;
+  border-radius: $radius-lg;
+  background: linear-gradient(135deg, #4f46e5 0%, #6366f1 50%, #818cf8 100%);
+  color: #fff;
+  font-size: $font-size-md;
+  font-weight: $font-weight-semibold;
+  border: none;
+  box-shadow: 0 12rpx 32rpx rgba(79, 70, 229, 0.28);
+
+  &::after {
+    border: none;
+  }
+}

@@ -38,12 +38,13 @@ public class UserController {
     @GetMapping("/page")
     @PreAuthorize("@ss.hasRead('system:user:list')")
     public CommonResult<PageResult<UserDO>> page(PageParam pageParam,
+            @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String username,
             @RequestParam(required = false) String mobile,
             @RequestParam(required = false) Integer status,
             @RequestParam(required = false) Long deptId,
             @RequestParam(required = false) Long postId) {
-        return CommonResult.success(userService.page(pageParam, username, mobile, status, deptId, postId));
+        return CommonResult.success(userService.page(pageParam, keyword, username, mobile, status, deptId, postId));
     }
 
     @Operation(summary = "获取用户详情")

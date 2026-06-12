@@ -1,6 +1,6 @@
 # Admin Platform
 
-基于 **Vue 3 + Spring Boot** 的企业级后台管理系统，提供**工作台**、用户权限、组织岗位、业务工单与审批、系统监控、日志审计、文件与字典、**分组系统配置**（含第三方/支付）、**个人中心**、**注册审核**等能力，支持本地开发调试与自建部署。
+基于 **Vue 3 + Spring Boot** 的企业级后台管理系统，配套 **uni-app 移动端（H5 / 小程序）**，提供**工作台**、用户权限、组织岗位、业务工单与审批、系统监控、日志审计、文件与字典、**分组系统配置**（含第三方/支付）、**个人中心**、**注册审核**等能力，支持本地开发调试与自建部署。
 
 ---
 
@@ -10,7 +10,8 @@
 |------|------|
 | **工作台** | 首页统计（用户/角色/部门/文件等）、待办提醒（待审用户、工单、审批）、12 项快捷入口、最近登录；`/dashboard/*` |
 | **系统管理** | 用户、角色、菜单、组织、字典（含**类型复制**）、**系统配置**；用户列表默认仅展示**已入库**用户（启用/停用）；待审核/驳回在审批单中心处理 |
-| **组织管理** | 部门 + 岗位；左树右表、拖拽调整、岗位成员；软删数据在 **回收中心** 统一恢复 |
+| **组织管理** | 部门 + 岗位；左树右表、拖拽调整、岗位成员；部门负责人关联 **用户 ID**（`leader_user_id`），昵称变更自动同步；软删数据在 **回收中心** 统一恢复 |
+| **移动端（uni-app）** | H5 / 微信小程序；工作台、用户/组织/菜单/字典、工单审批、企业 IM、监控运维、个人中心；与 PC 共用 `/api` 后端 |
 | **菜单管理** | 树形表格；目录/菜单/按钮联动；图标选择器；外链新窗口 / iframe 内嵌 |
 | **系统配置** | 十分组 Tab：基础信息、会话、文件、限流、登录/注册认证、**第三方配置**、**支付配置**、**短信配置**、安全配置；支付支持**测试订单**与异步回调；短信支持**测试发送**与发送记录 |
 | **个人中心** | 顶栏入口 `/profile`：资料编辑、头像上传、**短信验证绑定/更换手机号**（发码前强制滑块）、自助改密、**短信验证重置密码**（忘记当前密码时）、我的登录记录 |
@@ -32,6 +33,26 @@
 ## 近期优化与增强
 
 以下为近期迭代的主要能力，便于对照部署与联调。
+
+### 移动端 uni-app + 部门负责人关联（2026.06）
+
+| 项 | 说明 |
+|------|------|
+| **移动端工程** | 仓库根目录 `uniapp/`（Vue 3 + TypeScript + Pinia）；H5 开发 `npm run dev:h5`，构建 `npm run build:h5` |
+| **部门负责人** | `sys_dept.leader_user_id` 关联用户；PC / 移动端均改为**选择用户**，不再手填姓名；用户改名时同步 `leader_name` |
+| **数据库增量** | 本地 `sql/add15.sql`；生产 `sql/add15_wuadmin.sql`（可重复执行） |
+| **H5 导航** | 刷新后返回上一页（session 记录来源 + URL `from` 参数）；选择页（部门树 / 负责人）刷新后可正确返回编辑页 |
+| **交互修复** | `FormCell` 去除 H5 下 `@click` + `@tap` 重复触发导致的 `navigateTo` 被取消 |
+
+```bash
+# 已有库升级（本地）
+mysql -u root -p wu-admin < sql/add15.sql
+
+# 移动端 H5
+cd uniapp && npm install && npm run dev:h5
+```
+
+生产 H5 将 `uniapp` 构建产物部署到 Web 服务器，**`/api` 反代到后端**（与 PC 前端相同）。
 
 ### 架构与代码质量优化（2026.06）
 
@@ -642,6 +663,7 @@ frontend/src/
 |------|------|
 | 前端 | Vue 3、TypeScript、Vite、Element Plus、Pinia、Axios、ECharts、Three.js |
 | 后端 | Spring Boot 3.5、Spring Security 6、Sa-Token、MyBatis-Plus 3.5、Druid、Knife4j 4.5、Springdoc 2.8、微信支付/支付宝 SDK、ZXing |
+| 移动端 | uni-app、Vue 3、TypeScript、Pinia（H5 / 微信小程序） |
 | 数据 | MySQL 8、Redis 7、Redisson（限流/锁/缓存队列等） |
 | 部署 | 静态资源 + 反向代理（如 Nginx） |
 
@@ -701,7 +723,15 @@ wu-admin/
 │       ├── testsupport/        # MybatisLambdaTestBase、ServiceTestFixtures、MybatisMockMatchers
 │       ├── framework/web/core/ # GlobalExceptionHandlerTest 等
 │       └── modules/system/service/  # 各 *ServiceImplTest
-├── frontend/                   # Vue 3 + TypeScript 前端
+├── uniapp/                     # uni-app 移动端（H5 / 小程序）
+│   ├── src/
+│   │   ├── pages/              # Tab：首页、工作台、消息、我的
+│   │   ├── pages-sub/          # 子包：系统管理、监控、IM 等
+│   │   ├── composables/        # 页面逻辑复用
+│   │   ├── utils/              # 导航、请求、选择页回传等
+│   │   └── store/              # Pinia
+│   └── package.json
+├── frontend/                   # Vue 3 + TypeScript PC 前端
 │   ├── src/
 │   │   ├── api/                # 接口封装（system、message、monitor 等，均为 .ts）
 │   │   ├── views/              # 页面模块（按功能分子目录）
@@ -743,6 +773,8 @@ wu-admin/
 │   ├── add9_wuadmin.sql        # 生产仅 add9 字段
 │   ├── add10_wuadmin.sql       # 生产 add10
 │   ├── add11_wuadmin.sql       # 生产 #11+#12（代码生成，5.6 兼容）
+│   ├── add15.sql               # 增量 #15（部门 leader_user_id，本地）
+│   ├── add15_wuadmin.sql       # 增量 #15（生产）
 │   └── disable_devtool_off.sql # 临时关闭「禁止前端调试」（MySQL 5.6 兼容）
 ├── data/                       # 本地上传目录（git 忽略，对应 file.storage.local-path）
 └── README.md
@@ -959,7 +991,17 @@ npm run dev
 
 访问：**http://localhost:3000**
 
-### 5. 运行单元测试（可选）
+### 5. 启动移动端 H5（可选，5173）
+
+```powershell
+cd uniapp
+npm install
+npm run dev:h5
+```
+
+浏览器访问终端提示的本地地址（通常 **http://localhost:5173**）。接口走 Vite 代理至 `http://localhost:8080/api`。
+
+### 6. 运行单元测试（可选）
 
 ```powershell
 cd frontend && npm run test
@@ -1060,6 +1102,8 @@ cd backend && mvn test
 | `add9_wuadmin.sql` | 生产仅 add9 字段 |
 | `add10_wuadmin.sql` | 生产 add10 |
 | `add11_wuadmin.sql` | 生产 add11+#12（`table_name VARCHAR(191)` 适配 MySQL 5.6） |
+| `add15.sql` | 部门表 `leader_user_id` 及按姓名回填（本地 `wu-admin`） |
+| `add15_wuadmin.sql` | 同上（生产 `wuadmin`） |
 | `admin_platform_mysql56.sql` | 生产**空库全量**（38 表 + 初始数据，无附录 JSON 函数依赖） |
 
 > 生产环境若尚未执行 add3/add4，可将 `add3.sql`、`add4.sql` 中 `USE` 改为 `wuadmin` 后逐条执行，或直接依赖已更新的 `admin_platform.sql` 全量/附录。仓库内**无**单独的 `add3_add4_wuadmin.sql` 文件。
@@ -1414,6 +1458,12 @@ A：升级后 `BusinessException` 已通过 `ResponseEntity` 对齐 HTTP 状态�
 
 **Q：文件路径穿越或安全相关错误返回 400？**  
 A：升级后 `SecurityException`（如 `LocalFileStorage` 非法路径）返回 **403** 并记 warn 日志含 IP。
+
+**Q：部门负责人还是旧名字，或保存报 `leader_user_id` 不存在？**  
+A：对已有库执行 **`sql/add15.sql`**（生产 **`add15_wuadmin.sql`**），重启后端；PC / 移动端组织编辑须通过**选择用户**设置负责人，勿手填姓名。
+
+**Q：移动端 H5 刷新后返回跳到工作台，或选部门报 navigateTo 被取消？**  
+A：升级含 H5 导航修复与 `FormCell` 防抖的前端后强刷（Ctrl+F5）；选择类子页 URL 会带 `from` 参数记录来源页。
 
 **Q：Git 仓库？**  
 A：https://github.com/wushij/wu-admin

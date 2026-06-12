@@ -14,7 +14,7 @@ public interface UserService {
 
     List<UserDO> listAll();
 
-    PageResult<UserDO> page(PageParam pageParam, String username, String mobile,
+    PageResult<UserDO> page(PageParam pageParam, String keyword, String username, String mobile,
                             Integer status, Long deptId, Long postId);
 
     UserDO getDetail(Long id);

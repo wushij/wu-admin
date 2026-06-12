@@ -1,0 +1,38 @@
+import type { App } from 'vue'
+import { isWhiteRoute } from '@/config/route'
+import { hasToken } from '@/utils/auth'
+import { closeTopAppDialog } from '@/utils/dialog-back-guard'
+import {
+  installH5ShallowStackTrapIfNeeded,
+  redirectAuthedAwayFromAuthPage,
+  rememberShallowBackTarget,
+  handleGlobalBackPress,
+  getCurrentPageUrl,
+} from '@/utils/navigate-back'
+import { syncH5BackButtonForRoute } from '@/store/h5-back-button'
+import { ensureNavParent } from '@/utils/nav-history'
+
+/** 所有页面统一：H5 浅栈返回（先补全来源映射，再计算返回目标） */
+export function installGlobalPageGuards(app: App) {
+  app.mixin({
+    onShow() {
+      // #ifdef H5
+      redirectAuthedAwayFromAuthPage()
+      if (!hasToken()) return
+
+      const pages = getCurrentPages()
+      const route = pages[pages.length - 1]?.route as string | undefined
+      if (!route || isWhiteRoute(`/${route}`)) return
+
+      ensureNavParent(route, getCurrentPageUrl())
+      rememberShallowBackTarget(route)
+      installH5ShallowStackTrapIfNeeded()
+      syncH5BackButtonForRoute(route)
+      // #endif
+    },
+    onBackPress() {
+      if (closeTopAppDialog()) return true
+      return handleGlobalBackPress()
+    },
+  })
+}

@@ -27,6 +27,8 @@ import cn.rbac.server.modules.system.service.operlog.OperLogService;
 import cn.rbac.server.modules.system.service.permission.PermissionService;
 import cn.rbac.server.modules.system.service.ticket.TicketService;
 import cn.rbac.server.modules.system.service.user.UserService;
+import cn.rbac.server.modules.system.service.approval.RegisterApprovalService;
+import cn.rbac.server.modules.system.service.approval.impl.RegisterApprovalServiceImpl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import jakarta.annotation.Resource;
@@ -77,14 +79,14 @@ public class ListExportService {
         String filename = ExportHelper.buildFilename("用户列表", format);
         if (scope == ExportScope.PAGE) {
             PageResult<UserDO> page = userService.page(pageParam(pageNo, pageSize),
-                    username, mobile, status, deptId, postId);
+                    null, username, mobile, status, deptId, postId);
             ExportHelper.writeOnce(response, format, filename, UserExportRow.class, "用户列表",
                     toUserRows(page.getList()));
             return;
         }
         ExportHelper.writeBatched(response, format, filename, UserExportRow.class, "用户列表",
                 (pn, ps) -> toUserRows(userService.page(pageParam(pn, ps),
-                        username, mobile, status, deptId, postId).getList()));
+                        null, username, mobile, status, deptId, postId).getList()));
     }
 
     public void exportLoginLogs(HttpServletResponse response, ExportFormat format, ExportScope scope,
@@ -231,9 +233,26 @@ public class ListExportService {
             }
         }
         forms.forEach(form -> {
-            form.setApplicantName(userMap.getOrDefault(form.getApplicantUserId(), "-"));
+            form.setApplicantName(resolveExportApplicantName(form, userMap));
             form.setApproverName(userMap.getOrDefault(form.getApproverUserId(), "-"));
         });
+    }
+
+    private String resolveExportApplicantName(ApprovalFormDO form, Map<Long, String> userMap) {
+        Long applicantUserId = form.getApplicantUserId();
+        if (applicantUserId != null && applicantUserId > 0) {
+            String name = userMap.get(applicantUserId);
+            if (name != null) {
+                return name;
+            }
+        }
+        if (RegisterApprovalService.FORM_TYPE_REGISTER.equals(form.getFormType())) {
+            String fromContent = RegisterApprovalServiceImpl.displayNameFromContent(form.getContent());
+            if (fromContent != null) {
+                return fromContent;
+            }
+        }
+        return "-";
     }
 
     private PageParam pageParam(Integer pageNo, Integer pageSize) {

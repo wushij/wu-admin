@@ -322,6 +322,7 @@ public class AuthServiceImpl implements AuthService {
         result.put("userId", user.getId());
         result.put("username", user.getUsername());
         result.put("nickname", user.getNickname());
+        result.put("token", StpUtil.getTokenValue());
         return result;
     }
 

@@ -8,6 +8,7 @@ export interface DeptVO {
   sort?: number
   status?: number
   leaderName?: string
+  leaderUserId?: number | null
   phone?: string
   email?: string
   userCount?: number
@@ -28,6 +29,7 @@ export interface DeptSaveDTO {
   parentId?: number | null
   name: string
   leaderName?: string
+  leaderUserId?: number | null
   phone?: string
   email?: string
   sort?: number

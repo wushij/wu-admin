@@ -30,6 +30,8 @@ import java.util.stream.Collectors;
 @Service
 public class ApprovalFormServiceImpl implements ApprovalFormService {
 
+    private static final String NOTICE_BIZ_TYPE_APPROVAL = "APPROVAL";
+
     @Resource
     private ApprovalFormMapper approvalFormMapper;
     @Resource
@@ -81,10 +83,12 @@ public class ApprovalFormServiceImpl implements ApprovalFormService {
 
     @Override
     public List<ApprovalRecordDO> recordList(Long formId) {
+        ApprovalFormDO form = approvalFormMapper.selectById(formId);
         List<ApprovalRecordDO> records = approvalRecordMapper.selectList(new LambdaQueryWrapper<ApprovalRecordDO>()
                 .eq(ApprovalRecordDO::getFormId, formId)
                 .orderByAsc(ApprovalRecordDO::getCreateTime));
         fillRecordOperator(records);
+        patchRegisterRecordOperators(form, records);
         return records;
     }
 
@@ -179,6 +183,7 @@ public class ApprovalFormServiceImpl implements ApprovalFormService {
         }
         approvalRecordMapper.delete(new LambdaQueryWrapper<ApprovalRecordDO>()
                 .eq(ApprovalRecordDO::getFormId, id));
+        deleteRelatedNotices(id, false);
         approvalFormMapper.deleteById(id);
     }
 
@@ -202,6 +207,7 @@ public class ApprovalFormServiceImpl implements ApprovalFormService {
     @Override
     public void deletePermanent(Long id) {
         approvalRecordMapper.deletePhysicalByFormId(id);
+        deleteRelatedNotices(id, true);
         int rows = approvalFormMapper.deletePhysicalById(id);
         if (rows == 0) {
             throw new BusinessException(404, "回收站审批单不存在");
@@ -235,6 +241,19 @@ public class ApprovalFormServiceImpl implements ApprovalFormService {
         noticeMapper.insert(notice);
     }
 
+    private void deleteRelatedNotices(Long formId, boolean physical) {
+        if (formId == null || formId <= 0) {
+            return;
+        }
+        if (physical) {
+            noticeMapper.deletePhysicalByBiz(NOTICE_BIZ_TYPE_APPROVAL, formId);
+            return;
+        }
+        noticeMapper.delete(new LambdaQueryWrapper<NoticeDO>()
+                .eq(NoticeDO::getBizType, NOTICE_BIZ_TYPE_APPROVAL)
+                .eq(NoticeDO::getBizId, formId));
+    }
+
     private void fillUserName(List<ApprovalFormDO> forms) {
         Set<Long> userIds = forms.stream()
                 .flatMap(form -> java.util.stream.Stream.of(form.getApplicantUserId(), form.getApproverUserId()))
@@ -247,9 +266,46 @@ public class ApprovalFormServiceImpl implements ApprovalFormService {
         Map<Long, String> userMap = (users != null ? users : Collections.<UserDO>emptyList()).stream()
                 .collect(Collectors.toMap(UserDO::getId, UserDO::getUsername, (a, b) -> a));
         forms.forEach(form -> {
-            form.setApplicantName(userMap.getOrDefault(form.getApplicantUserId(), "-"));
+            form.setApplicantName(resolveApplicantName(form, userMap));
             form.setApproverName(userMap.getOrDefault(form.getApproverUserId(), "-"));
         });
+    }
+
+    private String resolveApplicantName(ApprovalFormDO form, Map<Long, String> userMap) {
+        Long applicantUserId = form.getApplicantUserId();
+        if (applicantUserId != null && applicantUserId > 0) {
+            String name = userMap.get(applicantUserId);
+            if (name != null) {
+                return name;
+            }
+        }
+        if (RegisterApprovalService.FORM_TYPE_REGISTER.equals(form.getFormType())) {
+            String fromContent = RegisterApprovalServiceImpl.displayNameFromContent(form.getContent());
+            if (fromContent != null) {
+                return fromContent;
+            }
+        }
+        return "-";
+    }
+
+    private void patchRegisterRecordOperators(ApprovalFormDO form, List<ApprovalRecordDO> records) {
+        if (form == null || records == null || records.isEmpty()
+                || !RegisterApprovalService.FORM_TYPE_REGISTER.equals(form.getFormType())) {
+            return;
+        }
+        String registerName = RegisterApprovalServiceImpl.displayNameFromContent(form.getContent());
+        if (registerName == null) {
+            return;
+        }
+        for (ApprovalRecordDO record : records) {
+            if ("SUBMIT".equals(record.getAction()) && isBlankOrDash(record.getOperatorName())) {
+                record.setOperatorName(registerName);
+            }
+        }
+    }
+
+    private boolean isBlankOrDash(String name) {
+        return name == null || name.isBlank() || "-".equals(name);
     }
 
     private void fillRecordOperator(List<ApprovalRecordDO> records) {

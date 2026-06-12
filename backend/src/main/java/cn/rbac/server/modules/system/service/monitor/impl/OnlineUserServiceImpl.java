@@ -227,6 +227,10 @@ public class OnlineUserServiceImpl implements OnlineUserService {
         String nickname = detail != null && StringUtils.hasText(detail.getNickname())
                 ? detail.getNickname()
                 : (user != null ? user.getNickname() : "");
+        vo.setNickname(nickname);
+        if (user != null && StringUtils.hasText(user.getAvatar())) {
+            vo.setAvatar(user.getAvatar());
+        }
         String deptName = detail != null && StringUtils.hasText(detail.getDeptName()) ? detail.getDeptName() : "";
         vo.setDeptName(StringUtils.hasText(deptName) ? deptName : nickname);
 

@@ -19,6 +19,7 @@ import cn.rbac.server.modules.system.dal.mysql.user.UserPostMapper;
 import cn.rbac.server.modules.system.service.auth.ProfileService;
 import cn.rbac.server.modules.system.service.auth.ProfileSmsMobileBindService;
 import cn.rbac.server.modules.system.service.auth.ProfileSmsPasswordService;
+import cn.rbac.server.modules.system.service.dept.DeptService;
 import cn.rbac.server.modules.system.service.config.SystemConfigHelper;
 import cn.rbac.server.modules.system.service.permission.PermissionService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
@@ -64,6 +65,8 @@ public class ProfileServiceImpl implements ProfileService {
     private ProfileSmsPasswordService profileSmsPasswordService;
     @Resource
     private ProfileSmsMobileBindService profileSmsMobileBindService;
+    @Resource
+    private DeptService deptService;
 
     @Override
     public Map<String, Object> getProfile(Long userId) {
@@ -74,6 +77,7 @@ public class ProfileServiceImpl implements ProfileService {
     @Override
     public void updateProfile(Long userId, ProfileUpdateReqVO reqVO) {
         UserDO user = requireUser(userId);
+        String previousNickname = user.getNickname();
         if (StringUtils.hasText(reqVO.getNickname())) {
             user.setNickname(reqVO.getNickname().trim());
         }
@@ -94,6 +98,9 @@ public class ProfileServiceImpl implements ProfileService {
             user.setAvatar(reqVO.getAvatar());
         }
         userMapper.updateById(user);
+        if (StringUtils.hasText(reqVO.getNickname())) {
+            deptService.syncLeaderByUserId(userId, previousNickname, user.getNickname());
+        }
     }
 
     @Override

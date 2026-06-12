@@ -119,4 +119,14 @@ class RegisterApprovalServiceImplTest extends MybatisLambdaTestBase {
         verify(approvalRecordMapper).insert(any(ApprovalRecordDO.class));
         verify(noticeMapper).insert(any(NoticeDO.class));
     }
+
+    @Test
+    @DisplayName("displayNameFromContent：用户删除后仍可从 JSON 解析申请人")
+    void displayNameFromContent_readsNicknameOrUsername() {
+        String content = "{\"bizType\":\"USER_REGISTER\",\"userId\":5,\"username\":\"admin1\",\"nickname\":\"11\"}";
+        assertEquals("11", RegisterApprovalServiceImpl.displayNameFromContent(content));
+        assertEquals("admin1", RegisterApprovalServiceImpl.displayNameFromContent(
+                "{\"bizType\":\"USER_REGISTER\",\"userId\":5,\"username\":\"admin1\"}"));
+        assertNull(RegisterApprovalServiceImpl.displayNameFromContent("{\"bizType\":\"OTHER\"}"));
+    }
 }

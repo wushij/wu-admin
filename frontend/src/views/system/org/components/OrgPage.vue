@@ -28,7 +28,6 @@
         :active-tab="activeTab"
         :dept-display-tree="deptDisplayTree"
         :post-tree="postTree"
-        :post-default-expanded-keys="postDefaultExpandedKeys"
         :filter-tree-node="filterTreeNode"
         :filter-post-tree-node="filterPostTreeNode"
         :allow-dept-drop="allowDeptDrop"
@@ -103,7 +102,6 @@ const {
   postTreeRef,
   deptDisplayTree,
   postTree,
-  postDefaultExpandedKeys,
   selectedId,
   memberTitle,
   userLoading,

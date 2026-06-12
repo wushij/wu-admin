@@ -16,11 +16,11 @@
       </div>
     </el-card>
 
-    <el-row :gutter="20">
-      <el-col :span="4">
+    <div class="user-layout">
+      <aside class="user-layout__side">
         <UserDeptTree ref="deptTreeComponentRef" :dept-options="deptOptions" @dept-click="handleDeptClick" />
-      </el-col>
-      <el-col :span="20">
+      </aside>
+      <section class="user-layout__main">
         <UserMainPanel
           :query-params="queryParams"
           :user-list="userList"
@@ -34,8 +34,8 @@
           @edit="handleEdit"
           @command="handleCommand"
         />
-      </el-col>
-    </el-row>
+      </section>
+    </div>
 
     <UserFormDialog
       ref="formDialogRef"
@@ -119,8 +119,24 @@ watchEffect(() => {
 })
 </script>
 
-<style scoped>
+<style scoped lang="scss">
 .user-page {
   padding: 0;
+}
+
+.user-layout {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.user-layout__side {
+  width: 280px;
+  flex-shrink: 0;
+}
+
+.user-layout__main {
+  flex: 1;
+  min-width: 0;
 }
 </style>

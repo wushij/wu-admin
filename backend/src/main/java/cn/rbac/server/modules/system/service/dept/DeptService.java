@@ -29,4 +29,13 @@ public interface DeptService {
     void restore(Long id);
 
     void deletePermanent(Long id);
+
+    /** 用户昵称变更时，同步部门负责人展示名 */
+    void syncLeaderDisplayName(String previousName, String newName);
+
+    /** 用户资料变更时，同步其作为负责人的部门展示名 */
+    void syncLeaderByUserId(Long userId, String previousName, String newNickname);
+
+    /** 部门自身及全部下级部门 ID（用户按部门筛选时包含子部门） */
+    List<Long> listSelfAndDescendantIds(Long deptId);
 }

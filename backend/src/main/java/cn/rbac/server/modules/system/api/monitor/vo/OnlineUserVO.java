@@ -7,6 +7,8 @@ public class OnlineUserVO {
     /** 用户编号（展示用） */
     private Long userId;
     private String loginName;
+    private String nickname;
+    private String avatar;
     private String deptName;
     private String ipaddr;
     private String loginLocation;
