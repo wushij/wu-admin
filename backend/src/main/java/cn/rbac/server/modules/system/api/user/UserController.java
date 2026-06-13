@@ -139,6 +139,15 @@ public class UserController {
         return CommonResult.success(true);
     }
 
+    @Log(title = "用户管理", businessType = Log.BusinessType.UPDATE, isSaveRequestData = false)
+    @Operation(summary = "解除登录失败锁定")
+    @PutMapping("/unlock-login")
+    @PreAuthorize("@ss.hasPermission('system:user:update')")
+    public CommonResult<Boolean> unlockLogin(@RequestParam Long id) {
+        userService.unlockLogin(id);
+        return CommonResult.success(true);
+    }
+
     @Operation(summary = "踢用户下线")
     @DeleteMapping("/kick-out")
     @PreAuthorize("@ss.hasPermission('system:user:update')")

@@ -42,6 +42,7 @@ const DEFAULTS = {
     smsLoginSliderCaptchaEnabled: false,
     rememberMe: true,
     maxRetryCount: 5,
+    maxRetryCountIp: 20,
     lockTime: 10
   },
   register: {
@@ -138,6 +139,7 @@ function applyGroupFromServer<K extends ConfigGroupCode>(
     if (login.captchaType === 'sms') { login.smsLoginEnabled = true; login.captchaType = 'image' }
     if (login.smsLoginEnabled === undefined) login.smsLoginEnabled = false
     if (login.smsLoginSliderCaptchaEnabled === undefined) login.smsLoginSliderCaptchaEnabled = false
+    if (login.maxRetryCountIp === undefined) login.maxRetryCountIp = 20
   }
   if (code === 'register') {
     const reg = merged as ConfigGroupMap['register']

@@ -90,8 +90,11 @@
         <FormCell label="记住我" switch-cell>
           <switch :checked="loginDraft.rememberMe" :disabled="!canEdit" @change="onLoginSwitch('rememberMe', $event)" />
         </FormCell>
-        <FormCell label="最大重试次数">
+        <FormCell label="账号最大重试">
           <NumberStepper v-model="loginDraft.maxRetryCount" :min="1" :max="20" :disabled="!canEdit" />
+        </FormCell>
+        <FormCell label="IP 最大重试">
+          <NumberStepper v-model="loginDraft.maxRetryCountIp" :min="1" :max="50" :disabled="!canEdit" />
         </FormCell>
         <FormCell label="锁定时长" last>
           <view class="config-control-row">

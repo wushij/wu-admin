@@ -43,12 +43,33 @@
       :cell-style="tableCellStyle"
     >
       <el-table-column prop="id" label="ID" width="80" align="center" header-align="center" />
-      <el-table-column prop="username" label="用户名" width="120" align="center" header-align="center" />
+      <el-table-column prop="username" label="用户名" width="148" align="center" header-align="center">
+        <template #default="{ row }">
+          <div class="user-name-cell">
+            <span class="user-name-cell__text">{{ row.username }}</span>
+            <el-tooltip
+              v-if="canUnlockLoginLock(row)"
+              :content="buildUsernameLockTooltip(row)"
+              placement="top"
+            >
+              <el-icon
+                class="user-name-cell__lock"
+                :class="{
+                  'user-name-cell__lock--account': row.loginLocked,
+                  'user-name-cell__lock--ip': !row.loginLocked && row.loginIpLocked,
+                }"
+              >
+                <Lock />
+              </el-icon>
+            </el-tooltip>
+          </div>
+        </template>
+      </el-table-column>
       <el-table-column prop="nickname" label="昵称" width="120" align="center" header-align="center" />
       <el-table-column prop="mobile" label="手机号" width="130" align="center" header-align="center" />
       <el-table-column prop="deptName" label="部门" width="120" align="center" header-align="center" show-overflow-tooltip />
       <el-table-column prop="postNames" label="岗位" min-width="140" align="center" header-align="center" show-overflow-tooltip />
-      <el-table-column prop="status" label="状态" width="110" align="center" header-align="center">
+      <el-table-column prop="status" label="状态" width="100" align="center" header-align="center">
         <template #default="{ row }">
           <el-tag v-if="row.status === 2" type="warning">待审核</el-tag>
           <el-tag v-else-if="row.status === 3" type="danger">审核驳回</el-tag>
@@ -63,7 +84,7 @@
         </template>
       </el-table-column>
       <el-table-column prop="createTime" label="创建时间" width="180" align="center" header-align="center" />
-      <el-table-column label="操作" width="180" fixed="right" align="center" header-align="center">
+      <el-table-column label="操作" width="200" fixed="right" align="center" header-align="center">
         <template #default="{ row }">
           <div class="action-buttons">
             <el-button type="primary" size="small" v-permission="'system:user:update'" @click="$emit('edit', row)">
@@ -77,6 +98,14 @@
               <el-button type="primary" size="small">更多</el-button>
               <template #dropdown>
                 <el-dropdown-menu>
+                  <el-dropdown-item
+                    v-if="canUnlockLoginLock(row)"
+                    v-permission="'system:user:update'"
+                    command="unlockLogin"
+                    :icon="Unlock"
+                  >
+                    解除登录锁定
+                  </el-dropdown-item>
                   <el-dropdown-item v-permission="'system:user:update'" command="resetPwd" :icon="RefreshIcon">
                     重置密码
                   </el-dropdown-item>
@@ -112,7 +141,8 @@
 </template>
 
 <script setup lang="ts">
-import { Search, Refresh as RefreshIcon, User, Delete } from '@element-plus/icons-vue'
+import { Search, Refresh as RefreshIcon, User, Delete, Unlock, Lock } from '@element-plus/icons-vue'
+import { canUnlockLoginLock, buildUsernameLockTooltip } from '@/utils/login-lock'
 
 const tableHeaderStyle = { textAlign: 'center' as const }
 const tableCellStyle = { textAlign: 'center' as const }
@@ -146,5 +176,33 @@ defineEmits<{
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.user-name-cell {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  max-width: 100%;
+}
+
+.user-name-cell__text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-name-cell__lock {
+  flex-shrink: 0;
+  font-size: 15px;
+  cursor: help;
+}
+
+.user-name-cell__lock--account {
+  color: #e6a23c;
+}
+
+.user-name-cell__lock--ip {
+  color: #f56c6c;
 }
 </style>

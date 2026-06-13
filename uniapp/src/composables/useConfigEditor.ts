@@ -48,6 +48,7 @@ const LOGIN_DEFAULTS: LoginAdminConfig = {
   smsLoginSliderCaptchaEnabled: false,
   rememberMe: true,
   maxRetryCount: 5,
+  maxRetryCountIp: 20,
   lockTime: 10,
 }
 const REGISTER_DEFAULTS: RegisterAdminConfig = {
@@ -131,6 +132,7 @@ function parseConfig<T>(raw?: string, defaults?: T): T {
 function normalizeLogin(payload: LoginAdminConfig): LoginAdminConfig {
   let result = payload.captchaEnabled ? payload : { ...payload, captchaType: 'image' }
   if (!result.smsLoginEnabled) result = { ...result, smsLoginSliderCaptchaEnabled: false }
+  if (result.maxRetryCountIp === undefined) result = { ...result, maxRetryCountIp: 20 }
   return result
 }
 
@@ -175,6 +177,7 @@ function mergeLoadedConfig<K extends ConfigGroupCode>(code: K, raw: string | und
     }
     if (login.smsLoginEnabled === undefined) login.smsLoginEnabled = false
     if (login.smsLoginSliderCaptchaEnabled === undefined) login.smsLoginSliderCaptchaEnabled = false
+    if (login.maxRetryCountIp === undefined) login.maxRetryCountIp = 20
     merged = login
   }
   if (code === 'sms') merged = normalizeSms(merged as SmsAdminConfig)

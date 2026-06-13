@@ -1,9 +1,10 @@
 -- =============================================================================
--- add15_wuadmin.sql  生产/服务器增量补丁 #15+#16+#17（可重复执行）
+-- add15_wuadmin.sql  生产/服务器增量补丁 #15+#16+#17+#18（可重复执行）
 -- =============================================================================
 -- #15 部门表增加负责人用户 ID，并按负责人姓名回填关联
 -- #16 定时任务日志增加毫秒级耗时字段 duration_ms
 -- #17 调度日志支持软删除（deleted/create_time/update_time），清空后可进回收中心恢复
+-- #18 登录配置：账号与 IP 分开锁定阈值 maxRetryCountIp（默认 20，MySQL 5.6 字符串补丁）
 -- 用法: mysql -u wuadmin -p wuadmin < sql/add15_wuadmin.sql
 -- 执行后请重启后端服务。
 -- =============================================================================
@@ -94,4 +95,11 @@ UPDATE sys_job_log
 SET update_time = COALESCE(stop_time, start_time, NOW())
 WHERE update_time IS NULL;
 
-SELECT '[OK] add15_wuadmin.sql finished (#15 leader_user_id + #16 duration_ms + #17 job log soft delete)' AS result;
+-- #18 maxRetryCountIp（MySQL 5.6 兼容：config_value 为 TEXT，用字符串插入字段）
+UPDATE sys_config_group
+SET config_value = REPLACE(config_value, '"lockTime"', '"maxRetryCountIp":20,"lockTime"'),
+    remark = '验证码 image/slider；smsLoginEnabled 短信登录；smsLoginSliderCaptchaEnabled 短信发送前滑块；maxRetryCount 账号锁定阈值；maxRetryCountIp IP 锁定阈值'
+WHERE group_code = 'login'
+  AND config_value NOT LIKE '%"maxRetryCountIp"%';
+
+SELECT '[OK] add15_wuadmin.sql finished (#15 leader_user_id + #16 duration_ms + #17 job log soft delete + #18 login maxRetryCountIp)' AS result;

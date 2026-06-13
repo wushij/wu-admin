@@ -22,8 +22,13 @@
     <el-form-item label="记住我">
       <el-switch v-model="draft.rememberMe" :disabled="!canEdit" />
     </el-form-item>
-    <el-form-item label="最大重试次数">
+    <el-form-item label="账号最大重试">
       <el-input-number v-model="draft.maxRetryCount" :min="1" :max="20" :disabled="!canEdit" />
+      <span class="unit">次后锁定该账号</span>
+    </el-form-item>
+    <el-form-item label="IP 最大重试">
+      <el-input-number v-model="draft.maxRetryCountIp" :min="1" :max="50" :disabled="!canEdit" />
+      <span class="unit">次后锁定该 IP（同一出口共享计数）</span>
     </el-form-item>
     <el-form-item label="锁定时长">
       <el-input-number v-model="draft.lockTime" :min="1" :max="120" :disabled="!canEdit" />

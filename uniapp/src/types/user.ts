@@ -14,6 +14,13 @@ export interface UserVO {
   remark?: string
   createTime?: string
   updateTime?: string
+  loginLocked?: boolean
+  loginLockRemainSeconds?: number
+  loginFailCount?: number
+  loginRecentIp?: string
+  loginIpLocked?: boolean
+  loginIpLockRemainSeconds?: number
+  loginIpFailCount?: number
 }
 
 export interface UserPageQuery {

@@ -160,7 +160,11 @@ public class SysConfigGroupServiceImpl implements SysConfigGroupService {
         }
         int maxRetry = json.getInt("maxRetryCount", 5);
         if (maxRetry < 1 || maxRetry > 20) {
-            throw new BusinessException("最大重试次数须在 1～20 之间");
+            throw new BusinessException("账号最大重试次数须在 1～20 之间");
+        }
+        int maxRetryIp = json.getInt("maxRetryCountIp", 20);
+        if (maxRetryIp < 1 || maxRetryIp > 50) {
+            throw new BusinessException("IP 最大重试次数须在 1～50 之间");
         }
         int lockTime = json.getInt("lockTime", 10);
         if (lockTime < 1 || lockTime > 120) {

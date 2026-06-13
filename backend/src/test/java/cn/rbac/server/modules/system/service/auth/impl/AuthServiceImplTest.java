@@ -8,6 +8,7 @@ import cn.rbac.server.modules.system.dal.dataobject.user.UserDO;
 import cn.rbac.server.modules.system.dal.mysql.permission.RoleMapper;
 import cn.rbac.server.modules.system.dal.mysql.user.UserMapper;
 import cn.rbac.server.modules.system.service.approval.RegisterApprovalService;
+import cn.rbac.server.modules.system.service.auth.LoginLockService;
 import cn.rbac.server.modules.system.service.config.SystemConfigHelper;
 import cn.rbac.server.modules.system.service.loginlog.LoginLogService;
 import cn.rbac.server.modules.system.service.monitor.OnlineUserService;
@@ -70,6 +71,8 @@ class AuthServiceImplTest extends MybatisLambdaTestBase {
     private SmsServiceFactory smsServiceFactory;
     @Mock
     private AliyunDypnsSmsVerifyService aliyunDypnsSmsVerifyService;
+    @Mock
+    private LoginLockService loginLockService;
 
     @InjectMocks
     private AuthServiceImpl authService;
@@ -78,6 +81,7 @@ class AuthServiceImplTest extends MybatisLambdaTestBase {
     void stubCommonLoginGuards() {
         when(systemConfigHelper.getLoginPerIpMinute()).thenReturn(0);
         when(systemConfigHelper.isCaptchaEnabled()).thenReturn(false);
+        when(loginLockService.checkLoginLockMessage(anyString(), anyString())).thenReturn(null);
 
         RAtomicLong counter = mock(RAtomicLong.class);
         when(counter.incrementAndGet()).thenReturn(1L);
@@ -124,12 +128,8 @@ class AuthServiceImplTest extends MybatisLambdaTestBase {
     @DisplayName("loginByAccount：账号被锁定时拒绝登录")
     void loginByAccount_lockedAccountRejected() {
         LoginReqVO req = loginReq("alice", "secret");
-
-        @SuppressWarnings("unchecked")
-        RBucket<Object> lockBucket = mock(RBucket.class);
-        when(lockBucket.get()).thenReturn(System.currentTimeMillis());
-        when(lockBucket.remainTimeToLive()).thenReturn(120_000L);
-        when(redissonClient.getBucket(contains("lock:user:alice"))).thenReturn(lockBucket);
+        when(loginLockService.checkLoginLockMessage("alice", "127.0.0.1"))
+                .thenReturn("账号已被临时锁定，请2分钟后再试");
 
         BusinessException ex = assertThrows(BusinessException.class,
                 () -> authService.loginByAccount(req, "127.0.0.1", "JUnit"));

@@ -200,6 +200,12 @@ public class SystemConfigHelper {
         return n < 1 ? 5 : Math.min(n, 20);
     }
 
+    /** IP 登录失败锁定阈值（可与账号分开配置，默认更宽松） */
+    public int getMaxRetryCountIp() {
+        int n = getGroupJson(GROUP_LOGIN).getInt("maxRetryCountIp", 20);
+        return n < 1 ? 20 : Math.min(n, 50);
+    }
+
     public int getLockTimeMinutes() {
         int n = getGroupJson(GROUP_LOGIN).getInt("lockTime", 10);
         return n < 1 ? 10 : Math.min(n, 120);
@@ -362,6 +368,7 @@ public class SystemConfigHelper {
         login.put("smsLoginSliderCaptchaEnabled", isSmsLoginSliderCaptchaEnabled());
         login.put("rememberMe", loginJson.getBool("rememberMe", true));
         login.put("maxRetryCount", getMaxRetryCount());
+        login.put("maxRetryCountIp", getMaxRetryCountIp());
         login.put("lockTime", getLockTimeMinutes());
         login.put("smsEnabled", isSmsEnabled());
         result.put("login", login);

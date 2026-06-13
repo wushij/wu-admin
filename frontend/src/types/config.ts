@@ -69,6 +69,7 @@ export interface LoginAdminConfig {
   smsLoginSliderCaptchaEnabled: boolean
   rememberMe: boolean
   maxRetryCount: number
+  maxRetryCountIp: number
   lockTime: number
 }
 

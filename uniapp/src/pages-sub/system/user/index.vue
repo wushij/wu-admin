@@ -25,10 +25,27 @@
             <view class="user-row__main">
               <view class="list-card__top">
                 <text class="list-card__title">{{ user.nickname || user.username }}</text>
-                <DictTag
-                  :label="user.status === 1 ? '启用' : '停用'"
-                  :effect="user.status === 1 ? 'success' : 'danger'"
-                />
+                <view class="user-row__tags">
+                  <DictTag
+                    :label="user.status === 1 ? '启用' : '停用'"
+                    :effect="user.status === 1 ? 'success' : 'danger'"
+                  />
+                  <DictTag
+                    v-if="user.loginLocked"
+                    label="登录锁定"
+                    effect="warning"
+                  />
+                  <DictTag
+                    v-if="user.loginIpLocked"
+                    label="IP 锁定"
+                    effect="danger"
+                  />
+                  <DictTag
+                    v-else-if="(user.loginFailCount ?? 0) > 0"
+                    :label="`失败 ${user.loginFailCount} 次`"
+                    effect="default"
+                  />
+                </view>
               </view>
               <text class="list-card__sub">{{ user.mobile || user.username }}</text>
               <text v-if="user.deptName" class="list-card__sub">{{ user.deptName }}</text>
@@ -144,5 +161,12 @@ onPullDownRefresh(async () => {
 .user-row__main {
   flex: 1;
   min-width: 0;
+}
+
+.user-row__tags {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8rpx;
 }
 </style>

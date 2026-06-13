@@ -1,34 +1,7 @@
 <template>
   <PageTabShell>
-    <view class="work-header">
-      <view class="work-hero">
-        <view class="work-hero__pattern" />
-        <view class="work-hero__glow" />
-        <view class="work-hero__body">
-          <view class="work-hero__main">
-            <text class="work-hero__eyebrow">WORKSPACE</text>
-            <text class="work-hero__title">功能中心</text>
-            <text class="work-hero__subtitle">高效管理，触手可及</text>
-          </view>
-          <view class="work-hero__metrics">
-            <view class="work-hero__metric">
-              <text class="work-hero__metric-value">{{ entries.length }}</text>
-              <text class="work-hero__metric-label">可用功能</text>
-            </view>
-            <view class="work-hero__metric">
-              <text class="work-hero__metric-value">{{ visibleGroups.length }}</text>
-              <text class="work-hero__metric-label">功能模块</text>
-            </view>
-          </view>
-        </view>
-      </view>
-
-      <SearchBar
-        v-model="keyword"
-        placeholder="搜索功能入口"
-        class="work-search"
-        @search="onSearch"
-      />
+    <view class="work-top">
+      <SearchBar v-model="keyword" placeholder="搜索功能入口" @search="onSearch" />
     </view>
 
     <view v-if="recentItems.length && !keyword.trim()" class="section-block">
@@ -142,117 +115,10 @@ function onSearch() {
 <style lang="scss" scoped>
 @import '@/styles/variables.scss';
 
-.work-header {
-  margin-bottom: $section-gap;
-}
-
-.work-hero {
-  position: relative;
-  border-radius: $radius-lg;
-  overflow: hidden;
-  color: #fff;
-  background: linear-gradient(135deg, #010710 0%, #0f1a2e 55%, #1a1040 100%);
-  box-shadow: 0 12rpx 40rpx rgba(0, 0, 0, 0.14);
-}
-
-.work-hero__pattern {
-  position: absolute;
-  inset: 0;
-  opacity: 0.07;
-  background-image: radial-gradient(rgba(255, 255, 255, 0.8) 1px, transparent 1px);
-  background-size: 32rpx 32rpx;
-  pointer-events: none;
-}
-
-.work-hero__glow {
-  position: absolute;
-  top: -40%;
-  right: -6%;
-  width: 280rpx;
-  height: 280rpx;
-  background: radial-gradient(circle, rgba(99, 102, 241, 0.28) 0%, transparent 70%);
-  pointer-events: none;
-}
-
-.work-hero__body {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 24rpx;
-  padding: 36rpx 32rpx;
-}
-
-.work-hero__main {
-  flex: 1;
-  min-width: 0;
-}
-
-.work-hero__eyebrow {
-  display: block;
-  font-size: 20rpx;
-  font-weight: $font-weight-semibold;
-  letter-spacing: 0.16em;
-  color: rgba(255, 255, 255, 0.45);
-}
-
-.work-hero__title {
-  display: block;
-  margin-top: 10rpx;
-  font-size: $font-size-2xl;
-  font-weight: $font-weight-bold;
-  color: #fff;
-  line-height: 1.2;
-}
-
-.work-hero__subtitle {
-  display: block;
-  margin-top: 10rpx;
-  font-size: $font-size-sm;
-  color: rgba(255, 255, 255, 0.62);
-  line-height: 1.5;
-}
-
-.work-hero__metrics {
-  display: flex;
-  flex-direction: column;
-  gap: 12rpx;
-  flex-shrink: 0;
-}
-
-.work-hero__metric {
-  min-width: 120rpx;
-  padding: 14rpx 20rpx;
-  border-radius: $radius-md;
-  background: rgba(255, 255, 255, 0.1);
-  text-align: center;
-}
-
-.work-hero__metric-value {
-  display: block;
-  font-size: $font-size-lg;
-  font-weight: $font-weight-bold;
-  color: #fff;
-  line-height: 1.2;
-}
-
-.work-hero__metric-label {
-  display: block;
-  margin-top: 2rpx;
-  font-size: 18rpx;
-  color: rgba(255, 255, 255, 0.55);
-}
-
-.work-search :deep(.search-bar) {
-  margin-top: 20rpx;
-  margin-bottom: 0;
-  height: 80rpx;
-  padding: 0 28rpx;
-  border-radius: $radius-lg;
+.work-top :deep(.search-bar) {
+  margin-bottom: $card-gap;
   background: $color-bg-card;
-  border: 1px solid $color-border-light;
-  box-shadow: $shadow-card;
+  border: 1px solid $color-border;
 }
 
 .section-block {

@@ -60,6 +60,7 @@
 | **部门负责人** | `sys_dept.leader_user_id` 关联用户；PC / 移动端选择用户，改名同步 `leader_name`；增量 `add15.sql` / `add15_wuadmin.sql` |
 | **定时任务日志** | `sys_job_log` 增加 `duration_ms`；调度日志支持软删并在回收中心恢复；本地 `add16.sql` + `add17.sql`，生产合并至 **`add15_wuadmin.sql`** |
 | **移动端企业 IM** | 微信式聊天输入：**☺ / ⌨** 表情与键盘切换；底部输入栏 `fixed` + H5 `visualViewport` 键盘高度适配；**发送后保持键盘**不收回；表情面板 **「最近」** Tab（`uni.storage` 本地记录）；加号直选文件/图片；图片消息按比例缩略图；发送后自动滚至最新消息 |
+| **用户管理 · 登录锁定** | PC / 移动端用户列表与详情展示 **登录锁定** 标签；管理员可 **解除登录锁定**（`PUT /api/system/user/unlock-login`），同时清除账号与**该用户最近登录 IP** 的 Redis 锁定 |
 
 ```bash
 # 本地增量（按已执行版本补跑）
@@ -574,6 +575,19 @@ mysql -u wuadmin -p wuadmin < sql/add9_wuadmin.sql
 | `3` | 审核驳回 | **不显示**（驳回后通常已软删） |
 
 工作台统计含「待审核用户」数量（`userPendingCount`，按 `status = 2` 统计）。
+
+### 登录失败锁定与解封
+
+登录密码连续错误时，系统会在 **Redis** 中临时锁定 **账号** 与 **客户端 IP**（阈值与时长见 **系统配置 → 登录认证**）。账号与 IP **分开计数、可设不同阈值**（默认账号 5 次、IP 20 次）。这与用户 `status = 0`（停用）无关：停用账号无法登录，而登录锁定是防暴力破解的短期限制。
+
+| 维度 | 说明 |
+|------|------|
+| **列表标记** | PC 用户表格「状态」列、移动端用户列表/详情：已锁定显示 **登录锁定**；未锁定但已有失败记录时显示 **失败 N 次** |
+| **解除锁定** | 需权限 `system:user:update`；PC：**更多 → 解除登录锁定**；移动端：用户详情 → **管理操作 → 解除登录锁定** |
+| **API** | `PUT /api/system/user/unlock-login?id={userId}`，清除账号 `auth:login:fail/lock:user:{username}`，并按登录日志最近一条记录解除对应 IP 的 `auth:login:fail/lock:ip:{ip}` |
+| **IP 说明** | 解封时依据该用户**最近一条登录日志**中的 IP；若用户从其他 IP 登录仍被锁，需在登录日志中按 IP 另行处理（或等待过期） |
+
+用户分页与详情接口会附带 `loginLocked`、`loginLockRemainSeconds`、`loginFailCount`（非数据库字段，来自 Redis 实时查询）。
 
 **审批操作说明**：注册审核（`REGISTER`）需权限 `system:approval:approve`（任意可用超管均可处理）；其他审批类型须为单据指定审批人。仅 `SUBMITTED`（待审批）状态可执行通过/驳回；详情页与列表操作等效，审批后状态与通知自动更新。
 

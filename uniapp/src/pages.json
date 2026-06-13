@@ -73,8 +73,7 @@
     {
       "path": "pages/work/index",
       "style": {
-        "navigationBarTitleText": "工作台",
-        "navigationBarBackgroundColor": "#eef2f7"
+        "navigationBarTitleText": "工作台"
       }
     },
     {
