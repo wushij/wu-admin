@@ -1,13 +1,17 @@
 package cn.rbac.server.modules.system.service.config;
 
 import cn.hutool.core.util.StrUtil;
+import cn.hutool.json.JSONArray;
 import cn.hutool.json.JSONObject;
 import cn.rbac.server.modules.system.framework.cache.SysConfigCacheService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import jakarta.annotation.Resource;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @Component
@@ -229,6 +233,25 @@ public class SystemConfigHelper {
 
     public boolean isRegisterNeedAudit() {
         return getGroupJson(GROUP_REGISTER).getBool("needAudit", false);
+    }
+
+    /** 注册审核通知人；为空时由业务层回退至超级管理员 */
+    public List<Long> getRegisterAuditorUserIds() {
+        JSONArray arr = getGroupJson(GROUP_REGISTER).getJSONArray("auditorUserIds");
+        if (arr == null || arr.isEmpty()) {
+            return Collections.emptyList();
+        }
+        List<Long> ids = new ArrayList<>();
+        for (Object o : arr) {
+            if (o == null) {
+                continue;
+            }
+            long id = o instanceof Number ? ((Number) o).longValue() : Long.parseLong(String.valueOf(o));
+            if (id > 0 && !ids.contains(id)) {
+                ids.add(id);
+            }
+        }
+        return ids;
     }
 
     public int getRegisterMinPasswordLength() {

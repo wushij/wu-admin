@@ -61,6 +61,7 @@ export function usePageList<T>(fetcher: PageFetcher<T>, pageSize = 15) {
     refreshing,
     finished,
     empty,
+    total,
     refresh,
     loadMore,
   }

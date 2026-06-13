@@ -16,12 +16,15 @@ import cn.rbac.server.modules.system.dal.mysql.permission.UserRoleMapper;
 import cn.rbac.server.modules.system.dal.mysql.user.UserMapper;
 import cn.rbac.server.modules.system.dal.mysql.user.UserPostMapper;
 import cn.rbac.server.modules.system.service.approval.RegisterApprovalService;
+import cn.rbac.server.modules.system.service.config.SystemConfigHelper;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import jakarta.annotation.Resource;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -44,6 +47,8 @@ public class RegisterApprovalServiceImpl implements RegisterApprovalService {
     private UserPostMapper userPostMapper;
     @Resource
     private NoticeMapper noticeMapper;
+    @Resource
+    private SystemConfigHelper systemConfigHelper;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -59,10 +64,8 @@ public class RegisterApprovalServiceImpl implements RegisterApprovalService {
             return;
         }
 
-        Long approverId = resolveRegisterApproverUserId();
-        if (approverId == null || approverId <= 0) {
-            approverId = 1L;
-        }
+        List<Long> approverIds = resolveRegisterApproverUserIds();
+        Long primaryApprover = approverIds.get(0);
 
         ApprovalFormDO form = new ApprovalFormDO();
         form.setFormNo(generateFormNo());
@@ -71,7 +74,7 @@ public class RegisterApprovalServiceImpl implements RegisterApprovalService {
         form.setContent(buildContent(user));
         form.setStatus("SUBMITTED");
         form.setApplicantUserId(user.getId());
-        form.setApproverUserId(approverId);
+        form.setApproverUserId(primaryApprover);
         approvalFormMapper.insert(form);
 
         ApprovalRecordDO record = new ApprovalRecordDO();
@@ -81,9 +84,10 @@ public class RegisterApprovalServiceImpl implements RegisterApprovalService {
         record.setRemark("用户提交注册，等待管理员审核");
         approvalRecordMapper.insert(record);
 
-        createNotice(approverId, "注册待审核",
-                "有新用户注册待审核：" + user.getUsername() + "（" + form.getFormNo() + "）",
-                "APPROVAL", form.getId());
+        String noticeContent = "有新用户注册待审核：" + user.getUsername() + "（" + form.getFormNo() + "）";
+        for (Long approverId : approverIds) {
+            createNotice(approverId, "注册待审核", noticeContent, "APPROVAL", form.getId());
+        }
     }
 
     @Override
@@ -163,7 +167,30 @@ public class RegisterApprovalServiceImpl implements RegisterApprovalService {
         return obj.toString();
     }
 
-    private Long resolveRegisterApproverUserId() {
+    private List<Long> resolveRegisterApproverUserIds() {
+        List<Long> configured = systemConfigHelper.getRegisterAuditorUserIds();
+        if (!configured.isEmpty()) {
+            List<UserDO> validUsers = userMapper.selectList(new LambdaQueryWrapper<UserDO>()
+                    .in(UserDO::getId, configured)
+                    .eq(UserDO::getStatus, 1)
+                    .eq(UserDO::getDeleted, 0));
+            Map<Long, UserDO> byId = validUsers.stream()
+                    .collect(Collectors.toMap(UserDO::getId, u -> u, (a, b) -> a));
+            List<Long> ordered = new ArrayList<>();
+            for (Long id : configured) {
+                if (byId.containsKey(id)) {
+                    ordered.add(id);
+                }
+            }
+            if (!ordered.isEmpty()) {
+                return ordered;
+            }
+        }
+        Long fallback = resolveDefaultSuperAdminApproverUserId();
+        return fallback != null && fallback > 0 ? List.of(fallback) : List.of(1L);
+    }
+
+    private Long resolveDefaultSuperAdminApproverUserId() {
         RoleDO superRole = roleMapper.selectOne(new LambdaQueryWrapper<RoleDO>()
                 .eq(RoleDO::getCode, "super_admin")
                 .eq(RoleDO::getDeleted, 0)

@@ -31,9 +31,7 @@
           }"
           @click="switchType(mod.key)"
         >
-          <view class="recycle-type-card__icon" :class="`grad-${mod.theme}`">
-            <IconFont :name="mod.icon" :size="26" color="#ffffff" />
-          </view>
+          <ModuleIcon :icon="mod.icon" :theme="mod.theme" size="sm" />
           <view class="recycle-type-card__body">
             <text class="recycle-type-card__label">{{ mod.label }}</text>
             <text class="recycle-type-card__count">{{ countFor(mod.key) }} 条</text>
@@ -46,9 +44,12 @@
     <view class="recycle-panel form-panel">
       <view class="recycle-panel__head">
         <view class="recycle-panel__title-wrap">
-          <view v-if="currentModule" class="recycle-panel__icon" :class="`grad-${currentModule.theme}`">
-            <IconFont :name="currentModule.icon" :size="22" color="#ffffff" />
-          </view>
+          <ModuleIcon
+            v-if="currentModule"
+            :icon="currentModule.icon"
+            :theme="currentModule.theme"
+            size="xs"
+          />
           <text class="recycle-panel__title">{{ currentModule?.label || '' }}回收列表</text>
         </view>
         <button
@@ -134,6 +135,7 @@
 import { onMounted, ref } from 'vue'
 import { onPullDownRefresh, onShow } from '@dcloudio/uni-app'
 import ModuleHero from '@/components/common/ModuleHero/index.vue'
+import ModuleIcon from '@/components/common/ModuleIcon/index.vue'
 import IconFont from '@/components/common/IconFont/index.vue'
 import ListCard from '@/components/common/ListCard/index.vue'
 import UserAvatar from '@/components/business/UserAvatar/index.vue'
@@ -272,16 +274,6 @@ onPullDownRefresh(async () => {
   border-color: rgba(99, 102, 241, 0.2);
 }
 
-.recycle-type-card__icon {
-  width: 52rpx;
-  height: 52rpx;
-  border-radius: 14rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
 .recycle-type-card__body {
   display: flex;
   flex-direction: column;
@@ -332,16 +324,6 @@ onPullDownRefresh(async () => {
   align-items: center;
   gap: 16rpx;
   min-width: 0;
-}
-
-.recycle-panel__icon {
-  width: 44rpx;
-  height: 44rpx;
-  border-radius: 12rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
 }
 
 .recycle-panel__title {

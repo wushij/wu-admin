@@ -1,9 +1,7 @@
 <template>
   <view class="menu-cell" @click="emit('click')">
     <view class="menu-cell__left">
-      <view class="menu-cell__icon-wrap" :class="themeClass">
-        <IconFont :name="icon" :size="36" color="#ffffff" />
-      </view>
+      <ModuleIcon :icon="icon" :theme="resolvedTheme" size="ml" />
       <view class="menu-cell__texts">
         <text class="menu-cell__label">{{ label }}</text>
         <text v-if="desc" class="menu-cell__desc">{{ desc }}</text>
@@ -20,6 +18,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import IconFont from '@/components/common/IconFont/index.vue'
+import ModuleIcon from '@/components/common/ModuleIcon/index.vue'
 import type { IconName } from '@/constants/iconfont'
 
 const props = withDefaults(
@@ -37,7 +36,10 @@ const props = withDefaults(
 
 const emit = defineEmits<{ click: [] }>()
 
-const themeClass = computed(() => `menu-cell__icon-wrap--${props.theme}`)
+const resolvedTheme = computed(() => {
+  if (props.theme === 'notice') return 'inbox'
+  return props.theme
+})
 
 const badgeText = computed(() => {
   const n = props.badge ?? 0
@@ -73,50 +75,6 @@ const badgeText = computed(() => {
   gap: 20rpx;
   flex: 1;
   min-width: 0;
-}
-
-.menu-cell__icon-wrap {
-  flex-shrink: 0;
-  width: 72rpx;
-  height: 72rpx;
-  border-radius: 20rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(135deg, #64748b, #94a3b8);
-  box-shadow: $shadow-elevated;
-}
-
-.menu-cell__icon-wrap--indigo {
-  background: linear-gradient(135deg, #4f46e5, #6366f1);
-}
-
-.menu-cell__icon-wrap--cyan {
-  background: linear-gradient(135deg, #0891b2, #22d3ee);
-}
-
-.menu-cell__icon-wrap--violet {
-  background: linear-gradient(135deg, #7c3aed, #a78bfa);
-}
-
-.menu-cell__icon-wrap--slate {
-  background: linear-gradient(135deg, #334155, #64748b);
-}
-
-.menu-cell__icon-wrap--amber {
-  background: linear-gradient(135deg, #d97706, #f59e0b);
-}
-
-.menu-cell__icon-wrap--emerald {
-  background: linear-gradient(135deg, #059669, #34d399);
-}
-
-.menu-cell__icon-wrap--rose {
-  background: linear-gradient(135deg, #e11d48, #fb7185);
-}
-
-.menu-cell__icon-wrap--notice {
-  background: linear-gradient(135deg, #6366f1, #818cf8);
 }
 
 .menu-cell__texts {

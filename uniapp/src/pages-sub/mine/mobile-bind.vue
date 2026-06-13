@@ -3,21 +3,19 @@
     <ListLoading v-if="loading" />
 
     <template v-else>
-      <view v-if="hasBoundMobile" class="bind-hero card--elevated">
-        <view class="bind-hero__icon">
-          <IconFont name="phone-o" :size="40" color="#4f46e5" />
+      <view class="bind-hero">
+        <view class="bind-hero__pattern" />
+        <view class="bind-hero__glow" />
+        <view class="bind-hero__body">
+          <ModuleIcon icon="phone-o" theme="cyan" size="lg" />
+          <view class="bind-hero__text">
+            <text class="bind-hero__title">{{ hasBoundMobile ? '当前绑定手机号' : '绑定手机号' }}</text>
+            <text v-if="hasBoundMobile" class="bind-hero__mobile">{{ maskBoundMobile(currentMobile) }}</text>
+            <text class="bind-hero__sub">
+              {{ hasBoundMobile ? '更换后，登录与短信验证将使用新号码' : '绑定后可使用短信验证找回密码' }}
+            </text>
+          </view>
         </view>
-        <text class="bind-hero__title">当前绑定手机号</text>
-        <text class="bind-hero__mobile">{{ maskBoundMobile(currentMobile) }}</text>
-        <text class="bind-hero__sub">更换后，登录与短信验证将使用新号码</text>
-      </view>
-
-      <view v-else class="bind-hero bind-hero--empty card--elevated">
-        <view class="bind-hero__icon">
-          <IconFont name="phone-o" :size="40" color="#4f46e5" />
-        </view>
-        <text class="bind-hero__title">绑定手机号</text>
-        <text class="bind-hero__sub">绑定后可使用短信验证找回密码</text>
       </view>
 
       <view v-if="!smsEnabled" class="bind-disabled card--elevated">
@@ -68,7 +66,7 @@
 <script setup lang="ts">
 import { watch, onMounted } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
-import IconFont from '@/components/common/IconFont/index.vue'
+import ModuleIcon from '@/components/common/ModuleIcon/index.vue'
 import ListLoading from '@/components/common/ListLoading/index.vue'
 import PageFooter from '@/components/common/PageFooter/index.vue'
 import { maskBoundMobile, useMobileBindForm } from '@/composables/useMobileBindForm'
@@ -115,45 +113,41 @@ onShow(load)
 }
 
 .bind-hero {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 48rpx 40rpx 40rpx;
-  margin-bottom: 24rpx;
-  text-align: center;
+  @include mine-dark-hero-shell;
+  margin-bottom: $card-gap;
 }
 
-.bind-hero__icon {
-  width: 96rpx;
-  height: 96rpx;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(135deg, rgba(79, 70, 229, 0.12), rgba(129, 140, 248, 0.18));
-  margin-bottom: 24rpx;
+.bind-hero__pattern {
+  @include mine-dark-hero-pattern;
+}
+
+.bind-hero__glow {
+  @include mine-dark-hero-glow(rgba(8, 145, 178, 0.28));
+}
+
+.bind-hero__body {
+  @include mine-dark-hero-body;
+}
+
+.bind-hero__text {
+  @include mine-dark-hero-text;
 }
 
 .bind-hero__title {
-  font-size: $font-size-lg;
-  font-weight: $font-weight-bold;
-  color: $color-text-primary;
+  @include mine-dark-hero-title;
 }
 
 .bind-hero__mobile {
-  margin-top: 16rpx;
-  font-size: 44rpx;
+  display: block;
+  margin-top: 10rpx;
+  font-size: $font-size-2xl;
   font-weight: $font-weight-bold;
-  color: $color-text-primary;
+  color: #fff;
   letter-spacing: 2rpx;
 }
 
 .bind-hero__sub {
-  margin-top: 16rpx;
-  font-size: $font-size-sm;
-  color: $color-text-secondary;
-  line-height: 1.55;
-  max-width: 520rpx;
+  @include mine-dark-hero-sub;
 }
 
 .bind-disabled {

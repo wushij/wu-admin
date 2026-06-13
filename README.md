@@ -59,6 +59,7 @@
 | **系统通知** | 公告详情发布人昵称/头像按 `createBy` **实时解析**，改名后不再显示旧昵称 |
 | **部门负责人** | `sys_dept.leader_user_id` 关联用户；PC / 移动端选择用户，改名同步 `leader_name`；增量 `add15.sql` / `add15_wuadmin.sql` |
 | **定时任务日志** | `sys_job_log` 增加 `duration_ms`；调度日志支持软删并在回收中心恢复；本地 `add16.sql` + `add17.sql`，生产合并至 **`add15_wuadmin.sql`** |
+| **移动端企业 IM** | 微信式聊天输入：**☺ / ⌨** 表情与键盘切换；底部输入栏 `fixed` + H5 `visualViewport` 键盘高度适配；**发送后保持键盘**不收回；表情面板 **「最近」** Tab（`uni.storage` 本地记录）；加号直选文件/图片；图片消息按比例缩略图；发送后自动滚至最新消息 |
 
 ```bash
 # 本地增量（按已执行版本补跑）
@@ -85,6 +86,26 @@ cd uniapp && npm install && npm run dev:h5
 | **工程** | `uniapp/`（Vue 3 + TS + Pinia）；`npm run dev:h5` / `build:h5` |
 | **H5 导航** | `navigateTo` 拦截记录来源；选择页 URL 带 `from`；`navigateToParent` 浅栈回退 |
 | **交互** | `FormCell` 去除 H5 下 `@click` + `@tap` 重复触发导致 `navigateTo` 被取消 |
+
+### 移动端企业 IM 聊天体验（2026.06）
+
+聊天页 `pages-sub/msg/chat/detail.vue`，输入区与 PC 微信风对齐。
+
+| 项 | 说明 |
+|------|------|
+| **布局** | 输入栏在上、表情面板在下；点消息区空白收起表情 |
+| **☺ / ⌨** | 点 ☺ 展开表情并收键盘；点 ⌨ 收起表情并回到键盘；H5 用原生 `focus`，避免 `:focus` 反复切换导致输入框消失 |
+| **键盘适配** | `useChatKeyboardInset`（H5 `visualViewport`）+ 底部 `fixed` 输入栏，键盘弹起时输入框贴在键盘上方 |
+| **发送** | 发送按钮改为 `view` + `@mousedown.prevent`，发送后 `focusInput` 保持键盘；滚到底用 `scrollToBottomSettle` |
+| **表情最近** | `EmojiPicker` 首 Tab「最近」；`utils/recent-emojis.ts` 本地最多 32 个 |
+| **附件** | 加号直选文件；图片走 `uploadChatImage` 并以 `IMAGE` 类型展示缩略图 |
+| **关键文件** | `ChatComposer`、`EmojiPicker`、`useChatDetail.ts`、`useChatScroll.ts`、`useChatKeyboardInset.ts` |
+
+```bash
+cd uniapp && npm run dev:h5
+# 类型检查（本地建议提交前执行）
+cd uniapp && npm run type-check
+```
 
 ### 架构与代码质量优化（2026.06）
 
@@ -759,9 +780,10 @@ wu-admin/
 │   ├── src/
 │   │   ├── pages/              # Tab：首页、工作台、消息、我的
 │   │   ├── pages-sub/          # 子包：系统管理、监控、IM、个人资料等
-│   │   ├── composables/        # useH5ListPageNav、useProfileForm 等
+│   │   ├── composables/        # useH5ListPageNav、useProfileForm、useChatKeyboardInset 等
 │   │   ├── components/common/  # SubPageBackBar、H5BackButton、DataCard 等
-│   │   ├── utils/              # nav-history、navigate-back、nav-from（H5 浅栈返回）
+│   │   ├── components/business/# ChatComposer、EmojiPicker、ChatBubble 等
+│   │   ├── utils/              # nav-history、navigate-back、recent-emojis、chat-message
 │   │   └── store/              # Pinia；h5-back-button（浮动返回显隐）
 │   └── package.json
 ├── frontend/                   # Vue 3 + TypeScript PC 前端

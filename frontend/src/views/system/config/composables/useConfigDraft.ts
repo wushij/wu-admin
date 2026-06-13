@@ -2,6 +2,7 @@ import { ref, reactive, computed, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { getConfigGroup, updateConfigGroup } from '@/api/system/config'
 import { getRoleList } from '@/api/system/role'
+import { getUserList } from '@/api/system/user'
 import { getErrorMessage } from '@/utils/axiosError'
 import { useUserStore } from '@/store/user'
 import { useSiteStore } from '@/store/site'
@@ -49,7 +50,8 @@ const DEFAULTS = {
     captchaType: 'image',
     defaultRoleCode: 'user',
     needAudit: false,
-    minPasswordLength: 6
+    minPasswordLength: 6,
+    auditorUserIds: [],
   },
   thirdParty: {
     wechat: { enabled: false, appId: '', appSecret: '' },
@@ -106,7 +108,12 @@ export function normalizePayload<K extends ConfigGroupCode>(code: K, payload: Co
   }
   if (code === 'register') {
     const register = payload as ConfigGroupMap['register']
-    return (register.captchaEnabled ? register : { ...register, captchaType: 'image' }) as ConfigGroupMap[K]
+    const base = register.captchaEnabled ? register : { ...register, captchaType: 'image' }
+    const ids = Array.isArray(base.auditorUserIds) ? base.auditorUserIds : []
+    return {
+      ...base,
+      auditorUserIds: [...new Set(ids.map(Number).filter((id) => Number.isFinite(id) && id > 0))],
+    } as ConfigGroupMap[K]
   }
   return payload
 }
@@ -132,6 +139,10 @@ function applyGroupFromServer<K extends ConfigGroupCode>(
     if (login.smsLoginEnabled === undefined) login.smsLoginEnabled = false
     if (login.smsLoginSliderCaptchaEnabled === undefined) login.smsLoginSliderCaptchaEnabled = false
   }
+  if (code === 'register') {
+    const reg = merged as ConfigGroupMap['register']
+    if (!Array.isArray(reg.auditorUserIds)) reg.auditorUserIds = []
+  }
   if (code === 'sms') {
     const sms = merged as ConfigGroupMap['sms']
     if ((sms.provider as string) === 'aliyun') sms.provider = 'aliyunAuth'
@@ -149,6 +160,7 @@ function applyGroupFromServer<K extends ConfigGroupCode>(
 }
 
 export interface RoleOption { name: string; code: string }
+export interface UserOption { id: number; label: string }
 
 export function useConfigDraft() {
   const userStore = useUserStore()
@@ -159,6 +171,7 @@ export function useConfigDraft() {
   const loading = ref(false)
   const saving = ref(false)
   const roleOptions = ref<RoleOption[]>([])
+  const userOptions = ref<UserOption[]>([])
   const platformMaxFileMb = 500
 
   const savedSnapshot = reactive(cloneConfig(DEFAULTS) as ConfigState)
@@ -206,12 +219,32 @@ export function useConfigDraft() {
     }
   }
 
+  async function loadUsers() {
+    const perms = userStore.userInfo?.permissions || []
+    if (!perms.includes('system:user:list') && !perms.includes('system:user:query')) {
+      userOptions.value = []
+      return
+    }
+    try {
+      const res = await getUserList()
+      userOptions.value = (res.data || [])
+        .filter((u) => u.status !== 0)
+        .map((u) => ({
+          id: u.id,
+          label: `${u.nickname || u.username}${u.deptName ? `（${u.deptName}）` : ''}`,
+        }))
+    } catch {
+      userOptions.value = []
+    }
+  }
+
   async function loadAll() {
     loading.value = true
     let forbidden = false
     const results = await Promise.allSettled([
       ...GROUP_CODES.map((code) => loadGroup(code)),
-      loadRoles()
+      loadRoles(),
+      loadUsers(),
     ])
     for (const r of results) {
       if (r.status === 'rejected') {
@@ -265,7 +298,7 @@ export function useConfigDraft() {
   }
 
   return {
-    canEdit, activeTab, loading, saving, roleOptions, platformMaxFileMb,
+    canEdit, activeTab, loading, saving, roleOptions, userOptions, platformMaxFileMb,
     draft, savedSnapshot, isDirty, forbidConcurrentLogin,
     checkDirty, loadAll, handleReset, handleSave,
   }

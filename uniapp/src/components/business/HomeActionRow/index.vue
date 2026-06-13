@@ -1,8 +1,6 @@
 <template>
   <view class="action-row" @click="emit('click')">
-    <view class="action-row__icon" :class="`grad-${theme}`">
-      <IconFont :name="icon" :size="32" color="#ffffff" />
-    </view>
+    <ModuleIcon :icon="icon" :theme="theme" size="md" />
     <view class="action-row__body">
       <text class="action-row__title">{{ title }}</text>
       <text v-if="subtitle" class="action-row__sub">{{ subtitle }}</text>
@@ -14,6 +12,7 @@
 
 <script setup lang="ts">
 import IconFont from '@/components/common/IconFont/index.vue'
+import ModuleIcon from '@/components/common/ModuleIcon/index.vue'
 import type { IconName } from '@/constants/iconfont'
 
 withDefaults(
@@ -48,16 +47,6 @@ const emit = defineEmits<{ click: [] }>()
 
 .action-row:active {
   opacity: 0.85;
-}
-
-.action-row__icon {
-  width: 64rpx;
-  height: 64rpx;
-  border-radius: 18rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
 }
 
 .action-row__body {

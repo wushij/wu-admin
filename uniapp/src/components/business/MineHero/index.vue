@@ -12,9 +12,11 @@
       </view>
 
       <view class="mine-hero__info">
-        <text class="mine-hero__name">{{ nickname }}</text>
-        <view v-if="roleTags.length" class="mine-hero__roles">
-          <text v-for="role in roleTags" :key="role" class="mine-hero__role">{{ role }}</text>
+        <view class="mine-hero__top">
+          <text class="mine-hero__name">{{ nickname }}</text>
+          <view v-if="roleTags.length" class="mine-hero__roles">
+            <text v-for="role in roleTags" :key="role" class="mine-hero__role">{{ role }}</text>
+          </view>
         </view>
         <text v-if="orgLine" class="mine-hero__org">{{ orgLine }}</text>
       </view>
@@ -120,14 +122,14 @@ watch(avatarSrc, (url) => preloadAvatar(url), { immediate: true })
 
 .mine-hero {
   margin-bottom: $section-gap;
-  padding: 28rpx 28rpx 24rpx;
+  padding: 32rpx 32rpx 24rpx;
 }
 
 .mine-hero__profile {
   display: flex;
   align-items: center;
   gap: 24rpx;
-  padding-left: 24rpx;
+  padding-left: 12rpx;
 }
 
 .mine-hero__avatar-wrap {
@@ -136,6 +138,14 @@ watch(avatarSrc, (url) => preloadAvatar(url), { immediate: true })
 
 .mine-hero__info {
   flex: 1;
+  min-width: 0;
+}
+
+.mine-hero__top {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12rpx;
   min-width: 0;
 }
 
@@ -162,8 +172,6 @@ watch(avatarSrc, (url) => preloadAvatar(url), { immediate: true })
 }
 
 .mine-hero__name {
-  display: block;
-  padding-left: 12rpx;
   font-size: $font-size-xl;
   font-weight: $font-weight-bold;
   color: $color-text-primary;
@@ -174,7 +182,6 @@ watch(avatarSrc, (url) => preloadAvatar(url), { immediate: true })
   display: flex;
   flex-wrap: wrap;
   gap: 10rpx;
-  margin-top: 12rpx;
 }
 
 .mine-hero__role {
@@ -188,7 +195,7 @@ watch(avatarSrc, (url) => preloadAvatar(url), { immediate: true })
 
 .mine-hero__org {
   display: block;
-  margin-top: 12rpx;
+  margin-top: 10rpx;
   font-size: $font-size-sm;
   color: $color-text-secondary;
   line-height: 1.45;

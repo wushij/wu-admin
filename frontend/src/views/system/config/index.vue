@@ -41,7 +41,7 @@
           <LoginConfigTab :draft="draft.login" :can-edit="canEdit" :sms-enabled="draft.sms.enabled" />
         </el-tab-pane>
         <el-tab-pane label="注册认证" name="register">
-          <RegisterConfigTab :draft="draft.register" :can-edit="canEdit" :role-options="roleOptions" />
+          <RegisterConfigTab :draft="draft.register" :can-edit="canEdit" :role-options="roleOptions" :user-options="userOptions" />
         </el-tab-pane>
         <el-tab-pane label="第三方配置" name="thirdParty">
           <ThirdPartyConfigTab :draft="draft.thirdParty" :can-edit="canEdit" />
@@ -155,7 +155,7 @@ import { usePaymentTest } from './composables/usePaymentTest'
 import { useSmsTest } from './composables/useSmsTest'
 
 const {
-  canEdit, activeTab, loading, saving, roleOptions, platformMaxFileMb,
+  canEdit, activeTab, loading, saving, roleOptions, userOptions, platformMaxFileMb,
   draft, isDirty, forbidConcurrentLogin,
   loadAll, handleReset, handleSave,
 } = useConfigDraft()

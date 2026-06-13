@@ -90,9 +90,7 @@
       </view>
 
       <view v-if="hasPreview && !loading" class="message-hub__more card--elevated" @click="goList">
-        <view class="message-hub__more-icon" :class="`message-hub__more-icon--${mode}`">
-          <IconFont :name="moreIcon" :size="32" color="#ffffff" />
-        </view>
+        <ModuleIcon :icon="moreIcon" :theme="moreTheme" size="ml" />
         <view class="message-hub__more-body">
           <text class="message-hub__more-title">{{ moreTitle }}</text>
           <text class="message-hub__more-sub">{{ moreSub }}</text>
@@ -118,6 +116,7 @@ import SegmentTabs from '@/components/common/SegmentTabs/index.vue'
 import ListLoading from '@/components/common/ListLoading/index.vue'
 import EmptyState from '@/components/common/EmptyState/index.vue'
 import IconFont from '@/components/common/IconFont/index.vue'
+import ModuleIcon from '@/components/common/ModuleIcon/index.vue'
 import MessageListIcon from '@/components/business/MessageListIcon/index.vue'
 import ChatAvatar from '@/components/business/ChatAvatar/index.vue'
 import { useMessageTab, type ChatSessionPreview } from '@/composables/useMessageTab'
@@ -179,6 +178,12 @@ const moreIcon = computed((): IconName => {
   if (mode.value === 'announce') return 'bell'
   if (mode.value === 'inbox') return 'notes-o'
   return 'chat-o'
+})
+
+const moreTheme = computed(() => {
+  if (mode.value === 'announce') return 'announce'
+  if (mode.value === 'inbox') return 'inbox'
+  return 'monitor'
 })
 
 function goAnnounceDetail(id: number) {
@@ -337,28 +342,6 @@ onPullDownRefresh(async () => {
   gap: 20rpx;
   margin-top: 24rpx;
   padding: 24rpx 28rpx;
-}
-
-.message-hub__more-icon {
-  width: 72rpx;
-  height: 72rpx;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 20rpx;
-
-  &--announce {
-    background: linear-gradient(135deg, #f59e0b, #fbbf24);
-  }
-
-  &--inbox {
-    background: linear-gradient(135deg, #6366f1, #818cf8);
-  }
-
-  &--chat {
-    background: linear-gradient(135deg, #14b8a6, #2dd4bf);
-  }
 }
 
 .message-hub__more-body {

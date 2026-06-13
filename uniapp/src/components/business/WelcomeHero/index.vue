@@ -106,6 +106,7 @@ watch(
   display: flex;
   align-items: center;
   gap: 24rpx;
+  padding-left: 12rpx;
 }
 
 .welcome__avatar {

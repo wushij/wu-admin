@@ -37,6 +37,9 @@ export function useChatScroll() {
     scrollAnimated.value = animated
     await nextTick()
     if (seq !== scrollSeq) return
+    // 等新消息插入 DOM 后再量高度
+    await new Promise<void>((resolve) => setTimeout(resolve, 30))
+    if (seq !== scrollSeq) return
     const maxScroll = await measureMaxScroll()
     scrollTop.value = (maxScroll > 0 ? maxScroll : 99999) + seq
   }

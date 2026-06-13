@@ -129,7 +129,7 @@ function onCancel() {
 .app-sheet__item {
   display: flex;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: center;
   width: 100%;
   box-sizing: border-box;
   min-height: 104rpx;
@@ -154,7 +154,7 @@ function onCancel() {
 .app-sheet__label {
   display: block;
   width: 100%;
-  text-align: left;
+  text-align: center;
   line-height: 1.45;
 }
 

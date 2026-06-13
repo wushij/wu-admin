@@ -40,6 +40,7 @@ export interface RegisterAdminConfig {
   defaultRoleCode: string
   needAudit: boolean
   minPasswordLength: number
+  auditorUserIds: number[]
 }
 
 export interface SiteAdminConfig {

@@ -65,7 +65,7 @@ export function useMineMenu() {
         label: '账号概览',
         desc: '注册时间、最近登录 IP',
         path: '/pages-sub/mine/account',
-        theme: 'slate',
+        theme: 'amber',
       },
       {
         key: 'about',
@@ -73,7 +73,7 @@ export function useMineMenu() {
         label: '关于应用',
         desc: `版本 ${versionName}`,
         path: '/pages-sub/mine/about',
-        theme: 'slate',
+        theme: 'violet',
       },
     ],
   }))
