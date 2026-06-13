@@ -13,6 +13,7 @@ import org.redisson.api.RBucket;
 import org.redisson.api.RedissonClient;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
 import java.time.LocalDate;
 import java.util.concurrent.TimeUnit;
 
@@ -231,8 +232,7 @@ public class ProfileSmsMobileBindService {
         bucket.set(value, duration, unit);
     }
 
-    @SuppressWarnings("deprecation")
     private void expireAfter(org.redisson.api.RExpirable expirable, long duration, TimeUnit unit) {
-        expirable.expire(duration, unit);
+        expirable.expire(Duration.of(duration, unit.toChronoUnit()));
     }
 }

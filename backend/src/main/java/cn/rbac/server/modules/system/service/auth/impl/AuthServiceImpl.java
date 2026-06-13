@@ -36,6 +36,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -473,9 +474,8 @@ public class AuthServiceImpl implements AuthService {
         bucket.set(value, duration, unit);
     }
 
-    @SuppressWarnings("deprecation")
     private void expireAfter(org.redisson.api.RExpirable expirable, long duration, TimeUnit unit) {
-        expirable.expire(duration, unit);
+        expirable.expire(Duration.of(duration, unit.toChronoUnit()));
     }
 
     private String checkSmsSendRateLimit(String phone, String clientIp) {
