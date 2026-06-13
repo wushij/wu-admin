@@ -9,6 +9,7 @@ import {
   getSmsLogs,
 } from '@/api/system/config'
 import { getRoleList } from '@/api/system/role'
+import { getUserList } from '@/api/system/user'
 import type {
   ConfigGroupCode,
   FileStorageConfig,
@@ -24,6 +25,7 @@ import type {
   ThirdPartyConfig,
 } from '@/types/config-types'
 import type { RoleVO } from '@/types/system'
+import type { UserVO } from '@/types/user'
 
 const GROUP_CODES: ConfigGroupCode[] = [
   'site', 'session', 'file', 'rateLimit', 'login', 'register', 'thirdParty', 'payment', 'sms', 'security',
@@ -46,6 +48,7 @@ const LOGIN_DEFAULTS: LoginAdminConfig = {
   smsLoginSliderCaptchaEnabled: false,
   rememberMe: true,
   maxRetryCount: 5,
+  maxRetryCountIp: 20,
   lockTime: 10,
 }
 const REGISTER_DEFAULTS: RegisterAdminConfig = {
@@ -55,6 +58,7 @@ const REGISTER_DEFAULTS: RegisterAdminConfig = {
   defaultRoleCode: 'user',
   needAudit: false,
   minPasswordLength: 6,
+  auditorUserIds: [],
 }
 const SMS_DEFAULTS: SmsAdminConfig = {
   enabled: false,
@@ -128,11 +132,18 @@ function parseConfig<T>(raw?: string, defaults?: T): T {
 function normalizeLogin(payload: LoginAdminConfig): LoginAdminConfig {
   let result = payload.captchaEnabled ? payload : { ...payload, captchaType: 'image' }
   if (!result.smsLoginEnabled) result = { ...result, smsLoginSliderCaptchaEnabled: false }
+  if (result.maxRetryCountIp === undefined) result = { ...result, maxRetryCountIp: 20 }
   return result
 }
 
+function normalizeRegisterAuditorIds(ids: unknown): number[] {
+  if (!Array.isArray(ids)) return []
+  return [...new Set(ids.map(Number).filter((id) => Number.isFinite(id) && id > 0))]
+}
+
 function normalizeRegister(payload: RegisterAdminConfig): RegisterAdminConfig {
-  return payload.captchaEnabled ? payload : { ...payload, captchaType: 'image' }
+  const base = payload.captchaEnabled ? payload : { ...payload, captchaType: 'image' }
+  return { ...base, auditorUserIds: normalizeRegisterAuditorIds(base.auditorUserIds) }
 }
 
 function normalizeSms(payload: SmsAdminConfig): SmsAdminConfig {
@@ -166,6 +177,7 @@ function mergeLoadedConfig<K extends ConfigGroupCode>(code: K, raw: string | und
     }
     if (login.smsLoginEnabled === undefined) login.smsLoginEnabled = false
     if (login.smsLoginSliderCaptchaEnabled === undefined) login.smsLoginSliderCaptchaEnabled = false
+    if (login.maxRetryCountIp === undefined) login.maxRetryCountIp = 20
     merged = login
   }
   if (code === 'sms') merged = normalizeSms(merged as SmsAdminConfig)
@@ -177,6 +189,9 @@ function mergeLoadedConfig<K extends ConfigGroupCode>(code: K, raw: string | und
     if (rl.smsPerIpDaily === undefined) rl.smsPerIpDaily = 30
     merged = rl
   }
+  if (code === 'register') {
+    merged = normalizeRegister(merged as RegisterAdminConfig)
+  }
   return merged
 }
 
@@ -186,6 +201,7 @@ export function useConfigEditor() {
   const smsTesting = ref(false)
   const paymentTesting = ref(false)
   const roleOptions = ref<RoleVO[]>([])
+  const userOptions = ref<UserVO[]>([])
   const testSmsPhone = ref('')
   const testSmsTemplate = ref('100001')
   const recentSmsLogs = ref<SmsLogRecord[]>([])
@@ -312,6 +328,12 @@ export function useConfigEditor() {
         roleOptions.value = roleRes.data || []
       } catch {
         roleOptions.value = []
+      }
+      try {
+        const userRes = await getUserList()
+        userOptions.value = (userRes.data || []).filter((u) => u.status !== 0)
+      } catch {
+        userOptions.value = []
       }
       testSmsTemplate.value = smsDraft.templateVerifyCode || '100001'
       await loadRecentSmsLogs()
@@ -507,6 +529,7 @@ export function useConfigEditor() {
     thirdDraft,
     paymentDraft,
     roleOptions,
+    userOptions,
     testSmsPhone,
     testSmsTemplate,
     recentSmsLogs,

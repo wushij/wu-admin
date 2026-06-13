@@ -15,10 +15,12 @@
     <input
       :value="modelValue"
       class="auth-input-field__control"
-      :password="password && !visible"
-      :type="inputType"
+      :class="{ 'auth-input-field__control--masked': useMask && !visible }"
+      :password="useNativePassword && !visible"
+      :type="resolvedInputType"
       :placeholder="placeholder"
       :maxlength="maxlength"
+      autocomplete="new-password"
       @input="onInput"
     />
     <view
@@ -26,7 +28,7 @@
       class="auth-input-field__toggle"
       @click.stop="toggleVisible"
     >
-      <IconFont :name="visible ? 'eye-o' : 'closed-eye'" :size="toggleSize" color="#909399" />
+      <PasswordEyeIcon :slashed="visible" />
     </view>
   </view>
 </template>
@@ -34,9 +36,12 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import IconFont from '@/components/common/IconFont/index.vue'
+import PasswordEyeIcon from '@/components/common/PasswordEyeIcon/index.vue'
 import type { IconName } from '@/constants/iconfont'
 
 export type AuthInputIcon = IconName | 'key'
+
+const isH5 = process.env.UNI_PLATFORM === 'h5'
 
 const props = withDefaults(
   defineProps<{
@@ -72,9 +77,13 @@ const emit = defineEmits<{
 
 const visible = ref(false)
 
-const inputType = computed(() => {
-  if (props.password) return 'text'
-  return props.type
+const useMask = computed(() => props.password && isH5)
+const useNativePassword = computed(() => props.password && !isH5)
+
+const resolvedInputType = computed(() => {
+  if (!props.password) return props.type
+  if (isH5) return 'text'
+  return visible.value ? 'text' : 'password'
 })
 
 function toggleVisible() {
@@ -128,6 +137,11 @@ function onInput(e: { detail: { value: string } }) {
   padding-right: 72rpx;
 }
 
+.auth-input-field__control--masked {
+  -webkit-text-security: disc;
+  text-security: disc;
+}
+
 .auth-input-field__toggle {
   position: absolute;
   right: 0;
@@ -138,4 +152,28 @@ function onInput(e: { detail: { value: string } }) {
   align-items: center;
   justify-content: center;
 }
+
+.auth-input-field__toggle :deep(.password-eye-icon) {
+  width: 36rpx;
+  height: 36rpx;
+}
+
+/* #ifdef H5 */
+.auth-input-field--password .auth-input-field__control::-ms-reveal,
+.auth-input-field--password .auth-input-field__control::-ms-clear {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+.auth-input-field--password .auth-input-field__control::-webkit-credentials-auto-fill-button,
+.auth-input-field--password .auth-input-field__control::-webkit-contacts-auto-fill-button,
+.auth-input-field--password .auth-input-field__control::-webkit-textfield-decoration-container {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+/* #endif */
 </style>

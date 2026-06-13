@@ -41,3 +41,16 @@ export function formatPercent(value?: number | null, digits = 1) {
   if (value == null || Number.isNaN(value)) return '—'
   return `${Number(value).toFixed(digits)}%`
 }
+
+const USER_STATUS_LABELS: Record<number, string> = {
+  0: '已停用',
+  1: '正常',
+  2: '待审核',
+  3: '审核驳回',
+}
+
+/** 用户账号状态文案，与 PC 个人中心一致 */
+export function formatUserStatus(status?: number | null) {
+  if (status == null) return '—'
+  return USER_STATUS_LABELS[status] ?? '未知'
+}

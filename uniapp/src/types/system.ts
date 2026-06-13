@@ -241,8 +241,6 @@ export interface OperLogPageQuery {
   title?: string
   operName?: string
   status?: number | null
-  beginTime?: string
-  endTime?: string
 }
 
 export interface LoginLogVO {
@@ -263,8 +261,6 @@ export interface LoginLogPageQuery {
   username?: string
   ipaddr?: string
   status?: number | null
-  beginTime?: string
-  endTime?: string
 }
 
 export interface OnlineUser {
@@ -305,6 +301,7 @@ export interface SysJobLog {
   exceptionInfo?: string
   startTime?: string
   stopTime?: string
+  durationMs?: number
 }
 
 export interface JobOverview {
@@ -367,6 +364,10 @@ export interface ServerInfo {
 }
 
 export interface CacheStats {
+  usedMemory?: number
+  maxMemory?: number
+  maxMemoryConfigured?: boolean
+  systemMemory?: number
   usedMemoryHuman?: string
   hitRate?: number | null
   cumulativeHitRate?: number | null
@@ -418,6 +419,7 @@ export interface ApiAccessLogRow {
   method?: string
   success?: number
   statusCode?: number
+  startTime?: string
   createTime?: string
   costTime?: number
   ip?: string

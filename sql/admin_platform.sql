@@ -300,6 +300,10 @@ CREATE TABLE sys_job_log (
     exception_info VARCHAR(2000) DEFAULT NULL COMMENT '异常信息',
     start_time DATETIME DEFAULT NULL COMMENT '开始时间',
     stop_time DATETIME DEFAULT NULL COMMENT '停止时间',
+    duration_ms BIGINT DEFAULT NULL COMMENT '执行耗时(毫秒)',
+    deleted TINYINT DEFAULT 0 COMMENT '是否删除',
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     INDEX idx_job_name (job_name),
     INDEX idx_start_time (start_time),
     INDEX idx_status (status)
@@ -807,7 +811,7 @@ INSERT INTO sys_config_group (group_code, group_name, config_value, remark) VALU
 ('session', '会话配置', '{"tokenExpireHours":24}', 'JWT 与 Redis 会话有效期（小时）'),
 ('file', '文件配置', '{"maxSizeMb":50,"allowedExtensions":"jpg,jpeg,png,gif,webp,bmp,svg,pdf,doc,docx,xls,xlsx,ppt,pptx,txt,md,json,xml,zip,rar,mp4,mp3,wav,avi,mov"}', '文件管理上传限制'),
 ('rateLimit', '接口限流', '{"captchaPerIpMinute":40,"loginPerIpMinute":30,"registerPerIpMinute":10,"smsPerIpMinute":5,"smsSendIntervalSeconds":60,"smsPerPhoneDaily":10,"smsPerIpDaily":30}', '认证接口按 IP 限流；含短信防刷'),
-('login', '登录配置', '{"captchaEnabled":true,"captchaType":"image","smsLoginEnabled":false,"smsLoginSliderCaptchaEnabled":false,"rememberMe":true,"maxRetryCount":5,"lockTime":10}', '验证码 image/slider；smsLoginEnabled 短信登录；smsLoginSliderCaptchaEnabled 短信发送前滑块'),
+('login', '登录配置', '{"captchaEnabled":true,"captchaType":"image","smsLoginEnabled":false,"smsLoginSliderCaptchaEnabled":false,"rememberMe":true,"maxRetryCount":5,"maxRetryCountIp":20,"lockTime":10}', '验证码 image/slider；smsLoginEnabled 短信登录；smsLoginSliderCaptchaEnabled 短信发送前滑块；maxRetryCount 账号锁定阈值；maxRetryCountIp IP 锁定阈值'),
 ('register', '注册配置', '{"enabled":true,"captchaEnabled":true,"captchaType":"image","defaultRoleCode":"user","needAudit":false,"minPasswordLength":6}', '开放注册、验证码类型、默认角色、是否审核'),
 ('thirdParty', '第三方配置', '{"wechat":{"enabled":false,"appId":"","appSecret":""},"alipay":{"enabled":false,"appId":"","privateKey":"","publicKey":""},"github":{"enabled":false,"clientId":"","clientSecret":""},"google":{"enabled":false,"clientId":"","clientSecret":"","redirectUri":""}}', '微信/支付宝/GitHub/Google 第三方登录'),
 ('payment', '支付配置', '{"wechatPay":{"enabled":false,"mchId":"","appId":"","apiV3Key":"","privateKey":"","certSerialNo":"","notifyUrl":""},"alipay":{"enabled":false,"appId":"","privateKey":"","publicKey":"","signType":"RSA2","gatewayUrl":"https://openapi.alipay.com/gateway.do","notifyUrl":"","returnUrl":""}}', '微信/支付宝支付与测试下单'),
@@ -1693,10 +1697,28 @@ CREATE TABLE IF NOT EXISTS sys_job_log (
     exception_info VARCHAR(2000) DEFAULT NULL COMMENT '异常信息',
     start_time DATETIME DEFAULT NULL COMMENT '开始时间',
     stop_time DATETIME DEFAULT NULL COMMENT '停止时间',
+    duration_ms BIGINT DEFAULT NULL COMMENT '执行耗时(毫秒)',
+    deleted TINYINT DEFAULT 0 COMMENT '是否删除',
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     INDEX idx_job_name (job_name),
     INDEX idx_start_time (start_time),
     INDEX idx_status (status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='定时任务日志表';
+
+-- [附录·任务] sys_job_log 增加毫秒级耗时（#16；旧表补列）
+SET @col_exists := (
+    SELECT COUNT(*) FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'sys_job_log'
+      AND COLUMN_NAME = 'duration_ms'
+);
+SET @sql := IF(@col_exists = 0,
+    'ALTER TABLE sys_job_log ADD COLUMN duration_ms BIGINT DEFAULT NULL COMMENT ''执行耗时(毫秒)'' AFTER stop_time',
+    'SELECT ''duration_ms exists'' AS info');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
 
 INSERT IGNORE INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, component, status) VALUES
 (180, '定时任务', 'monitor:job:list', 2, 3, 100, '/monitor/job', 'Timer', 'monitor/job/index', 1),
@@ -1897,6 +1919,13 @@ UPDATE sys_config_group
 SET config_value = JSON_SET(config_value, '$.smsLoginSliderCaptchaEnabled', CAST(false AS JSON))
 WHERE group_code = 'login'
   AND JSON_EXTRACT(config_value, '$.smsLoginSliderCaptchaEnabled') IS NULL;
+
+-- [附录·登录] IP 锁定阈值 maxRetryCountIp（增量见 add18.sql；生产见 add15_wuadmin.sql）
+UPDATE sys_config_group
+SET config_value = JSON_SET(config_value, '$.maxRetryCountIp', CAST(20 AS JSON)),
+    remark = '验证码 image/slider；smsLoginEnabled 短信登录；smsLoginSliderCaptchaEnabled 短信发送前滑块；maxRetryCount 账号锁定阈值；maxRetryCountIp IP 锁定阈值'
+WHERE group_code = 'login'
+  AND JSON_EXTRACT(config_value, '$.maxRetryCountIp') IS NULL;
 
 -- [附录·限流] 短信发送防刷字段（IP/间隔/日上限）
 UPDATE sys_config_group

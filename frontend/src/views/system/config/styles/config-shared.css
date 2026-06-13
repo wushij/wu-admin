@@ -13,6 +13,44 @@
   font-size: 13px;
 }
 
+.config-auditor-field {
+  width: 100%;
+}
+
+.config-auditor-select {
+  width: 100%;
+}
+
+.config-auditor-select .el-select__wrapper {
+  min-height: 36px;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  align-items: flex-start;
+}
+
+.config-auditor-select .el-select__selection {
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.config-auditor-select .el-tag {
+  max-width: none;
+  height: 26px;
+  padding: 0 8px;
+  border-radius: 4px;
+}
+
+.config-auditor-select .el-tag__close {
+  margin-left: 4px;
+}
+
+.config-auditor-field__hint {
+  margin: 6px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #909399;
+}
+
 .pay-collapse {
   max-width: 760px;
 }

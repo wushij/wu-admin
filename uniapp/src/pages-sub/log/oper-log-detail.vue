@@ -13,16 +13,6 @@
         <DetailRow label="操作时间" :value="formatDateTime(detail.operTime, true)" />
       </MonitorPanel>
 
-      <MonitorPanel v-if="actionText" title="操作内容">
-        <text class="oper-log-detail__action">{{ actionText }}</text>
-      </MonitorPanel>
-
-      <MonitorPanel v-if="diffItems.length" title="变更明细">
-        <view class="diff-chips-row">
-          <text v-for="(item, idx) in diffItems" :key="idx" class="diff-chip">{{ item }}</text>
-        </view>
-      </MonitorPanel>
-
       <MonitorPanel title="请求信息">
         <DetailRow label="请求地址" :value="detail.operUrl" />
         <DetailRow label="方法名称" :value="detail.method" />
@@ -62,68 +52,7 @@ import type { OperLogVO } from '@/types/system'
 const loading = ref(true)
 const detail = ref<OperLogVO | null>(null)
 
-const actionText = computed(() => {
-  const cleanTitle = (t: string | undefined) => t ? (t.endsWith('管理') ? t.slice(0, -2) : t) : ''
-  const t = cleanTitle(detail.value?.title)
-  if (!detail.value?.operParam) {
-    if (t) {
-      const typeLabel = detail.value?.businessType === 0 ? '' : businessTypeLabel(detail.value?.businessType)
-      return `${typeLabel}${t}`
-    }
-    return ''
-  }
-  try {
-    const obj = JSON.parse(detail.value.operParam)
-    let name = ''
-    if (obj && typeof obj === 'object') {
-      if (obj.action) {
-        return String(obj.action)
-      }
-      const params = obj.params || obj
-      if (Array.isArray(params)) {
-        name = 'ID: ' + params.join(', ')
-      } else if (params && typeof params === 'object') {
-        name = params.username || params.nickname || params.name || params.label || params.title || params.groupName || params.dictType || params.id || ''
-        if (typeof name === 'object') {
-          name = ''
-        }
-      } else if (params != null && typeof params !== 'function') {
-        name = String(params)
-      }
-    } else if (obj != null && typeof obj !== 'function') {
-      name = String(obj)
-    }
-    const typeLabel = detail.value.businessType === 0 ? '' : businessTypeLabel(detail.value.businessType)
-    if (t) {
-      return `${typeLabel}${t}${name ? `「${name}」` : ''}`
-    }
-  } catch {}
-  if (t) {
-    const typeLabel = detail.value.businessType === 0 ? '' : businessTypeLabel(detail.value.businessType)
-    return `${typeLabel}${t}`
-  }
-  return ''
-})
-
-const diffItems = computed<string[]>(() => {
-  if (!detail.value?.operParam) return []
-  try {
-    const obj = JSON.parse(detail.value.operParam)
-    if (obj && typeof obj === 'object' && Array.isArray(obj.diffItems)) {
-      return obj.diffItems.map(String)
-    }
-  } catch {}
-  return []
-})
-
 const paramText = computed(() => {
-  if (!detail.value?.operParam) return '（空）'
-  try {
-    const obj = JSON.parse(detail.value.operParam)
-    if (obj && typeof obj === 'object' && 'params' in obj) {
-      return formatOperLogJson(JSON.stringify(obj.params))
-    }
-  } catch {}
   const text = formatOperLogJson(detail.value?.operParam)
   return text || '（空）'
 })
@@ -142,35 +71,12 @@ onLoad((options) => {
 </script>
 
 <style lang="scss" scoped>
+@import '@/styles/variables.scss';
 
 .oper-log-detail {
   min-height: 100vh;
   box-sizing: border-box;
   padding-bottom: 32rpx;
-}
-
-.oper-log-detail__action {
-  display: block;
-  font-size: 28rpx;
-  color: $color-primary;
-  font-weight: 500;
-  line-height: 1.5;
-}
-
-.diff-chips-row {
-  display: flex;
-  flex-direction: column;
-  gap: 12rpx;
-}
-
-.diff-chip {
-  display: inline-block;
-  padding: 12rpx 20rpx;
-  background: rgba(230, 162, 60, 0.12);
-  color: #e6a23c;
-  border-radius: $radius-sm;
-  font-size: 26rpx;
-  line-height: 1.4;
 }
 
 .oper-log-detail__scroll {

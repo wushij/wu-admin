@@ -1,19 +1,20 @@
-import { computed, onMounted, onUnmounted, ref, type Ref } from 'vue'
+import { computed, ref } from 'vue'
+import { getServerInfo } from '@/api/monitor/server'
 import type { ServerInfo } from '@/types/system'
-import {
-  fetchServerPoint,
-  serverAutoRefresh,
-  serverChartHistory,
-  setServerAutoRefresh,
-  setServerInfoUpdateHandler,
-  startServerMonitorBackground,
-  stopServerMonitorBackground,
-} from '@/composables/monitor/serverMonitorChart'
-import { isMonitorAdmin } from '@/composables/useMonitorBackground'
-
-export { resolveCpuChartValue } from '@/composables/monitor/serverMonitorChart'
 
 export const SERVER_MAX_CHART_POINTS = 20
+
+export function resolveCpuChartValue(data: ServerInfo): number | null {
+  const sys = data.cpu?.systemCpuPercent
+  if (sys != null) return Math.round(sys * 10) / 10
+  const proc = data.cpu?.processCpuPercent
+  if (proc != null) return Math.round(proc * 10) / 10
+  const load = data.cpu?.systemLoadAverage
+  if (load != null && load >= 0) {
+    return Math.min(Math.round((load * 100) / (data.cpu?.availableProcessors || 1)), 100)
+  }
+  return null
+}
 
 export function diskProgressTone(percent?: number | null): 'success' | 'warning' | 'danger' {
   const p = percent ?? 0
@@ -23,11 +24,10 @@ export function diskProgressTone(percent?: number | null): 'success' | 'warning'
 }
 
 export function useServerMonitor() {
-  const info = ref<ServerInfo | null>(serverChartHistory.lastServerInfo)
-
-  const timeLabels = computed(() => serverChartHistory.timeLabels)
-  const cpuHistory = computed(() => serverChartHistory.cpuData)
-  const heapHistory = computed(() => serverChartHistory.heapData)
+  const info = ref<ServerInfo | null>(null)
+  const timeLabels = ref<string[]>([])
+  const cpuHistory = ref<(number | null)[]>([])
+  const heapHistory = ref<number[]>([])
 
   const cpuDisplay = computed(() => {
     const p = info.value?.cpu?.systemCpuPercent ?? info.value?.cpu?.processCpuPercent
@@ -53,26 +53,19 @@ export function useServerMonitor() {
     return Math.max(...disks.map((d) => d.usedPercent ?? 0))
   })
 
-  async function fetchServerInfo() {
-    await fetchServerPoint()
+  function pushPoint(data: ServerInfo) {
+    const label = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+    timeLabels.value = [...timeLabels.value, label].slice(-SERVER_MAX_CHART_POINTS)
+    cpuHistory.value = [...cpuHistory.value, resolveCpuChartValue(data)].slice(-SERVER_MAX_CHART_POINTS)
+    const heap = Math.round(data.memory?.heapUsedPercent ?? 0)
+    heapHistory.value = [...heapHistory.value, heap].slice(-SERVER_MAX_CHART_POINTS)
   }
 
-  onMounted(() => {
-    startServerMonitorBackground()
-    setServerInfoUpdateHandler((data) => {
-      info.value = data
-    })
-    if (serverChartHistory.lastServerInfo) {
-      info.value = serverChartHistory.lastServerInfo
-    }
-  })
-
-  onUnmounted(() => {
-    setServerInfoUpdateHandler(null)
-    if (!isMonitorAdmin()) {
-      stopServerMonitorBackground()
-    }
-  })
+  async function fetchServerInfo() {
+    const res = await getServerInfo()
+    info.value = res.data || null
+    if (info.value) pushPoint(info.value)
+  }
 
   return {
     info,
@@ -84,7 +77,5 @@ export function useServerMonitor() {
     physicalDisplay,
     maxDiskPercent,
     fetchServerInfo,
-    autoRefresh: serverAutoRefresh,
-    setAutoRefresh: setServerAutoRefresh,
   }
 }

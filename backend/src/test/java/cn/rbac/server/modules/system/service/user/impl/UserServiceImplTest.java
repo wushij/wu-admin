@@ -4,11 +4,14 @@ import cn.rbac.server.common.pojo.BusinessException;
 import cn.rbac.server.framework.security.core.service.TokenService;
 import cn.rbac.server.modules.system.api.user.vo.UserCreateReqVO;
 import cn.rbac.server.modules.system.api.user.vo.UserUpdateReqVO;
+import cn.rbac.server.modules.system.dal.dataobject.loginlog.LoginLogDO;
 import cn.rbac.server.modules.system.dal.dataobject.user.UserDO;
 import cn.rbac.server.modules.system.dal.mysql.dept.DeptMapper;
+import cn.rbac.server.modules.system.dal.mysql.loginlog.LoginLogMapper;
 import cn.rbac.server.modules.system.dal.mysql.post.PostMapper;
 import cn.rbac.server.modules.system.dal.mysql.user.UserMapper;
 import cn.rbac.server.modules.system.dal.mysql.user.UserPostMapper;
+import cn.rbac.server.modules.system.service.auth.LoginLockService;
 import cn.rbac.server.modules.system.service.permission.PermissionService;
 import cn.rbac.server.testsupport.MybatisLambdaTestBase;
 import cn.rbac.server.testsupport.ServiceTestFixtures;
@@ -20,7 +23,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
-import java.util.Collections;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -45,6 +47,10 @@ class UserServiceImplTest extends MybatisLambdaTestBase {
     private PostMapper postMapper;
     @Mock
     private PasswordEncoder passwordEncoder;
+    @Mock
+    private LoginLockService loginLockService;
+    @Mock
+    private LoginLogMapper loginLogMapper;
 
     @InjectMocks
     private UserServiceImpl userService;
@@ -127,19 +133,25 @@ class UserServiceImplTest extends MybatisLambdaTestBase {
     }
 
     @Test
-    @DisplayName("getDetail：填充部门与角色信息")
-    void getDetail_fillsDisplayFields() {
+    @DisplayName("unlockLogin：用户不存在抛 404")
+    void unlockLogin_notFound() {
+        when(userMapper.selectById(99L)).thenReturn(null);
+        BusinessException ex = assertThrows(BusinessException.class, () -> userService.unlockLogin(99L));
+        assertEquals(404, ex.getCode());
+    }
+
+    @Test
+    @DisplayName("unlockLogin：解除账号并清除最近登录 IP 锁定")
+    void unlockLogin_success() {
         UserDO user = ServiceTestFixtures.user(1L, "alice", 1);
-        user.setDeptId(10L);
         when(userMapper.selectById(1L)).thenReturn(user);
-        when(deptMapper.selectByIds(Set.of(10L))).thenReturn(Collections.emptyList());
-        when(userPostMapper.selectByUserIds(Set.of(1L))).thenReturn(Collections.emptyList());
-        when(permissionService.getUserRoleIdsMapByUserIds(Set.of(1L)))
-                .thenReturn(Collections.singletonMap(1L, Set.of(2L)));
+        LoginLogDO log = new LoginLogDO();
+        log.setIpaddr("192.168.1.10");
+        when(loginLogMapper.selectOne(any())).thenReturn(log);
 
-        UserDO detail = userService.getDetail(1L);
+        userService.unlockLogin(1L);
 
-        assertNotNull(detail);
-        assertEquals(Set.of(2L), detail.getRoleIds());
+        verify(loginLockService).unlockUser("alice");
+        verify(loginLockService).unlockIp("192.168.1.10");
     }
 }

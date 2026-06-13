@@ -15,6 +15,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.Resource;
 import lombok.Data;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -136,14 +137,48 @@ public class SysJobController {
     @DeleteMapping("/log/clean")
     @PreAuthorize("@ss.hasPermission('monitor:job:delete')")
     @Log(title = "定时任务", businessType = Log.BusinessType.DELETE)
-    @Operation(summary = "清空调度日志")
-    public CommonResult<Boolean> cleanLog() {
-        jobLogService.clean();
+    @Operation(summary = "清空调度日志至回收站（可按任务筛选；无参数时清空全部）")
+    public CommonResult<Boolean> cleanLog(
+            @RequestParam(required = false) String jobName,
+            @RequestParam(required = false) String jobGroup) {
+        if (StringUtils.hasText(jobName) || StringUtils.hasText(jobGroup)) {
+            jobLogService.cleanScope(jobName, jobGroup);
+        } else {
+            jobLogService.cleanAll();
+        }
+        return CommonResult.success(true);
+    }
+
+    @GetMapping("/log/recycle/page")
+    @PreAuthorize("@ss.hasRead('system:recycle:list')")
+    @Operation(summary = "调度日志回收站分页")
+    public CommonResult<PageResult<SysJobLogDO>> logRecyclePage(
+            PageParam pageParam,
+            @RequestParam(required = false) String jobName,
+            @RequestParam(required = false) String jobGroup) {
+        return CommonResult.success(jobLogService.recyclePage(pageParam, jobName, jobGroup));
+    }
+
+    @PutMapping("/log/restore")
+    @PreAuthorize("@ss.hasPermission('monitor:job:delete')")
+    @Log(title = "定时任务", businessType = Log.BusinessType.UPDATE)
+    @Operation(summary = "恢复调度日志")
+    public CommonResult<Boolean> restoreLog(@RequestParam Long id) {
+        jobLogService.restore(id);
+        return CommonResult.success(true);
+    }
+
+    @DeleteMapping("/log/delete-permanent")
+    @PreAuthorize("@ss.hasPermission('monitor:job:delete')")
+    @Log(title = "定时任务", businessType = Log.BusinessType.DELETE)
+    @Operation(summary = "彻底删除调度日志")
+    public CommonResult<Boolean> deleteLogPermanent(@RequestParam Long id) {
+        jobLogService.deletePermanent(id);
         return CommonResult.success(true);
     }
 
     @GetMapping("/recycle/page")
-    @PreAuthorize("@ss.hasPermission('monitor:job:delete')")
+    @PreAuthorize("@ss.hasRead('system:recycle:list')")
     @Operation(summary = "定时任务回收站分页")
     public CommonResult<PageResult<SysJobDO>> recyclePage(
             PageParam pageParam,

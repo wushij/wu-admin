@@ -34,7 +34,7 @@ import {
   restoreAnnounce,
   deleteAnnouncePermanent,
 } from '@/api/message/index'
-import { getRecycleJobPage, restoreJob, deleteJobPermanent } from '@/api/monitor/job'
+import { getRecycleJobPage, restoreJob, deleteJobPermanent, getRecycleJobLogPage, restoreJobLog, deleteJobLogPermanent } from '@/api/monitor/job'
 import { getRecycleFilePage, restoreFile, deleteFilePermanent } from '@/api/system/file'
 import { getRecycleGenPage, restoreGenTable, deleteGenTablePermanent } from '@/api/tool/gen'
 import type { ApiResult, PageResult } from '@/types/api'
@@ -53,6 +53,7 @@ export type RecycleTypeKey = keyof Pick<
   | 'dictData'
   | 'announce'
   | 'job'
+  | 'jobLog'
   | 'file'
   | 'gen'
 >
@@ -79,6 +80,7 @@ export type RecycleAccent =
   | 'dictData'
   | 'announce'
   | 'job'
+  | 'jobLog'
   | 'file'
   | 'gen'
 
@@ -297,7 +299,7 @@ export const RECYCLE_TYPES: RecycleTypeConfig[] = [
     label: '定时任务',
     icon: Timer,
     accent: 'job',
-    permission: 'monitor:job:list',
+    permission: 'monitor:job:delete',
     deletePermission: 'monitor:job:delete',
     hint: '恢复后将重新注册 Quartz 调度；暂停状态的任务会以暂停方式恢复。',
     columns: [
@@ -314,6 +316,26 @@ export const RECYCLE_TYPES: RecycleTypeConfig[] = [
     fetchPage: (p) => getRecycleJobPage(p as never) as unknown as Promise<ApiResult<PageResult<Record<string, unknown>>>>,
     restore: restoreJob,
     deletePermanent: deleteJobPermanent,
+  },
+  {
+    key: 'jobLog',
+    label: '调度日志',
+    icon: List,
+    accent: 'job',
+    permission: 'monitor:job:delete',
+    deletePermission: 'monitor:job:delete',
+    hint: '清空调度日志后会进入此处，可恢复后在调度日志中重新查看。',
+    columns: [
+      { prop: 'id', label: 'ID', width: 70 },
+      { prop: 'jobName', label: '任务名称', minWidth: 160 },
+      { prop: 'jobGroup', label: '任务组', width: 110 },
+      { prop: 'startTime', label: '开始时间', minWidth: 170 },
+      { prop: 'updateTime', label: '删除时间', width: 180 },
+    ],
+    searchFields: [{ key: 'jobName', label: '任务名', placeholder: '请输入任务名称' }],
+    fetchPage: (p) => getRecycleJobLogPage(p as never) as unknown as Promise<ApiResult<PageResult<Record<string, unknown>>>>,
+    restore: restoreJobLog,
+    deletePermanent: deleteJobLogPermanent,
   },
   {
     key: 'file',

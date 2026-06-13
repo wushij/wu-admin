@@ -16,4 +16,4 @@ app:
   security:
     cookie-secure: true
   cors:
-    allowed-origins: "https://wushij.online,https://www.wushij.online"
+    allowed-origins: "https://wushij.online,https://www.wushij.online,https://app.wushij.online"

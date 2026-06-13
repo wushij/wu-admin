@@ -190,9 +190,11 @@ public class SysJobServiceImpl extends ServiceImpl<SysJobMapper, SysJobDO> imple
     public void delete(Long id) {
         SysJobDO job = getById(id);
         if (job == null) {
-            return;
+            throw new BusinessException(404, "任务不存在");
         }
-        removeById(id);
+        if (!removeById(id)) {
+            throw new BusinessException("删除任务失败");
+        }
         try {
             ScheduleUtils.deleteScheduleJob(scheduler, job);
         } catch (SchedulerException e) {

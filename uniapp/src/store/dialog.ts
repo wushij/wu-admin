@@ -11,6 +11,8 @@ export interface ConfirmOptions {
   editable?: boolean
   placeholderText?: string
   inputType?: 'text' | 'password'
+  showCancel?: boolean
+  contentAlign?: 'left' | 'center'
 }
 
 export interface ConfirmResult {
@@ -101,6 +103,8 @@ export function showConfirm(options: ConfirmOptions): Promise<ConfirmResult> {
       confirmText: '确定',
       cancelText: '取消',
       tone: 'default',
+      showCancel: true,
+      contentAlign: 'center',
       ...options,
     }
     dialogState.confirmInput = ''

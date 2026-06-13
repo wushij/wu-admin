@@ -70,6 +70,8 @@ const {
   users,
   filteredUsers,
   selectedId,
+  selectedIds,
+  multiMode,
   allowEmpty,
   emptyLabel,
   initFromRoute,
@@ -78,6 +80,7 @@ const {
   isSelected,
   userLabel,
   resolveSelectedLabel,
+  resolveMultiLabelText,
 } = useUserSelectPage()
 
 function getPageOptions(): PageOpts {
@@ -97,7 +100,7 @@ function refreshOpenerChannel() {
 }
 
 function bootstrap(options: PageOpts) {
-  const session = String(options.pick || options.session || '')
+  const session = String(options.pick || options.session || (options.multi === '1' ? 'multi' : ''))
   if (!session || confirming.value) return
   if (session !== pickToken.value) pickToken.value = session
   initFromRoute(options, session)
@@ -106,6 +109,24 @@ function bootstrap(options: PageOpts) {
 function confirm() {
   if (confirming.value) return
   confirming.value = true
+
+  if (multiMode.value) {
+    const ids = [...selectedIds.value]
+    const labelText = resolveMultiLabelText(ids)
+    setPagePickerResult({ kind: 'user-multi', ids, labelText })
+    setTimeout(() => {
+      uni.navigateBack({
+        fail: () => {
+          confirming.value = false
+          uni.showToast({ title: '返回失败，请重试', icon: 'none' })
+        },
+        complete: () => {
+          confirming.value = false
+        },
+      })
+    }, 32)
+    return
+  }
 
   const pickedId = selectedId.value
   const label = resolveSelectedLabel(pickedId)

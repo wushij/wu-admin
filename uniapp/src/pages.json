@@ -150,10 +150,28 @@
           }
         },
         {
+          "path": "mobile-bind",
+          "style": {
+            "navigationBarTitleText": "更换手机号",
+            "navigationBarBackgroundColor": "#eef2ff",
+            "navigationBarBorderStyle": "white",
+            "backgroundColor": "#f3f5f8"
+          }
+        },
+        {
           "path": "login-logs",
           "style": {
             "navigationBarTitleText": "登录记录",
             "enablePullDownRefresh": true,
+            "navigationBarBackgroundColor": "#eef2ff",
+            "navigationBarBorderStyle": "white",
+            "backgroundColor": "#f3f5f8"
+          }
+        },
+        {
+          "path": "account",
+          "style": {
+            "navigationBarTitleText": "账号概览",
             "navigationBarBackgroundColor": "#eef2ff",
             "navigationBarBorderStyle": "white",
             "backgroundColor": "#f3f5f8"
@@ -211,10 +229,11 @@
       "pages": [
         { "path": "online", "style": { "navigationBarTitleText": "在线用户", "enablePullDownRefresh": true } },
         { "path": "online-detail", "style": { "navigationBarTitleText": "会话详情" } },
-        { "path": "server", "style": { "navigationBarTitleText": "服务监控", "enablePullDownRefresh": true } },
+        { "path": "server", "style": { "navigationBarTitleText": "服务器监控", "enablePullDownRefresh": true } },
         { "path": "job", "style": { "navigationBarTitleText": "定时任务", "enablePullDownRefresh": true } },
         { "path": "job-form", "style": { "navigationBarTitleText": "编辑任务" } },
         { "path": "cache", "style": { "navigationBarTitleText": "缓存监控", "enablePullDownRefresh": true } },
+        { "path": "cache-key", "style": { "navigationBarTitleText": "缓存详情" } },
         { "path": "api-access", "style": { "navigationBarTitleText": "API访问统计", "enablePullDownRefresh": true } }
       ]
     },
@@ -222,7 +241,9 @@
       "root": "pages-sub/log",
       "pages": [
         { "path": "oper-log", "style": { "navigationBarTitleText": "操作日志", "enablePullDownRefresh": true } },
-        { "path": "login-log", "style": { "navigationBarTitleText": "登录日志", "enablePullDownRefresh": true } }
+        { "path": "oper-log-detail", "style": { "navigationBarTitleText": "日志详情" } },
+        { "path": "login-log", "style": { "navigationBarTitleText": "登录日志", "enablePullDownRefresh": true } },
+        { "path": "login-log-detail", "style": { "navigationBarTitleText": "登录详情" } }
       ]
     }
   ]

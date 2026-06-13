@@ -8,13 +8,17 @@ import cn.rbac.server.modules.system.api.user.vo.AssignRoleReqVO;
 import cn.rbac.server.modules.system.api.user.vo.UserCreateReqVO;
 import cn.rbac.server.modules.system.api.user.vo.UserUpdateReqVO;
 import cn.rbac.server.modules.system.dal.dataobject.dept.DeptDO;
+import cn.rbac.server.modules.system.dal.dataobject.loginlog.LoginLogDO;
 import cn.rbac.server.modules.system.dal.dataobject.post.PostDO;
 import cn.rbac.server.modules.system.dal.dataobject.user.UserDO;
 import cn.rbac.server.modules.system.dal.dataobject.user.UserPostDO;
 import cn.rbac.server.modules.system.dal.mysql.dept.DeptMapper;
+import cn.rbac.server.modules.system.dal.mysql.loginlog.LoginLogMapper;
 import cn.rbac.server.modules.system.dal.mysql.post.PostMapper;
 import cn.rbac.server.modules.system.dal.mysql.user.UserMapper;
 import cn.rbac.server.modules.system.dal.mysql.user.UserPostMapper;
+import cn.rbac.server.modules.system.service.auth.LoginLockService;
+import cn.rbac.server.modules.system.service.auth.vo.LoginLockStatusVO;
 import cn.rbac.server.modules.system.service.dept.DeptService;
 import cn.rbac.server.modules.system.service.permission.PermissionService;
 import cn.rbac.server.modules.system.service.user.UserService;
@@ -26,6 +30,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -53,6 +58,10 @@ public class UserServiceImpl implements UserService {
     private PasswordEncoder passwordEncoder;
     @Resource
     private DeptService deptService;
+    @Resource
+    private LoginLockService loginLockService;
+    @Resource
+    private LoginLogMapper loginLogMapper;
 
     @Override
     public List<UserDO> listAll() {
@@ -99,6 +108,7 @@ public class UserServiceImpl implements UserService {
         Page<UserDO> page = userMapper.selectPage(new Page<>(pageParam.getPageNo(), pageParam.getPageSize()), wrapper);
         List<UserDO> users = page.getRecords();
         fillUserDisplayFields(users);
+        fillLoginLockFields(users);
         return PageResult.of(users, page.getTotal());
     }
 
@@ -107,6 +117,7 @@ public class UserServiceImpl implements UserService {
         UserDO user = userMapper.selectById(id);
         if (user != null) {
             fillUserDisplayFields(Collections.singletonList(user));
+            fillLoginLockFields(Collections.singletonList(user));
         }
         return user;
     }
@@ -233,6 +244,22 @@ public class UserServiceImpl implements UserService {
         tokenService.removeToken(userId);
     }
 
+    @Override
+    public void unlockLogin(Long id) {
+        UserDO user = userMapper.selectById(id);
+        if (user == null) {
+            throw new BusinessException(404, "用户不存在");
+        }
+        if (user.getUsername() == null || user.getUsername().isBlank()) {
+            throw new BusinessException(400, "用户名为空，无法解除锁定");
+        }
+        loginLockService.unlockUser(user.getUsername());
+        String recentIp = findRecentLoginIp(user.getUsername());
+        if (recentIp != null) {
+            loginLockService.unlockIp(recentIp);
+        }
+    }
+
     // ---- 私有方法 ----
 
     private void fillUserDisplayFields(List<UserDO> users) {
@@ -278,6 +305,81 @@ public class UserServiceImpl implements UserService {
                         .collect(Collectors.joining("、")));
             }
         });
+    }
+
+    private void fillLoginLockFields(List<UserDO> users) {
+        if (users == null || users.isEmpty()) {
+            return;
+        }
+        List<String> usernames = users.stream()
+                .map(UserDO::getUsername)
+                .filter(name -> name != null && !name.isBlank())
+                .map(String::trim)
+                .distinct()
+                .collect(Collectors.toList());
+        Map<String, LoginLockStatusVO> statusMap = loginLockService.getUserLockStatusMap(usernames);
+        Map<String, String> recentIpMap = findRecentLoginIpMap(usernames);
+        Map<String, LoginLockStatusVO> ipStatusMap = loginLockService.getIpLockStatusMap(recentIpMap.values());
+        users.forEach(user -> {
+            if (user.getUsername() == null) {
+                return;
+            }
+            String username = user.getUsername().trim();
+            LoginLockStatusVO status = statusMap.get(username);
+            if (status == null) {
+                user.setLoginLocked(false);
+                user.setLoginLockRemainSeconds(0L);
+                user.setLoginFailCount(0);
+            } else {
+                user.setLoginLocked(status.isLocked());
+                user.setLoginLockRemainSeconds(status.getRemainSeconds());
+                user.setLoginFailCount(status.getFailCount());
+            }
+            String recentIp = recentIpMap.get(username);
+            user.setLoginRecentIp(recentIp);
+            if (recentIp == null) {
+                user.setLoginIpLocked(false);
+                user.setLoginIpLockRemainSeconds(0L);
+                user.setLoginIpFailCount(0);
+                return;
+            }
+            LoginLockStatusVO ipStatus = ipStatusMap.get(recentIp);
+            if (ipStatus == null) {
+                user.setLoginIpLocked(false);
+                user.setLoginIpLockRemainSeconds(0L);
+                user.setLoginIpFailCount(0);
+                return;
+            }
+            user.setLoginIpLocked(ipStatus.isLocked());
+            user.setLoginIpLockRemainSeconds(ipStatus.getRemainSeconds());
+            user.setLoginIpFailCount(ipStatus.getFailCount());
+        });
+    }
+
+    private Map<String, String> findRecentLoginIpMap(List<String> usernames) {
+        if (usernames == null || usernames.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        List<LoginLogDO> logs = loginLogMapper.selectList(new LambdaQueryWrapper<LoginLogDO>()
+                .in(LoginLogDO::getUsername, usernames)
+                .isNotNull(LoginLogDO::getIpaddr)
+                .ne(LoginLogDO::getIpaddr, "")
+                .orderByDesc(LoginLogDO::getLoginTime));
+        Map<String, String> map = new HashMap<>();
+        for (LoginLogDO log : logs) {
+            if (log.getUsername() == null || log.getIpaddr() == null) {
+                continue;
+            }
+            map.putIfAbsent(log.getUsername().trim(), log.getIpaddr().trim());
+        }
+        return map;
+    }
+
+    private String findRecentLoginIp(String username) {
+        if (username == null || username.isBlank()) {
+            return null;
+        }
+        return findRecentLoginIpMap(List.of(username.trim())).get(username.trim());
     }
 
     private void saveUserPosts(Long userId, List<Long> postIds) {

@@ -15,6 +15,7 @@ public class RecycleSummaryVO {
     private long dictData;
     private long announce;
     private long job;
+    private long jobLog;
     private long file;
     private long gen;
     private long total;

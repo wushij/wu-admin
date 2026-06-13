@@ -74,13 +74,13 @@ public class AnnounceService {
         for (UserAnnounceDO ua : uaPage.getRecords()) {
             AnnounceDO a = announceMapper.selectById(ua.getAnnounceId());
             if (a != null && a.getStatus() != null && a.getStatus() == 1) {
-                AnnounceMyVO vo = new AnnounceMyVO();
+        AnnounceMyVO vo = new AnnounceMyVO();
                 vo.setId(a.getId());
                 vo.setTitle(a.getTitle());
                 vo.setContent(a.getContent());
                 vo.setNoticeType(a.getNoticeType());
                 vo.setStatus(a.getStatus());
-                vo.setCreateName(a.getCreateName());
+                vo.setCreateName(resolvePublisherName(a));
                 vo.setCreateTime(a.getCreateTime());
                 vo.setIsRead(ua.getIsRead());
                 vo.setReadTime(ua.getReadTime());
@@ -251,5 +251,24 @@ public class AnnounceService {
         } catch (Exception e) {
             return List.of();
         }
+    }
+
+    /** 优先返回发布人当前昵称/用户名，避免资料变更后仍显示旧快照名 */
+    public String resolvePublisherName(AnnounceDO announce) {
+        if (announce == null) {
+            return null;
+        }
+        if (announce.getCreateBy() != null) {
+            UserDO publisher = userMapper.selectById(announce.getCreateBy());
+            if (publisher != null) {
+                if (StringUtils.hasText(publisher.getNickname())) {
+                    return publisher.getNickname();
+                }
+                if (StringUtils.hasText(publisher.getUsername())) {
+                    return publisher.getUsername();
+                }
+            }
+        }
+        return announce.getCreateName();
     }
 }

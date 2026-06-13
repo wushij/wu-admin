@@ -22,7 +22,14 @@
     </view>
   </scroll-view>
 
-  <view v-else class="segment-tabs" :class="{ 'segment-tabs--compact': compact }">
+  <view
+    v-else
+    class="segment-tabs"
+    :class="{
+      'segment-tabs--compact': compact,
+      'segment-tabs--teal': theme === 'teal',
+    }"
+  >
     <view
       v-for="tab in tabs"
       :key="tab.key"
@@ -45,8 +52,9 @@ withDefaults(
     tabs: Array<{ key: string; label: string; badge?: number }>
     compact?: boolean
     scroll?: boolean
+    theme?: 'default' | 'teal'
   }>(),
-  { compact: false, scroll: false },
+  { compact: false, scroll: false, theme: 'default' },
 )
 
 const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
@@ -63,12 +71,14 @@ const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
 
 .segment-tabs {
   display: flex;
-  gap: 8rpx;
-  padding: 8rpx;
+  gap: 12rpx;
+  padding: 10rpx;
   border-radius: $radius-lg;
   background: $color-bg-card;
   border: 1px solid $color-border-light;
   box-shadow: $shadow-card;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .segment-tabs--compact {
@@ -130,5 +140,10 @@ const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
     background: rgba(255, 255, 255, 0.92);
     color: #ef4444;
   }
+}
+
+.segment-tabs--teal .segment-tabs__item--active {
+  background: linear-gradient(135deg, #14b8a6, #2dd4bf);
+  box-shadow: 0 8rpx 20rpx rgba(20, 184, 166, 0.28);
 }
 </style>

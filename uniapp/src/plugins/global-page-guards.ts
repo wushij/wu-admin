@@ -9,8 +9,15 @@ import {
   handleGlobalBackPress,
   getCurrentPageUrl,
 } from '@/utils/navigate-back'
-import { syncH5BackButtonForRoute } from '@/store/h5-back-button'
+import { scheduleSyncH5BackButton } from '@/store/h5-back-button'
 import { ensureNavParent } from '@/utils/nav-history'
+
+const TAB_PAGE_ROUTES = new Set([
+  'pages/index/index',
+  'pages/work/index',
+  'pages/message/index',
+  'pages/mine/index',
+])
 
 /** 所有页面统一：H5 浅栈返回（先补全来源映射，再计算返回目标） */
 export function installGlobalPageGuards(app: App) {
@@ -24,10 +31,13 @@ export function installGlobalPageGuards(app: App) {
       const route = pages[pages.length - 1]?.route as string | undefined
       if (!route || isWhiteRoute(`/${route}`)) return
 
+      // Tab 页 onShow 不处理浅栈/返回按钮，避免盖住子包页的返回按钮状态
+      if (TAB_PAGE_ROUTES.has(route)) return
+
       ensureNavParent(route, getCurrentPageUrl())
       rememberShallowBackTarget(route)
       installH5ShallowStackTrapIfNeeded()
-      syncH5BackButtonForRoute(route)
+      scheduleSyncH5BackButton()
       // #endif
     },
     onBackPress() {

@@ -1,15 +1,7 @@
 const STORAGE_KEY = 'chat_recent_emojis'
-const MAX_RECENT = 45
+const MAX_RECENT = 32
 
-/** 默认常用表情 45 个（始终展示，最近用过的排在前面；总数不超过 MAX_RECENT） */
-export const DEFAULT_RECENT_EMOJIS = [
-  '😀', '😂', '🤣', '😊', '🥲', '😭', '😅', '😁', '😉', '🥰',
-  '😘', '🙄', '😴', '😡', '🤔', '😮', '😎', '🤗', '😤', '🙈',
-  '👍', '👏', '🙏', '👌', '✌️', '🤝', '💪', '🫡', '👀', '🙋',
-  '❤️', '💖', '💯', '🔥', '✨', '⭐', '🌹', '💐', '🎉', '🎁',
-  '✅', '☕', '🍺', '🐶', '🐱',
-] as const
-function loadSavedRecent(): string[] {
+export function getRecentEmojis(): string[] {
   try {
     const raw = uni.getStorageSync(STORAGE_KEY)
     if (!raw) return []
@@ -21,21 +13,11 @@ function loadSavedRecent(): string[] {
   }
 }
 
-/** 最近使用过的表情 + 默认常用表情（去重，用过的在前） */
-export function getRecentEmojis(): string[] {
-  const saved = loadSavedRecent()
-  const merged = [...saved]
-  for (const emoji of DEFAULT_RECENT_EMOJIS) {
-    if (!merged.includes(emoji)) merged.push(emoji)
-  }
-  return merged.slice(0, MAX_RECENT)
-}
-
 export function recordRecentEmoji(emoji: string) {
   const trimmed = emoji.trim()
-  if (!trimmed) return getRecentEmojis()
-  const saved = loadSavedRecent().filter((e) => e !== trimmed)
-  const nextSaved = [trimmed, ...saved].slice(0, MAX_RECENT)
-  uni.setStorageSync(STORAGE_KEY, JSON.stringify(nextSaved))
-  return getRecentEmojis()
+  if (!trimmed) return
+  const prev = getRecentEmojis().filter((e) => e !== trimmed)
+  const next = [trimmed, ...prev].slice(0, MAX_RECENT)
+  uni.setStorageSync(STORAGE_KEY, JSON.stringify(next))
+  return next
 }

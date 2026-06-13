@@ -16,11 +16,11 @@ import IconFont from '@/components/common/IconFont/index.vue'
 import { navigateToParent } from '@/utils/nav-history'
 import { scheduleSyncH5BackButton } from '@/store/h5-back-button'
 
-const visible = ref(true)
+const visible = ref(false)
 
 function syncVisible() {
-  visible.value = true
   // #ifdef H5
+  visible.value = getCurrentPages().length <= 1
   scheduleSyncH5BackButton()
   // #endif
 }
@@ -35,6 +35,7 @@ function onBack() {
 </script>
 
 <style lang="scss" scoped>
+@import '@/styles/variables.scss';
 
 .sub-page-back {
   margin: -8rpx 0 12rpx;

@@ -58,7 +58,9 @@ import { useUserEditForm } from '@/composables/useUserEditForm'
 import { useEditPageGuard } from '@/composables/useEditPageGuard'
 import { setTreeSelectPostIds } from '@/utils/tree-select-init'
 import { appendNavFromParam } from '@/utils/nav-from'
-import { registerPageShallowFallback } from '@/utils/navigate-back'
+import { registerPageShallowFallback, installH5ShallowStackTrapIfNeeded } from '@/utils/navigate-back'
+import { pinNavParent } from '@/utils/nav-history'
+import { scheduleSyncH5BackButton } from '@/store/h5-back-button'
 
 const USER_LIST_URL = '/pages-sub/system/user/index'
 
@@ -148,6 +150,9 @@ function pickPost() {
 
 onShow(() => {
   registerPageShallowFallback(backFallbackUrl.value)
+  pinNavParent(backFallbackUrl.value)
+  installH5ShallowStackTrapIfNeeded()
+  scheduleSyncH5BackButton()
   applyPickerResults()
 })
 
@@ -166,15 +171,21 @@ function pickStatus() {
   })
 }
 
+function applyBackFallback(url: string) {
+  backFallbackUrl.value = url
+  registerPageShallowFallback(url)
+  pinNavParent(url)
+}
+
 onLoad((options) => {
   if (options?.mode === 'create') {
-    backFallbackUrl.value = USER_LIST_URL
+    applyBackFallback(USER_LIST_URL)
     initCreate()
     return
   }
   userId.value = Number(options?.id)
   if (userId.value) {
-    backFallbackUrl.value = `/pages-sub/system/user/detail?id=${userId.value}`
+    applyBackFallback(`/pages-sub/system/user/detail?id=${userId.value}`)
     loadUser(userId.value)
   }
 })

@@ -1,6 +1,23 @@
 # Admin Platform
 
-基于 **Vue 3 + Spring Boot** 的企业级后台管理系统，配套 **uni-app 移动端（H5 / 小程序）**，提供**工作台**、用户权限、组织岗位、业务工单与审批、系统监控、日志审计、文件与字典、**分组系统配置**（含第三方/支付）、**个人中心**、**注册审核**等能力，支持本地开发调试与自建部署。
+基于 **Vue 3 + Spring Boot** 的企业级后台管理系统，配套 **uni-app 移动端（H5 / 微信小程序）**，提供工作台、RBAC 权限、组织岗位、工单审批、系统监控、日志审计、文件字典、分组系统配置（含第三方/支付/短信）、个人中心、注册审核、企业 IM 等能力，支持本地开发与自建部署。
+
+## 目录
+
+- [功能概览](#功能概览)
+- [最新更新](#最新更新202606)
+- [近期迭代归档](#近期迭代归档)
+- [系统配置](#系统配置systemconfig)
+- [注册审核](#注册审核)
+- [消息中心](#消息中心)
+- [技术栈与架构](#技术栈)
+- [目录结构](#目录结构)
+- [环境要求与快速开始](#环境要求)
+- [配置说明](#配置说明)
+- [数据库脚本](#数据库脚本)
+- [开发提示](#开发提示)
+- [构建与 CI](#构建与打包)
+- [常见问题](#常见问题)
 
 ---
 
@@ -8,10 +25,10 @@
 
 | 模块 | 说明 |
 |------|------|
-| **工作台** | 首页统计（用户/角色/部门/文件等）、待办提醒（待审用户、工单、审批）、12 项快捷入口、最近登录；`/dashboard/*` |
+| **工作台** | PC / 移动端统计（用户/角色/部门/文件、**企业 IM 未读**、**系统配置分组数**等）、待办提醒、快捷入口、最近登录；`/dashboard/*` |
 | **系统管理** | 用户、角色、菜单、组织、字典（含**类型复制**）、**系统配置**；用户列表默认仅展示**已入库**用户（启用/停用）；待审核/驳回在审批单中心处理 |
 | **组织管理** | 部门 + 岗位；左树右表、拖拽调整、岗位成员；部门负责人关联 **用户 ID**（`leader_user_id`），昵称变更自动同步；软删数据在 **回收中心** 统一恢复 |
-| **移动端（uni-app）** | H5 / 微信小程序；工作台、用户/组织/菜单/字典、工单审批、企业 IM、监控运维、个人中心；与 PC 共用 `/api` 后端 |
+| **移动端（uni-app）** | H5 / 微信小程序；工作台、用户/组织/字典、工单审批、企业 IM、监控运维、**个人中心**（资料/账号/短信换绑）；**H5 刷新后浅栈返回**（`localStorage` 父级映射 + 列表页内返回条）；与 PC 共用 `/api` |
 | **菜单管理** | 树形表格；目录/菜单/按钮联动；图标选择器；外链新窗口 / iframe 内嵌 |
 | **系统配置** | 十分组 Tab：基础信息、会话、文件、限流、登录/注册认证、**第三方配置**、**支付配置**、**短信配置**、安全配置；支付支持**测试订单**与异步回调；短信支持**测试发送**与发送记录 |
 | **个人中心** | 顶栏入口 `/profile`：资料编辑、头像上传、**短信验证绑定/更换手机号**（发码前强制滑块）、自助改密、**短信验证重置密码**（忘记当前密码时）、我的登录记录 |
@@ -30,29 +47,66 @@
 
 ---
 
-## 近期优化与增强
+## 最新更新（2026.06）
 
-以下为近期迭代的主要能力，便于对照部署与联调。
+近期发版要点（联调 / 升级时优先对照）。
 
-### 移动端 uni-app + 部门负责人关联（2026.06）
-
-| 项 | 说明 |
+| 模块 | 变更 |
 |------|------|
-| **移动端工程** | 仓库根目录 `uniapp/`（Vue 3 + TypeScript + Pinia）；H5 开发 `npm run dev:h5`，构建 `npm run build:h5` |
-| **部门负责人** | `sys_dept.leader_user_id` 关联用户；PC / 移动端均改为**选择用户**，不再手填姓名；用户改名时同步 `leader_name` |
-| **数据库增量** | 本地 `sql/add15.sql`；生产 `sql/add15_wuadmin.sql`（可重复执行） |
-| **H5 导航** | 刷新后返回上一页（session 记录来源 + URL `from` 参数）；选择页（部门树 / 负责人）刷新后可正确返回编辑页 |
-| **交互修复** | `FormCell` 去除 H5 下 `@click` + `@tap` 重复触发导致的 `navigateTo` 被取消 |
+| **移动端 H5 返回** | F5 刷新后页面栈为 1 时：`localStorage` 持久化父级路由（`pinNavParent`）、列表页 **`SubPageBackBar`** 内返回条、Tab 页 `onShow` 不再误关返回按钮；详情/编辑在 `onLoad` 锁定返回目标；子包列表 `redirectTo` 回退避免 `switchTab` 闪屏 |
+| **移动端个人中心** | 手机号绑定/更换独立页 `mobile-bind`；账号状态与 PC 对齐（`1=正常`、`0=已停用`）；「我的」卡片昵称布局微调 |
+| **工作台统计** | PC / 移动端新增 **企业 IM 未读**（`chatUnreadCount`）、**系统配置分组数**（`configGroupCount`） |
+| **系统通知** | 公告详情发布人昵称/头像按 `createBy` **实时解析**，改名后不再显示旧昵称 |
+| **部门负责人** | `sys_dept.leader_user_id` 关联用户；PC / 移动端选择用户，改名同步 `leader_name`；增量 `add15.sql` / `add15_wuadmin.sql` |
+| **定时任务日志** | `sys_job_log` 增加 `duration_ms`；调度日志支持软删并在回收中心恢复；本地 `add16.sql` + `add17.sql`，生产合并至 **`add15_wuadmin.sql`** |
+| **移动端企业 IM** | 微信式聊天输入：**☺ / ⌨** 表情与键盘切换；底部输入栏 `fixed` + H5 `visualViewport` 键盘高度适配；**发送后保持键盘**不收回；表情面板 **「最近」** Tab（`uni.storage` 本地记录）；加号直选文件/图片；图片消息按比例缩略图；发送后自动滚至最新消息 |
+| **用户管理 · 登录锁定** | PC / 移动端用户列表与详情展示 **登录锁定** 标签；管理员可 **解除登录锁定**（`PUT /api/system/user/unlock-login`），同时清除账号与**该用户最近登录 IP** 的 Redis 锁定 |
 
 ```bash
-# 已有库升级（本地）
+# 本地增量（按已执行版本补跑）
 mysql -u root -p wu-admin < sql/add15.sql
+mysql -u root -p wu-admin < sql/add16.sql
+mysql -u root -p wu-admin < sql/add17.sql
 
 # 移动端 H5
 cd uniapp && npm install && npm run dev:h5
 ```
 
-生产 H5 将 `uniapp` 构建产物部署到 Web 服务器，**`/api` 反代到后端**（与 PC 前端相同）。
+生产 H5：`npm run build:h5` 后部署静态资源，**`/api` 反代到后端**（与 PC 相同）。
+
+---
+
+## 近期迭代归档
+
+以下为历史迭代摘要；细节见各专题章节与 [常见问题](#常见问题)。
+
+### 移动端 uni-app 基础（2026.06）
+
+| 项 | 说明 |
+|------|------|
+| **工程** | `uniapp/`（Vue 3 + TS + Pinia）；`npm run dev:h5` / `build:h5` |
+| **H5 导航** | `navigateTo` 拦截记录来源；选择页 URL 带 `from`；`navigateToParent` 浅栈回退 |
+| **交互** | `FormCell` 去除 H5 下 `@click` + `@tap` 重复触发导致 `navigateTo` 被取消 |
+
+### 移动端企业 IM 聊天体验（2026.06）
+
+聊天页 `pages-sub/msg/chat/detail.vue`，输入区与 PC 微信风对齐。
+
+| 项 | 说明 |
+|------|------|
+| **布局** | 输入栏在上、表情面板在下；点消息区空白收起表情 |
+| **☺ / ⌨** | 点 ☺ 展开表情并收键盘；点 ⌨ 收起表情并回到键盘；H5 用原生 `focus`，避免 `:focus` 反复切换导致输入框消失 |
+| **键盘适配** | `useChatKeyboardInset`（H5 `visualViewport`）+ 底部 `fixed` 输入栏，键盘弹起时输入框贴在键盘上方 |
+| **发送** | 发送按钮改为 `view` + `@mousedown.prevent`，发送后 `focusInput` 保持键盘；滚到底用 `scrollToBottomSettle` |
+| **表情最近** | `EmojiPicker` 首 Tab「最近」；`utils/recent-emojis.ts` 本地最多 32 个 |
+| **附件** | 加号直选文件；图片走 `uploadChatImage` 并以 `IMAGE` 类型展示缩略图 |
+| **关键文件** | `ChatComposer`、`EmojiPicker`、`useChatDetail.ts`、`useChatScroll.ts`、`useChatKeyboardInset.ts` |
+
+```bash
+cd uniapp && npm run dev:h5
+# 类型检查（本地建议提交前执行）
+cd uniapp && npm run type-check
+```
 
 ### 架构与代码质量优化（2026.06）
 
@@ -522,6 +576,19 @@ mysql -u wuadmin -p wuadmin < sql/add9_wuadmin.sql
 
 工作台统计含「待审核用户」数量（`userPendingCount`，按 `status = 2` 统计）。
 
+### 登录失败锁定与解封
+
+登录密码连续错误时，系统会在 **Redis** 中临时锁定 **账号** 与 **客户端 IP**（阈值与时长见 **系统配置 → 登录认证**）。账号与 IP **分开计数、可设不同阈值**（默认账号 5 次、IP 20 次）。这与用户 `status = 0`（停用）无关：停用账号无法登录，而登录锁定是防暴力破解的短期限制。
+
+| 维度 | 说明 |
+|------|------|
+| **列表标记** | PC 用户表格「状态」列、移动端用户列表/详情：已锁定显示 **登录锁定**；未锁定但已有失败记录时显示 **失败 N 次** |
+| **解除锁定** | 需权限 `system:user:update`；PC：**更多 → 解除登录锁定**；移动端：用户详情 → **管理操作 → 解除登录锁定** |
+| **API** | `PUT /api/system/user/unlock-login?id={userId}`，清除账号 `auth:login:fail/lock:user:{username}`，并按登录日志最近一条记录解除对应 IP 的 `auth:login:fail/lock:ip:{ip}` |
+| **IP 说明** | 解封时依据该用户**最近一条登录日志**中的 IP；若用户从其他 IP 登录仍被锁，需在登录日志中按 IP 另行处理（或等待过期） |
+
+用户分页与详情接口会附带 `loginLocked`、`loginLockRemainSeconds`、`loginFailCount`（非数据库字段，来自 Redis 实时查询）。
+
 **审批操作说明**：注册审核（`REGISTER`）需权限 `system:approval:approve`（任意可用超管均可处理）；其他审批类型须为单据指定审批人。仅 `SUBMITTED`（待审批）状态可执行通过/驳回；详情页与列表操作等效，审批后状态与通知自动更新。
 
 ---
@@ -726,10 +793,12 @@ wu-admin/
 ├── uniapp/                     # uni-app 移动端（H5 / 小程序）
 │   ├── src/
 │   │   ├── pages/              # Tab：首页、工作台、消息、我的
-│   │   ├── pages-sub/          # 子包：系统管理、监控、IM 等
-│   │   ├── composables/        # 页面逻辑复用
-│   │   ├── utils/              # 导航、请求、选择页回传等
-│   │   └── store/              # Pinia
+│   │   ├── pages-sub/          # 子包：系统管理、监控、IM、个人资料等
+│   │   ├── composables/        # useH5ListPageNav、useProfileForm、useChatKeyboardInset 等
+│   │   ├── components/common/  # SubPageBackBar、H5BackButton、DataCard 等
+│   │   ├── components/business/# ChatComposer、EmojiPicker、ChatBubble 等
+│   │   ├── utils/              # nav-history、navigate-back、recent-emojis、chat-message
+│   │   └── store/              # Pinia；h5-back-button（浮动返回显隐）
 │   └── package.json
 ├── frontend/                   # Vue 3 + TypeScript PC 前端
 │   ├── src/
@@ -773,8 +842,15 @@ wu-admin/
 │   ├── add9_wuadmin.sql        # 生产仅 add9 字段
 │   ├── add10_wuadmin.sql       # 生产 add10
 │   ├── add11_wuadmin.sql       # 生产 #11+#12（代码生成，5.6 兼容）
+│   ├── add13.sql               # 增量 #13（gen_table 软删 + 回收中心）
+│   ├── add13_wuadmin.sql       # 生产 #13
+│   ├── add14.sql               # 增量 #14（API 访问菜单排序）
+│   ├── add14_wuadmin.sql       # 生产 #14
 │   ├── add15.sql               # 增量 #15（部门 leader_user_id，本地）
 │   ├── add15_wuadmin.sql       # 增量 #15（生产）
+│   ├── add16.sql               # 增量 #16（调度日志 duration_ms，本地）
+│   ├── add17.sql               # 增量 #17（调度日志软删 + 回收，本地）
+│   # 生产 #15+#16+#17 已合并至 add15_wuadmin.sql
 │   └── disable_devtool_off.sql # 临时关闭「禁止前端调试」（MySQL 5.6 兼容）
 ├── data/                       # 本地上传目录（git 忽略，对应 file.storage.local-path）
 └── README.md
@@ -944,6 +1020,7 @@ mysql -u root -p wu-admin < sql/add8.sql
 mysql -u root -p wu-admin < sql/add9.sql
 mysql -u root -p wu-admin < sql/add10.sql
 mysql -u root -p wu-admin < sql/add11.sql
+# 按发版记录继续补跑 add13 … add17（见「数据库脚本」表）
 
 # 生产空库全新安装（MySQL 5.6，库名 wuadmin）
 mysql -u wuadmin -p wuadmin < sql/admin_platform_mysql56.sql
@@ -952,6 +1029,7 @@ mysql -u wuadmin -p wuadmin < sql/admin_platform_mysql56.sql
 mysql -u wuadmin -p wuadmin < sql/add6_7_wuadmin.sql   # 若未跑过 add6–9
 mysql -u wuadmin -p wuadmin < sql/add10_wuadmin.sql
 mysql -u wuadmin -p wuadmin < sql/add11_wuadmin.sql
+# 按发版记录继续补跑 add13_wuadmin … add15_wuadmin（见「数据库脚本」表）
 
 # 极旧库首次补全（缺表/菜单时，执行 admin_platform.sql 附录段，约 910 行起）
 ```
@@ -1062,7 +1140,7 @@ cd backend && mvn test
 | `/api/pay/**` | 支付回调（`/notify/*` 公开）、测试订单查单 |
 | `/api/files/**` | 文件上传与访问 |
 | `/api/monitor/**` | API 访问、在线用户、**定时任务**、**Redis 缓存监控**（`/monitor/cache/*`）、**服务监控**（`/monitor/server/info`） |
-| `/api/dashboard/**` | 工作台统计（含配置摘要、待审核用户数）；计数类指标单 SQL 聚合 + Redis 缓存（约 2 分钟） |
+| `/api/dashboard/**` | 工作台统计（含 `chatUnreadCount`、`configGroupCount`、待审核用户数等）；计数类指标单 SQL 聚合 + Redis 缓存（约 2 分钟） |
 | `/api/system/user/list` | 用户下拉选项（启用用户、最多 2000 条）；管理列表请用 `/api/system/user/page` |
 | `/api/system/recycle/summary` | 回收中心 12 类软删数量汇总 |
 | `/api/system/export/*` | 列表 Excel/CSV 导出（用户、日志、工单、审批等） |
@@ -1072,15 +1150,15 @@ cd backend && mvn test
 
 ## 数据库脚本
 
-维护 **`sql/admin_platform.sql`**（本地全量 + 附录）、**`sql/admin_platform_mysql56.sql`**（生产空库）与 **`sql/add1.sql` … `add11.sql`** 等增量：
+维护 **`sql/admin_platform.sql`**（本地全量 + 附录）、**`sql/admin_platform_mysql56.sql`**（生产空库）与 **`sql/add1.sql` … `add17.sql`** 等增量：
 
 | 场景 | 做法 |
 |------|------|
 | **全新安装（本地）** | 空库 `mysql -u root -p < sql/admin_platform.sql` |
 | **全新安装（生产 5.6）** | 空库 `mysql -u wuadmin -p wuadmin < sql/admin_platform_mysql56.sql` |
 | **极旧库首次升级** | 执行 `admin_platform.sql` 文末 **附录**（约 990 行起） |
-| **发版增量（本地）** | 依次 `add1.sql` … **`add11.sql`** |
-| **发版增量（生产）** | 按已执行版本补跑 **`add6_7_wuadmin.sql`** / **`add10_wuadmin.sql`** / **`add11_wuadmin.sql`** |
+| **发版增量（本地）** | 按版本依次 `add1.sql` … **`add17.sql`**（勿跳号） |
+| **发版增量（生产）** | 按已执行版本补跑对应 `*_wuadmin.sql`（`add15_wuadmin.sql` 含 #15+#16+#17） |
 
 `addN.sql` 体量应保持在几十行量级；全量补丁逻辑在 `admin_platform.sql` 附录。
 
@@ -1102,8 +1180,12 @@ cd backend && mvn test
 | `add9_wuadmin.sql` | 生产仅 add9 字段 |
 | `add10_wuadmin.sql` | 生产 add10 |
 | `add11_wuadmin.sql` | 生产 add11+#12（`table_name VARCHAR(191)` 适配 MySQL 5.6） |
-| `add15.sql` | 部门表 `leader_user_id` 及按姓名回填（本地 `wu-admin`） |
-| `add15_wuadmin.sql` | 同上（生产 `wuadmin`） |
+| `add13.sql` / `add13_wuadmin.sql` | `gen_table` 软删；回收中心支持代码生成表 |
+| `add14.sql` / `add14_wuadmin.sql` | 系统监控「API 访问统计」菜单排序调至最底 |
+| `add15.sql` | 部门表 `leader_user_id` 及按姓名回填（本地） |
+| `add15_wuadmin.sql` | 生产合并 **#15 + #16 + #17**（负责人关联 + 调度日志耗时 + 软删） |
+| `add16.sql` | `sys_job_log.duration_ms`（执行耗时毫秒，本地） |
+| `add17.sql` | `sys_job_log` 软删字段；回收中心可恢复调度日志（本地） |
 | `admin_platform_mysql56.sql` | 生产**空库全量**（38 表 + 初始数据，无附录 JSON 函数依赖） |
 
 > 生产环境若尚未执行 add3/add4，可将 `add3.sql`、`add4.sql` 中 `USE` 改为 `wuadmin` 后逐条执行，或直接依赖已更新的 `admin_platform.sql` 全量/附录。仓库内**无**单独的 `add3_add4_wuadmin.sql` 文件。
@@ -1150,6 +1232,19 @@ cd backend && mvn test
 ```
 
 标识与 `sys_menu.permission` 一致，如 `system:approval:approve`。
+
+### 移动端 H5 浅栈返回（uni-app）
+
+刷新后 `getCurrentPages().length === 1` 时无法使用 `uni.navigateBack`，由以下机制兜底：
+
+| 机制 | 文件 | 说明 |
+|------|------|------|
+| 父级映射 | `utils/nav-history.ts` | `recordNavParent` / `pinNavParent` 写入 `localStorage`；`navigateToParent` 解析后 `redirectTo` |
+| 列表内返回 | `components/common/SubPageBackBar` | 仅浅栈时显示；与左上角 `H5BackButton` 互斥 |
+| 来源参数 | `utils/nav-from.ts` | 选择页 URL 带 `from`，刷新后可解析父页 |
+| 全局守卫 | `plugins/global-page-guards.ts` | Tab 页跳过浅栈同步，避免误关返回按钮 |
+
+子包列表页调用 `useH5ListPageNav()`；编辑/详情页在 `onLoad` 调用 `pinNavParent(返回目标)`。
 
 ### 登录 / 注册页
 
@@ -1462,8 +1557,14 @@ A：升级后 `SecurityException`（如 `LocalFileStorage` 非法路径）返回
 **Q：部门负责人还是旧名字，或保存报 `leader_user_id` 不存在？**  
 A：对已有库执行 **`sql/add15.sql`**（生产 **`add15_wuadmin.sql`**），重启后端；PC / 移动端组织编辑须通过**选择用户**设置负责人，勿手填姓名。
 
-**Q：移动端 H5 刷新后返回跳到工作台，或选部门报 navigateTo 被取消？**  
-A：升级含 H5 导航修复与 `FormCell` 防抖的前端后强刷（Ctrl+F5）；选择类子页 URL 会带 `from` 参数记录来源页。
+**Q：移动端 H5 刷新后无返回键，或返回跳到工作台？**  
+A：① 升级含 **H5 浅栈导航** 的前端后 **Ctrl+F5** 强刷；② 列表页刷新后应出现页面内蓝色「‹ 返回」（`SubPageBackBar`），详情/编辑页为左上角浮动返回；③ 多级路径如「用户管理 → 详情 → 编辑 → F5」依赖 `localStorage` 父级映射，勿清理站点存储；④ 选择类子页 URL 带 `from` 参数；⑤ `FormCell` 已去除 H5 双事件导致的 `navigateTo` 取消。
+
+**Q：移动端个人中心手机号如何更换？**  
+A：与 PC 一致：基本资料展示脱敏号码，点击 **「更换手机号」** 进入 `mobile-bind` 独立页；发码前须完成滑块验证。
+
+**Q：移动端账号状态显示「停用」但实际正常？**  
+A：升级后状态码与 PC 对齐：`1=正常`、`0=已停用`、`2=待审核`、`3=审核驳回`。
 
 **Q：Git 仓库？**  
 A：https://github.com/wushij/wu-admin

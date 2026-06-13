@@ -55,7 +55,7 @@ import type { ElTree } from 'element-plus'
 import { Search, OfficeBuilding, Folder, FolderOpened } from '@element-plus/icons-vue'
 import type { DeptVO } from '@/api/system/dept'
 
-const props = defineProps<{ deptOptions: DeptVO[] }>()
+defineProps<{ deptOptions: DeptVO[] }>()
 const emit = defineEmits<{ 'dept-click': [data: DeptVO | null] }>()
 
 const treeRef = ref<InstanceType<typeof ElTree> | null>(null)

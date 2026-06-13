@@ -30,19 +30,17 @@
             class="bind-field__input"
             type="number"
             :maxlength="11"
-            placeholder="请输入手机号"
+            placeholder="请输入 11 位手机号"
           />
         </view>
-
         <view class="bind-field bind-field--last">
           <text class="bind-field__label">验证码</text>
           <view class="bind-field__sms">
             <input
               v-model="form.bindSmsCode"
               class="bind-field__input bind-field__input--grow"
-              type="number"
               :maxlength="6"
-              placeholder="请输入验证码"
+              placeholder="6 位验证码"
             />
             <button
               class="bind-field__sms-btn"
@@ -62,18 +60,17 @@
         {{ hasBoundMobile ? '确认更换' : '确认绑定' }}
       </button>
     </PageFooter>
-
-    <SliderCaptcha v-model:show="showSlider" scene="profile" @success="onSliderSuccess" />
   </view>
 </template>
 
 <script setup lang="ts">
 import { watch, onMounted } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
 import ModuleIcon from '@/components/common/ModuleIcon/index.vue'
 import ListLoading from '@/components/common/ListLoading/index.vue'
 import PageFooter from '@/components/common/PageFooter/index.vue'
-import SliderCaptcha from '@/components/business/SliderCaptcha/index.vue'
 import { maskBoundMobile, useMobileBindForm } from '@/composables/useMobileBindForm'
+
 import { useShallowStackBackFallback } from '@/composables/useShallowStackBackFallback'
 
 const PROFILE_URL = '/pages-sub/mine/profile'
@@ -88,10 +85,8 @@ const {
   form,
   hasBoundMobile,
   pageTitle,
-  showSlider,
   load,
   sendBindSmsCode,
-  onSliderSuccess,
   submit,
 } = useMobileBindForm()
 
@@ -102,10 +97,13 @@ watch(pageTitle, (title) => {
 }, { immediate: true })
 
 onMounted(load)
+onShow(load)
 </script>
 
 <style lang="scss" scoped>
-@use '@/styles/mine.scss' as *;
+@import '@/styles/variables.scss';
+@import '@/styles/mine.scss';
+@import '@/styles/common.scss';
 
 .mobile-bind-page {
   @include mine-page-bg;
@@ -116,6 +114,7 @@ onMounted(load)
 
 .bind-hero {
   @include mine-dark-hero-shell;
+  margin-bottom: $card-gap;
 }
 
 .bind-hero__pattern {
@@ -152,27 +151,22 @@ onMounted(load)
 }
 
 .bind-disabled {
-  padding: 32rpx 28rpx;
-  background: #ffffff;
-  border-radius: 24rpx;
+  padding: 32rpx;
   text-align: center;
 }
 
 .bind-disabled__text {
   font-size: $font-size-sm;
   color: $color-text-secondary;
-  line-height: 1.5;
+  line-height: 1.6;
 }
 
 .bind-form {
-  padding: 16rpx 28rpx;
-  background: #ffffff;
-  border-radius: 24rpx;
-  box-shadow: 0 4rpx 20rpx rgba(15, 23, 42, 0.05);
+  padding: 12rpx 0 8rpx;
 }
 
 .bind-field {
-  padding: 24rpx 0;
+  padding: 28rpx 32rpx;
   border-bottom: 1px solid $color-border-light;
 
   &--last {
@@ -182,31 +176,23 @@ onMounted(load)
 
 .bind-field__label {
   display: block;
-  margin-bottom: 14rpx;
-  font-size: $font-size-xs;
+  margin-bottom: 16rpx;
+  font-size: $font-size-sm;
   font-weight: $font-weight-semibold;
   color: $color-text-secondary;
-  letter-spacing: 0.02em;
+  text-align: center;
 }
 
 .bind-field__input {
   width: 100%;
-  min-height: 84rpx;
-  padding: 0 24rpx;
-  border: 1px solid #e2e8f0;
-  border-radius: 16rpx;
-  background: #f8fafc;
-  font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif !important;
-  font-size: 28rpx;
-  color: #0f172a;
+  height: 88rpx;
+  padding: 0 28rpx;
+  border-radius: $radius-lg;
+  background: $color-bg-muted;
+  font-size: $font-size-md;
+  color: $color-text-primary;
+  text-align: center;
   box-sizing: border-box;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-
-  &:focus {
-    border-color: #010710;
-    background: #ffffff;
-    box-shadow: 0 0 0 4rpx rgba(1, 7, 16, 0.06);
-  }
 }
 
 .bind-field__sms {
@@ -222,26 +208,19 @@ onMounted(load)
 
 .bind-field__sms-btn {
   flex-shrink: 0;
-  min-width: 168rpx;
-  height: 80rpx;
-  line-height: 80rpx;
+  min-width: 188rpx;
+  height: 88rpx;
+  line-height: 88rpx;
   margin: 0;
-  padding: 0 16rpx;
+  padding: 0 20rpx;
   border-radius: $radius-lg;
-  background: #6366f1;
-  color: #ffffff;
+  background: $color-primary-muted;
+  color: $color-primary;
   font-size: $font-size-sm;
-  font-weight: 600;
+  font-weight: $font-weight-semibold;
 
   &::after {
     border: none;
-  }
-
-  &[disabled] {
-    background: #f1f5f9;
-    color: #334155;
-    font-weight: 700;
-    opacity: 1;
   }
 }
 </style>

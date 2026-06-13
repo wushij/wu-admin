@@ -17,6 +17,14 @@ export interface UserVO {
   remark?: string
   createTime?: string
   updateTime?: string
+  /** 登录失败临时锁定（Redis） */
+  loginLocked?: boolean
+  loginLockRemainSeconds?: number
+  loginFailCount?: number
+  loginRecentIp?: string
+  loginIpLocked?: boolean
+  loginIpLockRemainSeconds?: number
+  loginIpFailCount?: number
 }
 
 export interface UserPageQuery extends PageQuery {
@@ -84,6 +92,10 @@ export function updateUserStatus(id: number, status: number) {
 
 export function resetUserPassword(id: number, password: string) {
   return put('/system/user/reset-password', null, { params: { id, password } })
+}
+
+export function unlockUserLogin(id: number) {
+  return put('/system/user/unlock-login', null, { params: { id } })
 }
 
 export function getRecycleUserPage(params: UserRecycleQuery) {

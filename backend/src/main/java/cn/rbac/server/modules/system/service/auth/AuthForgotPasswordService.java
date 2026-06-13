@@ -9,7 +9,7 @@ import org.redisson.api.RAtomicLong;
 import org.redisson.api.RedissonClient;
 import org.springframework.stereotype.Service;
 
-import java.util.concurrent.TimeUnit;
+import java.time.Duration;
 
 @Service
 public class AuthForgotPasswordService {
@@ -103,7 +103,7 @@ public class AuthForgotPasswordService {
         RAtomicLong counter = redissonClient.getAtomicLong(redisKey);
         long n = counter.incrementAndGet();
         if (n == 1) {
-            counter.expire(90, TimeUnit.SECONDS);
+            counter.expire(Duration.ofSeconds(90));
         }
         if (n > maxPerMinute) {
             return "请求过于频繁，请稍后再试";

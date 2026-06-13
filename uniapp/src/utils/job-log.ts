@@ -13,10 +13,21 @@ export function jobLogStatusEffect(status?: number | null): 'success' | 'danger'
   return isJobLogSuccess(status) ? 'success' : 'danger'
 }
 
+export function formatDurationMs(ms: number) {
+  if (Number.isNaN(ms) || ms < 0) return '—'
+  if (ms === 0) return '<1s'
+  if (ms < 1000) return `${ms}ms`
+  if (ms < 60_000) return `${(ms / 1000).toFixed(ms < 10_000 ? 1 : 0)}s`
+  const minutes = Math.floor(ms / 60_000)
+  const seconds = Math.round((ms % 60_000) / 1000)
+  return seconds > 0 ? `${minutes}分${seconds}秒` : `${minutes}分`
+}
+
 export function formatJobDuration(log: SysJobLog) {
+  if (log.durationMs != null && log.durationMs >= 0) {
+    return formatDurationMs(log.durationMs)
+  }
   if (!log.startTime || !log.stopTime) return '—'
   const ms = new Date(log.stopTime).getTime() - new Date(log.startTime).getTime()
-  if (Number.isNaN(ms) || ms < 0) return '—'
-  if (ms < 1000) return `${ms}ms`
-  return `${(ms / 1000).toFixed(1)}s`
+  return formatDurationMs(ms)
 }

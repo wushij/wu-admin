@@ -10,6 +10,7 @@ import {
   assignUserRole,
   updateUserStatus,
   resetUserPassword,
+  unlockUserLogin,
   getUserRoleIds,
   type UserVO,
   type UserSaveDTO,
@@ -18,6 +19,7 @@ import {
 import { getRoleList, type RoleVO } from '@/api/system/role'
 import { getDeptTree, type DeptVO } from '@/api/system/dept'
 import { displayOrgTree } from '@/utils/org-tree'
+import { buildUnlockLoginConfirm } from '@/utils/login-lock'
 import { getPostList, type PostVO } from '@/api/system/post'
 
 export function useUserPage() {
@@ -125,6 +127,9 @@ export function useUserPage() {
       case 'assignRole':
         handleAssignRole(row)
         break
+      case 'unlockLogin':
+        handleUnlockLogin(row)
+        break
       case 'delete':
         handleDelete(row)
         break
@@ -136,6 +141,21 @@ export function useUserPage() {
     resetPwdForm.username = row.username
     resetPwdForm.password = ''
     resetPwdVisible.value = true
+  }
+
+  const handleUnlockLogin = async (row: UserVO) => {
+    try {
+      const { title, content } = buildUnlockLoginConfirm(row)
+      await ElMessageBox.confirm(content, title, {
+        type: 'warning',
+        confirmButtonText: '解除锁定',
+      })
+      await unlockUserLogin(row.id)
+      ElMessage.success('已解除登录锁定')
+      getList()
+    } catch {
+      /* 用户取消 */
+    }
   }
 
   const submitResetPwd = async () => {

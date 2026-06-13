@@ -41,4 +41,7 @@ public interface UserService {
     void resetPassword(Long id, String rawPassword);
 
     void kickOut(Long userId);
+
+    /** 解除登录失败临时锁定（Redis） */
+    void unlockLogin(Long id);
 }

@@ -90,8 +90,11 @@
         <FormCell label="记住我" switch-cell>
           <switch :checked="loginDraft.rememberMe" :disabled="!canEdit" @change="onLoginSwitch('rememberMe', $event)" />
         </FormCell>
-        <FormCell label="最大重试次数">
+        <FormCell label="账号最大重试">
           <NumberStepper v-model="loginDraft.maxRetryCount" :min="1" :max="20" :disabled="!canEdit" />
+        </FormCell>
+        <FormCell label="IP 最大重试">
+          <NumberStepper v-model="loginDraft.maxRetryCountIp" :min="1" :max="50" :disabled="!canEdit" />
         </FormCell>
         <FormCell label="锁定时长" last>
           <view class="config-control-row">
@@ -122,8 +125,19 @@
         <FormCell label="默认角色" clickable boxed arrow @click="pickDefaultRole">
           <text class="picker-value">{{ defaultRoleLabel }}</text>
         </FormCell>
-        <FormCell label="注册需审核" switch-cell last>
+        <FormCell label="注册需审核" switch-cell :last="!registerDraft.needAudit">
           <switch :checked="registerDraft.needAudit" :disabled="!canEdit || !registerDraft.enabled" @change="onRegisterSwitch('needAudit', $event)" />
+        </FormCell>
+        <FormCell
+          v-if="registerDraft.needAudit"
+          label="审核人"
+          clickable
+          boxed
+          arrow
+          last
+          @click="pickRegisterAuditors"
+        >
+          <text class="picker-value">{{ registerAuditorLabel }}</text>
         </FormCell>
       </view>
 
@@ -348,7 +362,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
-import { onPullDownRefresh } from '@dcloudio/uni-app'
+import { onPullDownRefresh, onShow } from '@dcloudio/uni-app'
 import ModuleHero from '@/components/common/ModuleHero/index.vue'
 import SegmentTabs from '@/components/common/SegmentTabs/index.vue'
 import ListLoading from '@/components/common/ListLoading/index.vue'
@@ -366,6 +380,9 @@ import { useConfigEditor } from '@/composables/useConfigEditor'
 import { useUnsavedLeaveGuard } from '@/composables/useUnsavedLeaveGuard'
 import { useModulePermission } from '@/composables/useModulePermission'
 import { showActionSheet } from '@/utils/app-dialog'
+import { appendNavFromParam } from '@/utils/nav-from'
+import { consumePagePickerResult, clearPagePickerResult } from '@/utils/page-picker-result'
+import { setUserSelectMultiIds } from '@/utils/user-select-multi-init'
 
 const { allowed, hasPerm } = useModulePermission('system:config:list')
 const canEdit = computed(() => hasPerm('system:config:update'))
@@ -388,7 +405,7 @@ const {
   loading, saving, smsTesting, paymentTesting, platformMaxFileMb, isDirty, forbidConcurrentLogin,
   siteDraft, sessionDraft, securityDraft, loginDraft, registerDraft, smsDraft,
   fileDraft, rateDraft, thirdDraft, paymentDraft,
-  roleOptions, testSmsPhone, testSmsTemplate, recentSmsLogs,
+  roleOptions, userOptions, testSmsPhone, testSmsTemplate, recentSmsLogs,
   showPaymentModal, payOrderStatus, payStatusRefreshing, paymentResult,
   captchaTypeOptions, providerOptions, smsTemplateOptions, alipaySignOptions, alipayGatewayOptions,
   smsStatusText, load, saveAll, resetAll, loadRecentSmsLogs, openSmsLogs,
@@ -404,6 +421,18 @@ watch(tab, (t) => {
 const defaultRoleLabel = computed(() => {
   const role = roleOptions.value.find((r) => r.code === registerDraft.defaultRoleCode)
   return role ? `${role.name}（${role.code}）` : registerDraft.defaultRoleCode
+})
+const registerAuditorLabel = computed(() => {
+  const ids = registerDraft.auditorUserIds || []
+  if (!ids.length) return '默认超级管理员'
+  const labels = ids.map((id) => {
+    const user = userOptions.value.find((u) => Number(u.id) === Number(id))
+    if (!user) return String(id)
+    const name = user.nickname || user.username
+    return user.deptName ? `${name}（${user.deptName}）` : name
+  })
+  if (labels.length <= 2) return labels.join('、')
+  return `${labels.slice(0, 2).join('、')} 等${labels.length}人`
 })
 const providerLabel = computed(() =>
   providerOptions.find((o) => o.value === smsDraft.provider)?.label || smsDraft.provider,
@@ -453,6 +482,21 @@ function pickDefaultRole() {
     if (role) registerDraft.defaultRoleCode = role.code
   })
 }
+function pickRegisterAuditors() {
+  if (!canEdit.value || !registerDraft.enabled || !registerDraft.needAudit) return
+  clearPagePickerResult()
+  setUserSelectMultiIds(registerDraft.auditorUserIds || [])
+  uni.navigateTo({
+    url: appendNavFromParam(
+      `/pages-sub/system/user-select?multi=1&allowEmpty=1&emptyLabel=${encodeURIComponent('未选择')}&title=${encodeURIComponent('选择审核人')}`,
+    ),
+  })
+}
+function applyRegisterAuditorPick() {
+  const result = consumePagePickerResult('user-multi')
+  if (!result?.ids) return
+  registerDraft.auditorUserIds = result.ids
+}
 function pickProvider() {
   pickFromOptions(providerOptions.map((o) => o.label), (i) => {
     const item = providerOptions[i]
@@ -479,6 +523,9 @@ function pickAlipayGateway() {
 }
 
 onMounted(load)
+onShow(() => {
+  applyRegisterAuditorPick()
+})
 onPullDownRefresh(async () => {
   await load()
   uni.stopPullDownRefresh()

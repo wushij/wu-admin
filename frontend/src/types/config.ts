@@ -69,6 +69,7 @@ export interface LoginAdminConfig {
   smsLoginSliderCaptchaEnabled: boolean
   rememberMe: boolean
   maxRetryCount: number
+  maxRetryCountIp: number
   lockTime: number
 }
 
@@ -79,6 +80,7 @@ export interface RegisterAdminConfig {
   defaultRoleCode: string
   needAudit: boolean
   minPasswordLength: number
+  auditorUserIds: number[]
 }
 
 export interface SecurityConfig {

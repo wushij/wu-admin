@@ -19,6 +19,8 @@ const defaultStats = (): DashboardStats => ({
   ticketOpenCount: 0,
   ticketOverdueCount: 0,
   userTrend: 0,
+  chatUnreadCount: 0,
+  configGroupCount: 0,
 })
 
 export function useDashboard(options?: { recentLogins?: boolean }) {

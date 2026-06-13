@@ -6,9 +6,7 @@
       class="menu-grid__item"
       @click="emit('select', item)"
     >
-      <view class="menu-grid__icon" :class="`menu-grid__icon--${item.theme}`">
-        <IconFont :name="item.icon" :size="44" color="#ffffff" />
-      </view>
+      <ModuleIcon :icon="item.icon" :theme="item.theme" size="lg" class="menu-grid__icon" />
       <text class="menu-grid__label">{{ item.label }}</text>
       <text v-if="item.hint" class="menu-grid__hint">{{ item.hint }}</text>
     </view>
@@ -16,7 +14,7 @@
 </template>
 
 <script setup lang="ts">
-import IconFont from '@/components/common/IconFont/index.vue'
+import ModuleIcon from '@/components/common/ModuleIcon/index.vue'
 import type { IconName } from '@/constants/iconfont'
 
 export interface MineMenuItem {
@@ -56,21 +54,8 @@ const emit = defineEmits<{ select: [item: MineMenuItem] }>()
 }
 
 .menu-grid__icon {
-  width: 80rpx;
-  height: 80rpx;
-  border-radius: 24rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   margin-bottom: 20rpx;
 }
-
-.menu-grid__icon--indigo { background: linear-gradient(135deg, #4f46e5, #818cf8); }
-.menu-grid__icon--cyan { background: linear-gradient(135deg, #0891b2, #22d3ee); }
-.menu-grid__icon--violet { background: linear-gradient(135deg, #7c3aed, #c084fc); }
-.menu-grid__icon--amber { background: linear-gradient(135deg, #d97706, #fbbf24); }
-.menu-grid__icon--rose { background: linear-gradient(135deg, #e11d48, #fb7185); }
-.menu-grid__icon--slate { background: linear-gradient(135deg, #475569, #94a3b8); }
 
 .menu-grid__label {
   font-size: $font-size-md;

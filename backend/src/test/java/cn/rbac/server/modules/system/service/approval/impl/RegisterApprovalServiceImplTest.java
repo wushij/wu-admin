@@ -11,6 +11,7 @@ import cn.rbac.server.modules.system.dal.mysql.permission.RoleMapper;
 import cn.rbac.server.modules.system.dal.mysql.permission.UserRoleMapper;
 import cn.rbac.server.modules.system.dal.mysql.user.UserMapper;
 import cn.rbac.server.modules.system.dal.mysql.user.UserPostMapper;
+import cn.rbac.server.modules.system.service.config.SystemConfigHelper;
 import cn.rbac.server.testsupport.MybatisLambdaTestBase;
 import cn.rbac.server.testsupport.MybatisMockMatchers;
 import cn.rbac.server.testsupport.ServiceTestFixtures;
@@ -20,6 +21,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -43,6 +46,8 @@ class RegisterApprovalServiceImplTest extends MybatisLambdaTestBase {
     private UserPostMapper userPostMapper;
     @Mock
     private NoticeMapper noticeMapper;
+    @Mock
+    private SystemConfigHelper systemConfigHelper;
 
     @InjectMocks
     private RegisterApprovalServiceImpl registerApprovalService;
@@ -104,6 +109,7 @@ class RegisterApprovalServiceImplTest extends MybatisLambdaTestBase {
     void createOnRegister_createsForm() {
         UserDO user = ServiceTestFixtures.user(5L, "newbie", 2);
         when(approvalFormMapper.selectCount(MybatisMockMatchers.anyLambdaQueryWrapper())).thenReturn(0L);
+        when(systemConfigHelper.getRegisterAuditorUserIds()).thenReturn(List.of());
         when(roleMapper.selectOne(MybatisMockMatchers.anyLambdaQueryWrapper())).thenReturn(null);
 
         doAnswer(inv -> {

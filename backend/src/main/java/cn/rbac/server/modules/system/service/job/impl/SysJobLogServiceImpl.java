@@ -1,5 +1,7 @@
 package cn.rbac.server.modules.system.service.job.impl;
 
+import cn.rbac.server.common.pojo.BusinessException;
+import cn.rbac.server.common.pojo.PageParam;
 import cn.rbac.server.common.pojo.PageResult;
 import cn.rbac.server.modules.system.dal.dataobject.job.SysJobLogDO;
 import cn.rbac.server.modules.system.dal.mysql.job.SysJobLogMapper;
@@ -8,6 +10,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
@@ -50,8 +53,47 @@ public class SysJobLogServiceImpl extends ServiceImpl<SysJobLogMapper, SysJobLog
     }
 
     @Override
-    public void clean() {
+    @Transactional(rollbackFor = Exception.class)
+    public void cleanAll() {
         remove(new LambdaQueryWrapper<>());
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void cleanScope(String jobName, String jobGroup) {
+        if (!StringUtils.hasText(jobName) && !StringUtils.hasText(jobGroup)) {
+            cleanAll();
+            return;
+        }
+        LambdaQueryWrapper<SysJobLogDO> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(StringUtils.hasText(jobName), SysJobLogDO::getJobName, jobName)
+                .eq(StringUtils.hasText(jobGroup), SysJobLogDO::getJobGroup, jobGroup);
+        remove(wrapper);
+    }
+
+    @Override
+    public PageResult<SysJobLogDO> recyclePage(PageParam pageParam, String jobName, String jobGroup) {
+        Page<SysJobLogDO> page = new Page<>(pageParam.getPageNo(), pageParam.getPageSize());
+        Page<SysJobLogDO> deletedPage = (Page<SysJobLogDO>) baseMapper.selectDeletedPage(page, jobName, jobGroup);
+        return PageResult.of(deletedPage.getRecords(), deletedPage.getTotal());
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void restore(Long id) {
+        int rows = baseMapper.restoreById(id);
+        if (rows == 0) {
+            throw new BusinessException(404, "回收站日志不存在");
+        }
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void deletePermanent(Long id) {
+        int rows = baseMapper.deletePhysicalById(id);
+        if (rows == 0) {
+            throw new BusinessException(404, "回收站日志不存在");
+        }
     }
 
     @Override
@@ -60,7 +102,6 @@ public class SysJobLogServiceImpl extends ServiceImpl<SysJobLogMapper, SysJobLog
             return 0;
         }
         LocalDateTime cutoff = LocalDateTime.now().minusDays(days);
-        return baseMapper.delete(new LambdaQueryWrapper<SysJobLogDO>()
-                .lt(SysJobLogDO::getStartTime, cutoff));
+        return baseMapper.deletePhysicalOlderThan(cutoff);
     }
 }

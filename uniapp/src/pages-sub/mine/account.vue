@@ -159,7 +159,8 @@ onMounted(async () => {
 </script>
 
 <style lang="scss" scoped>
-@use '@/styles/mine.scss' as *;
+@import '@/styles/variables.scss';
+@import '@/styles/mine.scss';
 
 .account-page {
   @include mine-page-bg;

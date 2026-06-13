@@ -39,6 +39,9 @@ public interface RecycleCenterMapper {
     @Select("SELECT COUNT(*) FROM sys_job WHERE deleted = 1")
     long countDeletedJobs();
 
+    @Select("SELECT COUNT(*) FROM sys_job_log WHERE deleted = 1")
+    long countDeletedJobLogs();
+
     @Select("SELECT COUNT(*) FROM sys_file WHERE deleted = 1")
     long countDeletedFiles();
 

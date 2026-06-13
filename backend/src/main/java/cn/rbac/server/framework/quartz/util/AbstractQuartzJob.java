@@ -21,21 +21,23 @@ public abstract class AbstractQuartzJob implements Job {
         jobLog.setJobName(job.getJobName());
         jobLog.setJobGroup(job.getJobGroup());
         jobLog.setInvokeTarget(job.getInvokeTarget());
+        long startMs = System.currentTimeMillis();
         jobLog.setStartTime(LocalDateTime.now());
 
         try {
             doExecute(context, job);
-            after(jobLog, null);
+            after(jobLog, startMs, null);
         } catch (Exception e) {
             log.error("定时任务执行异常：{}", job.getJobName(), e);
-            after(jobLog, e);
+            after(jobLog, startMs, e);
         }
     }
 
     protected abstract void doExecute(JobExecutionContext context, SysJobDO job) throws Exception;
 
-    private void after(SysJobLogDO jobLog, Exception e) {
+    private void after(SysJobLogDO jobLog, long startMs, Exception e) {
         jobLog.setStopTime(LocalDateTime.now());
+        jobLog.setDurationMs(Math.max(0L, System.currentTimeMillis() - startMs));
         if (e != null) {
             jobLog.setStatus(1);
             StringWriter sw = new StringWriter();

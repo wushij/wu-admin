@@ -11,6 +11,11 @@
             :name="heroTitle"
             size="lg"
           />
+          <FileThumb
+            v-else-if="heroThumb?.type === 'file' && heroThumb.file"
+            :file="heroThumb.file"
+            class="recycle-detail-hero__file-thumb"
+          />
           <image
             v-else-if="heroThumb?.type === 'image'"
             class="recycle-detail-hero__image"
@@ -71,6 +76,7 @@ import EmptyState from '@/components/common/EmptyState/index.vue'
 import ListLoading from '@/components/common/ListLoading/index.vue'
 import DictTag from '@/components/common/DictTag/index.vue'
 import UserAvatar from '@/components/business/UserAvatar/index.vue'
+import FileThumb from '@/components/business/FileThumb/index.vue'
 import PageFooter from '@/components/common/PageFooter/index.vue'
 import AppDialogHost from '@/components/common/AppDialogHost/index.vue'
 import { RECYCLE_MODULES } from '@/constants/recycle-modules'
@@ -179,8 +185,14 @@ onLoad(async (options) => {
 
 .recycle-detail-hero__head {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 24rpx;
+}
+
+.recycle-detail-hero__file-thumb :deep(.file-thumb) {
+  width: 120rpx;
+  height: 120rpx;
+  border-radius: 20rpx;
 }
 
 .recycle-detail-hero__image {

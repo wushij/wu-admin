@@ -26,7 +26,7 @@ export interface MineMenuGroup {
 }
 
 export function useMineMenu() {
-  const { hasPerm, filterByEnabledMenu } = usePermission()
+  const { hasPerm, filterByPerm } = usePermission()
   const messageStore = useMessageStore()
   const { inboxCount, announceCount, chatCount } = storeToRefs(messageStore)
   const versionName = getAppVersionName()
@@ -84,7 +84,7 @@ export function useMineMenu() {
       announceCount: announceCount.value,
       chatCount: chatCount.value,
     }
-    const items: MineMenuItem[] = filterByEnabledMenu(
+    const items: MineMenuItem[] = filterByPerm(
       MESSAGE_CHANNELS.map((channel) => ({
         key: channel.key,
         icon: channel.icon,
@@ -92,7 +92,7 @@ export function useMineMenu() {
         desc: channel.desc,
         path: channel.path,
         permission: channel.permission,
-        theme: (channel.theme === 'notice' || channel.theme === 'announce' ? 'rose' : channel.theme === 'chat' ? 'emerald' : 'amber') as MineMenuTheme,
+        theme: (channel.theme === 'notice' ? 'notice' : channel.theme === 'chat' ? 'emerald' : 'amber') as MineMenuTheme,
         badge: countMap[channel.countKey] || 0,
       })),
     )

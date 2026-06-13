@@ -1,8 +1,6 @@
 <template>
   <view class="channel-card card" @click="emit('click')">
-    <view class="channel-card__icon" :class="`channel-card__icon--${theme}`">
-      <IconFont :name="icon" :size="40" color="#ffffff" />
-    </view>
+    <ModuleIcon :icon="icon" :theme="resolvedTheme" size="lg" />
     <view class="channel-card__body">
       <text class="channel-card__title">{{ title }}</text>
       <text class="channel-card__desc">{{ desc }}</text>
@@ -17,10 +15,12 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import IconFont from '@/components/common/IconFont/index.vue'
+import ModuleIcon from '@/components/common/ModuleIcon/index.vue'
 import type { IconName } from '@/constants/iconfont'
 
-defineProps<{
+const props = defineProps<{
   title: string
   desc: string
   icon: IconName
@@ -29,6 +29,11 @@ defineProps<{
 }>()
 
 const emit = defineEmits<{ click: [] }>()
+
+const resolvedTheme = computed(() => {
+  if (props.theme === 'chat') return 'emerald'
+  return props.theme
+})
 </script>
 
 <style lang="scss" scoped>
@@ -39,21 +44,6 @@ const emit = defineEmits<{ click: [] }>()
   padding: 28rpx 24rpx;
   margin-bottom: 20rpx;
 }
-
-.channel-card__icon {
-  width: 80rpx;
-  height: 80rpx;
-  border-radius: 20rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  background: linear-gradient(135deg, #010710, #374151);
-}
-
-.channel-card__icon--notice { background: linear-gradient(135deg, #ef4444, #f87171); }
-.channel-card__icon--inbox { background: linear-gradient(135deg, #6366f1, #818cf8); }
-.channel-card__icon--chat { background: linear-gradient(135deg, #10b981, #34d399); }
 
 .channel-card__body {
   flex: 1;

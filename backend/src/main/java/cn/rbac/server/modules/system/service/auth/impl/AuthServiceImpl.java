@@ -19,6 +19,7 @@ import cn.rbac.server.modules.system.dal.mysql.permission.RoleMapper;
 import cn.rbac.server.modules.system.dal.mysql.user.UserMapper;
 import cn.rbac.server.modules.system.service.approval.RegisterApprovalService;
 import cn.rbac.server.modules.system.service.auth.AuthService;
+import cn.rbac.server.modules.system.service.auth.LoginLockService;
 import cn.rbac.server.modules.system.service.config.SystemConfigHelper;
 import cn.rbac.server.modules.system.service.loginlog.LoginLogService;
 import cn.rbac.server.modules.system.service.monitor.OnlineUserService;
@@ -36,6 +37,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -60,16 +62,13 @@ public class AuthServiceImpl implements AuthService {
     @Resource private RegisterApprovalService registerApprovalService;
     @Resource private SmsServiceFactory smsServiceFactory;
     @Resource private AliyunDypnsSmsVerifyService aliyunDypnsSmsVerifyService;
+    @Resource private LoginLockService loginLockService;
 
     private static final String CAPTCHA_KEY = "captcha:";
     private static final String SMS_CODE_KEY = "sms:login:";
     private static final String SMS_LIMIT_KEY = "sms:limit:";
     private static final String SMS_DAILY_PHONE_KEY = "sms:daily:phone:";
     private static final String SMS_DAILY_IP_KEY = "sms:daily:ip:";
-    private static final String LOGIN_FAIL_USER_KEY = "auth:login:fail:user:";
-    private static final String LOGIN_FAIL_IP_KEY = "auth:login:fail:ip:";
-    private static final String LOGIN_LOCK_USER_KEY = "auth:login:lock:user:";
-    private static final String LOGIN_LOCK_IP_KEY = "auth:login:lock:ip:";
 
     @Override
     public Map<String, Object> generateCaptcha(String scene, String clientIp) {
@@ -114,25 +113,25 @@ public class AuthServiceImpl implements AuthService {
             recordLoginLog(null, username, 1, rlMsg, clientIp, userAgent);
             throw new BusinessException(429, rlMsg);
         }
-        String lockMessage = checkLoginLock(username, clientIp);
+        String lockMessage = loginLockService.checkLoginLockMessage(username, clientIp);
         if (lockMessage != null) {
             recordLoginLog(null, username, 1, lockMessage, clientIp, userAgent);
             throw new BusinessException(429, lockMessage);
         }
         String captchaErr = validateLoginCaptcha(reqVO);
         if (captchaErr != null) {
-            handleLoginFailure(username, clientIp);
+            loginLockService.recordLoginFailure(username, clientIp);
             recordLoginLog(null, username, 1, captchaErr, clientIp, userAgent);
             throw new BusinessException(400, captchaErr);
         }
         UserDO user = userMapper.selectOne(new LambdaQueryWrapper<UserDO>().eq(UserDO::getUsername, username));
         if (user == null) {
-            handleLoginFailure(username, clientIp);
+            loginLockService.recordLoginFailure(username, clientIp);
             recordLoginLog(null, username, 1, "用户不存在", clientIp, userAgent);
             throw new BusinessException(400, "账号或密码错误");
         }
         if (!passwordEncoder.matches(reqVO.getPassword(), user.getPassword())) {
-            handleLoginFailure(username, clientIp);
+            loginLockService.recordLoginFailure(username, clientIp);
             recordLoginLog(user.getId(), username, 1, "密码错误", clientIp, userAgent);
             throw new BusinessException(400, "账号或密码错误");
         }
@@ -163,19 +162,19 @@ public class AuthServiceImpl implements AuthService {
             recordLoginLog(null, username, 1, rlMsg, clientIp, userAgent);
             throw new BusinessException(429, rlMsg);
         }
-        String lockMessage = checkLoginLock(username, clientIp);
+        String lockMessage = loginLockService.checkLoginLockMessage(username, clientIp);
         if (lockMessage != null) {
             recordLoginLog(null, username, 1, lockMessage, clientIp, userAgent);
             throw new BusinessException(429, lockMessage);
         }
         String captchaErr = validateSmsLoginCaptcha(reqVO);
         if (captchaErr != null) {
-            handleLoginFailure(username, clientIp);
+            loginLockService.recordLoginFailure(username, clientIp);
             recordLoginLog(null, username, 1, captchaErr, clientIp, userAgent);
             throw new BusinessException(400, captchaErr);
         }
         if (user == null) {
-            handleLoginFailure(username, clientIp);
+            loginLockService.recordLoginFailure(username, clientIp);
             recordLoginLog(null, username, 1, "该手机号未绑定任何账号", clientIp, userAgent);
             throw new BusinessException(400, "该手机号未绑定任何账号");
         }
@@ -313,7 +312,7 @@ public class AuthServiceImpl implements AuthService {
 
     private Map<String, Object> completeLogin(UserDO user, String clientIp, String userAgent) {
         String username = user.getUsername();
-        clearLoginFailure(username, clientIp);
+        loginLockService.clearLoginFailure(username, clientIp);
         tokenService.createToken(user.getId(), user.getUsername());
         StpUtil.getSession().set(TokenService.SESSION_NICKNAME, user.getNickname());
         onlineUserService.recordLoginSession(user.getId(), user.getUsername(), user.getNickname(), clientIp, userAgent);
@@ -427,55 +426,13 @@ public class AuthServiceImpl implements AuthService {
         return null;
     }
 
-    private String checkLoginLock(String username, String ip) {
-        String userLockMsg = getLockMessage(LOGIN_LOCK_USER_KEY + username, "账号");
-        if (userLockMsg != null) return userLockMsg;
-        return getLockMessage(LOGIN_LOCK_IP_KEY + ip, "IP");
-    }
-
-    private String getLockMessage(String lockKey, String lockType) {
-        RBucket<Long> lockBucket = redissonClient.getBucket(lockKey);
-        Long lockAt = lockBucket.get();
-        if (lockAt == null) return null;
-        long ttlSeconds = lockBucket.remainTimeToLive() / 1000;
-        if (ttlSeconds <= 0) return null;
-        long minutes = Math.max(1, (ttlSeconds + 59) / 60);
-        return lockType + "已被临时锁定，请" + minutes + "分钟后再试";
-    }
-
-    private void handleLoginFailure(String username, String ip) {
-        increaseFailAndLock(LOGIN_FAIL_USER_KEY + username, LOGIN_LOCK_USER_KEY + username);
-        increaseFailAndLock(LOGIN_FAIL_IP_KEY + ip, LOGIN_LOCK_IP_KEY + ip);
-    }
-
-    private void increaseFailAndLock(String failKey, String lockKey) {
-        int maxRetry = systemConfigHelper.getMaxRetryCount();
-        long lockMinutes = systemConfigHelper.getLockTimeMinutes();
-        RBucket<Integer> failBucket = redissonClient.getBucket(failKey);
-        Integer failCount = failBucket.get();
-        int nextCount = (failCount == null ? 0 : failCount) + 1;
-        setWithTtl(failBucket, nextCount, lockMinutes, TimeUnit.MINUTES);
-        if (nextCount >= maxRetry) {
-            setWithTtl(redissonClient.getBucket(lockKey), System.currentTimeMillis(), lockMinutes, TimeUnit.MINUTES);
-            failBucket.delete();
-        }
-    }
-
-    private void clearLoginFailure(String username, String ip) {
-        redissonClient.getBucket(LOGIN_FAIL_USER_KEY + username).delete();
-        redissonClient.getBucket(LOGIN_FAIL_IP_KEY + ip).delete();
-        redissonClient.getBucket(LOGIN_LOCK_USER_KEY + username).delete();
-        redissonClient.getBucket(LOGIN_LOCK_IP_KEY + ip).delete();
-    }
-
     @SuppressWarnings("deprecation")
     private <V> void setWithTtl(RBucket<V> bucket, V value, long duration, TimeUnit unit) {
         bucket.set(value, duration, unit);
     }
 
-    @SuppressWarnings("deprecation")
     private void expireAfter(org.redisson.api.RExpirable expirable, long duration, TimeUnit unit) {
-        expirable.expire(duration, unit);
+        expirable.expire(Duration.of(duration, unit.toChronoUnit()));
     }
 
     private String checkSmsSendRateLimit(String phone, String clientIp) {

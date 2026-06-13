@@ -17,6 +17,7 @@ import cn.rbac.server.modules.system.dal.mysql.notice.NoticeMapper;
 import cn.rbac.server.modules.system.dal.mysql.user.UserMapper;
 import cn.rbac.server.modules.system.service.approval.ApprovalFormService;
 import cn.rbac.server.modules.system.service.approval.RegisterApprovalService;
+import cn.rbac.server.modules.system.service.config.SystemConfigHelper;
 import cn.rbac.server.modules.system.service.permission.PermissionService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -44,6 +45,8 @@ public class ApprovalFormServiceImpl implements ApprovalFormService {
     private PermissionService permissionService;
     @Resource
     private RegisterApprovalService registerApprovalService;
+    @Resource
+    private SystemConfigHelper systemConfigHelper;
 
     @Override
     public PageResult<ApprovalFormDO> page(PageParam pageParam, String title, String formType, String status, Long userId) {
@@ -124,7 +127,11 @@ public class ApprovalFormServiceImpl implements ApprovalFormService {
         boolean isRegisterForm = RegisterApprovalService.FORM_TYPE_REGISTER.equals(form.getFormType());
         boolean canApproveRegister = isRegisterForm
                 && permissionService.hasPermission(operatorUserId, "system:approval:approve");
-        if (!canApproveAny && !canApproveRegister
+        boolean canApproveAsConfiguredAuditor = isRegisterForm
+                && systemConfigHelper.getRegisterAuditorUserIds().contains(operatorUserId);
+        if (!canApproveAny
+                && !canApproveRegister
+                && !canApproveAsConfiguredAuditor
                 && (form.getApproverUserId() == null || !form.getApproverUserId().equals(operatorUserId))) {
             throw new BusinessException(403, "仅审批人可操作");
         }
