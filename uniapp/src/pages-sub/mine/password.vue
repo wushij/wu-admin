@@ -101,7 +101,7 @@
                 v-model="smsForm.smsCode"
                 class="password-field__input password-field__input--grow"
                 :maxlength="6"
-                placeholder="6 位验证码"
+                placeholder="请输入验证码"
               />
               <button
                 class="password-field__sms-btn"

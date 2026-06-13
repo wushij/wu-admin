@@ -30,17 +30,19 @@
             class="bind-field__input"
             type="number"
             :maxlength="11"
-            placeholder="请输入 11 位手机号"
+            placeholder="请输入手机号"
           />
         </view>
+
         <view class="bind-field bind-field--last">
           <text class="bind-field__label">验证码</text>
           <view class="bind-field__sms">
             <input
               v-model="form.bindSmsCode"
               class="bind-field__input bind-field__input--grow"
+              type="number"
               :maxlength="6"
-              placeholder="6 位验证码"
+              placeholder="请输入验证码"
             />
             <button
               class="bind-field__sms-btn"
@@ -70,7 +72,6 @@ import ModuleIcon from '@/components/common/ModuleIcon/index.vue'
 import ListLoading from '@/components/common/ListLoading/index.vue'
 import PageFooter from '@/components/common/PageFooter/index.vue'
 import { maskBoundMobile, useMobileBindForm } from '@/composables/useMobileBindForm'
-
 import { useShallowStackBackFallback } from '@/composables/useShallowStackBackFallback'
 
 const PROFILE_URL = '/pages-sub/mine/profile'
@@ -103,7 +104,6 @@ onShow(load)
 <style lang="scss" scoped>
 @import '@/styles/variables.scss';
 @import '@/styles/mine.scss';
-@import '@/styles/common.scss';
 
 .mobile-bind-page {
   @include mine-page-bg;
@@ -114,7 +114,6 @@ onShow(load)
 
 .bind-hero {
   @include mine-dark-hero-shell;
-  margin-bottom: $card-gap;
 }
 
 .bind-hero__pattern {
@@ -152,7 +151,6 @@ onShow(load)
 
 .bind-disabled {
   padding: 32rpx;
-  text-align: center;
 }
 
 .bind-disabled__text {
@@ -166,6 +164,9 @@ onShow(load)
 }
 
 .bind-field {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
   padding: 28rpx 32rpx;
   border-bottom: 1px solid $color-border-light;
 
@@ -175,27 +176,34 @@ onShow(load)
 }
 
 .bind-field__label {
-  display: block;
-  margin-bottom: 16rpx;
+  flex-shrink: 0;
+  width: 140rpx;
   font-size: $font-size-sm;
   font-weight: $font-weight-semibold;
   color: $color-text-secondary;
-  text-align: center;
 }
 
 .bind-field__input {
-  width: 100%;
-  height: 88rpx;
-  padding: 0 28rpx;
-  border-radius: $radius-lg;
+  flex: 1;
+  min-width: 0;
+  height: 80rpx;
+  padding: 0 24rpx;
+  border-radius: $radius-md;
   background: $color-bg-muted;
-  font-size: $font-size-md;
+  font-size: $font-size-base;
   color: $color-text-primary;
-  text-align: center;
+  text-align: left;
   box-sizing: border-box;
 }
 
+.bind-field__input::placeholder {
+  font-size: $font-size-sm;
+  color: $color-text-placeholder;
+}
+
 .bind-field__sms {
+  flex: 1;
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: 16rpx;
@@ -208,11 +216,11 @@ onShow(load)
 
 .bind-field__sms-btn {
   flex-shrink: 0;
-  min-width: 188rpx;
-  height: 88rpx;
-  line-height: 88rpx;
+  min-width: 168rpx;
+  height: 80rpx;
+  line-height: 80rpx;
   margin: 0;
-  padding: 0 20rpx;
+  padding: 0 16rpx;
   border-radius: $radius-lg;
   background: $color-primary-muted;
   color: $color-primary;
@@ -221,6 +229,10 @@ onShow(load)
 
   &::after {
     border: none;
+  }
+
+  &[disabled] {
+    opacity: 0.55;
   }
 }
 </style>

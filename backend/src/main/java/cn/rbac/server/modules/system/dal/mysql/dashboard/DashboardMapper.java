@@ -46,4 +46,7 @@ public interface DashboardMapper {
 
     @Select("SELECT COUNT(*) FROM sys_job WHERE deleted = 0 AND status = 1")
     long countJobRunning();
+
+    @Select("SELECT COUNT(*) FROM sys_approval_form WHERE deleted = 0 AND status = 'SUBMITTED'")
+    long countApprovalPending();
 }

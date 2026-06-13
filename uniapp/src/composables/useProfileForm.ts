@@ -64,11 +64,21 @@ export function useProfileForm() {
   }
 
   async function pickAvatar() {
+    let filePath: string | undefined
     try {
       const choose = await uni.chooseImage({ count: 1, sizeType: ['compressed'] })
-      const filePath = choose.tempFilePaths?.[0]
-      if (!filePath) return
-      uploading.value = true
+      filePath = choose.tempFilePaths?.[0]
+    } catch (e) {
+      const errMsg = (e as { errMsg?: string })?.errMsg || ''
+      if (/cancel|取消/i.test(errMsg)) return
+      logger.error(e)
+      uni.showToast({ title: '选择图片失败', icon: 'none' })
+      return
+    }
+    if (!filePath) return
+
+    uploading.value = true
+    try {
       const res = await uploadAvatar(filePath)
       const url = res.data?.url
       if (!url) {

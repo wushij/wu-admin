@@ -2,14 +2,23 @@
   <view class="page-padded page-list">
     <view class="chat-page__head">
       <SegmentTabs v-model="mode" :tabs="tabs" />
-      <text v-if="mode === 'group' && canCreate" class="chat-page__create" @click="goCreateGroup">建群</text>
     </view>
-    <SearchBar v-model="keyword" placeholder="搜索会话" />
 
-    <scroll-view
-      scroll-y
-      class="page-list__scroll"
-    >
+    <view class="chat-page__search-row">
+      <view class="chat-page__search-wrap">
+        <SearchBar v-model="keyword" placeholder="搜索会话" />
+      </view>
+      <view
+        v-if="mode === 'group' && canCreate"
+        class="chat-page__create-btn"
+        @click="goCreateGroup"
+      >
+        <text class="chat-page__create-plus">+</text>
+        <text class="chat-page__create-label">建群</text>
+      </view>
+    </view>
+
+    <scroll-view scroll-y class="page-list__scroll">
       <template v-if="mode === 'private'">
         <ListRow
           v-for="user in filteredUsers"
@@ -99,30 +108,65 @@ onPullDownRefresh(async () => {
 </script>
 
 <style lang="scss" scoped>
+@import '@/styles/variables.scss';
+
 .chat-page__head {
+  margin-bottom: 20rpx;
+}
+
+.chat-page__search-row {
   display: flex;
   align-items: center;
   gap: 16rpx;
+  margin-bottom: 24rpx;
 }
 
-.chat-page__head :deep(.segment-tabs) {
+.chat-page__search-wrap {
   flex: 1;
+  min-width: 0;
 }
 
-.chat-page__create {
+.chat-page__search-wrap :deep(.search-bar) {
+  margin-bottom: 0;
+}
+
+.chat-page__create-btn {
   flex-shrink: 0;
-  font-size: 28rpx;
-  color: #6366f1;
-  padding: 8rpx 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6rpx;
+  height: 72rpx;
+  padding: 0 22rpx;
+  border-radius: 36rpx;
+  background: linear-gradient(135deg, #4f46e5, #6366f1);
+  box-shadow: 0 8rpx 20rpx rgba(79, 70, 229, 0.22);
+}
+
+.chat-page__create-plus {
+  font-size: 32rpx;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1;
+}
+
+.chat-page__create-label {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-semibold;
+  color: #fff;
+  white-space: nowrap;
 }
 
 .page-list {
   height: 100vh;
+  display: flex;
+  flex-direction: column;
   box-sizing: border-box;
 }
 
 .page-list__scroll {
-  height: calc(100% - 180rpx);
+  flex: 1;
+  min-height: 0;
 }
 
 .page-list__scroll :deep(.list-row--chat) {

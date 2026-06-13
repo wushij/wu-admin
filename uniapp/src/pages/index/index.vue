@@ -127,6 +127,7 @@ onMounted(refresh)
 onShow(() => {
   if (userStore.isLoggedIn) {
     userStore.getUserInfo().catch(() => {})
+    refresh()
   }
 })
 

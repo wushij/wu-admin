@@ -52,7 +52,7 @@
               icon="key"
               type="number"
               custom-class="sms-input"
-              placeholder="6 位验证码"
+              placeholder="请输入验证码"
               :maxlength="6"
             />
             <button

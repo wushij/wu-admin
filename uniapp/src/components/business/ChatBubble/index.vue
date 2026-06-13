@@ -164,7 +164,7 @@ function onBubbleClick() {
 }
 
 .chat-bubble-wrap {
-  flex: 1;
+  max-width: 100%;
   min-width: 0;
 }
 
@@ -182,6 +182,8 @@ function onBubbleClick() {
 }
 
 .chat-bubble {
+  display: inline-block;
+  max-width: 100%;
   padding: 18rpx 24rpx;
   border-radius: $radius-sm;
   font-size: $font-size-base;

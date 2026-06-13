@@ -18,7 +18,7 @@
         </el-form-item>
         <el-form-item label="验证码" prop="bindSmsCode">
           <div class="mobile-bind-action-row">
-            <el-input v-model="infoForm.bindSmsCode" class="mobile-bind-sms-input" placeholder="请输入 6 位验证码" maxlength="6" autocomplete="off" />
+            <el-input v-model="infoForm.bindSmsCode" class="mobile-bind-sms-input" placeholder="请输入验证码" maxlength="6" autocomplete="off" />
             <el-button type="primary" plain class="sms-send-btn" :disabled="bindSmsCountdown > 0 || sendingBindSmsCode" :loading="sendingBindSmsCode" @click="$emit('handleSendBindSmsCode')">
               {{ bindSmsCountdown > 0 ? `${bindSmsCountdown}s` : '获取验证码' }}
             </el-button>

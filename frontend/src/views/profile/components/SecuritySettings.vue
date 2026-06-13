@@ -42,7 +42,7 @@
       <el-form ref="smsPwdFormRef" :model="smsPwdForm" :rules="smsPwdRules" label-position="top" class="pwd-form pwd-form--modern" @submit.prevent>
         <el-form-item label="短信验证码" prop="smsCode" class="pwd-field">
           <div class="sms-code-row">
-            <el-input v-model="smsPwdForm.smsCode" placeholder="请输入 6 位验证码" maxlength="6" autocomplete="off" />
+            <el-input v-model="smsPwdForm.smsCode" placeholder="请输入验证码" maxlength="6" autocomplete="off" />
             <el-button type="primary" plain class="sms-send-btn" :disabled="smsCountdown > 0 || sendingSmsCode || !canUseSmsReset" :loading="sendingSmsCode" @click="$emit('handleSendResetSmsCode')">
               {{ smsCountdown > 0 ? `${smsCountdown}s` : '获取验证码' }}
             </el-button>
