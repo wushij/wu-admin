@@ -14,6 +14,7 @@ import cn.rbac.server.modules.system.dal.mysql.dept.DeptMapper;
 import cn.rbac.server.modules.system.dal.mysql.user.UserMapper;
 import cn.rbac.server.modules.system.service.monitor.OnlineUserService;
 import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RBucket;
 import org.redisson.api.RKeys;
 import org.redisson.api.RedissonClient;
@@ -30,13 +31,20 @@ import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
 @Service
+@Slf4j
 public class OnlineUserServiceImpl implements OnlineUserService {
 
     private static final String ONLINE_DETAIL_PREFIX = "monitor:online:detail:";
     private static final String ONLINE_ACTIVE_PREFIX = "dashboard:online:user:";
+    /** 同一用户两次 touch 间隔，减轻每个 API 请求写 Redis 的压力 */
+    private static final long TOUCH_THROTTLE_MS = 45_000L;
+
+    /** 进程内节流（单机部署）；登录/强退时同步维护 */
+    private final ConcurrentHashMap<Long, Long> touchThrottleCache = new ConcurrentHashMap<>();
 
     @Resource
     private RedissonClient redissonClient;
@@ -94,6 +102,7 @@ public class OnlineUserServiceImpl implements OnlineUserService {
         setWithTtl(bucket, JSONUtil.toJsonStr(detail), 1, TimeUnit.DAYS);
 
         refreshActiveMarker(userId, now);
+        touchThrottleCache.put(userId, now);
     }
 
     @Override
@@ -102,6 +111,11 @@ public class OnlineUserServiceImpl implements OnlineUserService {
             return;
         }
         long now = System.currentTimeMillis();
+        Long lastTouch = touchThrottleCache.get(userId);
+        if (lastTouch != null && now - lastTouch < TOUCH_THROTTLE_MS) {
+            return;
+        }
+        touchThrottleCache.put(userId, now);
         refreshActiveMarker(userId, now);
 
         RBucket<String> bucket = redissonClient.getBucket(ONLINE_DETAIL_PREFIX + userId);
@@ -111,6 +125,11 @@ public class OnlineUserServiceImpl implements OnlineUserService {
             detail.setLastAccessTime(now);
             setWithTtl(bucket, JSONUtil.toJsonStr(detail), 1, TimeUnit.DAYS);
         }
+    }
+
+    @Override
+    public int countOnlineUsers() {
+        return resolveActiveUserIds().size();
     }
 
     @Override
@@ -129,7 +148,8 @@ public class OnlineUserServiceImpl implements OnlineUserService {
                     touchLastAccess(userId);
                 }
                 list.add(buildVo(userId, loginInfo));
-            } catch (Exception ignored) {
+            } catch (Exception e) {
+                log.warn("加载在线用户信息失败 userId={}", userId, e);
             }
         }
         list.sort((a, b) -> Long.compare(
@@ -147,7 +167,8 @@ public class OnlineUserServiceImpl implements OnlineUserService {
             if (StpUtil.isLogin()) {
                 ids.add(StpUtil.getLoginIdAsLong());
             }
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            log.warn("解析当前登录用户失败", e);
         }
         return new ArrayList<>(ids);
     }
@@ -169,7 +190,8 @@ public class OnlineUserServiceImpl implements OnlineUserService {
                     }
                 }
             }
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            log.warn("从 Redis 会话键解析在线用户失败", e);
         }
     }
 
@@ -208,6 +230,7 @@ public class OnlineUserServiceImpl implements OnlineUserService {
         tokenService.removeToken(userId);
         redissonClient.getBucket(ONLINE_DETAIL_PREFIX + userId).delete();
         redissonClient.getBucket(ONLINE_ACTIVE_PREFIX + userId).delete();
+        touchThrottleCache.remove(userId);
     }
 
     private OnlineUserVO buildVo(Long userId, TokenService.LoginInfo loginInfo) {

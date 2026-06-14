@@ -19,6 +19,7 @@ import cn.rbac.server.modules.system.dal.mysql.user.UserMapper;
 import cn.rbac.server.modules.system.service.approval.ApprovalFormService;
 import cn.rbac.server.modules.system.service.approval.RegisterApprovalService;
 import cn.rbac.server.modules.system.service.config.SystemConfigHelper;
+import cn.rbac.server.modules.system.service.notice.NoticeService;
 import cn.rbac.server.modules.system.service.permission.PermissionService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -48,6 +49,8 @@ public class ApprovalFormServiceImpl implements ApprovalFormService {
     private RegisterApprovalService registerApprovalService;
     @Resource
     private SystemConfigHelper systemConfigHelper;
+    @Resource
+    private NoticeService noticeService;
 
     @Override
     public PageResult<ApprovalFormDO> page(PageParam pageParam, String title, String formType, String status, Long userId) {
@@ -171,6 +174,7 @@ public class ApprovalFormServiceImpl implements ApprovalFormService {
         approvalFormMapper.updateById(form);
         registerApprovalService.applyApprovalResult(form, action);
         createRecord(form.getId(), action, reqVO.getRemark(), operatorUserId);
+        noticeService.markReadByBiz(operatorUserId, NOTICE_BIZ_TYPE_APPROVAL, form.getId());
         if (isRegisterForm) {
             createNotice(form.getApplicantUserId(), "注册审核结果",
                     "你的注册申请已" + ("APPROVE".equals(action) ? "通过，现在可以登录" : "被驳回，请联系管理员")

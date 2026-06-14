@@ -76,8 +76,9 @@ public class DashboardServiceImpl implements DashboardService {
         putFileCountFresh(stats);
         putJobStatsFresh(stats);
         putApprovalPendingFresh(stats, loginUserId);
+        putTicketPendingFresh(stats, loginUserId);
 
-        stats.put("onlineCount", onlineUserService.listOnlineUsers().size());
+        stats.put("onlineCount", onlineUserService.countOnlineUsers());
         stats.put("todayVisits", getDayVisitCount(LocalDate.now()));
         stats.put("yesterdayVisits", getDayVisitCount(LocalDate.now().minusDays(1)));
         stats.put("configGroupCount", configGroupService.listAll().size());
@@ -147,18 +148,7 @@ public class DashboardServiceImpl implements DashboardService {
     }
 
     private void putConfigFields(Map<String, Object> stats) {
-        stats.put("platformName", systemConfigHelper.getPlatformName());
-        stats.put("platformSubtitle", systemConfigHelper.getPlatformSubtitle());
-        stats.put("fileMaxSizeMb", systemConfigHelper.getFileMaxSizeMb());
-        stats.put("fileAllowedExtensions", systemConfigHelper.getFileAllowedExtensions());
-        stats.put("tokenExpireHours", systemConfigHelper.getTokenExpireHours());
-        stats.put("loginCaptchaEnabled", systemConfigHelper.isCaptchaEnabled());
-        stats.put("loginCaptchaType", systemConfigHelper.getCaptchaType());
-        stats.put("loginRememberMe", systemConfigHelper.isRememberMeEnabled());
-        stats.put("loginMaxRetryCount", systemConfigHelper.getMaxRetryCount());
-        stats.put("loginLockTimeMinutes", systemConfigHelper.getLockTimeMinutes());
-        stats.put("registerEnabled", systemConfigHelper.isRegisterEnabled());
-        stats.put("registerNeedAudit", systemConfigHelper.isRegisterNeedAudit());
+        systemConfigHelper.fillDashboardConfigFields(stats);
     }
 
     private void putAggregateFields(Map<String, Object> stats, DashboardStatsRow row) {
@@ -205,6 +195,18 @@ public class DashboardServiceImpl implements DashboardService {
                 ? dashboardMapper.countApprovalPendingByApprover(loginUserId)
                 : 0L;
         stats.put("approvalPendingCount", count);
+    }
+
+    /** 待我处理工单：指定当前用户为处理人，或全员通知（assignee=0）且状态为待处理 */
+    private void putTicketPendingFresh(Map<String, Object> stats, Long loginUserId) {
+        if (loginUserId == null || loginUserId <= 0) {
+            stats.put("ticketOpenCount", 0L);
+            stats.put("ticketOverdueCount", 0L);
+            return;
+        }
+        LocalDateTime now = LocalDateTime.now();
+        stats.put("ticketOpenCount", dashboardMapper.countTicketOpenByAssignee(loginUserId));
+        stats.put("ticketOverdueCount", dashboardMapper.countTicketOverdueByAssignee(loginUserId, now));
     }
 
     private long longVal(Long value) {

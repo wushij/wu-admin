@@ -192,6 +192,7 @@ async function submit(action: 'APPROVE' | 'REJECT') {
   })
   uni.showToast({ title: '操作成功', icon: 'success' })
   await load(approval.value.id)
+  await messageStore.refreshSummary()
 }
 
 function onApprove() {

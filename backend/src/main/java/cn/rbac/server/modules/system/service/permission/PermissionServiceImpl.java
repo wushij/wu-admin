@@ -28,14 +28,16 @@ public class PermissionServiceImpl implements PermissionService {
     public void assignUserRole(Long userId, Set<Long> roleIds) {
         // 删除原有关联
         userRoleMapper.deleteByUserId(userId);
-        // 新增关联
+        // 新增关联（批量）
         if (CollUtil.isNotEmpty(roleIds)) {
+            List<UserRoleDO> list = new ArrayList<>(roleIds.size());
             for (Long roleId : roleIds) {
                 UserRoleDO userRole = new UserRoleDO();
                 userRole.setUserId(userId);
                 userRole.setRoleId(roleId);
-                userRoleMapper.insert(userRole);
+                list.add(userRole);
             }
+            userRoleMapper.insertBatch(list);
         }
     }
 
@@ -61,12 +63,14 @@ public class PermissionServiceImpl implements PermissionService {
     public void assignRoleMenu(Long roleId, Set<Long> menuIds) {
         roleMenuMapper.deleteByRoleId(roleId);
         if (CollUtil.isNotEmpty(menuIds)) {
+            List<RoleMenuDO> list = new ArrayList<>(menuIds.size());
             for (Long menuId : menuIds) {
                 RoleMenuDO roleMenu = new RoleMenuDO();
                 roleMenu.setRoleId(roleId);
                 roleMenu.setMenuId(menuId);
-                roleMenuMapper.insert(roleMenu);
+                list.add(roleMenu);
             }
+            roleMenuMapper.insertBatch(list);
         }
     }
 

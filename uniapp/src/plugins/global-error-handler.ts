@@ -80,6 +80,35 @@ export function installGlobalErrorHandler(app: App) {
     })
   }
   // #endif
+
+  // #ifndef H5
+  // 小程序/App 端：注册全局错误与未捕获 Promise 监听，与 H5 端 window 监听对齐。
+  // 微信小程序的 onError 回调参数为字符串（错误消息），onUnhandledRejection 为 { reason, promise }。
+  if (typeof uni !== 'undefined' && typeof uni.onError === 'function') {
+    uni.onError((error) => {
+      if (isBenignUniRuntimeError(error)) {
+        logger.warn('[app-error:ignored]', error)
+        return
+      }
+      logger.error('[app-error]', error)
+      showGlobalErrorToast(extractApiErrorMessage(error, '应用运行异常'))
+    })
+  }
+  if (typeof uni !== 'undefined' && typeof uni.onUnhandledRejection === 'function') {
+    uni.onUnhandledRejection((res) => {
+      const reason: unknown = res?.reason
+      if (isBenignUniRuntimeError(reason)) {
+        logger.warn('[unhandledrejection:ignored]', reason)
+        return
+      }
+      if (reason instanceof Error && (reason as Error & { __toastShown?: boolean }).__toastShown) {
+        return
+      }
+      logger.error('[unhandledrejection]', reason)
+      showGlobalErrorToast(extractApiErrorMessage(reason, '请求处理失败'))
+    })
+  }
+  // #endif
 }
 
 export function markErrorToastShown(error: Error) {

@@ -57,6 +57,7 @@ export const serverAutoRefresh = ref(loadMonitorStorageFlag(SERVER_AUTO_REFRESH_
 let pollTimer: ReturnType<typeof setInterval> | null = null
 let infoUpdateHandler: ((data: ServerInfo) => void) | null = null
 let backgroundActive = false
+let serverFetchInFlight = false
 
 function persistChartHistory() {
   saveMonitorStorage(SERVER_CHART_STORAGE_KEY, toRaw(serverChartHistory))
@@ -87,6 +88,8 @@ export function recordServerStatsPoint(data: ServerInfo) {
 }
 
 export async function fetchServerPoint() {
+  if (serverFetchInFlight) return
+  serverFetchInFlight = true
   try {
     const res = await getServerInfo()
     if (res.data) {
@@ -96,6 +99,8 @@ export async function fetchServerPoint() {
     }
   } catch {
     /* ignore */
+  } finally {
+    serverFetchInFlight = false
   }
 }
 

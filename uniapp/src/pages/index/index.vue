@@ -94,7 +94,9 @@ const showApprovalTodo = computed(
   () => hasPerm('system:approval:list') && (stats.value.approvalPendingCount ?? 0) > 0,
 )
 
-const showTicketTodo = computed(() => (stats.value.ticketOpenCount ?? 0) > 0)
+const showTicketTodo = computed(
+  () => hasPerm('system:ticket:list') && (stats.value.ticketOpenCount ?? 0) > 0,
+)
 
 const hasTodoSection = computed(() => showApprovalTodo.value || showTicketTodo.value)
 

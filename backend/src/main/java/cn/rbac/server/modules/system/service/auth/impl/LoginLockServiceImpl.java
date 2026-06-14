@@ -7,6 +7,7 @@ import jakarta.annotation.Resource;
 import org.redisson.api.RBucket;
 import org.redisson.api.RKeys;
 import org.redisson.api.RedissonClient;
+import org.redisson.api.options.KeysScanOptions;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -160,7 +161,7 @@ public class LoginLockServiceImpl implements LoginLockService {
     private Set<String> scanActiveLockSuffixes(String prefix) {
         Set<String> result = new HashSet<>();
         RKeys keys = redissonClient.getKeys();
-        Iterable<String> keyNames = keys.getKeysStreamByPattern(prefix + "*")::iterator;
+        Iterable<String> keyNames = keys.getKeys(KeysScanOptions.defaults().pattern(prefix + "*"));
         for (String key : keyNames) {
             if (!StringUtils.hasText(key) || key.length() <= prefix.length()) {
                 continue;

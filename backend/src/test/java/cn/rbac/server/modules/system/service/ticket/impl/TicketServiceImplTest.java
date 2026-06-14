@@ -12,6 +12,7 @@ import cn.rbac.server.modules.system.dal.mysql.ticket.TicketAttachmentMapper;
 import cn.rbac.server.modules.system.dal.mysql.ticket.TicketCommentMapper;
 import cn.rbac.server.modules.system.dal.mysql.ticket.TicketMapper;
 import cn.rbac.server.modules.system.dal.mysql.user.UserMapper;
+import cn.rbac.server.modules.system.service.notice.NoticeService;
 import cn.rbac.server.modules.system.service.permission.PermissionService;
 import cn.rbac.server.testsupport.ServiceTestFixtures;
 import org.junit.jupiter.api.DisplayName;
@@ -42,9 +43,25 @@ class TicketServiceImplTest {
     private TicketAttachmentMapper ticketAttachmentMapper;
     @Mock
     private PermissionService permissionService;
+    @Mock
+    private NoticeService noticeService;
 
     @InjectMocks
     private TicketServiceImpl ticketService;
+
+    @Test
+    @DisplayName("create：不能选择自己作为处理人")
+    void create_rejectsSelfAssignee() {
+        TicketCreateReqVO req = new TicketCreateReqVO();
+        req.setTitle("自助工单");
+        req.setAssigneeUserId(10L);
+
+        BusinessException ex = assertThrows(BusinessException.class, () -> ticketService.create(req, 10L));
+
+        assertEquals(400, ex.getCode());
+        assertTrue(ex.getMessage().contains("不能选择自己"));
+        verify(ticketMapper, never()).insert(any(TicketDO.class));
+    }
 
     @Test
     @DisplayName("create：创建工单并通知处理人")
@@ -155,6 +172,7 @@ class TicketServiceImplTest {
         verify(ticketMapper).updateById(captor.capture());
         assertEquals("IN_PROGRESS", captor.getValue().getStatus());
         assertNull(captor.getValue().getClosedTime());
+        verify(noticeService).markReadByBiz(10L, "TICKET", 1L);
     }
 
     @Test

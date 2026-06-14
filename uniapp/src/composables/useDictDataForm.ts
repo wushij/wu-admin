@@ -1,6 +1,7 @@
 import { ref, reactive } from 'vue'
 import { createDictData, updateDictData } from '@/api/system/dict'
 import { reloadDictTypes } from '@/composables/useDict'
+import { leaveFormPageAfterSave } from '@/utils/navigate-back'
 import type { DictDataItem } from '@/types/api'
 
 export const LIST_CLASS_OPTIONS = [
@@ -107,7 +108,9 @@ export function useDictDataForm() {
       else await updateDictData({ ...payload, id: dataId })
       await reloadDictTypes([dictType.value])
       uni.showToast({ title: '保存成功', icon: 'success' })
-      setTimeout(() => uni.navigateBack(), 400)
+      leaveFormPageAfterSave(
+        `/pages-sub/system/dict/data-list?dictType=${encodeURIComponent(dictType.value)}`,
+      )
     } finally {
       saving.value = false
     }

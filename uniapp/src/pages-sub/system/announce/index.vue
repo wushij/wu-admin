@@ -39,6 +39,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { onPullDownRefresh } from '@dcloudio/uni-app'
+import { useListPageShowRefresh } from '@/composables/useListPageShowRefresh'
 import ModuleDarkHero from '@/components/common/ModuleDarkHero/index.vue'
 import SearchBar from '@/components/common/SearchBar/index.vue'
 import SegmentTabs from '@/components/common/SegmentTabs/index.vue'
@@ -66,7 +67,7 @@ const statusTabs = [
   { key: '1', label: '已发布' },
 ]
 
-const { list, loading, finished, empty, refresh, loadMore } = usePageList<AnnounceVO>(
+const { list, loading, finished, empty, refresh, loadMore, refreshing } = usePageList<AnnounceVO>(
   async (pageNo, pageSize) => {
     const res = await getAnnouncePage({
       pageNo,
@@ -93,6 +94,7 @@ function goCreate() {
 
 function onSearch() { refresh() }
 watch(statusMode, () => refresh())
+useListPageShowRefresh(refresh, { loading, refreshing })
 onMounted(refresh)
 onPullDownRefresh(async () => { await refresh(); uni.stopPullDownRefresh() })
 </script>

@@ -1,5 +1,6 @@
 import { defineConfig, type ProxyOptions } from 'vite'
 import vue from '@vitejs/plugin-vue'
+import compression from 'vite-plugin-compression'
 import { resolve } from 'path'
 
 // 开发环境：/api 与 Knife4j 资源代理到本地 backend（8080，context-path=/api）
@@ -17,7 +18,10 @@ function knife4jProxy(rewrite?: ProxyOptions['rewrite']): ProxyOptions {
 }
 
 export default defineConfig({
-  plugins: [vue()],
+  plugins: [
+    vue(),
+    compression({ algorithm: 'gzip', ext: '.gz', threshold: 10240 }),
+  ],
   resolve: {
     alias: {
       '@': resolve(__dirname, 'src'),

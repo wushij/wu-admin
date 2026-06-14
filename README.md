@@ -6,6 +6,7 @@
 
 - [功能概览](#功能概览)
 - [最新更新](#最新更新202606)
+- [生产性能与并发优化](#生产性能与并发优化202606)
 - [近期迭代归档](#近期迭代归档)
 - [系统配置](#系统配置systemconfig)
 - [注册审核](#注册审核)
@@ -61,6 +62,7 @@
 | **定时任务日志** | `sys_job_log` 增加 `duration_ms`；调度日志支持软删并在回收中心恢复；本地 `add16.sql` + `add17.sql`，生产合并至 **`add15_wuadmin.sql`** |
 | **移动端企业 IM** | 微信式聊天输入：**☺ / ⌨** 表情与键盘切换；底部输入栏 `fixed` + H5 `visualViewport` 键盘高度适配；**发送后保持键盘**不收回；表情面板 **「最近」** Tab（`uni.storage` 本地记录）；加号直选文件/图片；图片消息按比例缩略图；发送后自动滚至最新消息 |
 | **用户管理 · 登录锁定** | PC / 移动端用户列表与详情展示 **登录锁定** 标签；管理员可 **解除登录锁定**（`PUT /api/system/user/unlock-login`），同时清除账号与**该用户最近登录 IP** 的 Redis 锁定 |
+| **生产性能与并发** | 后端 Async/Druid/批量与 WS afterCommit、API 日志加速；Nginx 文件直出 + gzip/静态缓存；H5 聊天图压缩；并发优化第一批（touchLastAccess 节流、工作台在线人数、监控 in-flight）；详见 [生产性能与并发优化](#生产性能与并发优化202606) |
 
 ```bash
 # 本地增量（按已执行版本补跑）
@@ -73,6 +75,106 @@ cd uniapp && npm install && npm run dev:h5
 ```
 
 生产 H5：`npm run build:h5` 后部署静态资源，**`/api` 反代到后端**（与 PC 相同）。
+
+---
+
+## 生产性能与并发优化（2026.06）
+
+针对 **Windows 宝塔 + 2 核 2G** 单机部署（`C:\wu-admin\backend.jar`、`C:\wu-admin\data\uploads\`）做的负载与并发优化记录。详细排障见仓库外文档 `docs/SERVER_OPTIMIZATION.md`、`docs/生产部署排障.md`（`docs/` 在 `.gitignore` 中，以本机副本为准）。
+
+### 目标与容量预期
+
+| 环境 | 同时在线（挂着页面 + WS） | 说明 |
+|------|:--:|------|
+| 2 核 2G Windows 单机 | **30～60 人**较稳 | 完成下方优化并正确部署 Nginx + jar |
+| 4 核 8G | **80～150 人**较稳 | 另需 JVM 调优、Element Plus 按需引入等 |
+
+> 区分 **「同时在线用户」** 与 **「同一秒 HTTP 并发」**。全员公告、大群聊天、有监控权限的管理员后台轮询会瞬时拉高负载。
+
+### 已完成（代码仓库）
+
+#### 后端
+
+| 项 | 主要文件 | 说明 |
+|----|----------|------|
+| **Async 线程池** | `framework/config/AsyncConfig.java` | core=8、max=32、queue=500；修复 `@Async` 无线程池时每次 new Thread |
+| **Druid 连接池** | `application.yml` | `max-active: 50`、保活与空闲检测 |
+| **公告 publish 去 N+1** | `AnnounceService` | 批量 insert + WS `afterCommit` |
+| **群成员批量查用户** | `ChatService.groupMembers` | `selectByIds` 替代循环 `selectById` |
+| **工单全员通知 batch** | `TicketServiceImpl` + `NoticeMapper.insertBatch` | 批量写入通知 |
+| **群消息/私聊 WS 事务外** | `ChatService.runAfterCommit` | 发消息、撤回不再拖长事务 |
+| **群公告 WS 事务外** | `ChatService.updateGroup` | `pushGroupAnnouncement` 改为 `afterCommit`（**并发优化第一批**） |
+| **API 日志落库** | `ApiAccessLogFlushTask`、`ApiAccessLogServiceImpl` | 10s flush、单批 1000；统计改 SQL 聚合 |
+| **Dashboard 配置读取** | `SystemConfigHelper.fillDashboardConfigFields` | 按组合并读配置 |
+| **在线心跳节流** | `OnlineUserServiceImpl.touchLastAccess` | 同一用户 **45s** 内只写一次 Redis（**第一批**） |
+| **工作台在线人数** | `DashboardServiceImpl` + `countOnlineUsers()` | 只数 userId，不构建完整 `OnlineUserVO` 列表（**第一批**） |
+| **生产关 Swagger** | `application-prod.yml` | `springdoc` 关闭 |
+
+#### 前端 / 移动端 / 构建
+
+| 项 | 说明 |
+|----|------|
+| **PC gzip 预压缩** | `vite-plugin-compression`（>10KB 产出 `.gz`）；Nginx 配 `gzip_static on` |
+| **监控 in-flight guard** | `cacheMonitorChart.ts`、`serverMonitorChart.ts`（PC + uni-app）；上次请求未完成则跳过本次，避免堆叠（**第一批**） |
+| **H5 聊天图** | 上传前压缩（≤1280px）、乐观预览（`uniapp`） |
+| **监控采样策略** | **保留**：登录后全局后台轮询（缓存 3s、服务 5s）；标签隐藏时暂停；**不**改为仅进监控页才采样 |
+
+#### Nginx 模板（`docs/根域名配置文件.txt`、`docs/移动端子域名配置文件.txt`）
+
+| 项 | 说明 |
+|----|------|
+| **`/api/files/` 直出** | `location ^~ /api/files/` + `alias C:/wu-admin/data/uploads/`；**须写在** `location /api/` **之前** |
+| **上传与看图分离** | `POST /api/system/file/upload` 等仍走 Java 反代；**GET** `/api/files/...` 由 Nginx 读盘 |
+| **gzip + 静态缓存** | `gzip on`；`index.html` 不缓存；js/css/图片 `expires 7d` |
+| **主站 `gzip_static on`** | PC `npm run build` 上传含 `.gz` 的 `dist` 后启用 |
+
+### 部署 checklist（按顺序）
+
+1. `cd backend && mvn clean package -DskipTests` → 上传 `backend.jar` 至 `C:\wu-admin\` → **重启**（工作目录建议 `C:\wu-admin`，与 `userDir` 一致）
+2. `cd frontend && npm run build` → 上传 `frontend/dist/` 至站点根目录
+3. `cd uniapp && npm run build:h5` → 上传 `uniapp/dist/build/h5/` 至 `app.wushij.online` 根目录
+4. 宝塔 Nginx 粘贴模板（含 `/api/files/`、`gzip` 段）→ `nginx -t` → 重载
+5. 自测：`https://域名/api/auth/config` 返回 JSON；上传文件后缩略图 `GET /api/files/...` 为 **200**
+
+**仅改 Nginx**：重载即可。**改 Java / yml**：必须重打 jar 并重启。**仅改前端**：覆盖 `dist` / H5 并强刷。
+
+### 文件管理 · 缩略图加载说明
+
+- 上传接口 `POST /api/system/file/upload` 写盘路径：`{local-path}/{yyyy/MM/dd}/`（默认 `./data/uploads` → `C:\wu-admin\data\uploads\2026\06\14\`）。
+- 列表网格 `<img>` 使用返回的 **`/api/files/...` 原图 URL**（约 100px 高预览，**仍下载完整文件**）。
+- **上传成功快、格子出图慢**：多为 PNG/JPG **体积大（数 MB）** 或服务器 **内存紧张**，与上传 POST 无关；Network 中查看 `GET /api/files/...` 的 **Size / Time**。
+- 配置 `/api/files/` alias 后，看图走 Nginx 直出；`alias` 须与 jar 实际上传目录一致（`userDir` 为 `C:\wu-admin` 时模板路径正确）。
+
+### 并发优化 · 第一批（2026.06 末）
+
+| 改动 | 与改前差异 |
+|------|------------|
+| `pushGroupAnnouncement` → `afterCommit` | 改群公告接口更快返回，WS 在事务提交后推送 |
+| `touchLastAccess` 45s 节流 | 每个已登录 API 写 Redis 次数大幅减少 |
+| `countOnlineUsers()` | 工作台不再为计数构建完整在线用户 VO |
+| 监控 fetch in-flight | 3s/5s 轮询不会叠多个未完成请求 |
+
+后端 `mvn test`、前端 `npm run typecheck` 已通过；**部署新 jar / dist 后线上才生效**。
+
+### 仍建议做（未实现或仅部署层）
+
+| 优先级 | 项 |
+|:---:|---|
+| 🔴 P0 | Element Plus 按需引入（PC 首屏体积） |
+| 🔴 P0 | JVM 启动参数（`-Xms/-Xmx`、G1；2G 机器勿盲目加大堆） |
+| 🟡 P1 | 权限登录缓存 + `role_menu` 批量查询 |
+| 🟡 P1 | IM `listUsers` 分页 / 仅拉有会话用户 |
+| 🟡 P1 | 文件管理上传前压缩或缩略图（改善大 PNG 网格加载） |
+| 🟢 P2 | 全员公告 WS 分块推送、presence 合并广播、WS 多实例 Redis |
+
+### 相关配置文件路径
+
+| 文件 | 用途 |
+|------|------|
+| `docs/根域名配置文件.txt` | PC 主站 `wushij.online` |
+| `docs/移动端子域名配置文件.txt` | H5 子站 `app.wushij.online` |
+| `application-prod.yml` | 生产 CORS、关 Swagger |
+| `application.yml` | Druid、上传目录 `file.storage.local-path: ./data/uploads` |
 
 ---
 
@@ -313,6 +415,7 @@ mysql -u wuadmin -p wuadmin < sql/add11_wuadmin.sql
 | 「自动」开关 | 关闭后停止轮询；状态持久化，刷新后仍生效 |
 | 退出登录 | 停止采样并清空 session 中的监控折线数据 |
 | 浏览器标签隐藏 | 暂停轮询；切回标签页后继续 |
+| 请求防堆叠 | 上次采样未完成则跳过本次（`statsFetchInFlight` / `serverFetchInFlight`），避免慢网络时并发叠请求 |
 
 > **平均负载**：来自 Linux `load average`；**Windows 上 JMX 返回不可用**，界面显示 `-` 属正常，请参考 **系统 CPU / 进程 CPU** 与折线图。
 
@@ -1388,6 +1491,22 @@ mvn clean package -DskipTests
 
 **Nginx 反代要点**：静态资源走 `root` + `try_files`；`/api/` 反代到 `http://127.0.0.1:8080/api/`；WebSocket 需 `Upgrade` / `Connection` 头（消息推送）。
 
+**上传文件直出（推荐，减轻 Java 读盘）**：
+
+```nginx
+# 须写在 location /api/ 之前；路径与 jar 工作目录下 data/uploads 一致
+location ^~ /api/files/ {
+    alias C:/wu-admin/data/uploads/;
+    expires 7d;
+    add_header Cache-Control "public, max-age=604800";
+    access_log off;
+}
+```
+
+- **GET** `/api/files/...`：Nginx 直读磁盘；**POST** 上传仍走 `location /api/` 反代（如 `/api/system/file/upload`）。
+- `location ^~` **不可省略**，否则 `.jpg` 可能被下方静态正则误匹配到站点 `root` 导致 404。
+- 完整模板与排障见 [生产性能与并发优化](#生产性能与并发优化202606)。
+
 **仅前端发版**（如监控折线、个人中心样式）：覆盖 `frontend/dist/` 并强刷浏览器即可，**不必重启 jar**。涉及菜单/SQL/后端接口时须同步后端与数据库增量。
 
 启动示例：
@@ -1566,6 +1685,9 @@ A：与 PC 一致：基本资料展示脱敏号码，点击 **「更换手机号
 **Q：移动端账号状态显示「停用」但实际正常？**  
 A：升级后状态码与 PC 对齐：`1=正常`、`0=已停用`、`2=待审核`、`3=审核驳回`。
 
+**Q：上传成功但文件管理网格里图片出来很慢？**  
+A：① 上传 `POST` 与看图 `GET /api/files/...` 是两条链路；POST 快只说明写盘正常。② 网格约 100px 预览仍拉 **原图完整 URL**，4～5MB 的 PNG/JPG 下载会慢，与是否改业务代码无关。③ F12 → Network 看缩略图请求：**404** 检查 Nginx `location ^~ /api/files/` 与 `alias` 是否指向 `C:/wu-admin/data/uploads/`（须与 jar `userDir` 一致）；**200 但 Size 很大** 属大图问题。④ 服务器内存紧张（如 2G 已用 80%+）会整体变慢。详见 [生产性能与并发优化](#生产性能与并发优化202606)。
+
 **Q：Git 仓库？**  
 A：https://github.com/wushij/wu-admin
 
@@ -1575,6 +1697,7 @@ A：https://github.com/wushij/wu-admin
 
 - [GitHub 上传与推送](./GitHub上传与推送全流程.md)
 - [GlobalExceptionHandler 代码质量分析](./code-quality-analysis-global-exception-handler.md)
+- 生产性能与 Nginx 模板（本机 `docs/`）：`SERVER_OPTIMIZATION.md`、`生产部署排障.md`、`根域名配置文件.txt`、`移动端子域名配置文件.txt`
 
 ---
 

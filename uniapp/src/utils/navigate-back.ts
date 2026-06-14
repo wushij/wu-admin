@@ -128,6 +128,8 @@ export function resolveFallbackForRoute(route: string): string {
     'pages-sub/system/dict/data-form': '/pages-sub/system/dict/index',
     'pages-sub/system/announce/detail': '/pages-sub/system/announce/index',
     'pages-sub/system/announce/form': '/pages-sub/system/announce/index',
+    'pages-sub/system/ticket/create': '/pages-sub/system/ticket/index',
+    'pages-sub/system/approval/create': '/pages-sub/system/approval/index',
     'pages-sub/system/file/preview': '/pages-sub/system/file/index',
     'pages-sub/system/user/detail': '/pages-sub/system/user/index',
     'pages-sub/system/user/index': '/pages/work/index',
@@ -309,28 +311,16 @@ function prepareFormPageLeave(collapseOverlay = false) {
 function formLeaveToParent(fallbackUrl: string, collapseOverlay = false) {
   prepareFormPageLeave(collapseOverlay)
   const target = normalizePageUrl(fallbackUrl)
-  const pages = getCurrentPages()
-
-  if (pages.length > 1) {
-    markNativeNavigateBack()
-    uni.navigateBack({
-      delta: 1,
-      complete: () => scheduleSyncH5BackButton(),
-      fail: () =>
-        uni.redirectTo({
-          url: target,
-          complete: () => scheduleSyncH5BackButton(),
-          fail: () => uni.reLaunch({ url: target, complete: () => scheduleSyncH5BackButton() }),
-        }),
-    })
-    return
-  }
-
   uni.redirectTo({
     url: target,
     complete: () => scheduleSyncH5BackButton(),
     fail: () => uni.reLaunch({ url: target, complete: () => scheduleSyncH5BackButton() }),
   })
+}
+
+/** 表单保存成功后回到列表页（H5 浅栈下 redirect 比 navigateBack 更可靠） */
+export function leaveFormPageAfterSave(fallbackUrl: string, delayMs = 400) {
+  setTimeout(() => safeNavigateBack(fallbackUrl), delayMs)
 }
 
 export function safeNavigateBack(fallbackUrl?: string, options?: { collapseOverlay?: boolean }) {

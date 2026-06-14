@@ -28,8 +28,8 @@ public final class RedisMonitorValueCodec {
 
     public static Object readValue(StringRedisTemplate stringRedisTemplate,
                                    RedissonClient redissonClient,
-                                   String key,
-                                   String type) {
+                                   @NonNull String key,
+                                   @NonNull String type) {
         Object plain = readPlain(stringRedisTemplate, key, type);
         if (shouldTryRedissonDecode(key, plain)) {
             Object decoded = readViaRedisson(redissonClient, key, type);

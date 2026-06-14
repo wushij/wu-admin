@@ -1,7 +1,7 @@
 import { onMounted, watch, type MaybeRefOrGetter, type Ref } from 'vue'
 import { useFormDirty } from '@/composables/useFormDirty'
 import { useUnsavedLeaveGuard } from '@/composables/useUnsavedLeaveGuard'
-import { safeNavigateBack } from '@/utils/navigate-back'
+import { leaveFormPageAfterSave } from '@/utils/navigate-back'
 
 /** 编辑页：脏检查 + 返回拦截，loading 结束后自动建立基线 */
 export function useEditPageGuard(
@@ -21,11 +21,11 @@ export function useEditPageGuard(
 
   function leaveAfterSave() {
     markClean()
+    if (options?.fallbackUrl) {
+      leaveFormPageAfterSave(options.fallbackUrl)
+      return
+    }
     setTimeout(() => {
-      if (options?.fallbackUrl) {
-        safeNavigateBack(options.fallbackUrl)
-        return
-      }
       uni.navigateBack({
         fail: () => {
           /* 栈内仅一页时由调用方自行 redirect */

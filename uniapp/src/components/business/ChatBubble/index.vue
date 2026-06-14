@@ -22,14 +22,22 @@
         ]"
         @click="onBubbleClick"
       >
-        <image
-          v-if="isImage && mediaUrl"
-          class="chat-bubble__image"
-          :src="mediaUrl"
-          :style="imageDisplayStyle"
-          mode="scaleToFill"
-          @load="onImageLoad"
-        />
+        <view v-if="isImage && mediaUrl" class="chat-bubble__image-wrap">
+          <image
+            class="chat-bubble__image"
+            :class="{ 'chat-bubble__image--dim': isPending }"
+            :src="mediaUrl"
+            :style="imageDisplayStyle"
+            mode="scaleToFill"
+            @load="onImageLoad"
+          />
+          <view v-if="isPending" class="chat-bubble__image-mask">
+            <view class="chat-bubble__spinner" />
+          </view>
+          <view v-else-if="isFailed" class="chat-bubble__image-mask chat-bubble__image-mask--failed">
+            <text class="chat-bubble__failed-text">发送失败</text>
+          </view>
+        </view>
         <view v-else-if="isFile && fileInfo" class="chat-bubble__file">
           <text class="chat-bubble__file-icon">📎</text>
           <text class="chat-bubble__file-name">{{ fileInfo.name }}</text>
@@ -56,7 +64,7 @@ import type { ChatMessage } from '@/types/message'
 
 const props = withDefaults(
   defineProps<{
-    message: Pick<ChatMessage, 'content' | 'msgType' | 'senderAvatar'>
+    message: Pick<ChatMessage, 'content' | 'msgType' | 'senderAvatar' | 'localPreview' | 'sendStatus'>
     self?: boolean
     senderName?: string
     avatar?: string
@@ -74,6 +82,8 @@ const showSenderLabel = computed(
 )
 const isImage = computed(() => resolveEffectiveMsgType(props.message) === CHAT_MSG_TYPE.IMAGE)
 const isFile = computed(() => resolveEffectiveMsgType(props.message) === CHAT_MSG_TYPE.FILE)
+const isPending = computed(() => props.message.sendStatus === 'pending')
+const isFailed = computed(() => props.message.sendStatus === 'failed')
 const mediaUrl = computed(() => (isImage.value ? resolveMediaUrl(props.message) : ''))
 const fileInfo = computed(() => getFileInfo(props.message))
 const text = computed(() => previewMessageText(props.message))
@@ -105,6 +115,7 @@ function onImageLoad(e: { detail?: { width?: number; height?: number } }) {
 }
 
 function onBubbleClick() {
+  if (isPending.value) return
   if (isImage.value && mediaUrl.value) {
     uni.previewImage({ urls: [mediaUrl.value] })
     return
@@ -238,12 +249,56 @@ function onBubbleClick() {
   border-radius: 8rpx;
 }
 
+.chat-bubble__image-wrap {
+  position: relative;
+  display: inline-block;
+  line-height: 0;
+}
+
 .chat-bubble__image {
   display: block;
   max-width: 320rpx;
   max-height: 320rpx;
   border-radius: 8rpx;
   vertical-align: top;
+}
+
+.chat-bubble__image--dim {
+  opacity: 0.88;
+}
+
+.chat-bubble__image-mask {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8rpx;
+  background: rgba(0, 0, 0, 0.28);
+}
+
+.chat-bubble__image-mask--failed {
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.chat-bubble__spinner {
+  width: 48rpx;
+  height: 48rpx;
+  border: 4rpx solid rgba(255, 255, 255, 0.35);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: chat-bubble-spin 0.8s linear infinite;
+}
+
+.chat-bubble__failed-text {
+  color: #fff;
+  font-size: 24rpx;
+}
+
+@keyframes chat-bubble-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .chat-bubble__file {

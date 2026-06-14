@@ -11,6 +11,7 @@ import cn.rbac.server.modules.system.dal.mysql.approval.ApprovalRecordMapper;
 import cn.rbac.server.modules.system.dal.mysql.notice.NoticeMapper;
 import cn.rbac.server.modules.system.dal.mysql.user.UserMapper;
 import cn.rbac.server.modules.system.service.approval.RegisterApprovalService;
+import cn.rbac.server.modules.system.service.notice.NoticeService;
 import cn.rbac.server.modules.system.service.permission.PermissionService;
 import cn.rbac.server.testsupport.MybatisLambdaTestBase;
 import cn.rbac.server.testsupport.ServiceTestFixtures;
@@ -41,6 +42,8 @@ class ApprovalFormServiceImplTest extends MybatisLambdaTestBase {
     private PermissionService permissionService;
     @Mock
     private RegisterApprovalService registerApprovalService;
+    @Mock
+    private NoticeService noticeService;
 
     @InjectMocks
     private ApprovalFormServiceImpl approvalFormService;

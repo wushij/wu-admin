@@ -1,6 +1,7 @@
 import { ref, reactive } from 'vue'
 import { createDictType, getDictType, updateDictType } from '@/api/system/dict'
 import { reloadDictTypes } from '@/composables/useDict'
+import { leaveFormPageAfterSave } from '@/utils/navigate-back'
 
 export function useDictTypeForm() {
   const loading = ref(false)
@@ -75,7 +76,7 @@ export function useDictTypeForm() {
       else await updateDictType({ id, ...payload })
       await reloadDictTypes([payload.dictType])
       uni.showToast({ title: '保存成功', icon: 'success' })
-      setTimeout(() => uni.navigateBack(), 400)
+      leaveFormPageAfterSave('/pages-sub/system/dict/index')
     } finally {
       saving.value = false
     }

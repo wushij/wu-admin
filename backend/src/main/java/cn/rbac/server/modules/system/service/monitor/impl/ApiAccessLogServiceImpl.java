@@ -2,6 +2,10 @@ package cn.rbac.server.modules.system.service.monitor.impl;
 
 import cn.rbac.server.common.pojo.PageResult;
 import cn.rbac.server.modules.system.api.monitor.vo.ApiAccessUserRankVO;
+import cn.rbac.server.modules.system.service.monitor.vo.ApiAccessDailyStatVO;
+import cn.rbac.server.modules.system.service.monitor.vo.ApiAccessMethodStatVO;
+import cn.rbac.server.modules.system.service.monitor.vo.ApiAccessSummaryVO;
+import cn.rbac.server.modules.system.service.monitor.vo.ApiAccessUserStatVO;
 import cn.rbac.server.modules.system.dal.dataobject.monitor.ApiAccessLogDO;
 import cn.rbac.server.modules.system.dal.dataobject.user.UserDO;
 import cn.rbac.server.modules.system.dal.mysql.monitor.ApiAccessLogMapper;
@@ -30,7 +34,7 @@ public class ApiAccessLogServiceImpl extends ServiceImpl<ApiAccessLogMapper, Api
         implements ApiAccessLogService {
 
     private static final String REDIS_QUEUE_KEY = "api:access:log:queue";
-    private static final int BATCH_SIZE = 500;
+    private static final int BATCH_SIZE = 1000;
 
     @Resource
     private RedissonClient redissonClient;
@@ -107,7 +111,7 @@ public class ApiAccessLogServiceImpl extends ServiceImpl<ApiAccessLogMapper, Api
                 .collect(Collectors.toSet());
         Map<Long, UserDO> userMap = new HashMap<>();
         if (!userIds.isEmpty()) {
-            for (UserDO user : userMapper.selectBatchIds(userIds)) {
+            for (UserDO user : userMapper.selectByIds(userIds)) {
                 if (user != null) {
                     userMap.put(user.getId(), user);
                 }
@@ -132,14 +136,9 @@ public class ApiAccessLogServiceImpl extends ServiceImpl<ApiAccessLogMapper, Api
         LocalDateTime start = startDate.atStartOfDay();
         LocalDateTime end = endDate.plusDays(1).atStartOfDay();
 
-        LambdaQueryWrapper<ApiAccessLogDO> wrapper = new LambdaQueryWrapper<>();
-        wrapper.between(ApiAccessLogDO::getStartTime, start, end);
-
-        List<ApiAccessLogDO> list = list(wrapper);
-        long total = list.size();
-        long successCount = list.stream()
-                .filter(l -> l.getSuccess() != null && l.getSuccess() == 1)
-                .count();
+        ApiAccessSummaryVO summary = baseMapper.selectSummary(start, end);
+        long total = summary != null && summary.getTotalCount() != null ? summary.getTotalCount() : 0L;
+        long successCount = summary != null && summary.getSuccessCount() != null ? summary.getSuccessCount() : 0L;
         long failCount = total - successCount;
 
         Map<String, Map<String, Long>> dailyStats = new LinkedHashMap<>();
@@ -150,50 +149,39 @@ public class ApiAccessLogServiceImpl extends ServiceImpl<ApiAccessLogMapper, Api
             empty.put("fail", 0L);
             dailyStats.put(day.toString(), empty);
         }
-        for (ApiAccessLogDO item : list) {
-            if (item.getStartTime() == null) {
+        for (ApiAccessDailyStatVO row : baseMapper.selectDailyStats(start, end)) {
+            if (row.getStatDate() == null) {
                 continue;
             }
-            String dateKey = item.getStartTime().toLocalDate().toString();
-            Map<String, Long> dayMap = dailyStats.get(dateKey);
+            Map<String, Long> dayMap = dailyStats.get(row.getStatDate());
             if (dayMap == null) {
                 continue;
             }
-            dayMap.put("total", dayMap.get("total") + 1);
-            if (item.getSuccess() != null && item.getSuccess() == 1) {
-                dayMap.put("success", dayMap.get("success") + 1);
-            } else {
-                dayMap.put("fail", dayMap.get("fail") + 1);
-            }
+            long dayTotal = row.getTotal() != null ? row.getTotal() : 0L;
+            long daySuccess = row.getSuccessCount() != null ? row.getSuccessCount() : 0L;
+            dayMap.put("total", dayTotal);
+            dayMap.put("success", daySuccess);
+            dayMap.put("fail", dayTotal - daySuccess);
         }
 
-        Map<String, Long> pathCount = new HashMap<>();
-        for (ApiAccessLogDO item : list) {
-            String path = item.getApiPath() != null ? item.getApiPath() : "unknown";
-            pathCount.merge(path, 1L, (a, b) -> a + b);
-        }
-        List<Map<String, Object>> topPaths = pathCount.entrySet().stream()
-                .sorted((a, b) -> Long.compare(b.getValue(), a.getValue()))
-                .limit(10)
-                .map(e -> {
+        List<Map<String, Object>> topPaths = baseMapper.selectTopPaths(start, end, 10).stream()
+                .map(row -> {
                     Map<String, Object> m = new HashMap<>();
-                    m.put("apiPath", e.getKey());
-                    m.put("count", e.getValue());
+                    m.put("apiPath", row.getApiPath());
+                    m.put("count", row.getCount() != null ? row.getCount() : 0L);
                     return m;
                 })
                 .collect(Collectors.toList());
 
         Map<String, Long> methodCount = new HashMap<>();
-        for (ApiAccessLogDO item : list) {
-            String m = item.getMethod() != null ? item.getMethod() : "unknown";
-            methodCount.merge(m, 1L, (a, b) -> a + b);
+        for (ApiAccessMethodStatVO row : baseMapper.selectMethodCounts(start, end)) {
+            methodCount.put(row.getMethod(), row.getCount() != null ? row.getCount() : 0L);
         }
 
         Map<Long, Long> userCount = new HashMap<>();
-        for (ApiAccessLogDO item : list) {
-            Long uid = item.getUserId();
-            if (uid != null) {
-                userCount.merge(uid, 1L, (a, b) -> a + b);
+        for (ApiAccessUserStatVO row : baseMapper.selectTopUsers(start, end, 10)) {
+            if (row.getUserId() != null) {
+                userCount.put(row.getUserId(), row.getCount() != null ? row.getCount() : 0L);
             }
         }
         List<ApiAccessUserRankVO> topUsers = buildTopUsers(userCount, 10);
@@ -222,7 +210,7 @@ public class ApiAccessLogServiceImpl extends ServiceImpl<ApiAccessLogMapper, Api
         Set<Long> userIds = sorted.stream().map(Map.Entry::getKey).collect(Collectors.toSet());
         Map<Long, UserDO> userMap = new HashMap<>();
         if (!userIds.isEmpty()) {
-            for (UserDO user : userMapper.selectBatchIds(userIds)) {
+            for (UserDO user : userMapper.selectByIds(userIds)) {
                 if (user != null) {
                     userMap.put(user.getId(), user);
                 }

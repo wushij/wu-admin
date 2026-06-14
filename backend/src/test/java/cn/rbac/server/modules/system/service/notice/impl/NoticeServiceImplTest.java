@@ -125,4 +125,12 @@ class NoticeServiceImplTest extends MybatisLambdaTestBase {
 
         verify(noticeMapper).markAllReadByUserId(USER_ID);
     }
+
+    @Test
+    @DisplayName("markReadByBiz：按业务关联标记已读")
+    void markReadByBiz_delegatesToMapper() {
+        noticeService.markReadByBiz(USER_ID, "TICKET", 100L);
+
+        verify(noticeMapper).markReadByBiz(USER_ID, "TICKET", 100L);
+    }
 }

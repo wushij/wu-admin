@@ -75,6 +75,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, nextTick } from 'vue'
 import { onPullDownRefresh } from '@dcloudio/uni-app'
+import { useListPageShowRefresh } from '@/composables/useListPageShowRefresh'
 import { useAppDialogBackPress } from '@/composables/useAppDialogBackPress'
 import ModuleDarkHero from '@/components/common/ModuleDarkHero/index.vue'
 import IconFont from '@/components/common/IconFont/index.vue'
@@ -241,6 +242,7 @@ async function confirmDelete(row: MenuRow) {
   await refresh()
 }
 
+useListPageShowRefresh(refresh, { loading })
 onMounted(refresh)
 onPullDownRefresh(async () => {
   await refresh()

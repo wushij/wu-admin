@@ -45,10 +45,19 @@ export function resolveEffectiveMsgType(msg?: Pick<ChatMessage, 'msgType' | 'con
   return type
 }
 
-export function resolveMediaUrl(msg?: Pick<ChatMessage, 'msgType' | 'content'>): string {
-  if (!msg?.content) return ''
+export function resolveMediaUrl(
+  msg?: Pick<ChatMessage, 'msgType' | 'content' | 'localPreview' | 'sendStatus'>,
+): string {
+  if (!msg) return ''
   const type = resolveEffectiveMsgType(msg)
   if (type === CHAT_MSG_TYPE.IMAGE) {
+    if (
+      msg.localPreview &&
+      (msg.sendStatus === 'pending' || msg.sendStatus === 'failed')
+    ) {
+      return msg.localPreview
+    }
+    if (!msg.content) return ''
     const file = parseFilePayload(msg.content)
     return fileDisplayUrl(file?.url || msg.content)
   }
@@ -131,10 +140,12 @@ export function recallNoticeText(
 }
 
 export function canRecallMessage(
-  msg: Pick<ChatMessage, 'senderId' | 'sendTime' | 'msgType'>,
+  msg: Pick<ChatMessage, 'id' | 'senderId' | 'sendTime' | 'msgType' | 'sendStatus'>,
   currentUserId?: number,
   windowMinutes = 2,
 ): boolean {
+  if (msg.sendStatus === 'pending' || msg.sendStatus === 'failed') return false
+  if (msg.id != null && msg.id < 0) return false
   if (msg.msgType === CHAT_MSG_TYPE.RECALLED) return false
   if (!currentUserId || msg.senderId !== currentUserId) return false
   if (!msg.sendTime) return false

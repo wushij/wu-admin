@@ -39,7 +39,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
-import { onPullDownRefresh, onShow } from '@dcloudio/uni-app'
+import { onPullDownRefresh } from '@dcloudio/uni-app'
 import ModuleDarkHero from '@/components/common/ModuleDarkHero/index.vue'
 import SearchBar from '@/components/common/SearchBar/index.vue'
 import ListFooter from '@/components/common/ListFooter/index.vue'
@@ -51,6 +51,7 @@ import SegmentTabs from '@/components/common/SegmentTabs/index.vue'
 import ListCard from '@/components/common/ListCard/index.vue'
 import PermissionBlock from '@/components/common/PermissionBlock/index.vue'
 import { usePageList } from '@/composables/usePageList'
+import { useListPageShowRefresh } from '@/composables/useListPageShowRefresh'
 import { useModulePermission } from '@/composables/useModulePermission'
 import { getApprovalPage } from '@/api/system/approval'
 import { getDictLabel, preloadDicts } from '@/composables/useDict'
@@ -108,15 +109,7 @@ function onSearch() {
 
 watch(statusMode, () => refresh())
 
-const skipNextShowRefresh = ref(true)
-onShow(async () => {
-  if (skipNextShowRefresh.value) {
-    skipNextShowRefresh.value = false
-    return
-  }
-  if (loading.value || refreshing.value) return
-  await refresh({ silent: true })
-})
+useListPageShowRefresh(refresh, { loading, refreshing })
 
 onMounted(() => {
   preloadDicts([DICT_TYPE.APPROVAL_STATUS, DICT_TYPE.APPROVAL_FORM_TYPE])

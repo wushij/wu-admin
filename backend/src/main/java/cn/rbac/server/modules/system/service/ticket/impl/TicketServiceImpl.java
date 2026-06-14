@@ -14,6 +14,7 @@ import cn.rbac.server.modules.system.dal.mysql.ticket.TicketAttachmentMapper;
 import cn.rbac.server.modules.system.dal.mysql.ticket.TicketCommentMapper;
 import cn.rbac.server.modules.system.dal.mysql.ticket.TicketMapper;
 import cn.rbac.server.modules.system.dal.mysql.user.UserMapper;
+import cn.rbac.server.modules.system.service.notice.NoticeService;
 import cn.rbac.server.modules.system.service.permission.PermissionService;
 import cn.rbac.server.modules.system.service.ticket.TicketService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
@@ -48,14 +49,19 @@ public class TicketServiceImpl implements TicketService {
     private TicketAttachmentMapper ticketAttachmentMapper;
     @Resource
     private PermissionService permissionService;
+    @Resource
+    private NoticeService noticeService;
 
     @Override
-    public List<AssigneeOptionVO> getAssigneeOptions() {
-        List<UserDO> users = userMapper.selectList(new LambdaQueryWrapper<UserDO>()
+    public List<AssigneeOptionVO> getAssigneeOptions(Long currentUserId) {
+        LambdaQueryWrapper<UserDO> wrapper = new LambdaQueryWrapper<UserDO>()
                 .eq(UserDO::getStatus, 1)
                 .select(UserDO::getId, UserDO::getUsername, UserDO::getNickname)
-                .orderByAsc(UserDO::getUsername));
-        return users.stream().map(u -> {
+                .orderByAsc(UserDO::getUsername);
+        if (currentUserId != null && currentUserId > 0) {
+            wrapper.ne(UserDO::getId, currentUserId);
+        }
+        return userMapper.selectList(wrapper).stream().map(u -> {
             AssigneeOptionVO vo = new AssigneeOptionVO();
             vo.setId(u.getId());
             vo.setUsername(u.getUsername());
@@ -107,6 +113,14 @@ public class TicketServiceImpl implements TicketService {
     public Long create(TicketCreateReqVO reqVO, Long currentUserId) {
         Long assigneeUserId = reqVO.getAssigneeUserId();
         boolean allUsers = assigneeUserId != null && assigneeUserId.equals(0L);
+        if (!allUsers) {
+            if (assigneeUserId == null || assigneeUserId <= 0) {
+                throw new BusinessException(400, "请选择处理人");
+            }
+            if (currentUserId != null && currentUserId > 0 && assigneeUserId.equals(currentUserId)) {
+                throw new BusinessException(400, "不能选择自己作为处理人");
+            }
+        }
         TicketDO ticket = new TicketDO();
         ticket.setTicketNo(generateTicketNo());
         ticket.setTitle(reqVO.getTitle());
@@ -212,6 +226,7 @@ public class TicketServiceImpl implements TicketService {
             ticket.setClosedTime(LocalDateTime.now());
         }
         ticketMapper.updateById(ticket);
+        noticeService.markReadByBiz(currentUserId, "TICKET", ticket.getId());
     }
 
     @Override
@@ -285,14 +300,13 @@ public class TicketServiceImpl implements TicketService {
         return "TK" + System.currentTimeMillis() + UUID.randomUUID().toString().substring(0, 4).toUpperCase();
     }
 
-    @SuppressWarnings("deprecation")
     private void fillUserName(List<TicketDO> tickets) {
         Set<Long> userIds = tickets.stream()
                 .flatMap(ticket -> java.util.stream.Stream.of(ticket.getCreatorUserId(), ticket.getAssigneeUserId()))
                 .filter(id -> id != null && id > 0)
                 .collect(Collectors.toSet());
         if (userIds.isEmpty()) return;
-        List<UserDO> userList = userMapper.selectBatchIds(userIds);
+        List<UserDO> userList = userMapper.selectByIds(userIds);
         Map<Long, String> userMap = (userList != null ? userList : Collections.<UserDO>emptyList()).stream()
                 .collect(Collectors.toMap(UserDO::getId, UserDO::getUsername, (a, b) -> a));
         tickets.forEach(ticket -> {
@@ -309,21 +323,19 @@ public class TicketServiceImpl implements TicketService {
         });
     }
 
-    @SuppressWarnings("deprecation")
     private void fillCommentUsername(List<TicketCommentDO> comments) {
         Set<Long> userIds = comments.stream().map(TicketCommentDO::getUserId).collect(Collectors.toSet());
         if (userIds.isEmpty()) return;
-        List<UserDO> userList = userMapper.selectBatchIds(userIds);
+        List<UserDO> userList = userMapper.selectByIds(userIds);
         Map<Long, String> userMap = (userList != null ? userList : Collections.<UserDO>emptyList()).stream()
                 .collect(Collectors.toMap(UserDO::getId, UserDO::getUsername, (a, b) -> a));
         comments.forEach(comment -> comment.setUsername(userMap.getOrDefault(comment.getUserId(), "-")));
     }
 
-    @SuppressWarnings("deprecation")
     private void fillAttachmentUploader(List<TicketAttachmentDO> attachments) {
         Set<Long> userIds = attachments.stream().map(TicketAttachmentDO::getUploaderUserId).collect(Collectors.toSet());
         if (userIds.isEmpty()) return;
-        List<UserDO> userList = userMapper.selectBatchIds(userIds);
+        List<UserDO> userList = userMapper.selectByIds(userIds);
         Map<Long, String> userMap = (userList != null ? userList : Collections.<UserDO>emptyList()).stream()
                 .collect(Collectors.toMap(UserDO::getId, UserDO::getUsername, (a, b) -> a));
         attachments.forEach(a -> a.setUploaderName(userMap.getOrDefault(a.getUploaderUserId(), "-")));
@@ -344,16 +356,29 @@ public class TicketServiceImpl implements TicketService {
 
     private void createBroadcastNotice(TicketDO ticket, String content) {
         List<UserDO> users = userMapper.selectList(new LambdaQueryWrapper<UserDO>().eq(UserDO::getStatus, 1));
+        if (users.isEmpty()) {
+            return;
+        }
+        String noticeContent = content + "：" + ticket.getTicketNo() + " - " + ticket.getTitle();
+        LocalDateTime now = LocalDateTime.now();
+        List<NoticeDO> notices = new ArrayList<>();
         for (UserDO user : users) {
-            if (user.getId() == null || user.getId() <= 0) continue;
+            if (user.getId() == null || user.getId() <= 0) {
+                continue;
+            }
             NoticeDO notice = new NoticeDO();
             notice.setUserId(user.getId());
             notice.setTitle("工单全员通知");
-            notice.setContent(content + "：" + ticket.getTicketNo() + " - " + ticket.getTitle());
+            notice.setContent(noticeContent);
             notice.setBizType("TICKET");
             notice.setBizId(ticket.getId());
             notice.setReadStatus(0);
-            noticeMapper.insert(notice);
+            notice.setCreateTime(now);
+            notice.setUpdateTime(now);
+            notices.add(notice);
+        }
+        if (!notices.isEmpty()) {
+            noticeMapper.insertBatch(notices);
         }
     }
 }

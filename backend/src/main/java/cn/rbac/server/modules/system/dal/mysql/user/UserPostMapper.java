@@ -1,5 +1,6 @@
 package cn.rbac.server.modules.system.dal.mysql.user;
 
+import cn.rbac.server.modules.system.dal.dataobject.user.PostUserCountVO;
 import cn.rbac.server.modules.system.dal.dataobject.user.UserPostDO;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import org.apache.ibatis.annotations.Delete;
@@ -24,4 +25,18 @@ public interface UserPostMapper extends BaseMapper<UserPostDO> {
 
     @Select("<script>SELECT * FROM sys_user_post WHERE user_id IN <foreach collection='userIds' item='id' open='(' separator=',' close=')'>#{id}</foreach></script>")
     List<UserPostDO> selectByUserIds(@Param("userIds") Collection<Long> userIds);
+
+    @Select("""
+            <script>
+            SELECT post_id AS postId, COUNT(*) AS userCount
+            FROM sys_user_post
+            WHERE post_id IN
+            <foreach collection="postIds" item="id" open="(" separator="," close=")">
+              #{id}
+            </foreach>
+            GROUP BY post_id
+            </script>
+            """)
+    List<PostUserCountVO> selectUserCountByPostIds(@Param("postIds") Collection<Long> postIds);
 }
+

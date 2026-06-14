@@ -7,6 +7,7 @@ import {
   addGroupMembers,
 } from '@/api/message'
 import type { ChatUser } from '@/types/message'
+import { leaveFormPageAfterSave } from '@/utils/navigate-back'
 import { logger } from '@/utils/logger'
 
 export function useGroupForm() {
@@ -64,7 +65,7 @@ export function useGroupForm() {
     try {
       await createChatGroup({ name: form.name.trim(), memberIds: selectedIds.value })
       uni.showToast({ title: '群聊已创建', icon: 'success' })
-      setTimeout(() => uni.navigateBack(), 400)
+      leaveFormPageAfterSave('/pages-sub/msg/chat/index')
     } catch (e) {
       logger.error(e)
     } finally {
@@ -88,7 +89,7 @@ export function useGroupForm() {
         await addGroupMembers(groupId.value, selectedIds.value)
       }
       uni.showToast({ title: '已保存', icon: 'success' })
-      setTimeout(() => uni.navigateBack(), 400)
+      leaveFormPageAfterSave('/pages-sub/msg/chat/index')
     } catch (e) {
       logger.error(e)
     } finally {

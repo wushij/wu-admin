@@ -203,7 +203,7 @@ const { resetBaseline, leaveAfterSave } = useEditPageGuard(
     leaderLabel: leaderLabel.value,
     statusIndex: statusIndex.value,
   }),
-  { loading },
+  { loading, fallbackUrl: ORG_INDEX_URL },
 )
 
 const pageTitle = computed(() => {

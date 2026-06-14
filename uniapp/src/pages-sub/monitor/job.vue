@@ -156,6 +156,7 @@ import SegmentTabs from '@/components/common/SegmentTabs/index.vue'
 import AppDialogHost from '@/components/common/AppDialogHost/index.vue'
 import { useAppDialogBackPress } from '@/composables/useAppDialogBackPress'
 import { usePageList } from '@/composables/usePageList'
+import { useListPageShowRefresh } from '@/composables/useListPageShowRefresh'
 import { useModulePermission } from '@/composables/useModulePermission'
 import { showConfirm } from '@/utils/app-dialog'
 import { showSuccessToast } from '@/utils/app-toast'
@@ -396,6 +397,13 @@ function logPreview(item: SysJobLog) {
 }
 
 useAppDialogBackPress()
+
+async function refreshJobsOnShow() {
+  if (mode.value !== 'job') return
+  await Promise.all([jobs.refresh({ silent: true }), loadOverview()])
+}
+
+useListPageShowRefresh(refreshJobsOnShow, { loading: jobs.loading, refreshing: jobs.refreshing })
 
 onMounted(() => {
   jobs.refresh()

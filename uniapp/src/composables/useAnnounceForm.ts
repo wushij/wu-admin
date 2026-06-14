@@ -2,6 +2,7 @@ import { ref, reactive } from 'vue'
 import { createAnnounce, getAnnounceAdminDetail, updateAnnounce } from '@/api/message'
 import { getUserList } from '@/api/system/user'
 import { getDeptTree } from '@/api/system/dept'
+import { leaveFormPageAfterSave } from '@/utils/navigate-back'
 import { buildDeptLabels, buildDeptNodeMaps } from '@/utils/dept-tree'
 import type { AnnounceSaveDTO } from '@/types/message'
 
@@ -165,7 +166,7 @@ export function useAnnounceForm() {
         }
       }
       uni.showToast({ title: publish ? '已发布' : '保存成功', icon: 'success' })
-      setTimeout(() => uni.navigateBack(), 400)
+      leaveFormPageAfterSave('/pages-sub/system/announce/index')
     } finally {
       saving.value = false
     }
