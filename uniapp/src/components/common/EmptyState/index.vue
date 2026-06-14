@@ -26,7 +26,6 @@ withDefaults(
 </script>
 
 <style lang="scss" scoped>
-@import '@/styles/variables.scss';
 
 .empty-state {
   display: flex;

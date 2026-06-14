@@ -33,11 +33,12 @@
         <text class="section-head">待办提醒</text>
         <view class="todo-panel card--elevated">
           <ApprovalPendingCard
-            v-if="hasPerm('system:approval:list')"
+            v-if="showApprovalTodo"
             :count="stats.approvalPendingCount"
             @click="goApproval"
           />
           <DashboardTodoCard
+            v-if="showTicketTodo"
             :open-count="stats.ticketOpenCount"
             :overdue-count="stats.ticketOverdueCount"
             @click="goTicket"
@@ -46,7 +47,7 @@
       </view>
 
       <RecentLoginList
-        v-if="hasPerm('system:loginLog:list') && recentLogins.length"
+        v-if="recentLogins.length"
         :rows="recentLogins"
       />
     </FadeIn>
@@ -76,9 +77,7 @@ useTabBarPage(0)
 
 const userStore = useUserStore()
 const { hasPerm } = usePermission()
-const { loading, stats, recentLogins, refresh } = useDashboard({
-  recentLogins: hasPerm('system:loginLog:list'),
-})
+const { loading, stats, recentLogins, refresh } = useDashboard()
 
 const nickname = computed(() => userStore.userInfo.nickname || userStore.userInfo.username || '用户')
 const heroAvatar = computed(() =>
@@ -91,14 +90,18 @@ const heroStats = computed(() => [
   { label: '今日登录', value: stats.value.todayLoginSuccess ?? 0 },
 ])
 
-const visibleCards = computed(() =>
-  mobileStatCards.filter((card) => !card.permission || hasPerm(card.permission)),
+const showApprovalTodo = computed(
+  () => hasPerm('system:approval:list') && (stats.value.approvalPendingCount ?? 0) > 0,
 )
 
-const hasTodoSection = computed(
-  () =>
-    (hasPerm('system:approval:list') && (stats.value.approvalPendingCount ?? 0) > 0) ||
-    (stats.value.ticketOpenCount ?? 0) > 0,
+const showTicketTodo = computed(
+  () => hasPerm('system:ticket:list') && (stats.value.ticketOpenCount ?? 0) > 0,
+)
+
+const hasTodoSection = computed(() => showApprovalTodo.value || showTicketTodo.value)
+
+const visibleCards = computed(() =>
+  mobileStatCards.filter((card) => !card.permission || hasPerm(card.permission)),
 )
 
 function onCardTap(card: StatCardConfig) {
@@ -122,11 +125,17 @@ function goApproval() {
   uni.navigateTo({ url: '/pages-sub/system/approval/index' })
 }
 
-onMounted(refresh)
+onMounted(async () => {
+  if (userStore.isLoggedIn && !userStore.userInfo.permissions?.length) {
+    await userStore.getUserInfo().catch(() => {})
+  }
+  refresh()
+})
 
 onShow(() => {
   if (userStore.isLoggedIn) {
     userStore.getUserInfo().catch(() => {})
+    refresh()
   }
 })
 
@@ -137,7 +146,6 @@ onPullDownRefresh(async () => {
 </script>
 
 <style lang="scss" scoped>
-@import '@/styles/variables.scss';
 
 .section-head {
   display: block;

@@ -23,7 +23,6 @@
             </view>
           </view>
           <text class="profile-hero__name">{{ form.nickname || form.username || '用户' }}</text>
-          <text class="profile-hero__hint">点击更换头像</text>
         </view>
       </view>
 
@@ -149,8 +148,7 @@ onShow(load)
 </script>
 
 <style lang="scss" scoped>
-@import '@/styles/variables.scss';
-@import '@/styles/mine.scss';
+@use '@/styles/mine.scss' as *;
 
 .profile-page {
   @include mine-page-bg;
@@ -242,12 +240,6 @@ onShow(load)
   font-weight: $font-weight-bold;
   color: #fff;
   line-height: 1.3;
-}
-
-.profile-hero__hint {
-  margin-top: 8rpx;
-  font-size: $font-size-xs;
-  color: rgba(255, 255, 255, 0.55);
 }
 
 .profile-section {

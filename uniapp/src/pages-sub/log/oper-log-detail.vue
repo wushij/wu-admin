@@ -71,7 +71,6 @@ onLoad((options) => {
 </script>
 
 <style lang="scss" scoped>
-@import '@/styles/variables.scss';
 
 .oper-log-detail {
   min-height: 100vh;

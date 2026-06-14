@@ -1,4 +1,4 @@
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { getConfig } from '@/api/system/auth'
 import { getProfile, changePassword, sendProfilePasswordSmsCode, resetPasswordBySms } from '@/api/system/profile'
 import { SLIDER_VERIFIED_CODE } from '@/constants'
@@ -156,6 +156,10 @@ export function usePasswordForm() {
   }
 
   onMounted(loadContext)
+
+  onUnmounted(() => {
+    if (smsTimer) clearInterval(smsTimer)
+  })
 
   return {
     saving,

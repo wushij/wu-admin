@@ -5,6 +5,7 @@ import type { LoginForm, MenuTreeNode, AuthInfo } from '@/types/api'
 import { getToken, setToken, removeToken } from '@/utils/auth'
 import { useMessageStore } from '@/store/message'
 import { logger } from '@/utils/logger'
+import { resetMonitorBackground } from '@/composables/useMonitorBackground'
 
 export type UserInfo = Partial<
   Pick<AuthInfo, 'userId' | 'username' | 'nickname' | 'avatar' | 'roles' | 'permissions'>
@@ -64,6 +65,7 @@ export const useUserStore = defineStore('user', () => {
     } catch {
       /* store 可能尚未初始化 */
     }
+    resetMonitorBackground()
     userInfo.value = {}
     menus.value = []
     token.value = ''

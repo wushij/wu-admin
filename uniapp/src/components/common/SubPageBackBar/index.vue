@@ -35,7 +35,6 @@ function onBack() {
 </script>
 
 <style lang="scss" scoped>
-@import '@/styles/variables.scss';
 
 .sub-page-back {
   margin: -8rpx 0 12rpx;

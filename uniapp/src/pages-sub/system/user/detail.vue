@@ -424,9 +424,8 @@ onShow(async () => {
 
 <style lang="scss" scoped>
 
-@import '@/styles/variables.scss';
 
-@import '@/styles/common.scss';
+@use '@/styles/common.scss' as *;
 
 
 

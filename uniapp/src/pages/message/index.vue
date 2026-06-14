@@ -181,7 +181,7 @@ const moreIcon = computed((): IconName => {
 })
 
 const moreTheme = computed(() => {
-  if (mode.value === 'announce') return 'announce'
+  if (mode.value === 'announce') return 'notice'
   if (mode.value === 'inbox') return 'inbox'
   return 'monitor'
 })
@@ -217,7 +217,6 @@ onPullDownRefresh(async () => {
 </script>
 
 <style lang="scss" scoped>
-@import '@/styles/variables.scss';
 
 .message-hub__head {
   display: flex;

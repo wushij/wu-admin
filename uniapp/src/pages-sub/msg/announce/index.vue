@@ -4,7 +4,7 @@
       <view class="msg-hero__pattern" />
       <view class="msg-hero__glow" />
       <view class="msg-hero__body">
-        <ModuleIcon icon="bell" theme="announce" size="lg" />
+        <ModuleIcon icon="bell" theme="notice" size="lg" />
         <view class="msg-hero__text">
           <text class="msg-hero__title">系统公告</text>
           <text class="msg-hero__sub">共 {{ total }} 条全部公告</text>
@@ -32,7 +32,7 @@
         @click="goDetail(item.id)"
       >
         <view class="msg-card__head">
-          <ModuleIcon icon="bell" theme="announce" size="sm" />
+          <ModuleIcon icon="bell" theme="notice" size="sm" />
           <view class="msg-card__head-main">
             <text class="msg-card__title">{{ item.title }}</text>
             <text class="msg-card__time">{{ formatListTime(item.createTime) }}</text>
@@ -97,8 +97,7 @@ onPullDownRefresh(async () => {
 </script>
 
 <style lang="scss" scoped>
-@import '@/styles/variables.scss';
-@import '@/styles/mine.scss';
+@use '@/styles/mine.scss' as *;
 
 .announce-page {
   @include mine-page-bg;
@@ -113,7 +112,7 @@ onPullDownRefresh(async () => {
   @include mine-dark-hero-shell;
 
   &--announce .msg-hero__glow {
-    @include mine-dark-hero-glow(rgba(245, 158, 11, 0.28));
+    @include mine-dark-hero-glow(rgba(236, 72, 153, 0.28));
   }
 }
 

@@ -349,6 +349,36 @@ public class SystemConfigHelper {
         return "aliyunAuth".equals(getSmsProvider());
     }
 
+    /** 工作台统计：每组配置只读一次 Redis，避免重复 getGroupJson */
+    public void fillDashboardConfigFields(Map<String, Object> stats) {
+        JSONObject site = getGroupJson(GROUP_SITE);
+        stats.put("platformName", site.getStr("platformName", "Admin Platform"));
+        stats.put("platformSubtitle", site.getStr("platformSubtitle", "统一运维 · 高效管控"));
+
+        JSONObject file = getGroupJson(GROUP_FILE);
+        int maxMb = file.getInt("maxSizeMb", defaultMaxSizeMb);
+        stats.put("fileMaxSizeMb", maxMb < 1 ? defaultMaxSizeMb : Math.min(maxMb, PLATFORM_MAX_FILE_MB));
+        String ext = file.getStr("allowedExtensions", defaultAllowedExtensions);
+        stats.put("fileAllowedExtensions", StrUtil.isBlank(ext) ? defaultAllowedExtensions : ext.trim());
+
+        JSONObject session = getGroupJson(GROUP_SESSION);
+        int hours = session.getInt("tokenExpireHours", 24);
+        stats.put("tokenExpireHours", Math.max(1, Math.min(hours, 720)));
+
+        JSONObject login = getGroupJson(GROUP_LOGIN);
+        stats.put("loginCaptchaEnabled", isCaptchaEnabled());
+        stats.put("loginCaptchaType", getCaptchaType());
+        stats.put("loginRememberMe", login.getBool("rememberMe", true));
+        int maxRetry = login.getInt("maxRetryCount", 5);
+        stats.put("loginMaxRetryCount", maxRetry < 1 ? 5 : Math.min(maxRetry, 20));
+        int lockMin = login.getInt("lockTime", 10);
+        stats.put("loginLockTimeMinutes", lockMin < 1 ? 10 : Math.min(lockMin, 120));
+
+        JSONObject register = getGroupJson(GROUP_REGISTER);
+        stats.put("registerEnabled", register.getBool("enabled", true));
+        stats.put("registerNeedAudit", register.getBool("needAudit", false));
+    }
+
     public Map<String, Object> buildPublicConfig() {
         Map<String, Object> result = new HashMap<>();
 

@@ -8,8 +8,8 @@ export const MODULE_PAGE_ICON = {
   config: 'Tools',
   recycle: 'Delete',
   approval: 'Checked',
-  ticket: 'Tickets',
-  file: 'Document',
+  ticket: 'Service',
+  file: 'DocumentCopy',
   operLog: 'EditPen',
   loginLog: 'Promotion',
   notice: 'Notification',
@@ -18,5 +18,6 @@ export const MODULE_PAGE_ICON = {
   job: 'Timer',
   cache: 'Coin',
   server: 'Cpu',
-  gen: 'DocumentCopy',
+  gen: 'SetUp',
+  apiDoc: 'Connection',
 } as const

@@ -134,10 +134,8 @@
 
 <script setup lang="ts">
 import { computed, watch, onMounted } from 'vue'
-import { onBeforeRouteLeave } from 'vue-router'
 import ModulePageIcon from '@/components/ModulePageIcon.vue'
 import { MODULE_PAGE_ICON } from '@/constants/module-page-icons'
-import { ElMessageBox } from 'element-plus'
 
 const configTabCount = 10
 import SiteConfigTab from './components/SiteConfigTab.vue'
@@ -184,17 +182,6 @@ watch(activeTab, (tab) => {
     loadRecentSmsLogs()
     syncTemplateFromConfig(draft.sms.templateVerifyCode)
   }
-})
-
-function confirmLeave() {
-  return ElMessageBox.confirm('当前有未保存的修改，确定离开吗？', '提示', {
-    confirmButtonText: '离开', cancelButtonText: '继续编辑', type: 'warning'
-  })
-}
-
-onBeforeRouteLeave(async () => {
-  if (!isDirty.value) return true
-  try { await confirmLeave(); return true } catch { return false }
 })
 
 onMounted(() => {

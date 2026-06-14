@@ -1,5 +1,6 @@
 import { ref, reactive } from 'vue'
 import { createJob, updateJob } from '@/api/monitor/job'
+import { leaveFormPageAfterSave } from '@/utils/navigate-back'
 import type { SysJob } from '@/types/system'
 
 export function useJobForm() {
@@ -65,7 +66,7 @@ export function useJobForm() {
       if (isCreate.value) await createJob(payload)
       else await updateJob({ ...payload, id })
       uni.showToast({ title: '保存成功', icon: 'success' })
-      setTimeout(() => uni.navigateBack(), 400)
+      leaveFormPageAfterSave('/pages-sub/monitor/job')
     } finally {
       saving.value = false
     }

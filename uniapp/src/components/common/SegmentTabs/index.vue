@@ -61,7 +61,6 @@ const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
 </script>
 
 <style lang="scss" scoped>
-@import '@/styles/variables.scss';
 
 .segment-tabs-scroll {
   width: 100%;

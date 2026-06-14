@@ -91,7 +91,7 @@ export const topStatCards: TopStatCardConfig[] = [
   },
   {
     key: 'approval-pending',
-    title: '待审批',
+    title: '待我审批',
     valueKey: 'approvalPendingCount',
     icon: Checked,
     iconTheme: 'approval',
@@ -101,7 +101,7 @@ export const topStatCards: TopStatCardConfig[] = [
   },
   {
     key: 'ticket-open',
-    title: '待处理工单',
+    title: '待我处理',
     valueKey: 'ticketOpenCount',
     icon: Tickets,
     iconTheme: 'ticket',
@@ -109,7 +109,7 @@ export const topStatCards: TopStatCardConfig[] = [
     to: '/system/ticket',
     footer: (s) => {
       const overdue = s.ticketOverdueCount ?? 0
-      return overdue > 0 ? `超时 ${overdue} 个` : '流程中心'
+      return overdue > 0 ? `超时 ${overdue} 个` : '待我处理的工单'
     },
   },
   {

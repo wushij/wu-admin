@@ -47,7 +47,27 @@ export function useUserPage() {
     mobile: '',
     status: null,
     deptId: null,
+    loginLocked: undefined,
   })
+
+  /** 状态筛选：启用 / 禁用 / 锁定（锁定走 loginLocked，非 status 字段） */
+  const statusFilter = ref<'' | '1' | '0' | 'locked'>('')
+
+  function applyStatusFilter() {
+    if (statusFilter.value === 'locked') {
+      queryParams.status = null
+      queryParams.loginLocked = true
+      return
+    }
+    queryParams.loginLocked = undefined
+    if (statusFilter.value === '1') {
+      queryParams.status = 1
+    } else if (statusFilter.value === '0') {
+      queryParams.status = 0
+    } else {
+      queryParams.status = null
+    }
+  }
 
   const form = reactive<UserSaveDTO>({
     id: null,
@@ -78,6 +98,7 @@ export function useUserPage() {
   const getList = async () => {
     loading.value = true
     try {
+      applyStatusFilter()
       const res = await getUserPage(queryParams)
       userList.value = res.data.list || []
       total.value = res.data.total || 0
@@ -102,7 +123,9 @@ export function useUserPage() {
   const resetQuery = () => {
     queryParams.username = ''
     queryParams.mobile = ''
+    statusFilter.value = ''
     queryParams.status = null
+    queryParams.loginLocked = undefined
     handleQuery()
   }
 
@@ -284,7 +307,7 @@ export function useUserPage() {
     if (statusFromRoute !== undefined && statusFromRoute !== '') {
       const status = Number(statusFromRoute)
       if (!Number.isNaN(status)) {
-        queryParams.status = status
+        statusFilter.value = status === 1 ? '1' : status === 0 ? '0' : ''
       }
     }
     getList()
@@ -307,6 +330,7 @@ export function useUserPage() {
     deptSelectOptions,
     postOptions,
     queryParams,
+    statusFilter,
     form,
     resetPwdForm,
     rules,

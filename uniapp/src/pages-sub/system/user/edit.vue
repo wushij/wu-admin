@@ -1,40 +1,97 @@
 <template>
-  <view class="page-padded edit-page">
+  <view class="module-form-page">
+    <ModuleDarkHero
+      :title="isCreate ? '新增用户' : '编辑用户'"
+      :subtitle="isCreate ? '创建账号并分配组织与角色' : '修改资料与权限配置'"
+      icon="friends-o"
+      theme="user"
+    />
+
     <ListLoading v-if="loading" />
+
     <template v-else-if="user">
-      <view class="form-panel">
-        <FormCell
-          v-if="isCreate"
-          v-model="form.username"
-          label="用户名"
-          editable
-          placeholder="必填"
-        />
-        <FormCell v-else label="用户名" :display-value="user.username" muted />
-        <FormCell
-          v-if="isCreate"
-          v-model="form.password"
-          label="密码"
-          editable
-          password
-          placeholder="必填"
-        />
-        <FormCell v-model="form.nickname" label="昵称" editable placeholder="必填" />
-        <FormCell v-model="form.mobile" label="手机号" editable input-type="digit" :maxlength="11" placeholder="选填" />
-        <FormCell v-model="form.email" label="邮箱" editable placeholder="选填" />
-        <FormCell label="部门" clickable arrow @click="pickDept">
-          <text class="picker-value">{{ deptLabel }}</text>
-        </FormCell>
-        <FormCell label="岗位" clickable arrow @click="pickPost">
-          <text class="picker-value">{{ postLabel }}</text>
-        </FormCell>
-        <FormCell label="角色" clickable arrow @click="pickRole">
-          <text class="picker-value">{{ roleOptions[roleIndex]?.name || '未分配' }}</text>
-        </FormCell>
-        <FormCell label="状态" clickable arrow @click="pickStatus">
-          <text class="picker-value">{{ statusOptions[statusIndex]?.label }}</text>
-        </FormCell>
-        <FormCell v-model="form.remark" label="备注" editable placeholder="选填" last />
+      <view class="form-section card--elevated">
+        <view class="form-section__head">
+          <ModuleIcon icon="user-o" theme="user" size="sm" />
+          <view class="form-section__intro">
+            <text class="form-section__title">账号信息</text>
+            <text class="form-section__desc">用户名与昵称为必填项</text>
+          </view>
+        </view>
+
+        <view class="form-fields">
+          <FormCell
+            v-if="isCreate"
+            v-model="form.username"
+            label="用户名"
+            editable
+            boxed
+            placeholder="请输入用户名"
+          />
+          <FormCell v-else label="用户名" boxed :display-value="user.username" muted />
+          <FormCell
+            v-if="isCreate"
+            v-model="form.password"
+            label="密码"
+            editable
+            boxed
+            password
+            placeholder="请设置登录密码"
+          />
+          <FormCell v-model="form.nickname" label="昵称" editable boxed placeholder="请输入昵称" />
+          <FormCell
+            v-model="form.mobile"
+            label="手机号"
+            editable
+            boxed
+            input-type="digit"
+            :maxlength="11"
+            placeholder="选填"
+          />
+          <FormCell
+            v-model="form.email"
+            label="邮箱"
+            editable
+            boxed
+            placeholder="选填"
+            :last="!isCreate"
+          />
+        </view>
+      </view>
+
+      <view class="form-section card--elevated">
+        <view class="form-section__head">
+          <ModuleIcon icon="cluster-o" theme="user" size="sm" />
+          <view class="form-section__intro">
+            <text class="form-section__title">组织与权限</text>
+            <text class="form-section__desc">部门、岗位与角色可按需分配</text>
+          </view>
+        </view>
+
+        <view class="form-fields">
+          <FormCell label="部门" clickable boxed arrow @click="pickDept">
+            <text class="picker-value" :class="{ 'picker-value--muted': deptLabel === '未分配' }">
+              {{ deptLabel }}
+            </text>
+          </FormCell>
+          <FormCell label="岗位" clickable boxed arrow @click="pickPost">
+            <text class="picker-value" :class="{ 'picker-value--muted': postLabel === '未分配' }">
+              {{ postLabel }}
+            </text>
+          </FormCell>
+          <FormCell label="角色" clickable boxed arrow @click="pickRole">
+            <text
+              class="picker-value"
+              :class="{ 'picker-value--muted': !roleOptions[roleIndex]?.name }"
+            >
+              {{ roleOptions[roleIndex]?.name || '未分配' }}
+            </text>
+          </FormCell>
+          <FormCell label="状态" clickable boxed arrow @click="pickStatus">
+            <text class="picker-value">{{ statusOptions[statusIndex]?.label }}</text>
+          </FormCell>
+          <FormCell v-model="form.remark" label="备注" editable boxed placeholder="选填" last />
+        </view>
       </view>
 
       <PageFooter>
@@ -43,6 +100,7 @@
         </button>
       </PageFooter>
     </template>
+
     <EmptyState v-else title="用户不存在" icon="friends-o" />
   </view>
 </template>
@@ -50,6 +108,8 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
+import ModuleDarkHero from '@/components/common/ModuleDarkHero/index.vue'
+import ModuleIcon from '@/components/common/ModuleIcon/index.vue'
 import ListLoading from '@/components/common/ListLoading/index.vue'
 import EmptyState from '@/components/common/EmptyState/index.vue'
 import FormCell from '@/components/common/FormCell/index.vue'
@@ -192,11 +252,6 @@ onLoad((options) => {
 </script>
 
 <style lang="scss" scoped>
-@import '@/styles/common.scss';
-
-.edit-page {
-  min-height: 100vh;
-  padding-bottom: calc(140rpx + env(safe-area-inset-bottom));
-  box-sizing: border-box;
-}
+@use '@/styles/common.scss' as *;
+@use '@/styles/module-form-page.scss' as *;
 </style>

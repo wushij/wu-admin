@@ -53,6 +53,14 @@ public class NoticeServiceImpl implements NoticeService {
         noticeMapper.markAllReadByUserId(userId);
     }
 
+    @Override
+    public void markReadByBiz(Long userId, String bizType, Long bizId) {
+        if (userId == null || userId <= 0 || bizType == null || bizType.isEmpty() || bizId == null || bizId <= 0) {
+            return;
+        }
+        noticeMapper.markReadByBiz(userId, bizType, bizId);
+    }
+
     private boolean isOrphanApprovalNotice(NoticeDO notice) {
         if (!BIZ_TYPE_APPROVAL.equals(notice.getBizType()) || notice.getBizId() == null || notice.getBizId() <= 0) {
             return false;

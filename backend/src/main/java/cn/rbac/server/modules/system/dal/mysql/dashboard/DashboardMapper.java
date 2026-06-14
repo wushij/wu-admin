@@ -46,4 +46,13 @@ public interface DashboardMapper {
 
     @Select("SELECT COUNT(*) FROM sys_job WHERE deleted = 0 AND status = 1")
     long countJobRunning();
+
+    @Select("SELECT COUNT(*) FROM sys_approval_form WHERE deleted = 0 AND status = 'SUBMITTED' AND approver_user_id = #{approverUserId}")
+    long countApprovalPendingByApprover(@Param("approverUserId") Long approverUserId);
+
+    @Select("SELECT COUNT(*) FROM sys_ticket WHERE deleted = 0 AND status = 'OPEN' AND (assignee_user_id = #{assigneeUserId} OR assignee_user_id = 0)")
+    long countTicketOpenByAssignee(@Param("assigneeUserId") Long assigneeUserId);
+
+    @Select("SELECT COUNT(*) FROM sys_ticket WHERE deleted = 0 AND status IN ('OPEN','IN_PROGRESS') AND deadline IS NOT NULL AND deadline < #{now} AND (assignee_user_id = #{assigneeUserId} OR assignee_user_id = 0)")
+    long countTicketOverdueByAssignee(@Param("assigneeUserId") Long assigneeUserId, @Param("now") LocalDateTime now);
 }

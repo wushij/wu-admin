@@ -92,7 +92,6 @@ function commitInput() {
 </script>
 
 <style lang="scss" scoped>
-@import '@/styles/variables.scss';
 
 .number-stepper {
   display: inline-flex;

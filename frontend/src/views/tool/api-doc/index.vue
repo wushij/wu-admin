@@ -2,7 +2,7 @@
   <div class="api-doc-page">
     <div class="api-doc-toolbar">
       <div class="toolbar-title">
-        <el-icon :size="18"><Document /></el-icon>
+        <el-icon :size="18"><Connection /></el-icon>
         <span>接口文档</span>
         <el-tag size="small" type="info">Knife4j</el-tag>
       </div>
@@ -27,7 +27,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { Document, Refresh, TopRight } from '@element-plus/icons-vue'
+import { Connection, Refresh, TopRight } from '@element-plus/icons-vue'
 
 /**
  * Knife4j 页面引用 /webjars、/swagger-ui 等同源根路径，

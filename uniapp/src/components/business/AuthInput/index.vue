@@ -15,7 +15,7 @@
     <input
       :value="modelValue"
       class="auth-input-field__control"
-      :class="{ 'auth-input-field__control--masked': useMask && !visible }"
+      :class="{ 'auth-input-field__control--masked': useMask && !visible && !!modelValue }"
       :password="useNativePassword && !visible"
       :type="resolvedInputType"
       :placeholder="placeholder"
@@ -127,6 +127,10 @@ function onInput(e: { detail: { value: string } }) {
   padding: 0 28rpx 0 0;
   font-size: 28rpx;
   color: #303133;
+}
+
+.auth-input-field__control::placeholder {
+  color: #909399;
 }
 
 .auth-input-field__prefix + .auth-input-field__control {

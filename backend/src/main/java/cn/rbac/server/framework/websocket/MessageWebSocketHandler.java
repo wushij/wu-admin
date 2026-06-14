@@ -168,7 +168,8 @@ public class MessageWebSocketHandler extends TextWebSocketHandler {
     private void sendJson(WebSocketSession session, Map<String, ?> map) {
         try {
             sendRaw(session, objectMapper.writeValueAsString(map));
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            log.warn("WS sendJson failed userId={}", getUserId(session), e);
         }
     }
 

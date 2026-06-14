@@ -5,10 +5,9 @@
   >
     <view
       class="chat-composer__tool"
-      :class="{ 'chat-composer__tool--active': emojiActive }"
       @click.stop="emit('toggle-emoji')"
     >
-      <text class="chat-composer__emoji">{{ emojiActive ? '⌨' : '☺' }}</text>
+      <text class="chat-composer__emoji">☺</text>
     </view>
     <view class="chat-composer__tool" @click.stop="emit('pick-attach')">
       <text class="chat-composer__plus">+</text>
@@ -117,10 +116,6 @@ defineExpose({ focusInput })
   width: 64rpx;
   height: 64rpx;
   border-radius: 8rpx;
-
-  &--active {
-    background: rgba(7, 193, 96, 0.12);
-  }
 }
 
 .chat-composer__emoji {

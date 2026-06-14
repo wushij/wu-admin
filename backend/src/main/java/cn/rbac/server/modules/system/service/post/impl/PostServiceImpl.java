@@ -4,6 +4,7 @@ import cn.rbac.server.common.pojo.BusinessException;
 import cn.rbac.server.common.pojo.PageParam;
 import cn.rbac.server.common.pojo.PageResult;
 import cn.rbac.server.modules.system.dal.dataobject.post.PostDO;
+import cn.rbac.server.modules.system.dal.dataobject.user.PostUserCountVO;
 import cn.rbac.server.modules.system.dal.dataobject.user.UserPostDO;
 import cn.rbac.server.modules.system.dal.mysql.post.PostMapper;
 import cn.rbac.server.modules.system.dal.mysql.user.UserPostMapper;
@@ -153,9 +154,9 @@ public class PostServiceImpl extends ServiceImpl<PostMapper, PostDO> implements 
         if (posts.isEmpty()) {
             return;
         }
-        List<UserPostDO> links = userPostMapper.selectList(null);
-        Map<Long, Long> countMap = links.stream()
-                .collect(Collectors.groupingBy(UserPostDO::getPostId, Collectors.counting()));
+        List<Long> postIds = posts.stream().map(PostDO::getId).filter(java.util.Objects::nonNull).toList();
+        Map<Long, Long> countMap = userPostMapper.selectUserCountByPostIds(postIds).stream()
+                .collect(Collectors.toMap(PostUserCountVO::getPostId, PostUserCountVO::getUserCount));
         posts.forEach(p -> p.setUserCount(countMap.getOrDefault(p.getId(), 0L)));
     }
 

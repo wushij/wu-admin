@@ -33,10 +33,22 @@ export function getDictLabel(dictType: string, value?: string | number | null): 
   return hit?.label || String(value)
 }
 
+/** 读取字典项 isDefault=1 的键值 */
+export function getDictDefaultValue(dictType: string): string | number | undefined {
+  const opts = cache.get(dictType) || []
+  const hit = opts.find((o) => o.raw?.isDefault === 1)
+  return hit?.value as string | number | undefined
+}
+
 export function getDictListClass(dictType: string, value?: string | number | null): string {
   const opts = cache.get(dictType) || []
   const hit = opts.find((o) => String(o.value) === String(value))
   return hit?.raw?.listClass || 'default'
+}
+
+export function clearDictCache(dictType?: string) {
+  if (dictType) cache.delete(dictType)
+  else cache.clear()
 }
 
 export async function preloadDicts(dictTypes: string[]) {
@@ -47,6 +59,12 @@ export async function preloadDicts(dictTypes: string[]) {
   Object.keys(map).forEach((type) => {
     cache.set(type, (map[type] || []).map(mapItem))
   })
+}
+
+export async function reloadDictTypes(dictTypes: string[]) {
+  const types = [...new Set(dictTypes.filter(Boolean))]
+  types.forEach((t) => clearDictCache(t))
+  if (types.length) await preloadDicts(types)
 }
 
 export function useDict(dictType: MaybeRef<string>) {

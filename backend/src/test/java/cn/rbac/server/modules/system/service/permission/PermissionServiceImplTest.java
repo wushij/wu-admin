@@ -123,7 +123,7 @@ class PermissionServiceImplTest extends MybatisLambdaTestBase {
         permissionService.assignUserRole(USER_ID, Set.of(2L, 3L));
 
         verify(userRoleMapper).deleteByUserId(USER_ID);
-        verify(userRoleMapper, times(2)).insert(any(UserRoleDO.class));
+        verify(userRoleMapper).insertBatch(argThat(list -> list != null && list.size() == 2));
     }
 
     @Test
@@ -132,7 +132,7 @@ class PermissionServiceImplTest extends MybatisLambdaTestBase {
         permissionService.assignUserRole(USER_ID, Set.of());
 
         verify(userRoleMapper).deleteByUserId(USER_ID);
-        verify(userRoleMapper, never()).insert(any(UserRoleDO.class));
+        verify(userRoleMapper, never()).insertBatch(any());
     }
 
     @Test
@@ -141,6 +141,6 @@ class PermissionServiceImplTest extends MybatisLambdaTestBase {
         permissionService.assignRoleMenu(ROLE_ID, Set.of(10L, 20L));
 
         verify(roleMenuMapper).deleteByRoleId(ROLE_ID);
-        verify(roleMenuMapper, times(2)).insert(any(RoleMenuDO.class));
+        verify(roleMenuMapper).insertBatch(argThat(list -> list != null && list.size() == 2));
     }
 }

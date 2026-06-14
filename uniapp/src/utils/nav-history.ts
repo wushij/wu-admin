@@ -290,17 +290,31 @@ function openTargetPage(targetUrl: string) {
  * - 栈深 > 1：uni.navigateBack
  * - 刷新/浅栈：session 来源 / URL from / 路由推断
  */
+let navigatingParent = false
+
 export function navigateToParent() {
+  if (navigatingParent) return
+
   const pages = getCurrentPages()
+  const route = getCurrentRoute()
+  const currentUrl = getCurrentPageUrl()
+
   if (pages.length > 1) {
+    navigatingParent = true
     uni.navigateBack({
-      complete: () => scheduleSyncH5BackButton(),
+      complete: () => {
+        navigatingParent = false
+        scheduleSyncH5BackButton()
+      },
+      fail: () => {
+        navigatingParent = false
+        ensureNavParent(route, currentUrl)
+        openTargetPage(resolveBackTarget(route, currentUrl))
+      },
     })
     return
   }
 
-  const route = getCurrentRoute()
-  const currentUrl = getCurrentPageUrl()
   ensureNavParent(route, currentUrl)
   openTargetPage(resolveBackTarget(route, currentUrl))
 }

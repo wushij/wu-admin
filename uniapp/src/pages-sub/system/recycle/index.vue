@@ -1,11 +1,13 @@
 <template>
   <PermissionBlock v-if="!allowed" />
   <view v-else class="page-padded recycle-page">
-    <ModuleHero
+    <ModuleDarkHero
       title="回收中心"
-      :count="visiblePendingTotal"
       :subtitle="`${visibleModules.length} 类业务数据 · 可恢复或彻底清除`"
+      icon="notes-o"
       theme="log"
+      :count="visiblePendingTotal"
+      count-label="待处理"
     />
 
     <view class="recycle-stats">
@@ -134,7 +136,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { onPullDownRefresh, onShow } from '@dcloudio/uni-app'
-import ModuleHero from '@/components/common/ModuleHero/index.vue'
+import ModuleDarkHero from '@/components/common/ModuleDarkHero/index.vue'
 import ModuleIcon from '@/components/common/ModuleIcon/index.vue'
 import IconFont from '@/components/common/IconFont/index.vue'
 import ListCard from '@/components/common/ListCard/index.vue'
@@ -198,8 +200,7 @@ onPullDownRefresh(async () => {
 </script>
 
 <style lang="scss" scoped>
-@import '@/styles/variables.scss';
-@import '@/styles/common.scss';
+@use '@/styles/common.scss' as *;
 
 .recycle-page {
   height: 100vh;

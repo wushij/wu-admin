@@ -31,6 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -70,7 +71,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public PageResult<UserDO> page(PageParam pageParam, String keyword, String username, String mobile,
-                                    Integer status, Long deptId, Long postId) {
+                                    Integer status, Long deptId, Long postId, Boolean loginLocked) {
         LambdaQueryWrapper<UserDO> wrapper = new LambdaQueryWrapper<>();
         if (keyword != null && !keyword.isEmpty()) {
             wrapper.and(w -> w.like(UserDO::getUsername, keyword)
@@ -83,6 +84,13 @@ public class UserServiceImpl implements UserService {
             if (mobile != null && !mobile.isEmpty()) {
                 wrapper.like(UserDO::getMobile, mobile);
             }
+        }
+        if (Boolean.TRUE.equals(loginLocked)) {
+            Set<String> lockedUsernames = collectLockedUsernames();
+            if (lockedUsernames.isEmpty()) {
+                return PageResult.of(Collections.emptyList(), 0L);
+            }
+            wrapper.in(UserDO::getUsername, lockedUsernames);
         }
         if (status != null) {
             wrapper.eq(UserDO::getStatus, status);
@@ -354,6 +362,37 @@ public class UserServiceImpl implements UserService {
             user.setLoginIpLockRemainSeconds(ipStatus.getRemainSeconds());
             user.setLoginIpFailCount(ipStatus.getFailCount());
         });
+    }
+
+    private Set<String> collectLockedUsernames() {
+        Set<String> lockedUsernames = new HashSet<>(loginLockService.listLockedUsernames());
+        lockedUsernames.addAll(findUsernamesByLockedIps(loginLockService.listLockedIps()));
+        return lockedUsernames;
+    }
+
+    private Set<String> findUsernamesByLockedIps(Set<String> lockedIps) {
+        if (lockedIps == null || lockedIps.isEmpty()) {
+            return Collections.emptySet();
+        }
+        List<LoginLogDO> logs = loginLogMapper.selectList(new LambdaQueryWrapper<LoginLogDO>()
+                .in(LoginLogDO::getIpaddr, lockedIps)
+                .isNotNull(LoginLogDO::getUsername)
+                .ne(LoginLogDO::getUsername, "")
+                .orderByDesc(LoginLogDO::getLoginTime));
+        Set<String> result = new HashSet<>();
+        Map<String, String> recentIpByUser = new HashMap<>();
+        for (LoginLogDO log : logs) {
+            if (log.getUsername() == null || log.getIpaddr() == null) {
+                continue;
+            }
+            recentIpByUser.putIfAbsent(log.getUsername().trim(), log.getIpaddr().trim());
+        }
+        for (Map.Entry<String, String> entry : recentIpByUser.entrySet()) {
+            if (lockedIps.contains(entry.getValue())) {
+                result.add(entry.getKey());
+            }
+        }
+        return result;
     }
 
     private Map<String, String> findRecentLoginIpMap(List<String> usernames) {

@@ -1,14 +1,14 @@
 <template>
   <PermissionBlock v-if="!allowed" />
   <view v-else class="page-padded page-list login-log-page">
-    <ModuleHero theme="log" title="登录日志" subtitle="记录用户登录行为，支持按账号、IP 与状态检索">
-      <template #extra>
-        <view class="login-log-hero-extra">
-          <text class="login-log-hero-extra__num">{{ total }}</text>
-          <text class="login-log-hero-extra__label">日志总数</text>
-        </view>
-      </template>
-    </ModuleHero>
+    <ModuleDarkHero
+      title="登录日志"
+      subtitle="记录用户登录行为，支持按账号、IP 与状态检索"
+      icon="contact-o"
+      theme="log"
+      :count="total"
+      count-label="日志"
+    />
 
     <scroll-view scroll-y class="page-list__scroll" @scrolltolower="loadMore">
       <FadeIn :show="hasFetched">
@@ -115,7 +115,7 @@
 <script setup lang="ts">
 import { computed, ref, onMounted } from 'vue'
 import { onPullDownRefresh } from '@dcloudio/uni-app'
-import ModuleHero from '@/components/common/ModuleHero/index.vue'
+import ModuleDarkHero from '@/components/common/ModuleDarkHero/index.vue'
 import MonitorPanel from '@/components/common/MonitorPanel/index.vue'
 import SearchBar from '@/components/common/SearchBar/index.vue'
 import ListFooter from '@/components/common/ListFooter/index.vue'
@@ -238,8 +238,7 @@ onPullDownRefresh(async () => {
 </script>
 
 <style lang="scss" scoped>
-@import '@/styles/variables.scss';
-@import '@/styles/common.scss';
+@use '@/styles/common.scss' as *;
 
 .login-log-page {
   display: flex;
@@ -252,25 +251,6 @@ onPullDownRefresh(async () => {
   flex: 1;
   min-height: 0;
   padding-bottom: 32rpx;
-}
-
-.login-log-hero-extra {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 4rpx;
-}
-
-.login-log-hero-extra__num {
-  font-size: 40rpx;
-  font-weight: $font-weight-bold;
-  color: #fff;
-  line-height: 1.1;
-}
-
-.login-log-hero-extra__label {
-  font-size: 22rpx;
-  color: rgba(255, 255, 255, 0.88);
 }
 
 .login-log-search-gap {

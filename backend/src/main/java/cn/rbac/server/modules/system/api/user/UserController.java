@@ -43,8 +43,9 @@ public class UserController {
             @RequestParam(required = false) String mobile,
             @RequestParam(required = false) Integer status,
             @RequestParam(required = false) Long deptId,
-            @RequestParam(required = false) Long postId) {
-        return CommonResult.success(userService.page(pageParam, keyword, username, mobile, status, deptId, postId));
+            @RequestParam(required = false) Long postId,
+            @RequestParam(required = false) Boolean loginLocked) {
+        return CommonResult.success(userService.page(pageParam, keyword, username, mobile, status, deptId, postId, loginLocked));
     }
 
     @Operation(summary = "获取用户详情")

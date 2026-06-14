@@ -37,17 +37,17 @@ export const mobileStatCards: StatCardConfig[] = [
   },
   {
     key: 'approval',
-    title: '待审批',
+    title: '待我审批',
     valueKey: 'approvalPendingCount',
     icon: 'completed',
     theme: 'approval',
     permission: 'system:approval:list',
     path: '/pages-sub/system/approval/index',
-    footer: () => '审批单中心',
+    footer: () => '待我处理的审批',
   },
   {
     key: 'ticket',
-    title: '待处理工单',
+    title: '待我处理',
     valueKey: 'ticketOpenCount',
     icon: 'records-o',
     theme: 'ticket',
@@ -55,7 +55,7 @@ export const mobileStatCards: StatCardConfig[] = [
     path: '/pages-sub/system/ticket/index',
     footer: (s) => {
       const overdue = s.ticketOverdueCount ?? 0
-      return overdue > 0 ? `超时 ${overdue} 个` : '工单中心'
+      return overdue > 0 ? `超时 ${overdue} 个` : '待我处理的工单'
     },
   },
   {

@@ -1,14 +1,14 @@
 <template>
   <PermissionBlock v-if="!allowed" />
   <view v-else class="page-padded page-list cache-page">
-    <ModuleHero theme="cache" title="缓存监控" subtitle="Redis 运行状态与键值管理">
-      <template #extra>
-        <view class="cache-hero-extra">
-          <text class="cache-hero-extra__num">{{ info?.dbSize ?? '—' }}</text>
-          <text class="cache-hero-extra__label">键总数</text>
-        </view>
-      </template>
-    </ModuleHero>
+    <ModuleDarkHero
+      title="缓存监控"
+      subtitle="Redis 运行状态与键值管理"
+      icon="balance-list-o"
+      theme="cache"
+      :count="info?.dbSize ?? '—'"
+      count-label="键总数"
+    />
 
     <MonitorToolbar
       :loading="refreshing"
@@ -222,7 +222,7 @@
 <script setup lang="ts">
 import { computed, ref, watch, onMounted } from 'vue'
 import { onPullDownRefresh } from '@dcloudio/uni-app'
-import ModuleHero from '@/components/common/ModuleHero/index.vue'
+import ModuleDarkHero from '@/components/common/ModuleDarkHero/index.vue'
 import MonitorToolbar from '@/components/common/MonitorToolbar/index.vue'
 import MonitorPanel from '@/components/common/MonitorPanel/index.vue'
 import MonitorLineChart from '@/components/common/MonitorLineChart/index.vue'
@@ -239,7 +239,7 @@ import PermissionBlock from '@/components/common/PermissionBlock/index.vue'
 import AppDialogHost from '@/components/common/AppDialogHost/index.vue'
 import type { StatItem } from '@/components/common/StatGrid/index.vue'
 import { useModulePermission } from '@/composables/useModulePermission'
-import { useAutoRefresh } from '@/composables/useAutoRefresh'
+import { useMonitorToolbarRefresh } from '@/composables/useMonitorToolbarRefresh'
 import {
   CACHE_PATTERN_PRESETS,
   calcChartYMax,
@@ -268,6 +268,8 @@ const {
   memoryDisplay,
   memoryHint,
   fetchCacheData,
+  autoRefresh,
+  setAutoRefresh,
 } = useCacheMonitor()
 
 const activeTab = ref<'overview' | 'charts' | 'keys'>('overview')
@@ -353,7 +355,11 @@ async function fetchAll() {
   }
 }
 
-const { autoRefresh, refreshing, toggleAuto, manualRefresh } = useAutoRefresh(fetchAll, 3000, 'cache')
+const { refreshing, toggleAuto, manualRefresh } = useMonitorToolbarRefresh(
+  fetchAll,
+  autoRefresh,
+  setAutoRefresh,
+)
 
 function applyPreset(pattern: string) {
   if (searchPattern.value === pattern) return
@@ -405,7 +411,9 @@ watch(activeTab, (tab) => {
   }
 })
 
-onMounted(manualRefresh)
+onMounted(async () => {
+  if (!info.value) await manualRefresh()
+})
 
 onPullDownRefresh(async () => {
   await manualRefresh()
@@ -414,8 +422,7 @@ onPullDownRefresh(async () => {
 </script>
 
 <style lang="scss" scoped>
-@import '@/styles/variables.scss';
-@import '@/styles/common.scss';
+@use '@/styles/common.scss' as *;
 
 .cache-page {
   display: flex;
@@ -445,25 +452,6 @@ onPullDownRefresh(async () => {
 
 .cache-kpi :deep(.stat-grid__item) {
   padding: 28rpx 24rpx;
-}
-
-.cache-hero-extra {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 4rpx;
-}
-
-.cache-hero-extra__num {
-  font-size: 40rpx;
-  font-weight: $font-weight-bold;
-  color: #fff;
-  line-height: 1.1;
-}
-
-.cache-hero-extra__label {
-  font-size: 22rpx;
-  color: rgba(255, 255, 255, 0.88);
 }
 
 .cache-tag {

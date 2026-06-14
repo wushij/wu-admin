@@ -23,11 +23,10 @@ const defaultStats = (): DashboardStats => ({
   configGroupCount: 0,
 })
 
-export function useDashboard(options?: { recentLogins?: boolean }) {
+export function useDashboard() {
   const loading = ref(false)
   const stats = ref<DashboardStats>(defaultStats())
   const recentLogins = ref<RecentLogin[]>([])
-  const loadRecentLoginsEnabled = options?.recentLogins !== false
 
   async function loadStats() {
     try {
@@ -58,9 +57,7 @@ export function useDashboard(options?: { recentLogins?: boolean }) {
   async function refresh() {
     loading.value = true
     try {
-      const tasks: Promise<void>[] = [loadStats(), trackVisit()]
-      if (loadRecentLoginsEnabled) tasks.push(loadRecentLogins())
-      await Promise.all(tasks)
+      await Promise.all([loadStats(), loadRecentLogins(), trackVisit()])
     } finally {
       loading.value = false
     }

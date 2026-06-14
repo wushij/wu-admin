@@ -1,5 +1,6 @@
 import { ref, reactive } from 'vue'
 import { createMenu, getMenu, getMenuList, updateMenu } from '@/api/system/menu'
+import { leaveFormPageAfterSave } from '@/utils/navigate-back'
 import type { MenuSaveDTO, MenuVO } from '@/types/system'
 
 function flattenParentOptions(nodes: MenuVO[], prefix = ''): { id: number; label: string }[] {
@@ -162,7 +163,7 @@ export function useMenuForm() {
         await updateMenu({ ...payload, id })
       }
       uni.showToast({ title: isCreate.value ? '创建成功' : '保存成功', icon: 'success' })
-      setTimeout(() => uni.navigateBack(), 400)
+      leaveFormPageAfterSave('/pages-sub/system/menu/index')
     } finally {
       saving.value = false
     }

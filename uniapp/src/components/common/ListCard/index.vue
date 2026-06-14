@@ -9,7 +9,6 @@ const emit = defineEmits<{ click: [] }>()
 </script>
 
 <style lang="scss" scoped>
-@import '@/styles/variables.scss';
 
 .list-card {
   padding: 32rpx;

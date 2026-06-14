@@ -1,7 +1,14 @@
 <template>
   <PermissionBlock v-if="!allowed" />
   <view v-else class="page-padded page-list">
-    <ModuleHero title="角色管理" :count="total || list.length" subtitle="角色、权限与菜单" />
+    <ModuleDarkHero
+      title="角色管理"
+      subtitle="角色、权限与菜单"
+      icon="shield-o"
+      theme="role"
+      :count="total || list.length"
+      count-label="角色"
+    />
     <SearchBar v-model="keyword" placeholder="搜索角色名称" @search="onSearch" />
 
     <ListLoading v-if="loading && !list.length" />
@@ -34,7 +41,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { onPullDownRefresh } from '@dcloudio/uni-app'
-import ModuleHero from '@/components/common/ModuleHero/index.vue'
+import { useListPageShowRefresh } from '@/composables/useListPageShowRefresh'
+import ModuleDarkHero from '@/components/common/ModuleDarkHero/index.vue'
 import SearchBar from '@/components/common/SearchBar/index.vue'
 import ListFooter from '@/components/common/ListFooter/index.vue'
 import ListLoading from '@/components/common/ListLoading/index.vue'
@@ -55,7 +63,7 @@ const canDelete = computed(() => hasPerm('system:role:delete'))
 const keyword = ref('')
 const total = ref(0)
 
-const { list, loading, finished, empty, refresh, loadMore } = usePageList<RoleVO>(
+const { list, loading, finished, empty, refresh, loadMore, refreshing } = usePageList<RoleVO>(
   async (pageNo, pageSize) => {
     const res = await getRolePage({ pageNo, pageSize, name: keyword.value.trim() || undefined })
     total.value = res.data?.total || 0
@@ -108,10 +116,11 @@ function confirmDelete(item: RoleVO) {
 }
 
 function onSearch() { refresh() }
+useListPageShowRefresh(refresh, { loading, refreshing })
 onMounted(refresh)
 onPullDownRefresh(async () => { await refresh(); uni.stopPullDownRefresh() })
 </script>
 
 <style lang="scss" scoped>
-@import '@/styles/common.scss';
+@use '@/styles/common.scss' as *;
 </style>

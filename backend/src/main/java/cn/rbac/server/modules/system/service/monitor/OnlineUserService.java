@@ -13,6 +13,9 @@ public interface OnlineUserService {
 
     void touchLastAccess(Long userId);
 
+    /** 工作台等场景仅需人数，避免构建完整在线用户 VO 列表 */
+    int countOnlineUsers();
+
     List<OnlineUserVO> listOnlineUsers();
 
     void forceLogout(Long userId);

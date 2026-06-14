@@ -1,49 +1,131 @@
 <template>
-  <view class="page-padded edit-page">
+  <view class="module-form-page">
+    <ModuleDarkHero
+      :title="isCreate ? '新增通知' : '编辑通知'"
+      :subtitle="isCreate ? '撰写通知并选择发送对象' : '修改通知内容与发布范围'"
+      icon="bell"
+      theme="notice"
+    />
+
     <ListLoading v-if="loading" />
-    <view v-else class="form-panel">
-      <FormCell v-model="form.title" label="标题" editable placeholder="必填" />
-      <FormCell label="类型" clickable arrow @click="pickType">
-        <text class="picker-value">{{ typeOptions[typeIndex]?.label }}</text>
-      </FormCell>
-      <FormCell label="通知对象" clickable arrow @click="pickTarget">
-        <text class="picker-value">{{ targetOptions[targetIndex]?.label }}</text>
-      </FormCell>
 
-      <view v-if="form.targetType === 1" class="target-panel">
-        <text class="target-panel__title">选择用户（已选 {{ targetIds.length }}）</text>
-        <view v-for="user in userRows" :key="user.id" class="target-row">
-          <text class="target-row__label">{{ user.label }}</text>
-          <switch :checked="isTargetSelected(user.id)" @change="onUserToggle(user.id, $event)" />
+    <template v-else>
+      <view class="form-section card--elevated">
+        <view class="form-section__head">
+          <ModuleIcon icon="bell" theme="notice" size="sm" />
+          <view class="form-section__intro">
+            <text class="form-section__title">基本信息</text>
+          </view>
         </view>
-        <EmptyState v-if="!userRows.length" title="暂无用户" icon="friends-o" />
+
+        <view class="form-fields">
+          <FormCell
+            v-model="form.title"
+            label="标题"
+            editable
+            boxed
+            placeholder="请输入通知标题"
+          />
+          <FormCell label="类型" clickable boxed arrow @click="pickType">
+            <text class="picker-value">{{ typeOptions[typeIndex]?.label }}</text>
+          </FormCell>
+          <FormCell
+            label="通知对象"
+            clickable
+            boxed
+            arrow
+            :last="form.targetType === 3"
+            @click="pickTarget"
+          >
+            <text class="picker-value">{{ targetOptions[targetIndex]?.label }}</text>
+          </FormCell>
+        </view>
       </view>
 
-      <FormCell
-        v-if="form.targetType === 2"
-        label="选择部门"
-        clickable
-        arrow
-        @click="pickDepts"
-      >
-        <text class="picker-value">{{ deptLabel }}</text>
-      </FormCell>
+      <view v-if="form.targetType === 1" class="form-section card--elevated">
+        <view class="form-section__head">
+          <ModuleIcon icon="friends-o" theme="notice" size="sm" />
+          <view class="form-section__intro">
+            <text class="form-section__title">指定用户</text>
+          </view>
+        </view>
 
-      <view class="content-field">
-        <text class="content-field__label">内容</text>
-        <textarea v-model="form.content" class="content-field__input" placeholder="请输入通知内容" />
+        <view class="form-fields">
+          <view class="target-summary">已选 {{ targetIds.length }} 人</view>
+          <view v-for="user in userRows" :key="user.id" class="target-row">
+            <text class="target-row__label">{{ user.label }}</text>
+            <switch :checked="isTargetSelected(user.id)" @change="onUserToggle(user.id, $event)" />
+          </view>
+          <EmptyState v-if="!userRows.length" title="暂无用户" icon="friends-o" />
+        </view>
       </view>
-    </view>
-    <PageFooter>
-      <button class="page-footer__btn page-footer__btn--ghost" :loading="saving" @click="save(announceId, false)">保存草稿</button>
-      <button v-if="!isCreate || canPublish" class="page-footer__btn" :loading="saving" @click="save(announceId, true)">发布</button>
-    </PageFooter>
+
+      <view v-else-if="form.targetType === 2" class="form-section card--elevated">
+        <view class="form-section__head">
+          <ModuleIcon icon="cluster-o" theme="notice" size="sm" />
+          <view class="form-section__intro">
+            <text class="form-section__title">指定部门</text>
+          </view>
+        </view>
+
+        <view class="form-fields">
+          <FormCell label="选择部门" clickable boxed arrow last @click="pickDepts">
+            <text
+              class="picker-value"
+              :class="{ 'picker-value--muted': deptLabel === '请选择部门' }"
+            >
+              {{ deptLabel }}
+            </text>
+          </FormCell>
+        </view>
+      </view>
+
+      <view class="form-section card--elevated">
+        <view class="form-section__head">
+          <ModuleIcon icon="notes-o" theme="notice" size="sm" />
+          <view class="form-section__intro">
+            <text class="form-section__title">通知内容</text>
+          </view>
+        </view>
+
+        <view class="form-fields">
+          <FormCell label="内容" boxed last class="form-cell--multiline">
+            <textarea
+              v-model="form.content"
+              class="form-cell__textarea"
+              placeholder="请输入通知内容"
+              :maxlength="5000"
+            />
+          </FormCell>
+        </view>
+      </view>
+
+      <PageFooter>
+        <button
+          class="page-footer__btn page-footer__btn--ghost"
+          :loading="saving"
+          @click="save(announceId, false)"
+        >
+          保存草稿
+        </button>
+        <button
+          v-if="!isCreate || canPublish"
+          class="page-footer__btn"
+          :loading="saving"
+          @click="save(announceId, true)"
+        >
+          发布
+        </button>
+      </PageFooter>
+    </template>
   </view>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
+import ModuleDarkHero from '@/components/common/ModuleDarkHero/index.vue'
+import ModuleIcon from '@/components/common/ModuleIcon/index.vue'
 import ListLoading from '@/components/common/ListLoading/index.vue'
 import FormCell from '@/components/common/FormCell/index.vue'
 import PageFooter from '@/components/common/PageFooter/index.vue'
@@ -59,9 +141,26 @@ const { hasPerm } = useModulePermission('system:announce:list')
 const canPublish = computed(() => hasPerm('system:announce:publish'))
 
 const {
-  loading, saving, isCreate, form, typeOptions, targetOptions, typeIndex, targetIndex,
-  targetIds, deptLabel, userRows,
-  initCreate, load, loadUserOptions, onTypeChange, onTargetChange, isTargetSelected, toggleTarget, setDeptSelection, save,
+  loading,
+  saving,
+  isCreate,
+  form,
+  typeOptions,
+  targetOptions,
+  typeIndex,
+  targetIndex,
+  targetIds,
+  deptLabel,
+  userRows,
+  initCreate,
+  load,
+  loadUserOptions,
+  onTypeChange,
+  onTargetChange,
+  isTargetSelected,
+  toggleTarget,
+  setDeptSelection,
+  save,
 } = useAnnounceForm()
 
 const { resetBaseline } = useEditPageGuard(
@@ -139,19 +238,13 @@ onLoad(async (options) => {
 <style lang="scss" scoped>
 @import '@/styles/variables.scss';
 @import '@/styles/common.scss';
+@import '@/styles/module-form-page.scss';
 
-.edit-page { min-height: 100vh; padding-bottom: calc(140rpx + env(safe-area-inset-bottom)); }
-
-.target-panel {
-  padding: 8rpx 0 16rpx;
-  border-top: 1px solid $color-border-light;
-}
-
-.target-panel__title {
-  display: block;
-  padding: 16rpx 32rpx;
+.target-summary {
+  padding: 16rpx 24rpx;
   font-size: $font-size-sm;
   color: $color-text-secondary;
+  border-bottom: 1px solid $color-border-light;
 }
 
 .target-row {
@@ -159,34 +252,18 @@ onLoad(async (options) => {
   align-items: center;
   justify-content: space-between;
   gap: 16rpx;
-  padding: 16rpx 32rpx;
+  padding: 20rpx 24rpx;
   border-bottom: 1px solid $color-border-light;
+
+  &:last-child {
+    border-bottom: none;
+  }
 }
 
 .target-row__label {
   flex: 1;
+  min-width: 0;
   font-size: $font-size-base;
   color: $color-text-primary;
-}
-
-.content-field {
-  padding: 24rpx 32rpx 32rpx;
-}
-
-.content-field__label {
-  display: block;
-  margin-bottom: 12rpx;
-  font-size: $font-size-md;
-  color: $color-text-primary;
-}
-
-.content-field__input {
-  width: 100%;
-  min-height: 280rpx;
-  padding: 16rpx;
-  border-radius: $radius-sm;
-  background: $color-bg-muted;
-  font-size: $font-size-base;
-  box-sizing: border-box;
 }
 </style>

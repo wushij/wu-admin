@@ -31,7 +31,6 @@ withDefaults(
 </script>
 
 <style lang="scss" scoped>
-@import '@/styles/variables.scss';
 
 .stat-grid {
   display: grid;

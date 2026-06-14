@@ -102,6 +102,7 @@ import {
 } from '@/api/system/ticket'
 import { usePermission } from '@/composables/usePermission'
 import { useUserStore } from '@/store/user'
+import { useMessageStore } from '@/store/message'
 import { getDictLabel, getDictOptions, preloadDicts } from '@/composables/useDict'
 import { showConfirm, showActionSheet } from '@/utils/app-dialog'
 import { DICT_TYPE } from '@/constants/dict'
@@ -184,6 +185,7 @@ async function onTransition() {
     await transitionTicket({ id: ticket.value!.id, status })
     uni.showToast({ title: '状态已更新', icon: 'success' })
     await load(ticket.value!.id)
+    await useMessageStore().refreshSummary()
   } catch {
     /* cancelled */
   }
@@ -215,8 +217,7 @@ onLoad(async (options) => {
 </script>
 
 <style lang="scss" scoped>
-@import '@/styles/variables.scss';
-@import '@/styles/common.scss';
+@use '@/styles/common.scss' as *;
 
 .ticket-page {
   min-height: 100vh;

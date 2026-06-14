@@ -23,6 +23,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import java.util.List;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -146,8 +147,9 @@ class UserServiceImplTest extends MybatisLambdaTestBase {
         UserDO user = ServiceTestFixtures.user(1L, "alice", 1);
         when(userMapper.selectById(1L)).thenReturn(user);
         LoginLogDO log = new LoginLogDO();
+        log.setUsername("alice");
         log.setIpaddr("192.168.1.10");
-        when(loginLogMapper.selectOne(any())).thenReturn(log);
+        when(loginLogMapper.selectList(any())).thenReturn(List.of(log));
 
         userService.unlockLogin(1L);
 

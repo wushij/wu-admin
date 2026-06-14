@@ -1,7 +1,7 @@
 <template>
   <PermissionBlock v-if="!allowed" />
   <view v-else class="page-padded config-page">
-    <ModuleHero title="系统配置" subtitle="修改后请点击「保存全部」生效" theme="default" />
+    <ModuleDarkHero title="系统配置" subtitle="修改后请点击「保存全部」生效" icon="setting-o" theme="config" />
     <SegmentTabs v-model="tab" :tabs="tabs" scroll />
 
     <ListLoading v-if="loading" />
@@ -363,7 +363,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
 import { onPullDownRefresh, onShow } from '@dcloudio/uni-app'
-import ModuleHero from '@/components/common/ModuleHero/index.vue'
+import ModuleDarkHero from '@/components/common/ModuleDarkHero/index.vue'
 import SegmentTabs from '@/components/common/SegmentTabs/index.vue'
 import ListLoading from '@/components/common/ListLoading/index.vue'
 import FormCell from '@/components/common/FormCell/index.vue'
@@ -412,7 +412,7 @@ const {
   sendTestSms, sendTestPayment, pollPayOrderStatus, closePaymentModal,
 } = useConfigEditor()
 
-useUnsavedLeaveGuard(isDirty)
+useUnsavedLeaveGuard()
 
 watch(tab, (t) => {
   if (t === 'sms') loadRecentSmsLogs()
@@ -533,8 +533,7 @@ onPullDownRefresh(async () => {
 </script>
 
 <style lang="scss" scoped>
-@import '@/styles/variables.scss';
-@import '@/styles/common.scss';
+@use '@/styles/common.scss' as *;
 
 .config-page {
   height: 100vh;

@@ -48,7 +48,6 @@ const points = computed(() => {
 </script>
 
 <style lang="scss" scoped>
-@import '@/styles/variables.scss';
 
 .trend-chart {
   padding: 28rpx 32rpx;

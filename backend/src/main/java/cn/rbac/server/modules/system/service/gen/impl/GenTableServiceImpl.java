@@ -291,7 +291,7 @@ public class GenTableServiceImpl implements GenTableService {
             }
         } catch (Exception e) {
             log.error("生成代码失败", e);
-            throw new RuntimeException("生成代码失败");
+            throw new BusinessException(500, "生成代码失败", e);
         }
         return baos.toByteArray();
     }
@@ -429,7 +429,7 @@ public class GenTableServiceImpl implements GenTableService {
     public void syncTable(Long tableId) {
         GenTableDO table = genTableMapper.selectById(tableId);
         if (table == null) {
-            throw new RuntimeException("表不存在");
+            throw new BusinessException(404, "表不存在");
         }
         List<DatabaseColumnVO> dbColumns = genTableMapper.selectDbColumnsByTableName(table.getTableName());
         List<GenTableColumnDO> existColumns = genTableColumnMapper.selectByTableId(tableId);
@@ -543,7 +543,7 @@ public class GenTableServiceImpl implements GenTableService {
     private GenTableDO requireTable(Long tableId) {
         GenTableDO table = getTableById(tableId);
         if (table == null || table.getPkColumn() == null) {
-            throw new RuntimeException("表不存在或未配置主键");
+            throw new BusinessException(404, "表不存在或未配置主键");
         }
         return table;
     }

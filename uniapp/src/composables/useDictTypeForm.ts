@@ -1,5 +1,7 @@
 import { ref, reactive } from 'vue'
 import { createDictType, getDictType, updateDictType } from '@/api/system/dict'
+import { reloadDictTypes } from '@/composables/useDict'
+import { leaveFormPageAfterSave } from '@/utils/navigate-back'
 
 export function useDictTypeForm() {
   const loading = ref(false)
@@ -51,9 +53,15 @@ export function useDictTypeForm() {
     form.status = statusOptions[statusIndex.value]?.value ?? 1
   }
 
+  const DICT_TYPE_PATTERN = /^[a-z][a-z0-9_]*$/
+
   async function save(id: number) {
     if (!form.dictName.trim() || !form.dictType.trim()) {
       uni.showToast({ title: '请填写名称和类型', icon: 'none' })
+      return
+    }
+    if (isCreate.value && !DICT_TYPE_PATTERN.test(form.dictType.trim())) {
+      uni.showToast({ title: '类型仅小写字母、数字、下划线，且以字母开头', icon: 'none' })
       return
     }
     saving.value = true
@@ -66,8 +74,9 @@ export function useDictTypeForm() {
       }
       if (isCreate.value) await createDictType(payload)
       else await updateDictType({ id, ...payload })
+      await reloadDictTypes([payload.dictType])
       uni.showToast({ title: '保存成功', icon: 'success' })
-      setTimeout(() => uni.navigateBack(), 400)
+      leaveFormPageAfterSave('/pages-sub/system/dict/index')
     } finally {
       saving.value = false
     }

@@ -28,7 +28,6 @@ withDefaults(
 </script>
 
 <style lang="scss" scoped>
-@import '@/styles/mixins.scss';
 
 .auth-glass-form {
   position: relative;

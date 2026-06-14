@@ -21,6 +21,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
@@ -165,30 +167,47 @@ public class AnnounceService {
         announce.setStatus(1);
         announceMapper.updateById(announce);
         List<Long> userIds = resolveTargetUserIds(announce);
-        int success = 0;
+        Set<Long> existing = new HashSet<>(userAnnounceMapper.selectUserIdsByAnnounceId(id));
+        List<UserAnnounceDO> toInsert = new ArrayList<>();
+        LocalDateTime now = LocalDateTime.now();
         for (Long uid : userIds) {
-            UserAnnounceDO exist = userAnnounceMapper.selectOne(new LambdaQueryWrapper<UserAnnounceDO>()
-                    .eq(UserAnnounceDO::getUserId, uid)
-                    .eq(UserAnnounceDO::getAnnounceId, id));
-            if (exist == null) {
+            if (uid == null || uid <= 0) {
+                continue;
+            }
+            if (!existing.contains(uid)) {
                 UserAnnounceDO ua = new UserAnnounceDO();
                 ua.setUserId(uid);
                 ua.setAnnounceId(id);
                 ua.setIsRead(0);
-                ua.setCreateTime(LocalDateTime.now());
-                userAnnounceMapper.insert(ua);
+                ua.setCreateTime(now);
+                toInsert.add(ua);
             }
-            webSocketHandler.sendNotice(uid, id, announce.getTitle(), announce.getContent());
-            success++;
+        }
+        if (!toInsert.isEmpty()) {
+            userAnnounceMapper.insertBatch(toInsert);
         }
         AnnounceSendLogDO log = new AnnounceSendLogDO();
         log.setAnnounceId(id);
         log.setChannel("station");
         log.setStatus(1);
         log.setTargetCount(userIds.size());
-        log.setSuccessCount(success);
+        log.setSuccessCount(userIds.size());
         log.setSendTime(LocalDateTime.now());
         sendLogMapper.insert(log);
+
+        final String title = announce.getTitle();
+        final String content = announce.getContent();
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                for (Long uid : userIds) {
+                    if (uid == null || uid <= 0) {
+                        continue;
+                    }
+                    webSocketHandler.sendNotice(uid, id, title, content);
+                }
+            }
+        });
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -258,17 +277,29 @@ public class AnnounceService {
         if (announce == null) {
             return null;
         }
-        if (announce.getCreateBy() != null) {
-            UserDO publisher = userMapper.selectById(announce.getCreateBy());
-            if (publisher != null) {
-                if (StringUtils.hasText(publisher.getNickname())) {
-                    return publisher.getNickname();
-                }
-                if (StringUtils.hasText(publisher.getUsername())) {
-                    return publisher.getUsername();
-                }
+        UserDO publisher = resolvePublisher(announce);
+        if (publisher != null) {
+            if (StringUtils.hasText(publisher.getNickname())) {
+                return publisher.getNickname();
+            }
+            if (StringUtils.hasText(publisher.getUsername())) {
+                return publisher.getUsername();
             }
         }
         return announce.getCreateName();
+    }
+
+    /** 返回发布人当前头像；资料变更后不再显示旧快照 */
+    public String resolvePublisherAvatar(AnnounceDO announce) {
+        UserDO publisher = resolvePublisher(announce);
+        return publisher != null ? publisher.getAvatar() : null;
+    }
+
+    /** 按 createBy 解析发布人实体，供昵称/头像等派生字段复用，避免 Controller 直接操作 Mapper */
+    private UserDO resolvePublisher(AnnounceDO announce) {
+        if (announce == null || announce.getCreateBy() == null) {
+            return null;
+        }
+        return userMapper.selectById(announce.getCreateBy());
     }
 }

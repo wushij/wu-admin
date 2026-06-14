@@ -62,7 +62,6 @@ const themeClass = computed(() => (props.theme === 'default' ? '' : `module-hero
 
 <style lang="scss" scoped>
 
-@import '@/styles/mixins.scss';
 
 
 

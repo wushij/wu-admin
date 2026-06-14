@@ -7,6 +7,7 @@ import cn.rbac.server.framework.log.annotation.Log;
 import cn.rbac.server.framework.security.core.service.SecurityUtils;
 import cn.rbac.server.modules.system.api.approval.vo.ApprovalApproveReqVO;
 import cn.rbac.server.modules.system.api.approval.vo.ApprovalArchiveReqVO;
+import cn.rbac.server.modules.system.api.approval.vo.ApprovalApproverOptionVO;
 import cn.rbac.server.modules.system.api.approval.vo.ApprovalCreateReqVO;
 import cn.rbac.server.modules.system.dal.dataobject.approval.ApprovalFormDO;
 import cn.rbac.server.modules.system.dal.dataobject.approval.ApprovalRecordDO;
@@ -51,6 +52,13 @@ public class ApprovalFormController {
     @PreAuthorize("@ss.hasRead('system:approval:list')")
     public CommonResult<List<ApprovalRecordDO>> recordList(@RequestParam Long formId) {
         return CommonResult.success(approvalFormService.recordList(formId));
+    }
+
+    @Operation(summary = "审批人下拉（排除当前用户）")
+    @GetMapping("/approver-options")
+    @PreAuthorize("@ss.hasPermission('system:approval:create')")
+    public CommonResult<List<ApprovalApproverOptionVO>> approverOptions() {
+        return CommonResult.success(approvalFormService.listApproverOptions(SecurityUtils.getLoginUserIdOrZero()));
     }
 
     @Log(title = "审批单管理", businessType = Log.BusinessType.INSERT)

@@ -1,7 +1,14 @@
 <template>
   <PermissionBlock v-if="!allowed" />
   <view v-else class="page-padded page-list">
-    <ModuleHero title="通知管理" :count="total || list.length" subtitle="发布与管理系统通知" />
+    <ModuleDarkHero
+      title="通知管理"
+      subtitle="发布与管理系统通知"
+      icon="bell"
+      theme="notice"
+      :count="total || list.length"
+      count-label="通知"
+    />
     <SegmentTabs v-model="statusMode" :tabs="statusTabs" />
     <SearchBar v-model="keyword" placeholder="搜索通知标题" @search="onSearch" />
 
@@ -32,7 +39,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { onPullDownRefresh } from '@dcloudio/uni-app'
-import ModuleHero from '@/components/common/ModuleHero/index.vue'
+import { useListPageShowRefresh } from '@/composables/useListPageShowRefresh'
+import ModuleDarkHero from '@/components/common/ModuleDarkHero/index.vue'
 import SearchBar from '@/components/common/SearchBar/index.vue'
 import SegmentTabs from '@/components/common/SegmentTabs/index.vue'
 import ListFooter from '@/components/common/ListFooter/index.vue'
@@ -59,7 +67,7 @@ const statusTabs = [
   { key: '1', label: '已发布' },
 ]
 
-const { list, loading, finished, empty, refresh, loadMore } = usePageList<AnnounceVO>(
+const { list, loading, finished, empty, refresh, loadMore, refreshing } = usePageList<AnnounceVO>(
   async (pageNo, pageSize) => {
     const res = await getAnnouncePage({
       pageNo,
@@ -86,10 +94,11 @@ function goCreate() {
 
 function onSearch() { refresh() }
 watch(statusMode, () => refresh())
+useListPageShowRefresh(refresh, { loading, refreshing })
 onMounted(refresh)
 onPullDownRefresh(async () => { await refresh(); uni.stopPullDownRefresh() })
 </script>
 
 <style lang="scss" scoped>
-@import '@/styles/common.scss';
+@use '@/styles/common.scss' as *;
 </style>

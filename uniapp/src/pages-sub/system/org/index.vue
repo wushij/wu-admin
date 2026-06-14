@@ -1,21 +1,14 @@
 <template>
   <PermissionBlock v-if="!allowed" />
   <view v-else class="org-page page-padded">
-    <view class="org-hero">
-      <view class="org-hero__main">
-        <view class="org-hero__icon">
-          <IconFont name="cluster-o" :size="40" color="#fff" />
+    <ModuleDarkHero title="组织管理" subtitle="部门与岗位树 · 支持新增编辑" icon="cluster-o" theme="dept">
+      <template #aside>
+        <view class="module-dark-hero__stat">
+          <text class="module-dark-hero__stat-num">{{ rows.length }}</text>
+          <text class="module-dark-hero__stat-label">{{ mode === 'dept' ? '部门节点' : '岗位节点' }}</text>
         </view>
-        <view class="org-hero__text">
-          <text class="org-hero__title">组织管理</text>
-          <text class="org-hero__sub">部门与岗位树 · 支持新增编辑</text>
-        </view>
-      </view>
-      <view class="org-hero__stat">
-        <text class="org-hero__stat-num">{{ rows.length }}</text>
-        <text class="org-hero__stat-label">{{ mode === 'dept' ? '部门节点' : '岗位节点' }}</text>
-      </view>
-    </view>
+      </template>
+    </ModuleDarkHero>
 
     <SegmentTabs v-model="mode" :tabs="tabs" compact />
 
@@ -62,6 +55,7 @@ import { ref, computed, onMounted, nextTick } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { onPullDownRefresh } from '@dcloudio/uni-app'
 import { useAppDialogBackPress } from '@/composables/useAppDialogBackPress'
+import ModuleDarkHero from '@/components/common/ModuleDarkHero/index.vue'
 import IconFont from '@/components/common/IconFont/index.vue'
 import SegmentTabs from '@/components/common/SegmentTabs/index.vue'
 import EmptyState from '@/components/common/EmptyState/index.vue'
@@ -187,83 +181,12 @@ onPullDownRefresh(async () => {
 </script>
 
 <style lang="scss" scoped>
-@import '@/styles/variables.scss';
-@import '@/styles/common.scss';
+@use '@/styles/common.scss' as *;
 
 .org-page {
   min-height: 100vh;
   box-sizing: border-box;
   background: $color-bg-page;
-}
-
-.org-hero {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 20rpx;
-  margin-bottom: 20rpx;
-  padding: 28rpx 28rpx 28rpx 24rpx;
-  border-radius: $radius-xl;
-  background: linear-gradient(135deg, #4f46e5 0%, #6366f1 55%, #818cf8 100%);
-  box-shadow: $shadow-hero;
-}
-
-.org-hero__main {
-  display: flex;
-  align-items: center;
-  gap: 20rpx;
-  min-width: 0;
-  flex: 1;
-}
-
-.org-hero__icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 80rpx;
-  height: 80rpx;
-  border-radius: $radius-lg;
-  background: rgba(255, 255, 255, 0.18);
-  flex-shrink: 0;
-}
-
-.org-hero__title {
-  display: block;
-  font-size: $font-size-lg;
-  font-weight: $font-weight-bold;
-  color: #fff;
-}
-
-.org-hero__sub {
-  display: block;
-  margin-top: 8rpx;
-  font-size: $font-size-xs;
-  color: rgba(255, 255, 255, 0.82);
-  line-height: 1.45;
-}
-
-.org-hero__stat {
-  flex-shrink: 0;
-  min-width: 112rpx;
-  padding: 16rpx 20rpx;
-  border-radius: $radius-lg;
-  background: rgba(255, 255, 255, 0.16);
-  text-align: center;
-}
-
-.org-hero__stat-num {
-  display: block;
-  font-size: 40rpx;
-  font-weight: $font-weight-bold;
-  color: #fff;
-  line-height: 1.1;
-}
-
-.org-hero__stat-label {
-  display: block;
-  margin-top: 6rpx;
-  font-size: 20rpx;
-  color: rgba(255, 255, 255, 0.78);
 }
 
 .org-page__scroll {

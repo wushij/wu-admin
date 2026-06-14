@@ -296,7 +296,7 @@ class ChatServiceTest extends MybatisLambdaTestBase {
 
         assertEquals("研发群", group.getName());
         assertEquals(ME, group.getOwnerId());
-        verify(groupMemberMapper, atLeast(2)).insert(any(ChatGroupMemberDO.class));
+        verify(groupMemberMapper).insertBatch(argThat(list -> list != null && list.size() == 2));
         verify(groupLogMapper, atLeast(1)).insert(any(ChatGroupLogDO.class));
     }
 
@@ -322,7 +322,7 @@ class ChatServiceTest extends MybatisLambdaTestBase {
 
         chatService.addMembers(100L, List.of(2L), ME);
 
-        verify(groupMemberMapper).insert(any(ChatGroupMemberDO.class));
+        verify(groupMemberMapper).insertBatch(argThat(list -> list != null && list.size() == 1));
         verify(groupLogMapper).insert(any(ChatGroupLogDO.class));
     }
 

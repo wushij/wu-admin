@@ -1,14 +1,14 @@
 <template>
   <PermissionBlock v-if="!allowed" />
   <view v-else class="page-padded page-list server-page">
-    <ModuleHero theme="server" title="服务器监控" subtitle="JMX 实时采集本机 CPU、内存、磁盘与 JVM">
-      <template #extra>
-        <view class="server-hero-extra">
-          <text class="server-hero-extra__num">{{ cpuDisplay }}</text>
-          <text class="server-hero-extra__label">CPU 使用率</text>
-        </view>
-      </template>
-    </ModuleHero>
+    <ModuleDarkHero
+      title="服务器监控"
+      subtitle="JMX 实时采集本机 CPU、内存、磁盘与 JVM"
+      icon="desktop-o"
+      theme="server"
+      :count="cpuDisplay"
+      count-label="CPU"
+    />
 
     <MonitorToolbar
       :loading="refreshing"
@@ -170,7 +170,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { onPullDownRefresh } from '@dcloudio/uni-app'
-import ModuleHero from '@/components/common/ModuleHero/index.vue'
+import ModuleDarkHero from '@/components/common/ModuleDarkHero/index.vue'
 import MonitorToolbar from '@/components/common/MonitorToolbar/index.vue'
 import MonitorPanel from '@/components/common/MonitorPanel/index.vue'
 import MonitorLineChart from '@/components/common/MonitorLineChart/index.vue'
@@ -183,7 +183,7 @@ import EmptyState from '@/components/common/EmptyState/index.vue'
 import PermissionBlock from '@/components/common/PermissionBlock/index.vue'
 import type { StatItem } from '@/components/common/StatGrid/index.vue'
 import { useModulePermission } from '@/composables/useModulePermission'
-import { useAutoRefresh } from '@/composables/useAutoRefresh'
+import { useMonitorToolbarRefresh } from '@/composables/useMonitorToolbarRefresh'
 import { diskProgressTone, useServerMonitor } from '@/composables/useServerMonitor'
 import { formatPercent } from '@/utils/format'
 
@@ -199,6 +199,8 @@ const {
   physicalDisplay,
   maxDiskPercent,
   fetchServerInfo,
+  autoRefresh,
+  setAutoRefresh,
 } = useServerMonitor()
 
 const activeTab = ref<'overview' | 'detail' | 'disk'>('overview')
@@ -262,13 +264,15 @@ function formatDiskPercent(val?: number | null) {
   return `${val.toFixed(2)}%`
 }
 
-const { autoRefresh, refreshing, toggleAuto, manualRefresh } = useAutoRefresh(
+const { refreshing, toggleAuto, manualRefresh } = useMonitorToolbarRefresh(
   fetchServerInfo,
-  5000,
-  'server',
+  autoRefresh,
+  setAutoRefresh,
 )
 
-onMounted(manualRefresh)
+onMounted(async () => {
+  if (!info.value) await manualRefresh()
+})
 
 onPullDownRefresh(async () => {
   await manualRefresh()
@@ -277,8 +281,7 @@ onPullDownRefresh(async () => {
 </script>
 
 <style lang="scss" scoped>
-@import '@/styles/variables.scss';
-@import '@/styles/common.scss';
+@use '@/styles/common.scss' as *;
 
 .server-page {
   display: flex;
@@ -321,25 +324,6 @@ onPullDownRefresh(async () => {
 
 .server-page :deep(.monitor-panel__head) {
   margin-bottom: 24rpx;
-}
-
-.server-hero-extra {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 4rpx;
-}
-
-.server-hero-extra__num {
-  font-size: 40rpx;
-  font-weight: $font-weight-bold;
-  color: #fff;
-  line-height: 1.1;
-}
-
-.server-hero-extra__label {
-  font-size: 22rpx;
-  color: rgba(255, 255, 255, 0.88);
 }
 
 .server-tag {

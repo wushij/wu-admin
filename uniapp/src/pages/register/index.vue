@@ -124,7 +124,7 @@ async function doRegister(sliderCode?: string) {
   }
   loading.value = true
   try {
-    await register({
+    const res = await register({
       username: form.username.trim(),
       password: form.password,
       nickname: form.nickname.trim() || undefined,
@@ -135,7 +135,8 @@ async function doRegister(sliderCode?: string) {
           ? sliderCode || SLIDER_VERIFIED_CODE
           : form.code || undefined,
     })
-    uni.showToast({ title: '注册成功', icon: 'success' })
+    const msg = res.message || res.msg || '注册成功，请登录'
+    uni.showToast({ title: msg, icon: 'success' })
     setTimeout(() => goLogin(), 500)
   } catch (e) {
     console.error(e)
@@ -173,7 +174,6 @@ onMounted(async () => {
 </script>
 
 <style lang="scss" scoped>
-@import '@/styles/mixins.scss';
 
 .register-page {
   position: relative;

@@ -12,7 +12,7 @@ import {
   List,
   Timer,
   Folder,
-  DocumentCopy,
+  SetUp,
 } from '@element-plus/icons-vue'
 import { getRecycleUserPage, restoreUser, deleteUserPermanent } from '@/api/system/user'
 import { getRecycleRolePage, restoreRole, deleteRolePermanent } from '@/api/system/role'
@@ -360,7 +360,7 @@ export const RECYCLE_TYPES: RecycleTypeConfig[] = [
   {
     key: 'gen',
     label: '代码生成',
-    icon: DocumentCopy,
+    icon: SetUp,
     accent: 'gen',
     permission: 'tool:gen:list',
     deletePermission: 'tool:gen:remove',

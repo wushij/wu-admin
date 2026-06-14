@@ -13,7 +13,6 @@ import cn.rbac.server.modules.system.api.auth.vo.RegisterReqVO;
 import cn.rbac.server.modules.system.api.auth.vo.SmsCodeReqVO;
 import cn.rbac.server.modules.system.api.auth.vo.SmsCodeVerifyReqVO;
 import cn.rbac.server.modules.system.dal.dataobject.user.UserDO;
-import cn.rbac.server.modules.system.dal.mysql.user.UserMapper;
 import cn.rbac.server.modules.system.service.auth.AuthForgotPasswordService;
 import cn.rbac.server.modules.system.service.auth.AuthService;
 import cn.rbac.server.modules.system.service.config.SystemConfigHelper;
@@ -35,8 +34,6 @@ public class AuthController {
     private AuthService authService;
     @Resource
     private AuthForgotPasswordService authForgotPasswordService;
-    @Resource
-    private UserMapper userMapper;
     @Resource
     private SystemConfigHelper systemConfigHelper;
 
@@ -154,12 +151,11 @@ public class AuthController {
         if (validateErr != null) {
             throw new BusinessException(400, validateErr);
         }
-        String err = authForgotPasswordService.resetPasswordBySms(
+        String err = authForgotPasswordService.resetPasswordAndSave(
                 user, reqVO.getSmsCode(), reqVO.getNewPassword(), reqVO.getConfirmPassword());
         if (err != null) {
             throw new BusinessException(400, err);
         }
-        userMapper.updateById(user);
         return CommonResult.success(true);
     }
 }

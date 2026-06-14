@@ -41,7 +41,7 @@ public class TicketController {
     @GetMapping("/assignee-options")
     @PreAuthorize("@ss.hasRead('system:ticket:list')")
     public CommonResult<List<AssigneeOptionVO>> assigneeOptions() {
-        return CommonResult.success(ticketService.getAssigneeOptions());
+        return CommonResult.success(ticketService.getAssigneeOptions(SecurityUtils.getLoginUserIdOrZero()));
     }
 
     @Operation(summary = "工单分页")

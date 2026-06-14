@@ -47,6 +47,7 @@ let pollTimer: ReturnType<typeof setInterval> | null = null
 let chartRenderHandler: (() => Promise<void>) | null = null
 let infoUpdateHandler: ((data: ServerInfo) => void) | null = null
 let backgroundActive = false
+let serverFetchInFlight = false
 
 function persistChartHistory() {
   saveMonitorSession(SERVER_CHART_STORAGE_KEY, serverChartHistory)
@@ -72,6 +73,8 @@ export function recordServerStatsPoint(data: ServerInfo) {
 }
 
 export async function fetchServerPoint() {
+  if (serverFetchInFlight) return
+  serverFetchInFlight = true
   try {
     const res = await getServerInfo()
     if (res.data) {
@@ -82,6 +85,8 @@ export async function fetchServerPoint() {
     }
   } catch {
     /* ignore */
+  } finally {
+    serverFetchInFlight = false
   }
 }
 

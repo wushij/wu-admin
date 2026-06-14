@@ -49,7 +49,6 @@ const badgeText = computed(() => {
 </script>
 
 <style lang="scss" scoped>
-@import '@/styles/variables.scss';
 
 .menu-cell {
   display: flex;

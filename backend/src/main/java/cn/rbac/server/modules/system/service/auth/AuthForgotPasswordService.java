@@ -8,6 +8,7 @@ import jakarta.annotation.Resource;
 import org.redisson.api.RAtomicLong;
 import org.redisson.api.RedissonClient;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 
@@ -61,6 +62,20 @@ public class AuthForgotPasswordService {
 
     public String resetPasswordBySms(UserDO user, String smsCode, String newPassword, String confirmPassword) {
         return profileSmsPasswordService.resetPasswordBySms(user, smsCode, newPassword, confirmPassword);
+    }
+
+    /**
+     * 短信重置密码并持久化：内部先校验+改密（仅改内存），成功后再 updateById 落库，
+     * 保证校验失败不会误持久化。事务覆盖落库阶段。
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public String resetPasswordAndSave(UserDO user, String smsCode, String newPassword, String confirmPassword) {
+        String err = resetPasswordBySms(user, smsCode, newPassword, confirmPassword);
+        if (err != null) {
+            return err;
+        }
+        userMapper.updateById(user);
+        return null;
     }
 
     public String rateLimitCheck(String clientIp) {

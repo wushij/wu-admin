@@ -32,9 +32,16 @@ import { showActionSheet } from '@/utils/app-dialog'
 import { onMessageWebSocket, type WsPushMessage } from '@/utils/webSocket'
 import { buildUserAvatarMap, resolveChatAvatar } from '@/utils/chat-avatar'
 import { isUserCancelError } from '@/utils/file-preview'
+import { compressChatImage } from '@/utils/image-compress'
 import type { ChatGroup, ChatMessage, ChatUser, GroupMember } from '@/types/message'
 
 const TYPING_HIDE_MS = 4000
+let tempMessageSeq = 0
+
+function nextTempMessageId() {
+  tempMessageSeq += 1
+  return -(Date.now() + tempMessageSeq)
+}
 
 function mapWsToMessage(data: WsPushMessage): ChatMessage {
   const time =
@@ -154,6 +161,77 @@ export function useChatDetail() {
     return messages.value.some((m) => Number(m.id) === id)
   }
 
+  function replaceMessageById(messageId: number, next: ChatMessage) {
+    const idx = messages.value.findIndex((m) => Number(m.id) === messageId)
+    if (idx < 0) {
+      if (!hasMessageId(Number(next.id))) messages.value.push(next)
+      return
+    }
+    messages.value[idx] = next
+  }
+
+  function markMessageFailed(messageId: number) {
+    const idx = messages.value.findIndex((m) => Number(m.id) === messageId)
+    if (idx < 0) return
+    messages.value[idx] = { ...messages.value[idx], sendStatus: 'failed' }
+  }
+
+  function absorbPendingSelfMessage(data: WsPushMessage): boolean {
+    if (data.senderId !== selfId.value) return false
+    const id = Number(data.id || data.messageId || 0)
+    if (id && hasMessageId(id)) return true
+    const idx = messages.value.findIndex(
+      (m) => m.id < 0 && m.sendStatus === 'pending' && m.senderId === selfId.value,
+    )
+    if (idx < 0) return false
+    messages.value[idx] = mapWsToMessage(data)
+    return true
+  }
+
+  function buildOptimisticImageMessage(localPreview: string): ChatMessage {
+    const self = userStore.userInfo
+    return {
+      id: nextTempMessageId(),
+      senderId: self.userId,
+      senderName: self.nickname || self.username || '我',
+      senderAvatar: self.avatar,
+      content: localPreview,
+      msgType: CHAT_MSG_TYPE.IMAGE,
+      localPreview,
+      sendStatus: 'pending',
+      sendTime: new Date().toISOString(),
+    }
+  }
+
+  async function sendChatImageOptimistic(rawPath: string) {
+    const optimistic = buildOptimisticImageMessage(rawPath)
+    const tempId = optimistic.id
+    messages.value.push(optimistic)
+
+    try {
+      const filePath = await compressChatImage(rawPath)
+      const uploadRes = await uploadChatImage(filePath)
+      const url = uploadRes.data?.url
+      if (!url) throw new Error('图片上传失败')
+
+      const res =
+        targetType.value === 'user'
+          ? await sendChat({ receiverId: targetId.value, content: url, msgType: CHAT_MSG_TYPE.IMAGE })
+          : await sendGroupMessage(targetId.value, { content: url, msgType: CHAT_MSG_TYPE.IMAGE })
+
+      if (!res.data) throw new Error('消息发送失败')
+      const serverMsg: ChatMessage = {
+        ...res.data,
+        msgType: res.data.msgType ?? CHAT_MSG_TYPE.IMAGE,
+        content: res.data.content ?? url,
+      }
+      replaceMessageById(tempId, serverMsg)
+    } catch {
+      markMessageFailed(tempId)
+      uni.showToast({ title: '图片发送失败', icon: 'none' })
+    }
+  }
+
   function updateNavTitle(name: string) {
     if (targetType.value === 'group') {
       uni.setNavigationBarTitle({ title: '\u200b' })
@@ -232,6 +310,7 @@ export function useChatDetail() {
 
       const id = Number(data.id || data.messageId || 0)
       if (id && hasMessageId(id)) return
+      if (fromSelf && absorbPendingSelfMessage(data)) return
 
       if (fromPeer) clearTypingHint()
       messages.value.push(mapWsToMessage(data))
@@ -244,6 +323,7 @@ export function useChatDetail() {
     if (data.type === 'groupChat' && targetType.value === 'group' && data.groupId === targetId.value) {
       const id = Number(data.id || data.messageId || 0)
       if (id && hasMessageId(id)) return
+      if (data.senderId === selfId.value && absorbPendingSelfMessage(data)) return
       messages.value.push(mapWsToMessage(data))
     }
   }
@@ -430,21 +510,8 @@ export function useChatDetail() {
       return
     }
     if (!filePath) return
-
-    sending.value = true
-    try {
-      const uploadRes = await uploadChatImage(filePath)
-      const url = uploadRes.data?.url
-      if (!url) {
-        uni.showToast({ title: '图片上传失败', icon: 'none' })
-        return
-      }
-      await sendMediaMessage(url, CHAT_MSG_TYPE.IMAGE)
-    } catch {
-      uni.showToast({ title: '图片发送失败', icon: 'none' })
-    } finally {
-      sending.value = false
-    }
+    closeEmojiPanel()
+    await sendChatImageOptimistic(filePath)
   }
 
   async function pickFile() {
@@ -481,19 +548,14 @@ export function useChatDetail() {
     if (!filePath) return
 
     const asImage = isImageFileMeta(fileName, fileMime)
+    if (asImage) {
+      closeEmojiPanel()
+      await sendChatImageOptimistic(filePath)
+      return
+    }
+
     sending.value = true
     try {
-      if (asImage) {
-        const uploadRes = await uploadChatImage(filePath)
-        const url = uploadRes.data?.url
-        if (!url) {
-          uni.showToast({ title: '图片上传失败', icon: 'none' })
-          return
-        }
-        await sendMediaMessage(url, CHAT_MSG_TYPE.IMAGE)
-        return
-      }
-
       const uploadRes = await uploadChatFile(filePath)
       if (!uploadRes.data?.url) {
         uni.showToast({ title: '文件上传失败', icon: 'none' })
@@ -502,7 +564,7 @@ export function useChatDetail() {
       const payload = formatFilePayload({ ...uploadRes.data, url: uploadRes.data.url })
       await sendMediaMessage(payload, CHAT_MSG_TYPE.FILE)
     } catch {
-      uni.showToast({ title: asImage ? '图片发送失败' : '文件发送失败', icon: 'none' })
+      uni.showToast({ title: '文件发送失败', icon: 'none' })
     } finally {
       sending.value = false
     }
@@ -510,7 +572,15 @@ export function useChatDetail() {
 
   async function pickAttachment() {
     emojiVisible.value = false
-    await pickFile()
+    try {
+      const index = await showActionSheet({
+        items: [{ label: '图片' }, { label: '文件' }],
+      })
+      if (index === 0) await pickImage()
+      else await pickFile()
+    } catch {
+      /* cancelled */
+    }
   }
 
   function copyMessageText(msg: ChatMessage) {

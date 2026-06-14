@@ -1,14 +1,14 @@
 <template>
   <PermissionBlock v-if="!allowed" />
   <view v-else class="page-padded page-list oper-log-page">
-    <ModuleHero theme="log" title="操作日志" subtitle="记录系统操作行为，支持按模块、人员与状态检索">
-      <template #extra>
-        <view class="oper-log-hero-extra">
-          <text class="oper-log-hero-extra__num">{{ total }}</text>
-          <text class="oper-log-hero-extra__label">日志总数</text>
-        </view>
-      </template>
-    </ModuleHero>
+    <ModuleDarkHero
+      title="操作日志"
+      subtitle="记录系统操作行为，支持按模块、人员与状态检索"
+      icon="edit"
+      theme="log"
+      :count="total"
+      count-label="日志"
+    />
 
     <scroll-view scroll-y class="page-list__scroll" @scrolltolower="loadMore">
       <FadeIn :show="hasFetched">
@@ -100,7 +100,7 @@
             </view>
           </ListCard>
 
-          <EmptyState v-if="!loading && !list.length" title="暂无操作日志" icon="records-o" />
+          <EmptyState v-if="!loading && !list.length" title="暂无操作日志" icon="edit" />
           <ListFooter
             v-else
             :loading="loading"
@@ -118,7 +118,7 @@
 <script setup lang="ts">
 import { computed, ref, onMounted } from 'vue'
 import { onPullDownRefresh } from '@dcloudio/uni-app'
-import ModuleHero from '@/components/common/ModuleHero/index.vue'
+import ModuleDarkHero from '@/components/common/ModuleDarkHero/index.vue'
 import MonitorPanel from '@/components/common/MonitorPanel/index.vue'
 import SearchBar from '@/components/common/SearchBar/index.vue'
 import ListFooter from '@/components/common/ListFooter/index.vue'
@@ -242,8 +242,7 @@ onPullDownRefresh(async () => {
 </script>
 
 <style lang="scss" scoped>
-@import '@/styles/variables.scss';
-@import '@/styles/common.scss';
+@use '@/styles/common.scss' as *;
 
 .oper-log-page {
   display: flex;
@@ -256,25 +255,6 @@ onPullDownRefresh(async () => {
   flex: 1;
   min-height: 0;
   padding-bottom: 32rpx;
-}
-
-.oper-log-hero-extra {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 4rpx;
-}
-
-.oper-log-hero-extra__num {
-  font-size: 40rpx;
-  font-weight: $font-weight-bold;
-  color: #fff;
-  line-height: 1.1;
-}
-
-.oper-log-hero-extra__label {
-  font-size: 22rpx;
-  color: rgba(255, 255, 255, 0.88);
 }
 
 .oper-log-search-gap {

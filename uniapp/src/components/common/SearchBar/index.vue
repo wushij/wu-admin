@@ -46,7 +46,6 @@ function onConfirm(e: any) {
 </script>
 
 <style lang="scss" scoped>
-@import '@/styles/variables.scss';
 
 .search-bar {
   display: flex;

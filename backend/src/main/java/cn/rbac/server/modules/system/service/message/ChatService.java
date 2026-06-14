@@ -16,6 +16,8 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.StringUtils;
 
 import java.time.Duration;
@@ -85,8 +87,10 @@ public class ChatService {
         payload.put("senderAvatar", msg.getSenderAvatar());
         payload.put("content", msg.getContent());
         payload.put("msgType", msg.getMsgType());
-        webSocketHandler.sendChatPayload(receiverId, payload);
-        webSocketHandler.sendTypingStopPayload(receiverId, senderId);
+        runAfterCommit(() -> {
+            webSocketHandler.sendChatPayload(receiverId, payload);
+            webSocketHandler.sendTypingStopPayload(receiverId, senderId);
+        });
         return msg;
     }
 
@@ -203,17 +207,20 @@ public class ChatService {
         Set<Long> ids = new HashSet<>(memberIds == null ? List.of() : memberIds);
         ids.add(ownerId);
         List<String> invitedNames = new ArrayList<>();
+        List<ChatGroupMemberDO> toInsert = new ArrayList<>(ids.size());
+        LocalDateTime now = LocalDateTime.now();
         for (Long uid : ids) {
             ChatGroupMemberDO m = new ChatGroupMemberDO();
             m.setGroupId(group.getId());
             m.setUserId(uid);
             m.setRole(uid.equals(ownerId) ? 2 : 0);
-            m.setJoinTime(LocalDateTime.now());
-            groupMemberMapper.insert(m);
+            m.setJoinTime(now);
+            toInsert.add(m);
             if (!uid.equals(ownerId)) {
                 invitedNames.add(displayUserName(userMapper.selectById(uid)));
             }
         }
+        groupMemberMapper.insertBatch(toInsert);
         saveGroupLog(group.getId(), "CREATE", ownerId, null, null, "群名称：" + name);
         if (!invitedNames.isEmpty()) {
             saveGroupLog(group.getId(), "INVITE", ownerId, null, String.join("、", invitedNames), null);
@@ -306,13 +313,22 @@ public class ChatService {
         payload.put("content", content);
         payload.put("msgType", msg.getMsgType());
         payload.put("mentionIds", atIds);
+        final List<Long> pushUserIds = new ArrayList<>();
+        final List<Map<String, Object>> pushPayloads = new ArrayList<>();
         for (ChatGroupMemberDO m : members) {
-            if (!m.getUserId().equals(senderId)) {
-                Map<String, Object> memberPayload = new LinkedHashMap<>(payload);
-                memberPayload.put("atMe", atIds.contains(m.getUserId()));
-                webSocketHandler.sendGroupChatPayload(m.getUserId(), memberPayload);
+            if (m.getUserId().equals(senderId)) {
+                continue;
             }
+            Map<String, Object> memberPayload = new LinkedHashMap<>(payload);
+            memberPayload.put("atMe", atIds.contains(m.getUserId()));
+            pushUserIds.add(m.getUserId());
+            pushPayloads.add(memberPayload);
         }
+        runAfterCommit(() -> {
+            for (int i = 0; i < pushUserIds.size(); i++) {
+                webSocketHandler.sendGroupChatPayload(pushUserIds.get(i), pushPayloads.get(i));
+            }
+        });
         return msg;
     }
 
@@ -332,7 +348,7 @@ public class ChatService {
         msg.setMsgType(ChatMsgType.RECALLED);
         msg.setContent("");
         chatMessageMapper.updateById(msg);
-        broadcastPrivateRecall(msg);
+        runAfterCommit(() -> broadcastPrivateRecall(msg));
         return msg;
     }
 
@@ -358,7 +374,7 @@ public class ChatService {
         msg.setMsgType(ChatMsgType.RECALLED);
         msg.setContent("");
         groupMessageMapper.updateById(msg);
-        broadcastGroupRecall(msg);
+        runAfterCommit(() -> broadcastGroupRecall(msg));
         return msg;
     }
 
@@ -407,6 +423,20 @@ public class ChatService {
         return payload;
     }
 
+    /** 事务提交后再推送 WebSocket，避免拉长持锁时间；无事务时立即执行 */
+    private void runAfterCommit(Runnable action) {
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    action.run();
+                }
+            });
+        } else {
+            action.run();
+        }
+    }
+
     private List<Long> normalizeMentionIds(List<Long> mentionIds) {
         if (mentionIds == null || mentionIds.isEmpty()) {
             return List.of();
@@ -444,6 +474,15 @@ public class ChatService {
     public List<Map<String, Object>> groupMembers(Long groupId) {
         List<ChatGroupMemberDO> members = groupMemberMapper.selectList(new LambdaQueryWrapper<ChatGroupMemberDO>()
                 .eq(ChatGroupMemberDO::getGroupId, groupId));
+        Set<Long> userIds = members.stream()
+                .map(ChatGroupMemberDO::getUserId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        Map<Long, UserDO> userMap = userIds.isEmpty()
+                ? Map.of()
+                : userMapper.selectByIds(userIds).stream()
+                        .filter(Objects::nonNull)
+                        .collect(Collectors.toMap(UserDO::getId, u -> u, (a, b) -> a));
         List<Map<String, Object>> list = new ArrayList<>();
         for (ChatGroupMemberDO m : members) {
             Map<String, Object> item = new HashMap<>();
@@ -454,7 +493,7 @@ public class ChatService {
             item.put("role", m.getRole());
             item.put("muted", m.getMuted());
             item.put("joinTime", m.getJoinTime());
-            UserDO user = userMapper.selectById(m.getUserId());
+            UserDO user = m.getUserId() != null ? userMap.get(m.getUserId()) : null;
             if (user != null) {
                 item.put("userNickname", user.getNickname());
                 item.put("username", user.getUsername());
@@ -521,7 +560,11 @@ public class ChatService {
         }
         saveGroupLog(groupId, "UPDATE", userId, null, null, detail.toString());
         if (announcementChanged) {
-            pushGroupAnnouncement(groupId, userId, group.getName(), group.getAnnouncement());
+            final Long gid = groupId;
+            final Long publisherId = userId;
+            final String groupName = group.getName();
+            final String announcementText = group.getAnnouncement();
+            runAfterCommit(() -> pushGroupAnnouncement(gid, publisherId, groupName, announcementText));
         }
     }
 
@@ -556,6 +599,8 @@ public class ChatService {
             return;
         }
         List<String> invitedNames = new ArrayList<>();
+        List<ChatGroupMemberDO> toInsert = new ArrayList<>();
+        LocalDateTime now = LocalDateTime.now();
         for (Long uid : userIds) {
             Long exists = groupMemberMapper.selectCount(new LambdaQueryWrapper<ChatGroupMemberDO>()
                     .eq(ChatGroupMemberDO::getGroupId, groupId)
@@ -567,9 +612,12 @@ public class ChatService {
             m.setGroupId(groupId);
             m.setUserId(uid);
             m.setRole(0);
-            m.setJoinTime(LocalDateTime.now());
-            groupMemberMapper.insert(m);
+            m.setJoinTime(now);
+            toInsert.add(m);
             invitedNames.add(displayUserName(userMapper.selectById(uid)));
+        }
+        if (!toInsert.isEmpty()) {
+            groupMemberMapper.insertBatch(toInsert);
         }
         if (!invitedNames.isEmpty()) {
             saveGroupLog(groupId, "INVITE", operatorId, null, String.join("、", invitedNames), null);

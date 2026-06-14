@@ -84,7 +84,7 @@ const {
   save,
 } = useRoleMenuAssign()
 
-useUnsavedLeaveGuard(isDirty)
+useUnsavedLeaveGuard()
 
 function typeLabel(type?: number) {
   if (type === 2) return '菜单'
@@ -101,8 +101,7 @@ onLoad((options) => {
 </script>
 
 <style lang="scss" scoped>
-@import '@/styles/variables.scss';
-@import '@/styles/common.scss';
+@use '@/styles/common.scss' as *;
 
 .perm-page {
   height: 100vh;

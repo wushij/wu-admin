@@ -6,6 +6,7 @@ import cn.rbac.server.common.pojo.PageResult;
 import cn.rbac.server.framework.security.core.service.SecurityUtils;
 import cn.rbac.server.modules.system.api.approval.vo.ApprovalApproveReqVO;
 import cn.rbac.server.modules.system.api.approval.vo.ApprovalArchiveReqVO;
+import cn.rbac.server.modules.system.api.approval.vo.ApprovalApproverOptionVO;
 import cn.rbac.server.modules.system.api.approval.vo.ApprovalCreateReqVO;
 import cn.rbac.server.modules.system.dal.dataobject.approval.ApprovalFormDO;
 import cn.rbac.server.modules.system.dal.dataobject.approval.ApprovalRecordDO;
@@ -18,6 +19,7 @@ import cn.rbac.server.modules.system.dal.mysql.user.UserMapper;
 import cn.rbac.server.modules.system.service.approval.ApprovalFormService;
 import cn.rbac.server.modules.system.service.approval.RegisterApprovalService;
 import cn.rbac.server.modules.system.service.config.SystemConfigHelper;
+import cn.rbac.server.modules.system.service.notice.NoticeService;
 import cn.rbac.server.modules.system.service.permission.PermissionService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -47,6 +49,8 @@ public class ApprovalFormServiceImpl implements ApprovalFormService {
     private RegisterApprovalService registerApprovalService;
     @Resource
     private SystemConfigHelper systemConfigHelper;
+    @Resource
+    private NoticeService noticeService;
 
     @Override
     public PageResult<ApprovalFormDO> page(PageParam pageParam, String title, String formType, String status, Long userId) {
@@ -96,10 +100,32 @@ public class ApprovalFormServiceImpl implements ApprovalFormService {
     }
 
     @Override
+    public List<ApprovalApproverOptionVO> listApproverOptions(Long currentUserId) {
+        LambdaQueryWrapper<UserDO> wrapper = new LambdaQueryWrapper<UserDO>()
+                .eq(UserDO::getStatus, 1)
+                .select(UserDO::getId, UserDO::getUsername, UserDO::getNickname)
+                .orderByAsc(UserDO::getUsername);
+        if (currentUserId != null && currentUserId > 0) {
+            wrapper.ne(UserDO::getId, currentUserId);
+        }
+        return userMapper.selectList(wrapper).stream().map(user -> {
+            ApprovalApproverOptionVO vo = new ApprovalApproverOptionVO();
+            vo.setId(user.getId());
+            vo.setUsername(user.getUsername());
+            vo.setNickname(user.getNickname());
+            return vo;
+        }).collect(Collectors.toList());
+    }
+
+    @Override
     @Transactional(rollbackFor = Exception.class)
     public Long create(ApprovalCreateReqVO reqVO, Long applicantUserId) {
         if (reqVO.getApproverUserId() == null || reqVO.getApproverUserId() <= 0) {
             throw new BusinessException(400, "请选择审批人");
+        }
+        if (applicantUserId != null && applicantUserId > 0
+                && reqVO.getApproverUserId().equals(applicantUserId)) {
+            throw new BusinessException(400, "不能选择自己作为审批人");
         }
         ApprovalFormDO form = new ApprovalFormDO();
         form.setFormNo(generateFormNo());
@@ -148,6 +174,7 @@ public class ApprovalFormServiceImpl implements ApprovalFormService {
         approvalFormMapper.updateById(form);
         registerApprovalService.applyApprovalResult(form, action);
         createRecord(form.getId(), action, reqVO.getRemark(), operatorUserId);
+        noticeService.markReadByBiz(operatorUserId, NOTICE_BIZ_TYPE_APPROVAL, form.getId());
         if (isRegisterForm) {
             createNotice(form.getApplicantUserId(), "注册审核结果",
                     "你的注册申请已" + ("APPROVE".equals(action) ? "通过，现在可以登录" : "被驳回，请联系管理员")

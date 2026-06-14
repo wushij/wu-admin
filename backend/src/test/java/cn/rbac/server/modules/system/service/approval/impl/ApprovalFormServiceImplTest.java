@@ -11,6 +11,7 @@ import cn.rbac.server.modules.system.dal.mysql.approval.ApprovalRecordMapper;
 import cn.rbac.server.modules.system.dal.mysql.notice.NoticeMapper;
 import cn.rbac.server.modules.system.dal.mysql.user.UserMapper;
 import cn.rbac.server.modules.system.service.approval.RegisterApprovalService;
+import cn.rbac.server.modules.system.service.notice.NoticeService;
 import cn.rbac.server.modules.system.service.permission.PermissionService;
 import cn.rbac.server.testsupport.MybatisLambdaTestBase;
 import cn.rbac.server.testsupport.ServiceTestFixtures;
@@ -41,6 +42,8 @@ class ApprovalFormServiceImplTest extends MybatisLambdaTestBase {
     private PermissionService permissionService;
     @Mock
     private RegisterApprovalService registerApprovalService;
+    @Mock
+    private NoticeService noticeService;
 
     @InjectMocks
     private ApprovalFormServiceImpl approvalFormService;
@@ -67,6 +70,21 @@ class ApprovalFormServiceImplTest extends MybatisLambdaTestBase {
                 () -> approvalFormService.create(req, 10L));
 
         assertEquals(400, ex.getCode());
+        verify(approvalFormMapper, never()).insert(any(ApprovalFormDO.class));
+    }
+
+    @Test
+    @DisplayName("create：不能选择自己作为审批人")
+    void create_selfApproverForbidden() {
+        ApprovalCreateReqVO req = new ApprovalCreateReqVO();
+        req.setTitle("请假");
+        req.setApproverUserId(10L);
+
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> approvalFormService.create(req, 10L));
+
+        assertEquals(400, ex.getCode());
+        assertTrue(ex.getMessage().contains("不能选择自己"));
         verify(approvalFormMapper, never()).insert(any(ApprovalFormDO.class));
     }
 

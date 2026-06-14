@@ -30,7 +30,6 @@ const emit = defineEmits<{ click: [] }>()
 </script>
 
 <style lang="scss" scoped>
-@import '@/styles/variables.scss';
 
 .action-row {
   display: flex;

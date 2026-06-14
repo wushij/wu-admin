@@ -1,7 +1,14 @@
 <template>
   <PermissionBlock v-if="!allowed" />
   <view v-else class="page-padded page-list">
-    <ModuleHero title="审批中心" :count="total || list.length" subtitle="流程审批与归档" />
+    <ModuleDarkHero
+      title="审批中心"
+      subtitle="流程审批与归档"
+      icon="completed"
+      theme="approval"
+      :count="total || list.length"
+      count-label="审批"
+    />
     <SegmentTabs v-model="statusMode" :tabs="statusTabs" scroll />
     <SearchBar v-model="keyword" placeholder="搜索审批标题" @search="onSearch" />
 
@@ -33,7 +40,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { onPullDownRefresh } from '@dcloudio/uni-app'
-import ModuleHero from '@/components/common/ModuleHero/index.vue'
+import ModuleDarkHero from '@/components/common/ModuleDarkHero/index.vue'
 import SearchBar from '@/components/common/SearchBar/index.vue'
 import ListFooter from '@/components/common/ListFooter/index.vue'
 import ListLoading from '@/components/common/ListLoading/index.vue'
@@ -44,6 +51,7 @@ import SegmentTabs from '@/components/common/SegmentTabs/index.vue'
 import ListCard from '@/components/common/ListCard/index.vue'
 import PermissionBlock from '@/components/common/PermissionBlock/index.vue'
 import { usePageList } from '@/composables/usePageList'
+import { useListPageShowRefresh } from '@/composables/useListPageShowRefresh'
 import { useModulePermission } from '@/composables/useModulePermission'
 import { getApprovalPage } from '@/api/system/approval'
 import { getDictLabel, preloadDicts } from '@/composables/useDict'
@@ -66,7 +74,7 @@ const statusTabs = [
   { key: 'ARCHIVED', label: '已归档' },
 ]
 
-const { list, loading, finished, empty, refresh, loadMore } = usePageList<ApprovalVO>(
+const { list, loading, finished, empty, refresh, loadMore, refreshing } = usePageList<ApprovalVO>(
   async (pageNo, pageSize) => {
     const res = await getApprovalPage({
       pageNo,
@@ -101,6 +109,8 @@ function onSearch() {
 
 watch(statusMode, () => refresh())
 
+useListPageShowRefresh(refresh, { loading, refreshing })
+
 onMounted(() => {
   preloadDicts([DICT_TYPE.APPROVAL_STATUS, DICT_TYPE.APPROVAL_FORM_TYPE])
   refresh()
@@ -113,5 +123,5 @@ onPullDownRefresh(async () => {
 </script>
 
 <style lang="scss" scoped>
-@import '@/styles/common.scss';
+@use '@/styles/common.scss' as *;
 </style>

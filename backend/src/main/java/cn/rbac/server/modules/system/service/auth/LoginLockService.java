@@ -4,6 +4,7 @@ import cn.rbac.server.modules.system.service.auth.vo.LoginLockStatusVO;
 
 import java.util.Collection;
 import java.util.Map;
+import java.util.Set;
 
 public interface LoginLockService {
 
@@ -33,4 +34,10 @@ public interface LoginLockService {
 
     /** 管理端：解除指定 IP 的登录锁定（IP 侧 fail/lock） */
     void unlockIp(String ip);
+
+    /** 管理端：当前处于账号锁定状态的用户名集合 */
+    Set<String> listLockedUsernames();
+
+    /** 管理端：当前处于 IP 锁定状态的地址集合 */
+    Set<String> listLockedIps();
 }

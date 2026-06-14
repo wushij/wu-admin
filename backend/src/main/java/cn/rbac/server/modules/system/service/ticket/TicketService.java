@@ -13,7 +13,7 @@ import java.util.List;
 
 public interface TicketService {
 
-    List<AssigneeOptionVO> getAssigneeOptions();
+    List<AssigneeOptionVO> getAssigneeOptions(Long currentUserId);
 
     PageResult<TicketDO> page(PageParam pageParam, String title, String status,
                                String priority, Long assigneeUserId, Long currentUserId);

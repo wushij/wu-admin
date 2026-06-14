@@ -15,7 +15,6 @@ defineProps<{ title?: string }>()
 </script>
 
 <style lang="scss" scoped>
-@import '@/styles/variables.scss';
 
 .config-card {
   margin-bottom: 20rpx;
