@@ -80,8 +80,7 @@ onLoad((options) => {
 </script>
 
 <style lang="scss" scoped>
-@import '@/styles/variables.scss';
-@import '@/styles/mine.scss';
+@use '@/styles/mine.scss' as *;
 
 .inbox-detail {
   @include mine-page-bg;

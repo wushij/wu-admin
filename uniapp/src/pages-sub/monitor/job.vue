@@ -1,20 +1,27 @@
 <template>
   <PermissionBlock v-if="!allowed" />
   <view v-else class="page-padded page-list job-page">
-    <ModuleHero
-      theme="job"
+    <ModuleDarkHero
       title="定时任务"
       :subtitle="heroSubtitle"
+      icon="clock-o"
+      theme="job"
       :count="mode === 'log' ? (logTotal || logList.length) : undefined"
+      count-label="日志"
     >
-      <template v-if="mode === 'job' && overview" #extra>
-        <view class="job-hero-mini">
-          <text>{{ overview.runningJobs ?? 0 }} 运行</text>
-          <text class="job-hero-mini__dot">·</text>
-          <text>{{ overview.pausedJobs ?? 0 }} 暂停</text>
+      <template v-if="mode === 'job' && overview" #aside>
+        <view class="module-dark-hero__stats-row">
+          <view class="module-dark-hero__mini-stat">
+            <text class="module-dark-hero__mini-stat-num">{{ overview.runningJobs ?? 0 }}</text>
+            <text class="module-dark-hero__mini-stat-label">运行</text>
+          </view>
+          <view class="module-dark-hero__mini-stat">
+            <text class="module-dark-hero__mini-stat-num">{{ overview.pausedJobs ?? 0 }}</text>
+            <text class="module-dark-hero__mini-stat-label">暂停</text>
+          </view>
         </view>
       </template>
-    </ModuleHero>
+    </ModuleDarkHero>
 
     <view v-if="overview" class="job-metrics">
       <view class="job-metrics__item">
@@ -139,7 +146,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
 import { onPullDownRefresh } from '@dcloudio/uni-app'
-import ModuleHero from '@/components/common/ModuleHero/index.vue'
+import ModuleDarkHero from '@/components/common/ModuleDarkHero/index.vue'
 import ListFooter from '@/components/common/ListFooter/index.vue'
 import EmptyState from '@/components/common/EmptyState/index.vue'
 import ListCard from '@/components/common/ListCard/index.vue'
@@ -402,31 +409,7 @@ onPullDownRefresh(async () => {
 </script>
 
 <style lang="scss" scoped>
-@import '@/styles/variables.scss';
-@import '@/styles/common.scss';
-
-.job-page :deep(.module-hero--job .module-hero__inner--stacked) {
-  align-items: center;
-}
-
-.job-page :deep(.module-hero--job .module-hero__aside) {
-  align-items: center;
-}
-
-.job-hero-mini {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8rpx;
-  font-size: $font-size-sm;
-  font-weight: $font-weight-semibold;
-  color: rgba(255, 255, 255, 0.92);
-  text-align: center;
-}
-
-.job-hero-mini__dot {
-  opacity: 0.6;
-}
+@use '@/styles/common.scss' as *;
 
 .job-metrics {
   display: grid;

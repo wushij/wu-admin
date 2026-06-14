@@ -13,7 +13,6 @@ import IconFont from '@/components/common/IconFont/index.vue'
 </script>
 
 <style lang="scss" scoped>
-@import '@/styles/variables.scss';
 
 .permission-block {
   display: flex;

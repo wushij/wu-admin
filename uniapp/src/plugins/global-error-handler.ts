@@ -36,6 +36,8 @@ function isBenignUniRuntimeError(source: unknown): boolean {
   const msg = extractApiErrorMessage(source, '')
   if (msg.includes('scrollTop') && msg.toLowerCase().includes('null')) return true
   if (msg.includes('navigateBack:fail') && msg.includes('onBackPress')) return true
+  if (msg.includes('Maximum call stack size exceeded')) return true
+  if (msg.includes('Stack overflow')) return true
   return false
 }
 

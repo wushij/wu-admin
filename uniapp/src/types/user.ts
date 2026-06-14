@@ -32,6 +32,7 @@ export interface UserPageQuery {
   mobile?: string
   status?: number | null
   deptId?: number | null
+  loginLocked?: boolean
 }
 
 export interface UserSaveDTO {

@@ -37,13 +37,13 @@ export const mobileStatCards: StatCardConfig[] = [
   },
   {
     key: 'approval',
-    title: '待审批',
+    title: '待我审批',
     valueKey: 'approvalPendingCount',
     icon: 'completed',
     theme: 'approval',
     permission: 'system:approval:list',
     path: '/pages-sub/system/approval/index',
-    footer: () => '审批单中心',
+    footer: () => '待我处理的审批',
   },
   {
     key: 'ticket',

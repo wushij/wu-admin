@@ -38,7 +38,6 @@ function goAll() {
 </script>
 
 <style lang="scss" scoped>
-@import '@/styles/variables.scss';
 
 .recent {
   padding: 28rpx 32rpx 16rpx;

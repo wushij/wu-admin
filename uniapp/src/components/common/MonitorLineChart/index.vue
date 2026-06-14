@@ -102,7 +102,6 @@ const xLabels = computed(() => {
 </script>
 
 <style lang="scss" scoped>
-@import '@/styles/variables.scss';
 
 .line-chart {
   margin-bottom: 24rpx;

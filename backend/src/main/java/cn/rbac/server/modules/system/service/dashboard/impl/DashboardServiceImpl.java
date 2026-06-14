@@ -75,7 +75,7 @@ public class DashboardServiceImpl implements DashboardService {
         putAggregateFields(stats, row);
         putFileCountFresh(stats);
         putJobStatsFresh(stats);
-        putApprovalPendingFresh(stats);
+        putApprovalPendingFresh(stats, loginUserId);
 
         stats.put("onlineCount", onlineUserService.listOnlineUsers().size());
         stats.put("todayVisits", getDayVisitCount(LocalDate.now()));
@@ -199,9 +199,12 @@ public class DashboardServiceImpl implements DashboardService {
         stats.put("jobPausedCount", Math.max(0, jobTotal - jobRunning));
     }
 
-    /** 待审批数量实时查询，审批后立即反映到首页 */
-    private void putApprovalPendingFresh(Map<String, Object> stats) {
-        stats.put("approvalPendingCount", dashboardMapper.countApprovalPending());
+    /** 待我审批数量：仅统计指定当前用户为审批人且未处理的单据 */
+    private void putApprovalPendingFresh(Map<String, Object> stats, Long loginUserId) {
+        long count = loginUserId != null && loginUserId > 0
+                ? dashboardMapper.countApprovalPendingByApprover(loginUserId)
+                : 0L;
+        stats.put("approvalPendingCount", count);
     }
 
     private long longVal(Long value) {

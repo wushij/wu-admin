@@ -4,7 +4,7 @@
       <view class="detail-hero__pattern" />
       <view class="detail-hero__glow" />
       <view class="detail-hero__body">
-        <ModuleIcon icon="bell" theme="announce" size="lg" />
+        <ModuleIcon icon="bell" theme="notice" size="lg" />
         <view class="detail-hero__text">
           <text class="detail-hero__title">{{ detail.title }}</text>
           <text v-if="publishTime" class="detail-hero__time">{{ publishTime }}</text>
@@ -14,7 +14,7 @@
 
     <view class="detail-section card--elevated">
       <view class="detail-section__head">
-        <ModuleIcon icon="notes-o" theme="announce" size="sm" />
+        <ModuleIcon icon="notes-o" theme="notice" size="sm" />
         <text class="detail-section__title">公告内容</text>
       </view>
       <view class="detail-section__content">
@@ -24,14 +24,13 @@
 
     <view class="detail-section card--elevated">
       <view class="detail-section__head">
-        <ModuleIcon icon="contact-o" theme="indigo" size="sm" />
-        <text class="detail-section__title">发布信息</text>
+        <ModuleIcon icon="contact-o" theme="notice" size="sm" />
+        <text class="detail-section__title">发布者</text>
       </view>
       <view class="detail-publisher">
         <ChatAvatar :src="detail.createAvatar" :name="publisherName" />
         <view class="detail-publisher__text">
           <text class="detail-publisher__name">{{ publisherName }}</text>
-          <text class="detail-publisher__sub">系统公告发布人</text>
         </view>
       </view>
     </view>
@@ -73,8 +72,7 @@ onLoad(async (options) => {
 </script>
 
 <style lang="scss" scoped>
-@import '@/styles/variables.scss';
-@import '@/styles/mine.scss';
+@use '@/styles/mine.scss' as *;
 
 .announce-detail {
   @include mine-page-bg;
@@ -93,7 +91,7 @@ onLoad(async (options) => {
   @include mine-dark-hero-shell;
 
   &--announce .detail-hero__glow {
-    @include mine-dark-hero-glow(rgba(245, 158, 11, 0.28));
+    @include mine-dark-hero-glow(rgba(236, 72, 153, 0.28));
   }
 }
 
@@ -181,12 +179,5 @@ onLoad(async (options) => {
   font-size: $font-size-base;
   font-weight: $font-weight-bold;
   color: $color-text-primary;
-}
-
-.detail-publisher__sub {
-  display: block;
-  margin-top: 6rpx;
-  font-size: $font-size-xs;
-  color: $color-text-secondary;
 }
 </style>

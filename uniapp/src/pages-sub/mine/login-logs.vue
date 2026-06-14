@@ -93,8 +93,7 @@ onPullDownRefresh(async () => {
 </script>
 
 <style lang="scss" scoped>
-@import '@/styles/variables.scss';
-@import '@/styles/mine.scss';
+@use '@/styles/mine.scss' as *;
 
 .login-logs-page {
   @include mine-page-bg;

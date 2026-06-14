@@ -4,7 +4,7 @@
 </template>
 
 <script setup lang="ts">
-import { onLaunch } from '@dcloudio/uni-app'
+import { onLaunch, onShow, onHide } from '@dcloudio/uni-app'
 import MessageNotification from '@/components/business/MessageNotification/index.vue'
 import H5BackButton from '@/components/common/H5BackButton/index.vue'
 import { useUserStore } from '@/store/user'
@@ -15,6 +15,7 @@ import { ensureH5Favicon } from '@/utils/h5-document-head'
 import { hasToken } from '@/utils/auth'
 import { shouldRedirectAuthedUserToHome } from '@/utils/launch-route'
 import { startSessionServices } from '@/composables/useSessionServices'
+import { onMonitorAppHide, onMonitorAppShow } from '@/composables/useMonitorBackground'
 import { useMessageStore } from '@/store/message'
 
 onLaunch(async () => {
@@ -44,12 +45,22 @@ onLaunch(async () => {
     }
   })
 })
+
+onShow(() => {
+  if (hasToken()) {
+    onMonitorAppShow()
+  }
+})
+
+onHide(() => {
+  onMonitorAppHide()
+})
 </script>
 
 <style lang="scss">
-@import '@/styles/reset.scss';
-@import '@/styles/iconfont.scss';
-@import '@/styles/module-themes.scss';
-@import '@/styles/common.scss';
-@import '@/styles/toast-h5.scss';
+@use '@/styles/reset.scss';
+@use '@/styles/iconfont.scss';
+@use '@/styles/module-themes.scss';
+@use '@/styles/common.scss';
+@use '@/styles/toast-h5.scss';
 </style>

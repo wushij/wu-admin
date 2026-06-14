@@ -2,6 +2,7 @@ import type { App } from 'vue'
 import { isWhiteRoute } from '@/config/route'
 import { hasToken } from '@/utils/auth'
 import { closeTopAppDialog } from '@/utils/dialog-back-guard'
+import { isLeaveConfirmActive } from '@/composables/useUnsavedLeaveGuard'
 import {
   installH5ShallowStackTrapIfNeeded,
   redirectAuthedAwayFromAuthPage,
@@ -42,6 +43,7 @@ export function installGlobalPageGuards(app: App) {
     },
     onBackPress() {
       if (closeTopAppDialog()) return true
+      if (isLeaveConfirmActive()) return true
       return handleGlobalBackPress()
     },
   })

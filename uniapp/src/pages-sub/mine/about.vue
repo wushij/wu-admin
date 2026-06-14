@@ -38,8 +38,7 @@ const year = computed(() => new Date().getFullYear())
 </script>
 
 <style lang="scss" scoped>
-@import '@/styles/variables.scss';
-@import '@/styles/mine.scss';
+@use '@/styles/mine.scss' as *;
 
 .about-page {
   @include mine-page-bg;

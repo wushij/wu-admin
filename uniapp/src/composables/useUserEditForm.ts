@@ -19,6 +19,16 @@ function buildPostLabel(ids: number[], postMap: Map<number, PostVO>) {
   return names.length ? names.join('、') : '未分配'
 }
 
+/** 新增用户默认角色：普通用户（code=user） */
+function resolveDefaultCreateRoleId(roles: RoleVO[]): number | null {
+  const regular = roles.find((r) => r.code === 'user')
+  if (regular) return regular.id
+  const byName = roles.find((r) => r.name === '普通用户')
+  if (byName) return byName.id
+  const nonAdmin = roles.find((r) => r.code !== 'super_admin' && r.code !== 'admin')
+  return nonAdmin?.id ?? roles[0]?.id ?? null
+}
+
 export function useUserEditForm(options?: { backFallback?: string | (() => string) }) {
   const loading = ref(false)
   const saving = ref(false)
@@ -103,7 +113,7 @@ export function useUserEditForm(options?: { backFallback?: string | (() => strin
       form.remark = ''
       form.deptId = null
       form.postIds = []
-      form.roleId = roleOptions.value[0]?.id ?? null
+      form.roleId = resolveDefaultCreateRoleId(roleOptions.value)
       form.status = 1
       deptLabel.value = '未分配'
       postLabel.value = '未分配'

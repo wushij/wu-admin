@@ -1,31 +1,24 @@
 <template>
   <PermissionBlock v-if="!allowed" />
   <view v-else class="menu-page page-padded">
-    <view class="menu-hero">
-      <view class="menu-hero__main">
-        <view class="menu-hero__icon">
-          <IconFont name="apps-o" :size="40" color="#fff" />
+    <ModuleDarkHero title="菜单管理" subtitle="目录、菜单与按钮权限" icon="apps-o" theme="menu">
+      <template #aside>
+        <view class="module-dark-hero__stats-row">
+          <view class="module-dark-hero__mini-stat">
+            <text class="module-dark-hero__mini-stat-num">{{ menuRows.length }}</text>
+            <text class="module-dark-hero__mini-stat-label">全部</text>
+          </view>
+          <view class="module-dark-hero__mini-stat">
+            <text class="module-dark-hero__mini-stat-num">{{ typeCount(1) }}</text>
+            <text class="module-dark-hero__mini-stat-label">目录</text>
+          </view>
+          <view class="module-dark-hero__mini-stat">
+            <text class="module-dark-hero__mini-stat-num">{{ typeCount(2) }}</text>
+            <text class="module-dark-hero__mini-stat-label">菜单</text>
+          </view>
         </view>
-        <view class="menu-hero__text">
-          <text class="menu-hero__title">菜单管理</text>
-          <text class="menu-hero__sub">目录、菜单与按钮权限</text>
-        </view>
-      </view>
-      <view class="menu-hero__stats">
-        <view class="menu-hero__stat">
-          <text class="menu-hero__stat-num">{{ menuRows.length }}</text>
-          <text class="menu-hero__stat-label">全部</text>
-        </view>
-        <view class="menu-hero__stat">
-          <text class="menu-hero__stat-num">{{ typeCount(1) }}</text>
-          <text class="menu-hero__stat-label">目录</text>
-        </view>
-        <view class="menu-hero__stat">
-          <text class="menu-hero__stat-num">{{ typeCount(2) }}</text>
-          <text class="menu-hero__stat-label">菜单</text>
-        </view>
-      </view>
-    </view>
+      </template>
+    </ModuleDarkHero>
 
     <SearchBar v-model="keyword" placeholder="搜索菜单名称、路由、权限" @search="refresh" />
 
@@ -83,6 +76,7 @@
 import { ref, computed, onMounted, nextTick } from 'vue'
 import { onPullDownRefresh } from '@dcloudio/uni-app'
 import { useAppDialogBackPress } from '@/composables/useAppDialogBackPress'
+import ModuleDarkHero from '@/components/common/ModuleDarkHero/index.vue'
 import IconFont from '@/components/common/IconFont/index.vue'
 import SearchBar from '@/components/common/SearchBar/index.vue'
 import ListLoading from '@/components/common/ListLoading/index.vue'
@@ -255,88 +249,12 @@ onPullDownRefresh(async () => {
 </script>
 
 <style lang="scss" scoped>
-@import '@/styles/variables.scss';
-@import '@/styles/common.scss';
+@use '@/styles/common.scss' as *;
 
 .menu-page {
   min-height: 100vh;
   box-sizing: border-box;
   background: $color-bg-page;
-}
-
-.menu-hero {
-  display: flex;
-  align-items: stretch;
-  justify-content: space-between;
-  gap: 16rpx;
-  margin-bottom: 20rpx;
-  padding: 28rpx 24rpx;
-  border-radius: $radius-xl;
-  background: linear-gradient(135deg, #312e81 0%, #4f46e5 52%, #6366f1 100%);
-  box-shadow: $shadow-hero;
-}
-
-.menu-hero__main {
-  display: flex;
-  align-items: center;
-  gap: 20rpx;
-  min-width: 0;
-  flex: 1;
-}
-
-.menu-hero__icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 80rpx;
-  height: 80rpx;
-  border-radius: $radius-lg;
-  background: rgba(255, 255, 255, 0.18);
-  flex-shrink: 0;
-}
-
-.menu-hero__title {
-  display: block;
-  font-size: $font-size-lg;
-  font-weight: $font-weight-bold;
-  color: #fff;
-}
-
-.menu-hero__sub {
-  display: block;
-  margin-top: 8rpx;
-  font-size: $font-size-xs;
-  color: rgba(255, 255, 255, 0.82);
-  line-height: 1.45;
-}
-
-.menu-hero__stats {
-  display: flex;
-  gap: 12rpx;
-  flex-shrink: 0;
-}
-
-.menu-hero__stat {
-  min-width: 72rpx;
-  padding: 12rpx 14rpx;
-  border-radius: $radius-md;
-  background: rgba(255, 255, 255, 0.14);
-  text-align: center;
-}
-
-.menu-hero__stat-num {
-  display: block;
-  font-size: 32rpx;
-  font-weight: $font-weight-bold;
-  color: #fff;
-  line-height: 1.1;
-}
-
-.menu-hero__stat-label {
-  display: block;
-  margin-top: 4rpx;
-  font-size: 18rpx;
-  color: rgba(255, 255, 255, 0.76);
 }
 
 .menu-page__scroll {

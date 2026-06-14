@@ -6,6 +6,7 @@ import cn.rbac.server.common.pojo.PageResult;
 import cn.rbac.server.framework.security.core.service.SecurityUtils;
 import cn.rbac.server.modules.system.api.approval.vo.ApprovalApproveReqVO;
 import cn.rbac.server.modules.system.api.approval.vo.ApprovalArchiveReqVO;
+import cn.rbac.server.modules.system.api.approval.vo.ApprovalApproverOptionVO;
 import cn.rbac.server.modules.system.api.approval.vo.ApprovalCreateReqVO;
 import cn.rbac.server.modules.system.dal.dataobject.approval.ApprovalFormDO;
 import cn.rbac.server.modules.system.dal.dataobject.approval.ApprovalRecordDO;
@@ -96,10 +97,32 @@ public class ApprovalFormServiceImpl implements ApprovalFormService {
     }
 
     @Override
+    public List<ApprovalApproverOptionVO> listApproverOptions(Long currentUserId) {
+        LambdaQueryWrapper<UserDO> wrapper = new LambdaQueryWrapper<UserDO>()
+                .eq(UserDO::getStatus, 1)
+                .select(UserDO::getId, UserDO::getUsername, UserDO::getNickname)
+                .orderByAsc(UserDO::getUsername);
+        if (currentUserId != null && currentUserId > 0) {
+            wrapper.ne(UserDO::getId, currentUserId);
+        }
+        return userMapper.selectList(wrapper).stream().map(user -> {
+            ApprovalApproverOptionVO vo = new ApprovalApproverOptionVO();
+            vo.setId(user.getId());
+            vo.setUsername(user.getUsername());
+            vo.setNickname(user.getNickname());
+            return vo;
+        }).collect(Collectors.toList());
+    }
+
+    @Override
     @Transactional(rollbackFor = Exception.class)
     public Long create(ApprovalCreateReqVO reqVO, Long applicantUserId) {
         if (reqVO.getApproverUserId() == null || reqVO.getApproverUserId() <= 0) {
             throw new BusinessException(400, "请选择审批人");
+        }
+        if (applicantUserId != null && applicantUserId > 0
+                && reqVO.getApproverUserId().equals(applicantUserId)) {
+            throw new BusinessException(400, "不能选择自己作为审批人");
         }
         ApprovalFormDO form = new ApprovalFormDO();
         form.setFormNo(generateFormNo());

@@ -6,16 +6,10 @@
       :src="mediaUrl"
       mode="aspectFill"
     />
-    <view v-else-if="isVideo(file)" class="file-thumb__media-wrap">
-      <video
-        v-if="mediaUrl"
-        class="file-thumb__media file-thumb__media--video"
-        :src="mediaUrl"
-        :show-center-play-btn="false"
-        :controls="false"
-        :muted="true"
-        object-fit="cover"
-      />
+    <view v-else-if="isVideo(file)" class="file-thumb__media-wrap file-thumb__media-wrap--video">
+      <view class="file-thumb__video-bg">
+        <text v-if="extLabel" class="file-thumb__ext file-thumb__ext--on-dark">{{ extLabel }}</text>
+      </view>
       <view class="file-thumb__play">
         <text class="file-thumb__play-icon">▶</text>
       </view>
@@ -41,7 +35,7 @@ const props = defineProps<{
 
 const theme = computed(() => fileIconTheme(props.file))
 const mediaUrl = computed(() => getStreamPreviewUrl(props.file))
-const showMedia = computed(() => isImage(props.file) || isVideo(props.file))
+const showMedia = computed(() => isImage(props.file))
 
 const extLabel = computed(() => {
   const ext = fileSuffix(props.file).replace('.', '').toUpperCase()
@@ -68,7 +62,6 @@ const iconColor = computed(() => {
 </script>
 
 <style lang="scss" scoped>
-@import '@/styles/variables.scss';
 
 .file-thumb {
   flex-shrink: 0;
@@ -83,6 +76,23 @@ const iconColor = computed(() => {
 .file-thumb__media-wrap {
   width: 100%;
   height: 100%;
+}
+
+.file-thumb__media-wrap--video {
+  position: relative;
+}
+
+.file-thumb__video-bg {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #334155 0%, #1e293b 100%);
+}
+
+.file-thumb__ext--on-dark {
+  color: rgba(255, 255, 255, 0.82);
 }
 
 .file-thumb__media-wrap {

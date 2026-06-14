@@ -7,9 +7,11 @@ import {
   resolveBackTarget,
   resolveInferredParent,
   pinNavParent,
+  ensureNavParent,
 } from '@/utils/nav-history'
 import { getFromQueryParent, isPickerRoute } from '@/utils/nav-from'
 import { scheduleSyncH5BackButton } from '@/store/h5-back-button'
+import { dialogState, forceCollapseOverlayHistory } from '@/store/dialog'
 import { shouldSuppressPopstate, suppressPopstate } from '@/utils/nav-transition'
 
 const TAB_PAGES = new Set([
@@ -188,6 +190,7 @@ export function installH5ShallowStackTrapIfNeeded() {
 
   const route = getCurrentRoute()
   if (!route || isAuthRoute(route) || isWhiteRoute(`/${route}`)) return
+  if (isFormChildLeaveRoute(route)) return
 
   const fallback = rememberShallowBackTarget(route)
   if (window.history.state?.wuAdminShallowTrap && window.history.state?.route === route) return
@@ -207,18 +210,21 @@ function clearTrapRoute() {
 }
 
 export function handleGlobalBackPress(): boolean {
-  if (handlingShallowBack) return true
+  if (handlingShallowBack || formLeaveInProgress) return true
   if (!hasToken()) return false
   if (getCurrentPages().length > 1) return false
 
   const route = getCurrentRoute()
   if (!route || isAuthRoute(route)) return false
 
-  handlingShallowBack = true
-  navigateToParent()
   setTimeout(() => {
-    handlingShallowBack = false
-  }, 400)
+    if (handlingShallowBack) return
+    handlingShallowBack = true
+    navigateToParent()
+    setTimeout(() => {
+      handlingShallowBack = false
+    }, 400)
+  }, 0)
   return true
 }
 
@@ -234,7 +240,7 @@ function performShallowBack() {
 }
 
 export function handleShallowStackPopstate() {
-  if (typeof window === 'undefined' || handlingShallowBack) return
+  if (typeof window === 'undefined' || handlingShallowBack || formLeaveInProgress) return
 
   const path = getActiveRoutePath()
   if (hasToken() && path && isAuthRoute(path)) {
@@ -259,18 +265,91 @@ export function handleShallowStackPopstate() {
 
   clearTrapRoute()
   handlingShallowBack = true
-  navigateToParent()
   setTimeout(() => {
-    handlingShallowBack = false
-  }, 400)
+    navigateToParent()
+    setTimeout(() => {
+      handlingShallowBack = false
+    }, 400)
+  }, 0)
 }
 
-export function safeNavigateBack(fallbackUrl?: string) {
+function isFormChildRoute(route: string): boolean {
+  const normalized = route.replace(/^\//, '').split('?')[0]
+  const last = normalized.split('/').pop() || ''
+  return (
+    last === 'create' ||
+    last === 'edit' ||
+    last === 'form' ||
+    last.endsWith('-form')
+  )
+}
+
+/** 新建/编辑表单页：离开时应 redirect 到列表，避免 H5 历史栈残留 */
+export function isFormChildLeaveRoute(route?: string): boolean {
+  return isFormChildRoute(route || getCurrentRoute())
+}
+
+let formLeaveInProgress = false
+
+export function isFormLeaveActive() {
+  return formLeaveInProgress
+}
+
+function prepareFormPageLeave(collapseOverlay = false) {
+  clearTrapRoute()
+  suppressPopstate(1000)
+  dialogState.historyLocked = false
+  if (collapseOverlay) forceCollapseOverlayHistory()
+  formLeaveInProgress = true
+  setTimeout(() => {
+    formLeaveInProgress = false
+  }, 1000)
+}
+
+function formLeaveToParent(fallbackUrl: string, collapseOverlay = false) {
+  prepareFormPageLeave(collapseOverlay)
+  const target = normalizePageUrl(fallbackUrl)
+  const pages = getCurrentPages()
+
+  if (pages.length > 1) {
+    markNativeNavigateBack()
+    uni.navigateBack({
+      delta: 1,
+      complete: () => scheduleSyncH5BackButton(),
+      fail: () =>
+        uni.redirectTo({
+          url: target,
+          complete: () => scheduleSyncH5BackButton(),
+          fail: () => uni.reLaunch({ url: target, complete: () => scheduleSyncH5BackButton() }),
+        }),
+    })
+    return
+  }
+
+  uni.redirectTo({
+    url: target,
+    complete: () => scheduleSyncH5BackButton(),
+    fail: () => uni.reLaunch({ url: target, complete: () => scheduleSyncH5BackButton() }),
+  })
+}
+
+export function safeNavigateBack(fallbackUrl?: string, options?: { collapseOverlay?: boolean }) {
+  const route = getCurrentRoute()
+
+  if (fallbackUrl && isFormChildRoute(route)) {
+    formLeaveToParent(fallbackUrl, options?.collapseOverlay ?? false)
+    return
+  }
+
   const pages = getCurrentPages()
   if (pages.length > 1) {
     uni.navigateBack({
       fail: () => {
-        if (fallbackUrl) navigateToFallback(fallbackUrl)
+        if (fallbackUrl) {
+          navigateToFallback(fallbackUrl)
+        } else {
+          navigateToParent()
+        }
       },
     })
     return
@@ -372,7 +451,13 @@ export function patchNavigateBackFail(args?: { fail?: (err: unknown) => void }) 
   if (!route || !args) return
   const origFail = args.fail
   args.fail = (err: unknown) => {
-    navigateToParent()
+    if (getCurrentPages().length > 1) {
+      const currentUrl = getCurrentPageUrl()
+      ensureNavParent(route, currentUrl)
+      navigateToFallback(resolveBackTarget(route, currentUrl))
+    } else {
+      navigateToParent()
+    }
     origFail?.(err)
   }
 }

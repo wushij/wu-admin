@@ -79,14 +79,14 @@ public class ListExportService {
         String filename = ExportHelper.buildFilename("用户列表", format);
         if (scope == ExportScope.PAGE) {
             PageResult<UserDO> page = userService.page(pageParam(pageNo, pageSize),
-                    null, username, mobile, status, deptId, postId);
+                    null, username, mobile, status, deptId, postId, null);
             ExportHelper.writeOnce(response, format, filename, UserExportRow.class, "用户列表",
                     toUserRows(page.getList()));
             return;
         }
         ExportHelper.writeBatched(response, format, filename, UserExportRow.class, "用户列表",
                 (pn, ps) -> toUserRows(userService.page(pageParam(pn, ps),
-                        null, username, mobile, status, deptId, postId).getList()));
+                        null, username, mobile, status, deptId, postId, null).getList()));
     }
 
     public void exportLoginLogs(HttpServletResponse response, ExportFormat format, ExportScope scope,

@@ -52,7 +52,6 @@ const valueText = computed(() => {
 </script>
 
 <style lang="scss" scoped>
-@import '@/styles/variables.scss';
 
 .metric-bar {
   padding: 20rpx 0;

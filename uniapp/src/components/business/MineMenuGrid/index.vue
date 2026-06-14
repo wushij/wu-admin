@@ -30,8 +30,7 @@ const emit = defineEmits<{ select: [item: MineMenuItem] }>()
 </script>
 
 <style lang="scss" scoped>
-@import '@/styles/variables.scss';
-@import '@/styles/mine.scss';
+@use '@/styles/mine.scss' as *;
 
 .menu-grid {
   display: grid;

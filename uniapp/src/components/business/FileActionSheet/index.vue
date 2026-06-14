@@ -46,7 +46,6 @@ function onDelete() {
 </script>
 
 <style lang="scss" scoped>
-@import '@/styles/variables.scss';
 
 .file-sheet {
   position: fixed;

@@ -184,7 +184,6 @@ onShow(() => {
 </script>
 
 <style lang="scss" scoped>
-@import '@/styles/mixins.scss';
 
 .login-page {
   position: relative;

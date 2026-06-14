@@ -91,7 +91,7 @@ export const topStatCards: TopStatCardConfig[] = [
   },
   {
     key: 'approval-pending',
-    title: '待审批',
+    title: '待我审批',
     valueKey: 'approvalPendingCount',
     icon: Checked,
     iconTheme: 'approval',

@@ -2,7 +2,14 @@
   <PermissionBlock v-if="!allowed" />
   <view v-else class="page-padded page-list">
     <SubPageBackBar />
-    <ModuleHero title="用户管理" :count="total || list.length" subtitle="账号、状态与权限" />
+    <ModuleDarkHero
+      title="用户管理"
+      subtitle="账号、状态与权限"
+      icon="friends-o"
+      theme="user"
+      :count="total || list.length"
+      count-label="用户"
+    />
     <SegmentTabs v-model="statusMode" :tabs="statusTabs" />
     <SearchBar v-model="keyword" placeholder="搜索用户名 / 昵称 / 手机号" @search="onSearch" />
 
@@ -65,7 +72,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { onPullDownRefresh, onShow } from '@dcloudio/uni-app'
 import SubPageBackBar from '@/components/common/SubPageBackBar/index.vue'
-import ModuleHero from '@/components/common/ModuleHero/index.vue'
+import ModuleDarkHero from '@/components/common/ModuleDarkHero/index.vue'
 import SearchBar from '@/components/common/SearchBar/index.vue'
 import ListFooter from '@/components/common/ListFooter/index.vue'
 import ListLoading from '@/components/common/ListLoading/index.vue'
@@ -94,6 +101,7 @@ const statusTabs = [
   { key: 'all', label: '全部' },
   { key: '1', label: '启用' },
   { key: '0', label: '停用' },
+  { key: 'locked', label: '锁定' },
 ]
 
 const { list, loading, refreshing, finished, empty, refresh, loadMore } = usePageList<UserVO>(
@@ -103,7 +111,10 @@ const { list, loading, refreshing, finished, empty, refresh, loadMore } = usePag
       pageNo,
       pageSize,
       keyword: q || undefined,
-      status: statusMode.value === 'all' ? undefined : Number(statusMode.value),
+      status: statusMode.value === 'all' || statusMode.value === 'locked'
+        ? undefined
+        : Number(statusMode.value),
+      loginLocked: statusMode.value === 'locked' ? true : undefined,
     })
     total.value = res.data?.total || 0
     return { list: res.data?.list || [], total: total.value }
@@ -122,7 +133,7 @@ function onSearch() {
   refresh()
 }
 
-watch(statusMode, () => refresh())
+watch(statusMode, () => refresh({ silent: true }))
 
 onMounted(refresh)
 
@@ -146,7 +157,7 @@ onPullDownRefresh(async () => {
 </script>
 
 <style lang="scss" scoped>
-@import '@/styles/common.scss';
+@use '@/styles/common.scss' as *;
 
 .user-row {
   display: flex;

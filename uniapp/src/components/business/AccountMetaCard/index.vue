@@ -32,7 +32,6 @@ withDefaults(
 </script>
 
 <style lang="scss" scoped>
-@import '@/styles/variables.scss';
 
 .account-meta {
   padding: 28rpx 32rpx;

@@ -47,7 +47,6 @@ const gridStyle = computed(() => {
 </script>
 
 <style lang="scss" scoped>
-@import '@/styles/variables.scss';
 
 .entry-panel {
   padding: 0 8rpx 12rpx;

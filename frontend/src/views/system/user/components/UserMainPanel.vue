@@ -8,13 +8,16 @@
         <el-input v-model="queryParams.mobile" placeholder="请输入手机号" clearable />
       </el-form-item>
       <el-form-item label="状态">
-        <DictSelect
-          v-model="queryParams.status"
-          dict-type="sys_normal_disable"
-          value-type="number"
+        <el-select
+          v-model="statusFilter"
           placeholder="请选择状态"
-          width="150px"
-        />
+          clearable
+          style="width: 150px"
+        >
+          <el-option label="启用" value="1" />
+          <el-option label="禁用" value="0" />
+          <el-option label="锁定" value="locked" />
+        </el-select>
       </el-form-item>
       <el-form-item>
         <el-button type="primary" :icon="Search" @click="$emit('query')">搜索</el-button>
@@ -156,6 +159,8 @@ defineProps<{
   loading: boolean
   total: number
 }>()
+
+const statusFilter = defineModel<'' | '1' | '0' | 'locked'>('statusFilter', { default: '' })
 
 defineEmits<{
   query: []

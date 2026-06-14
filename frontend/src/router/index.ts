@@ -93,7 +93,7 @@ const routes: RouteRecordRaw[] = [
         path: 'system/file',
         name: 'SystemFile',
         component: () => import('@/views/system/file/index.vue'),
-        meta: { title: '文件列表', icon: 'Document', permission: 'sys:file:list' }
+        meta: { title: '文件列表', icon: 'DocumentCopy', permission: 'sys:file:list' }
       },
       {
         path: 'system/ticket',
@@ -141,13 +141,13 @@ const routes: RouteRecordRaw[] = [
         path: 'tool/api-doc',
         name: 'ToolApiDoc',
         component: () => import('@/views/tool/api-doc/index.vue'),
-        meta: { title: '接口文档', icon: 'Document', permission: 'tool:apiDoc:view' }
+        meta: { title: '接口文档', icon: 'Connection', permission: 'tool:apiDoc:view' }
       },
       {
         path: 'tool/gen',
         name: 'ToolGen',
         component: () => import('@/views/tool/gen/index.vue'),
-        meta: { title: '代码生成', icon: 'DocumentCopy', permission: 'tool:gen:list' }
+        meta: { title: '代码生成', icon: 'SetUp', permission: 'tool:gen:list' }
       },
       {
         path: 'message/notice',

@@ -237,15 +237,16 @@ import ModulePageIcon from '@/components/ModulePageIcon.vue'
 import { MODULE_PAGE_ICON } from '@/constants/module-page-icons'
 import { ElMessage, ElMessageBox, type FormInstance, type TableInstance } from 'element-plus'
 import { useUserStore } from '@/store/user'
-import { getUserList, type UserVO } from '@/api/system/user'
 import {
   approveApproval,
   archiveApproval,
   createApproval,
   deleteApproval,
   getApproval,
+  getApprovalApproverOptions,
   getApprovalPage,
   getApprovalRecords,
+  type ApprovalApproverOptionVO,
   type ApprovalVO,
   type ApprovalRecordVO,
   type ApprovalCreateDTO,
@@ -267,7 +268,7 @@ const loading = ref(false)
 const tableRef = ref<TableInstance | null>(null)
 const total = ref(0)
 const list = ref<ApprovalVO[]>([])
-const userOptions = ref<UserVO[]>([])
+const userOptions = ref<ApprovalApproverOptionVO[]>([])
 const formVisible = ref(false)
 const approveVisible = ref(false)
 const detailVisible = ref(false)
@@ -354,8 +355,8 @@ const getList = async () => {
 }
 
 const loadUsers = async () => {
-  const res = await getUserList()
-  userOptions.value = (res.data || []).filter(u => u.id !== userStore.userInfo?.userId)
+  const res = await getApprovalApproverOptions()
+  userOptions.value = res.data || []
 }
 
 const handleQuery = () => {

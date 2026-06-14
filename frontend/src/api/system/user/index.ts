@@ -34,6 +34,8 @@ export interface UserPageQuery extends PageQuery {
   status?: number | null
   deptId?: number | null
   postId?: number | null
+  /** 仅筛选登录失败临时锁定的账号（含 IP 锁定） */
+  loginLocked?: boolean
 }
 
 export type UserRecycleQuery = RecyclePageQuery &

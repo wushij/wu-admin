@@ -37,7 +37,6 @@ function select(value: string) {
 </script>
 
 <style lang="scss" scoped>
-@import '@/styles/variables.scss';
 
 .config-radio-group {
   display: flex;

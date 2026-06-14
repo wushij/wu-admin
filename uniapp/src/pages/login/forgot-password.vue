@@ -145,7 +145,6 @@ onMounted(loadConfig)
 </script>
 
 <style lang="scss" scoped>
-@import '@/styles/mixins.scss';
 
 .forgot-page {
   position: relative;

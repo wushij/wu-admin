@@ -43,7 +43,6 @@ function barColor(v: number) {
 </script>
 
 <style lang="scss" scoped>
-@import '@/styles/variables.scss';
 
 .sparkline {
   margin-top: 8rpx;

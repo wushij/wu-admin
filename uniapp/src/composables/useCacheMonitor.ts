@@ -1,6 +1,13 @@
-import { computed, ref } from 'vue'
-import { getCacheInfo, getCacheStats } from '@/api/monitor/cache'
+import { computed, onMounted, ref } from 'vue'
+import { getCacheInfo } from '@/api/monitor/cache'
 import type { CacheInfo, CacheStats } from '@/types/system'
+import {
+  cacheAutoRefresh,
+  cacheChartHistory,
+  fetchCacheStatsPoint,
+  setCacheAutoRefresh,
+  startCacheMonitorBackground,
+} from '@/composables/monitor/cacheMonitorChart'
 
 export const CACHE_MAX_CHART_POINTS = 20
 
@@ -41,20 +48,23 @@ export function formatCacheValue(value: unknown) {
 
 export function useCacheMonitor() {
   const info = ref<CacheInfo | null>(null)
-  const stats = ref<CacheStats | null>(null)
-  const timeLabels = ref<string[]>([])
-  const qpsHistory = ref<number[]>([])
-  const hitRateHistory = ref<(number | null)[]>([])
-  const clientsHistory = ref<number[]>([])
 
-  const liveQps = computed(() => stats.value?.ops ?? info.value?.instantaneousOpsPerSec ?? null)
+  const stats = computed<CacheStats | null>(() => cacheChartHistory.lastMemoryStats)
+  const timeLabels = computed(() => cacheChartHistory.timeLabels)
+  const qpsHistory = computed(() => cacheChartHistory.qpsData)
+  const hitRateHistory = computed(() => cacheChartHistory.hitRateData)
+  const clientsHistory = computed(() => cacheChartHistory.clientsData)
+
+  const liveQps = computed(() => cacheChartHistory.lastLiveQps ?? info.value?.instantaneousOpsPerSec ?? null)
 
   const liveHitRateText = computed(() => {
+    if (cacheChartHistory.lastHitRateText && cacheChartHistory.lastHitRateText !== '-') {
+      return cacheChartHistory.lastHitRateText
+    }
     const rate = stats.value?.cumulativeHitRate
     return rate != null ? `${Math.round(rate * 100)}%` : '—'
   })
 
-  /** 仅 Redis 配置了 maxmemory 时才有意义的比例，与 PC 端饼图逻辑一致 */
   const memoryPercent = computed(() => {
     const s = stats.value
     if (!s?.maxMemoryConfigured || !s.maxMemory || s.maxMemory <= 0) return null
@@ -62,7 +72,6 @@ export function useCacheMonitor() {
     return Math.min(100, (used / s.maxMemory) * 100)
   })
 
-  /** 未配置 maxmemory 时展示绝对占用量，避免相对整机内存算出 0.0% */
   const memoryDisplay = computed(() => {
     if (memoryPercent.value != null) return undefined
     return stats.value?.usedMemoryHuman || '—'
@@ -77,29 +86,22 @@ export function useCacheMonitor() {
     return '未配置 maxmemory，仅展示当前占用'
   })
 
-  function pushStatsPoint(data: CacheStats) {
-    const label = new Date().toLocaleTimeString('zh-CN', {
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-    })
-    timeLabels.value = [...timeLabels.value, label].slice(-CACHE_MAX_CHART_POINTS)
-    qpsHistory.value = [...qpsHistory.value, data.ops ?? 0].slice(-CACHE_MAX_CHART_POINTS)
-    hitRateHistory.value = [
-      ...hitRateHistory.value,
-      data.hitRate != null ? Math.round(data.hitRate * 100) : null,
-    ].slice(-CACHE_MAX_CHART_POINTS)
-    clientsHistory.value = [...clientsHistory.value, data.connectedClients ?? 0].slice(
-      -CACHE_MAX_CHART_POINTS,
-    )
+  async function loadCacheInfo() {
+    try {
+      const res = await getCacheInfo()
+      info.value = res.data || null
+    } catch {
+      /* ignore */
+    }
   }
 
   async function fetchCacheData() {
-    const [infoRes, statsRes] = await Promise.all([getCacheInfo(), getCacheStats()])
-    info.value = infoRes.data || null
-    stats.value = statsRes.data || null
-    if (stats.value) pushStatsPoint(stats.value)
+    await Promise.all([loadCacheInfo(), fetchCacheStatsPoint()])
   }
+
+  onMounted(() => {
+    startCacheMonitorBackground()
+  })
 
   return {
     info,
@@ -114,6 +116,9 @@ export function useCacheMonitor() {
     memoryDisplay,
     memoryHint,
     fetchCacheData,
+    loadCacheInfo,
+    autoRefresh: cacheAutoRefresh,
+    setAutoRefresh: setCacheAutoRefresh,
   }
 }
 

@@ -892,7 +892,7 @@ INSERT INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, c
 (74, '审批单删除', 'system:approval:delete', 3, 5, 9, '', '', '', 1),
 -- 文件管理目录（与系统管理、系统监控同级）
 (105, '文件管理', '', 1, 5, 0, '/file', 'Folder', '', 1),
-(110, '文件列表', 'sys:file:list', 2, 1, 105, '/system/file', 'Document', 'system/file/index', 1),
+(110, '文件列表', 'sys:file:list', 2, 1, 105, '/system/file', 'DocumentCopy', 'system/file/index', 1),
 (111, '文件查询', 'sys:file:query', 3, 1, 110, '', '', '', 1),
 (112, '文件上传', 'sys:file:upload', 3, 2, 110, '', '', '', 1),
 (113, '文件删除', 'sys:file:delete', 3, 3, 110, '', '', '', 1),
@@ -925,8 +925,8 @@ INSERT INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, c
 (6, '登录日志', 'system:loginLog:list', 2, 2, 120, '/system/login-log', 'Promotion', 'system/login-log/index', 1),
 -- 开发工具
 (150, '开发工具', '', 1, 8, 0, '/tool', 'Tools', '', 1),
-(151, '接口文档', 'tool:apiDoc:view', 2, 1, 150, '/tool/api-doc', 'Document', '/doc.html', 1),
-(164, '代码生成', 'tool:gen:list', 2, 2, 150, '/tool/gen', 'DocumentCopy', 'tool/gen/index', 1),
+(151, '接口文档', 'tool:apiDoc:view', 2, 1, 150, '/tool/api-doc', 'Connection', '/doc.html', 1),
+(164, '代码生成', 'tool:gen:list', 2, 2, 150, '/tool/gen', 'SetUp', 'tool/gen/index', 1),
 (165, '代码生成查询', 'tool:gen:query', 3, 1, 164, '', '', '', 1),
 (166, '代码生成导入', 'tool:gen:import', 3, 2, 164, '', '', '', 1),
 (167, '代码生成修改', 'tool:gen:edit', 3, 3, 164, '', '', '', 1),
@@ -1082,7 +1082,7 @@ INSERT IGNORE INTO sys_role_menu (role_id, menu_id) VALUES
 
 -- [附录·菜单] 代码生成 164-169,179（开发工具下；179 避开消息中心 170）
 INSERT IGNORE INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, component, status) VALUES
-(164, '代码生成', 'tool:gen:list', 2, 2, 150, '/tool/gen', 'DocumentCopy', 'tool/gen/index', 1),
+(164, '代码生成', 'tool:gen:list', 2, 2, 150, '/tool/gen', 'SetUp', 'tool/gen/index', 1),
 (165, '代码生成查询', 'tool:gen:query', 3, 1, 164, '', '', '', 1),
 (166, '代码生成导入', 'tool:gen:import', 3, 2, 164, '', '', '', 1),
 (167, '代码生成修改', 'tool:gen:edit', 3, 3, 164, '', '', '', 1),
@@ -1275,9 +1275,12 @@ CALL sp_add_unique_index_if_not_exists('gen_table', 'uk_gen_table_name_deleted',
 DROP PROCEDURE IF EXISTS sp_drop_index_if_exists;
 DROP PROCEDURE IF EXISTS sp_add_unique_index_if_not_exists;
 
--- [附录·菜单] 图标修正
+-- [附录·菜单] 图标修正（增量见 add19.sql；生产见 add19_wuadmin.sql）
 UPDATE sys_menu SET icon = 'UserFilled' WHERE id = 3 AND icon IN ('Key', 'key');
-UPDATE sys_menu SET icon = 'Document' WHERE id = 151 AND icon IS NOT NULL AND icon <> 'Document';
+UPDATE sys_menu SET icon = 'DocumentCopy' WHERE id = 110;
+UPDATE sys_menu SET icon = 'Tickets' WHERE id = 7;
+UPDATE sys_menu SET icon = 'Connection' WHERE id = 151;
+UPDATE sys_menu SET icon = 'SetUp' WHERE id = 164;
 
 -- [附录·菜单] 操作日志「查询」按钮 126
 INSERT IGNORE INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, component, status) VALUES
@@ -1649,7 +1652,7 @@ BEGIN
         (182, '任务新增', 'monitor:job:add', 3, 2, 180, '', '', '', 1),
         (183, '任务编辑', 'monitor:job:edit', 3, 3, 180, '', '', '', 1),
         (184, '任务删除', 'monitor:job:delete', 3, 4, 180, '', '', '', 1),
-        (164, '代码生成', 'tool:gen:list', 2, 2, 150, '/tool/gen', 'DocumentCopy', 'tool/gen/index', 1),
+        (164, '代码生成', 'tool:gen:list', 2, 2, 150, '/tool/gen', 'SetUp', 'tool/gen/index', 1),
         (165, '代码生成查询', 'tool:gen:query', 3, 1, 164, '', '', '', 1),
         (166, '代码生成导入', 'tool:gen:import', 3, 2, 164, '', '', '', 1),
         (167, '代码生成修改', 'tool:gen:edit', 3, 3, 164, '', '', '', 1),

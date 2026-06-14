@@ -1,7 +1,14 @@
 <template>
   <PermissionBlock v-if="!allowed" />
   <view v-else class="page-padded page-list">
-    <ModuleHero title="工单管理" :count="total || list.length" subtitle="跟踪处理进度" />
+    <ModuleDarkHero
+      title="工单管理"
+      subtitle="跟踪处理进度"
+      icon="records-o"
+      theme="ticket"
+      :count="total || list.length"
+      count-label="工单"
+    />
     <SegmentTabs v-model="statusMode" :tabs="statusTabs" scroll compact />
     <SearchBar v-model="keyword" placeholder="搜索工单标题" @search="onSearch" />
 
@@ -38,7 +45,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { onPullDownRefresh } from '@dcloudio/uni-app'
-import ModuleHero from '@/components/common/ModuleHero/index.vue'
+import ModuleDarkHero from '@/components/common/ModuleDarkHero/index.vue'
 import SearchBar from '@/components/common/SearchBar/index.vue'
 import ListFooter from '@/components/common/ListFooter/index.vue'
 import ListLoading from '@/components/common/ListLoading/index.vue'
@@ -118,8 +125,7 @@ onPullDownRefresh(async () => {
 </script>
 
 <style lang="scss" scoped>
-@import '@/styles/variables.scss';
-@import '@/styles/common.scss';
+@use '@/styles/common.scss' as *;
 
 .list-card__sub--danger {
   color: $color-danger;

@@ -174,7 +174,6 @@ onMounted(async () => {
 </script>
 
 <style lang="scss" scoped>
-@import '@/styles/mixins.scss';
 
 .register-page {
   position: relative;

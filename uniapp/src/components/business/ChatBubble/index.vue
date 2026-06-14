@@ -129,7 +129,6 @@ function onBubbleClick() {
 </script>
 
 <style lang="scss" scoped>
-@import '@/styles/variables.scss';
 
 /* 对齐 PC：DOM 顺序始终 [头像][气泡]，自己消息 row-reverse + margin-left:auto */
 .chat-bubble-row {

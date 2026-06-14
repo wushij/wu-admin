@@ -1,7 +1,14 @@
 <template>
   <PermissionBlock v-if="!allowed" />
   <view v-else class="page-padded page-list">
-    <ModuleHero title="审批中心" :count="total || list.length" subtitle="流程审批与归档" />
+    <ModuleDarkHero
+      title="审批中心"
+      subtitle="流程审批与归档"
+      icon="completed"
+      theme="approval"
+      :count="total || list.length"
+      count-label="审批"
+    />
     <SegmentTabs v-model="statusMode" :tabs="statusTabs" scroll />
     <SearchBar v-model="keyword" placeholder="搜索审批标题" @search="onSearch" />
 
@@ -32,8 +39,8 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
-import { onPullDownRefresh } from '@dcloudio/uni-app'
-import ModuleHero from '@/components/common/ModuleHero/index.vue'
+import { onPullDownRefresh, onShow } from '@dcloudio/uni-app'
+import ModuleDarkHero from '@/components/common/ModuleDarkHero/index.vue'
 import SearchBar from '@/components/common/SearchBar/index.vue'
 import ListFooter from '@/components/common/ListFooter/index.vue'
 import ListLoading from '@/components/common/ListLoading/index.vue'
@@ -66,7 +73,7 @@ const statusTabs = [
   { key: 'ARCHIVED', label: '已归档' },
 ]
 
-const { list, loading, finished, empty, refresh, loadMore } = usePageList<ApprovalVO>(
+const { list, loading, finished, empty, refresh, loadMore, refreshing } = usePageList<ApprovalVO>(
   async (pageNo, pageSize) => {
     const res = await getApprovalPage({
       pageNo,
@@ -101,6 +108,16 @@ function onSearch() {
 
 watch(statusMode, () => refresh())
 
+const skipNextShowRefresh = ref(true)
+onShow(async () => {
+  if (skipNextShowRefresh.value) {
+    skipNextShowRefresh.value = false
+    return
+  }
+  if (loading.value || refreshing.value) return
+  await refresh({ silent: true })
+})
+
 onMounted(() => {
   preloadDicts([DICT_TYPE.APPROVAL_STATUS, DICT_TYPE.APPROVAL_FORM_TYPE])
   refresh()
@@ -113,5 +130,5 @@ onPullDownRefresh(async () => {
 </script>
 
 <style lang="scss" scoped>
-@import '@/styles/common.scss';
+@use '@/styles/common.scss' as *;
 </style>

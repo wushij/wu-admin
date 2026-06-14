@@ -71,6 +71,21 @@ class ApprovalFormServiceImplTest extends MybatisLambdaTestBase {
     }
 
     @Test
+    @DisplayName("create：不能选择自己作为审批人")
+    void create_selfApproverForbidden() {
+        ApprovalCreateReqVO req = new ApprovalCreateReqVO();
+        req.setTitle("请假");
+        req.setApproverUserId(10L);
+
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> approvalFormService.create(req, 10L));
+
+        assertEquals(400, ex.getCode());
+        assertTrue(ex.getMessage().contains("不能选择自己"));
+        verify(approvalFormMapper, never()).insert(any(ApprovalFormDO.class));
+    }
+
+    @Test
     @DisplayName("approve：非审批人且无特权时拒绝")
     void approve_forbiddenForOthers() {
         ApprovalFormDO form = ServiceTestFixtures.generalApprovalForm(1L, 10L, 99L, "SUBMITTED");

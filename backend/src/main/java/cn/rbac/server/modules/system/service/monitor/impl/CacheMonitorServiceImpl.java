@@ -7,7 +7,9 @@ import cn.rbac.server.modules.system.api.monitor.vo.CacheKeysVO;
 import cn.rbac.server.modules.system.api.monitor.vo.CacheStatsVO;
 import cn.rbac.server.modules.system.api.monitor.vo.CacheValueVO;
 import cn.rbac.server.modules.system.service.monitor.CacheMonitorService;
+import cn.rbac.server.modules.system.service.monitor.support.RedisMonitorValueCodec;
 import jakarta.annotation.Resource;
+import org.redisson.api.RedissonClient;
 import org.springframework.data.redis.connection.DataType;
 import org.springframework.data.redis.core.Cursor;
 import org.springframework.data.redis.core.RedisCallback;
@@ -45,6 +47,8 @@ public class CacheMonitorServiceImpl implements CacheMonitorService {
 
     @Resource
     private StringRedisTemplate stringRedisTemplate;
+    @Resource
+    private RedissonClient redissonClient;
 
     @Override
     public CacheStatsVO getStats() {
@@ -249,14 +253,7 @@ public class CacheMonitorServiceImpl implements CacheMonitorService {
 
     private Object readValueByType(String key, String type) {
         String cacheKey = Objects.requireNonNull(key);
-        return switch (type) {
-            case "string" -> stringRedisTemplate.opsForValue().get(cacheKey);
-            case "list" -> stringRedisTemplate.opsForList().range(cacheKey, 0, -1);
-            case "set" -> stringRedisTemplate.opsForSet().members(cacheKey);
-            case "zset" -> stringRedisTemplate.opsForZSet().range(cacheKey, 0, -1);
-            case "hash" -> stringRedisTemplate.opsForHash().entries(cacheKey);
-            default -> null;
-        };
+        return RedisMonitorValueCodec.readValue(stringRedisTemplate, redissonClient, cacheKey, type);
     }
 
     private Properties redisInfo() {

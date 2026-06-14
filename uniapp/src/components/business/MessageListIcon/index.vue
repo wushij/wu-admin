@@ -14,7 +14,7 @@ const props = defineProps<{
 
 const resolvedTheme = computed(() => {
   if (props.theme === 'chat') return 'cyan'
-  if (props.theme === 'notice') return 'rose'
+  if (props.theme === 'notice' || props.theme === 'announce') return 'notice'
   return props.theme
 })
 </script>

@@ -7,5 +7,5 @@
 <script setup lang="ts"></script>
 
 <style lang="scss" scoped>
-@import '@/styles/common.scss';
+@use '@/styles/common.scss' as *;
 </style>

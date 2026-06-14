@@ -25,7 +25,6 @@ const emit = defineEmits<{ click: [] }>()
 </script>
 
 <style lang="scss" scoped>
-@import '@/styles/variables.scss';
 
 .data-card {
   display: flex;

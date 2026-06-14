@@ -174,7 +174,7 @@ export const mobileQuickEntries: QuickEntry[] = [
     name: '操作日志',
     desc: '行为审计',
     permission: 'system:operLog:list',
-    icon: 'records-o',
+    icon: 'edit',
     theme: 'log',
     path: '/pages-sub/log/oper-log',
   },

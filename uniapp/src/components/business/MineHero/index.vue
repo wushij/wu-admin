@@ -118,7 +118,6 @@ watch(avatarSrc, (url) => preloadAvatar(url), { immediate: true })
 </script>
 
 <style lang="scss" scoped>
-@import '@/styles/variables.scss';
 
 .mine-hero {
   margin-bottom: $section-gap;

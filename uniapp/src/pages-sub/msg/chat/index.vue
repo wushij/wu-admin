@@ -108,7 +108,6 @@ onPullDownRefresh(async () => {
 </script>
 
 <style lang="scss" scoped>
-@import '@/styles/variables.scss';
 
 .chat-page__head {
   margin-bottom: 20rpx;

@@ -1,7 +1,14 @@
 <template>
   <PermissionBlock v-if="!allowed" />
   <view v-else class="page-padded page-list">
-    <ModuleHero theme="online" title="在线用户" :count="filteredList.length" subtitle="会话管理与强退" />
+    <ModuleDarkHero
+      title="在线用户"
+      subtitle="会话管理与强退"
+      icon="manager-o"
+      theme="online"
+      :count="filteredList.length"
+      count-label="在线"
+    />
     <SearchBar v-model="keyword" placeholder="搜索昵称 / 账号 / IP" @search="() => {}" />
 
     <ListLoading v-if="loading && !list.length" />
@@ -44,7 +51,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { onPullDownRefresh } from '@dcloudio/uni-app'
-import ModuleHero from '@/components/common/ModuleHero/index.vue'
+import ModuleDarkHero from '@/components/common/ModuleDarkHero/index.vue'
 import SearchBar from '@/components/common/SearchBar/index.vue'
 import ListCard from '@/components/common/ListCard/index.vue'
 import ListLoading from '@/components/common/ListLoading/index.vue'
@@ -115,8 +122,7 @@ onPullDownRefresh(async () => {
 </script>
 
 <style lang="scss" scoped>
-@import '@/styles/variables.scss';
-@import '@/styles/common.scss';
+@use '@/styles/common.scss' as *;
 
 .page-list__scroll {
   height: calc(100vh - 280rpx);

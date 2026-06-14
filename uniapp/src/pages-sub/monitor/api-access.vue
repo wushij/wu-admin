@@ -1,14 +1,14 @@
 <template>
   <PermissionBlock v-if="!allowed" />
   <view v-else class="page-padded page-list api-page">
-    <ModuleHero theme="api" title="API 访问统计" subtitle="近 7 日接口访问概览与日志明细">
-      <template #extra>
-        <view class="api-hero-extra">
-          <text class="api-hero-extra__num">{{ stats.totalCount }}</text>
-          <text class="api-hero-extra__label">请求总数</text>
-        </view>
-      </template>
-    </ModuleHero>
+    <ModuleDarkHero
+      title="API 访问统计"
+      subtitle="近 7 日接口访问概览与日志明细"
+      icon="chart-trending-o"
+      theme="api"
+      :count="stats.totalCount"
+      count-label="请求"
+    />
 
     <MonitorToolbar
       :loading="refreshing"
@@ -238,7 +238,7 @@
 <script setup lang="ts">
 import { computed, ref, watch, onMounted } from 'vue'
 import { onPullDownRefresh } from '@dcloudio/uni-app'
-import ModuleHero from '@/components/common/ModuleHero/index.vue'
+import ModuleDarkHero from '@/components/common/ModuleDarkHero/index.vue'
 import MonitorToolbar from '@/components/common/MonitorToolbar/index.vue'
 import MonitorPanel from '@/components/common/MonitorPanel/index.vue'
 import MonitorLineChart from '@/components/common/MonitorLineChart/index.vue'
@@ -435,8 +435,7 @@ onPullDownRefresh(async () => {
 </script>
 
 <style lang="scss" scoped>
-@import '@/styles/variables.scss';
-@import '@/styles/common.scss';
+@use '@/styles/common.scss' as *;
 
 .api-page {
   display: flex;
@@ -466,25 +465,6 @@ onPullDownRefresh(async () => {
 
 .api-kpi :deep(.stat-grid__item) {
   padding: 28rpx 24rpx;
-}
-
-.api-hero-extra {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 4rpx;
-}
-
-.api-hero-extra__num {
-  font-size: 40rpx;
-  font-weight: $font-weight-bold;
-  color: #fff;
-  line-height: 1.1;
-}
-
-.api-hero-extra__label {
-  font-size: 22rpx;
-  color: rgba(255, 255, 255, 0.88);
 }
 
 .api-tag {

@@ -22,6 +22,7 @@
       </aside>
       <section class="user-layout__main">
         <UserMainPanel
+          v-model:status-filter="statusFilter"
           :query-params="queryParams"
           :user-list="userList"
           :loading="loading"
@@ -97,6 +98,7 @@ const {
   deptSelectOptions,
   postOptions,
   queryParams,
+  statusFilter,
   form,
   resetPwdForm,
   rules,

@@ -11,7 +11,7 @@
           <text class="section-head__title">最近使用</text>
         </view>
       </view>
-      <QuickEntryGrid :items="recentItems" show-desc @select="onEntryTap" />
+      <QuickEntryGrid :items="recentItems" @select="onEntryTap" />
     </view>
 
     <view v-for="group in visibleGroups" :key="group.title" class="section-block">
@@ -113,7 +113,6 @@ function onSearch() {
 </script>
 
 <style lang="scss" scoped>
-@import '@/styles/variables.scss';
 
 .work-top :deep(.search-bar) {
   margin-bottom: $card-gap;
