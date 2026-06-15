@@ -100,7 +100,6 @@ public class ApiAccessLogServiceImpl extends ServiceImpl<ApiAccessLogMapper, Api
         return PageResult.of(result.getRecords(), result.getTotal());
     }
 
-    @SuppressWarnings("deprecation")
     private void fillUsername(List<ApiAccessLogDO> records) {
         if (records == null || records.isEmpty()) {
             return;
@@ -197,7 +196,6 @@ public class ApiAccessLogServiceImpl extends ServiceImpl<ApiAccessLogMapper, Api
         return result;
     }
 
-    @SuppressWarnings("deprecation")
     private List<ApiAccessUserRankVO> buildTopUsers(Map<Long, Long> userCount, int limit) {
         if (userCount.isEmpty()) {
             return Collections.emptyList();

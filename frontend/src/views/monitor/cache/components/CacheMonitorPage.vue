@@ -1,15 +1,15 @@
 <template>
   <div class="app-container module-page cache-monitor-page">
     <el-alert
-      v-if="!canList"
+      v-if="!canQuery"
       type="warning"
-      title="当前角色未分配「缓存监控」权限，无法查看 Redis 状态。"
+      title="当前角色未分配「缓存查询」权限，无法查看 Redis 状态。"
       :closable="false"
       show-icon
       class="no-perm-alert"
     />
 
-    <template v-if="canList">
+    <template v-if="canQuery">
       <el-card class="search-card module-hero-card" shadow="never">
         <div class="module-hero-row">
           <div class="module-hero-text">
@@ -224,13 +224,19 @@
 </template>
 
 <script setup lang="ts">
+import { ref } from 'vue'
 import { Loading, Search } from '@element-plus/icons-vue'
 import ModulePageIcon from '@/components/ModulePageIcon.vue'
 import { MODULE_PAGE_ICON } from '@/constants/module-page-icons'
 import { useCacheMonitorPage } from '../composables/useCacheMonitorPage'
 
+const memoryChartRef = ref<HTMLElement | null>(null)
+const qpsChartRef = ref<HTMLElement | null>(null)
+const hitRateChartRef = ref<HTMLElement | null>(null)
+const clientsChartRef = ref<HTMLElement | null>(null)
+
 const {
-  canList,
+  canQuery,
   canDelete,
   info,
   keysLoading,
@@ -245,10 +251,6 @@ const {
   patternPresets,
   detailVisible,
   cacheDetail,
-  memoryChartRef,
-  qpsChartRef,
-  hitRateChartRef,
-  clientsChartRef,
   pagedKeys,
   pagination,
   filteredKeys,
@@ -262,7 +264,12 @@ const {
   formatTTL,
   formatValue,
   toggleAutoRefresh,
-} = useCacheMonitorPage()
+} = useCacheMonitorPage({
+  memoryChartRef,
+  qpsChartRef,
+  hitRateChartRef,
+  clientsChartRef,
+})
 </script>
 
 <style scoped lang="scss">

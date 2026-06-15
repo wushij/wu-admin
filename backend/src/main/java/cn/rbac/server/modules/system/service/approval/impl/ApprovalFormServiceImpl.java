@@ -11,6 +11,7 @@ import cn.rbac.server.modules.system.api.approval.vo.ApprovalCreateReqVO;
 import cn.rbac.server.modules.system.dal.dataobject.approval.ApprovalFormDO;
 import cn.rbac.server.modules.system.dal.dataobject.approval.ApprovalRecordDO;
 import cn.rbac.server.modules.system.dal.dataobject.notice.NoticeDO;
+import cn.rbac.server.common.util.UserDisplayNames;
 import cn.rbac.server.modules.system.dal.dataobject.user.UserDO;
 import cn.rbac.server.modules.system.dal.mysql.approval.ApprovalFormMapper;
 import cn.rbac.server.modules.system.dal.mysql.approval.ApprovalRecordMapper;
@@ -298,7 +299,7 @@ public class ApprovalFormServiceImpl implements ApprovalFormService {
         }
         List<UserDO> users = userMapper.selectByIds(userIds);
         Map<Long, String> userMap = (users != null ? users : Collections.<UserDO>emptyList()).stream()
-                .collect(Collectors.toMap(UserDO::getId, UserDO::getUsername, (a, b) -> a));
+                .collect(Collectors.toMap(UserDO::getId, UserDisplayNames::of, (a, b) -> a));
         forms.forEach(form -> {
             form.setApplicantName(resolveApplicantName(form, userMap));
             form.setApproverName(userMap.getOrDefault(form.getApproverUserId(), "-"));
@@ -352,7 +353,7 @@ public class ApprovalFormServiceImpl implements ApprovalFormService {
         }
         List<UserDO> users = userMapper.selectByIds(userIds);
         Map<Long, String> userMap = (users != null ? users : Collections.<UserDO>emptyList()).stream()
-                .collect(Collectors.toMap(UserDO::getId, UserDO::getUsername, (a, b) -> a));
+                .collect(Collectors.toMap(UserDO::getId, UserDisplayNames::of, (a, b) -> a));
         records.forEach(record -> record.setOperatorName(userMap.getOrDefault(record.getOperatorUserId(), "-")));
     }
 }

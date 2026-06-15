@@ -4,7 +4,12 @@ import { isApiSuccessCode } from '@/utils/api-response'
 import { getToken, removeToken } from '@/utils/auth'
 import { isWhiteRoute } from '@/config/route'
 import { REQUEST_TIMEOUT } from '@/config/request'
-import { extractApiErrorMessage, markErrorToastShown, showGlobalErrorToast } from '@/plugins/global-error-handler'
+import {
+  extractApiErrorMessage,
+  isBenignRequestError,
+  markErrorToastShown,
+  showGlobalErrorToast,
+} from '@/plugins/global-error-handler'
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api'
 
@@ -105,6 +110,9 @@ http.interceptors.response.use(
     return Promise.reject(err)
   }) as unknown as Parameters<typeof http.interceptors.response.use>[0],
   (error: { data?: ApiResult; statusCode?: number; errMsg?: string }) => {
+    if (isBenignRequestError(error)) {
+      return Promise.reject(error)
+    }
     const msg = extractApiErrorMessage(error, '网络异常')
     showGlobalErrorToast(msg)
     const err = new Error(msg)

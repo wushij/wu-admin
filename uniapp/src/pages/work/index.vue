@@ -34,12 +34,14 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
 import PageTabShell from '@/components/common/PageTabShell/index.vue'
 import SearchBar from '@/components/common/SearchBar/index.vue'
 import QuickEntryGrid from '@/components/common/QuickEntryGrid/index.vue'
 import EmptyState from '@/components/common/EmptyState/index.vue'
 import { usePermission } from '@/composables/usePermission'
 import { useTabBarPage } from '@/composables/useTabBarPage'
+import { useUserStore } from '@/store/user'
 import {
   mobileQuickEntries,
   quickEntryGroups,
@@ -52,10 +54,11 @@ const MAX_RECENT = 4
 
 useTabBarPage(1)
 
-const { filterByPerm } = usePermission()
+const userStore = useUserStore()
+const { filterByEnabledMenu } = usePermission()
 const keyword = ref('')
 const recentKeys = ref<string[]>(loadRecentKeys())
-const entries = computed(() => filterByPerm(mobileQuickEntries))
+const entries = computed(() => filterByEnabledMenu(mobileQuickEntries))
 
 const filteredEntries = computed(() => {
   const q = keyword.value.trim().toLowerCase()
@@ -110,6 +113,12 @@ function onEntryTap(item: QuickEntry) {
 function onSearch() {
   /* computed 过滤 */
 }
+
+onShow(() => {
+  if (userStore.isLoggedIn) {
+    userStore.refreshUserStore().catch(() => {})
+  }
+})
 </script>
 
 <style lang="scss" scoped>

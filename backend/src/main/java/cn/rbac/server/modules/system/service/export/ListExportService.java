@@ -11,6 +11,7 @@ import cn.rbac.server.modules.system.dal.dataobject.loginlog.LoginLogDO;
 import cn.rbac.server.modules.system.dal.dataobject.monitor.ApiAccessLogDO;
 import cn.rbac.server.modules.system.dal.dataobject.operlog.OperLogDO;
 import cn.rbac.server.modules.system.dal.dataobject.permission.RoleDO;
+import cn.rbac.server.common.util.UserDisplayNames;
 import cn.rbac.server.modules.system.dal.dataobject.ticket.TicketDO;
 import cn.rbac.server.modules.system.dal.dataobject.user.UserDO;
 import cn.rbac.server.modules.system.api.monitor.vo.OnlineUserVO;
@@ -229,7 +230,7 @@ public class ListExportService {
         Map<Long, String> userMap = new HashMap<>();
         for (UserDO user : userMapper.selectByIds(userIds)) {
             if (user != null) {
-                userMap.put(user.getId(), user.getUsername());
+                userMap.put(user.getId(), UserDisplayNames.of(user));
             }
         }
         forms.forEach(form -> {

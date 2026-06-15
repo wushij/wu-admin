@@ -62,13 +62,16 @@
 | **定时任务日志** | `sys_job_log` 增加 `duration_ms`；调度日志支持软删并在回收中心恢复；本地 `add16.sql` + `add17.sql`，生产合并至 **`add15_wuadmin.sql`** |
 | **移动端企业 IM** | 微信式聊天输入：**☺ / ⌨** 表情与键盘切换；底部输入栏 `fixed` + H5 `visualViewport` 键盘高度适配；**发送后保持键盘**不收回；表情面板 **「最近」** Tab（`uni.storage` 本地记录）；加号直选文件/图片；图片消息按比例缩略图；发送后自动滚至最新消息 |
 | **用户管理 · 登录锁定** | PC / 移动端用户列表与详情展示 **登录锁定** 标签；管理员可 **解除登录锁定**（`PUT /api/system/user/unlock-login`），同时清除账号与**该用户最近登录 IP** 的 Redis 锁定 |
-| **生产性能与并发** | 后端 Async/Druid/批量与 WS afterCommit、API 日志加速；Nginx 文件直出 + gzip/静态缓存；H5 聊天图压缩；并发优化第一批（touchLastAccess 节流、工作台在线人数、监控 in-flight）；详见 [生产性能与并发优化](#生产性能与并发优化202606) |
+| **生产性能与并发** | 后端 Async/Druid/批量与 WS afterCommit、API 日志加速；Nginx 文件直出 + gzip/静态缓存；H5 聊天图压缩；并发优化第一批（touchLastAccess 节流、工作台在线人数、监控 in-flight）；**第二批**：监控权限/query 拆分、普通用户离页停采样、API 访问统计 SQL 修复；详见 [生产性能与并发优化](#生产性能与并发优化202606) |
+| **监控权限与采样** | 缓存/服务监控补齐 **查询** 按钮权限（`add20`）；管理员登录后全局轮询，普通用户**进页采样、离页停止**（PC + uni-app） |
+| **API 访问统计** | 修复统计接口 500：`sys_api_access_log` 无 `deleted` 字段，聚合 SQL 已去掉误写的 `deleted = 0` |
 
 ```bash
 # 本地增量（按已执行版本补跑）
 mysql -u root -p wu-admin < sql/add15.sql
 mysql -u root -p wu-admin < sql/add16.sql
 mysql -u root -p wu-admin < sql/add17.sql
+mysql -u root -p wu-admin < sql/add20.sql   # 缓存/服务监控「查询」权限
 
 # 移动端 H5
 cd uniapp && npm install && npm run dev:h5
@@ -104,7 +107,7 @@ cd uniapp && npm install && npm run dev:h5
 | **工单全员通知 batch** | `TicketServiceImpl` + `NoticeMapper.insertBatch` | 批量写入通知 |
 | **群消息/私聊 WS 事务外** | `ChatService.runAfterCommit` | 发消息、撤回不再拖长事务 |
 | **群公告 WS 事务外** | `ChatService.updateGroup` | `pushGroupAnnouncement` 改为 `afterCommit`（**并发优化第一批**） |
-| **API 日志落库** | `ApiAccessLogFlushTask`、`ApiAccessLogServiceImpl` | 10s flush、单批 1000；统计改 SQL 聚合 |
+| **API 日志落库** | `ApiAccessLogFlushTask`、`ApiAccessLogServiceImpl`、`ApiAccessLogMapper` | 10s flush、单批 1000；统计改 SQL 聚合（**无** `deleted` 条件，`sys_api_access_log` 表不做逻辑删除） |
 | **Dashboard 配置读取** | `SystemConfigHelper.fillDashboardConfigFields` | 按组合并读配置 |
 | **在线心跳节流** | `OnlineUserServiceImpl.touchLastAccess` | 同一用户 **45s** 内只写一次 Redis（**第一批**） |
 | **工作台在线人数** | `DashboardServiceImpl` + `countOnlineUsers()` | 只数 userId，不构建完整 `OnlineUserVO` 列表（**第一批**） |
@@ -117,7 +120,7 @@ cd uniapp && npm install && npm run dev:h5
 | **PC gzip 预压缩** | `vite-plugin-compression`（>10KB 产出 `.gz`）；Nginx 配 `gzip_static on` |
 | **监控 in-flight guard** | `cacheMonitorChart.ts`、`serverMonitorChart.ts`（PC + uni-app）；上次请求未完成则跳过本次，避免堆叠（**第一批**） |
 | **H5 聊天图** | 上传前压缩（≤1280px）、乐观预览（`uniapp`） |
-| **监控采样策略** | **保留**：登录后全局后台轮询（缓存 3s、服务 5s）；标签隐藏时暂停；**不**改为仅进监控页才采样 |
+| **监控采样策略** | 角色分级：超级管理员（`admin` / `super_admin`）登录后全局后台轮询（缓存 3s、服务 5s）；普通用户**仅进入监控页**启动采样，**离开页面**（`onUnmounted` / 子包卸载）停止；标签隐藏时暂停 |
 
 #### Nginx 模板（`docs/根域名配置文件.txt`、`docs/移动端子域名配置文件.txt`）
 
@@ -153,6 +156,14 @@ cd uniapp && npm install && npm run dev:h5
 | `touchLastAccess` 45s 节流 | 每个已登录 API 写 Redis 次数大幅减少 |
 | `countOnlineUsers()` | 工作台不再为计数构建完整在线用户 VO |
 | 监控 fetch in-flight | 3s/5s 轮询不会叠多个未完成请求 |
+
+### 并发优化 · 第二批（2026.06 末）
+
+| 改动 | 与改前差异 |
+|------|------------|
+| **缓存/服务监控权限** | 补齐 `monitor:cache:query`、`monitor:server:query` 按钮权限，与操作日志、API 访问统计一致；菜单 `*:list` 控制侧栏，查询/删除独立分配；增量 **`add20.sql`** / **`add20_wuadmin.sql`** |
+| **普通用户离页停采样** | 非 admin 进入 `/monitor/cache`、`/monitor/server` 才轮询，离开页面立即停止，避免切走后仍打 Redis INFO / JMX |
+| **API 访问统计 500** | `GET /api/monitor/api-access/statistics` 聚合 SQL 误带 `deleted = 0`（表无该列）导致 MySQL 报错；已从 `ApiAccessLogMapper` 移除 |
 
 后端 `mvn test`、前端 `npm run typecheck` 已通过；**部署新 jar / dist 后线上才生效**。
 
@@ -386,31 +397,32 @@ mysql -u wuadmin -p wuadmin < sql/add11_wuadmin.sql
 
 ### 系统监控 · 缓存/服务监控（2026.06）
 
-新增 **缓存监控**（Redis）与 **服务监控**（本机 JMX），前后端与菜单增量见 `sql/add7.sql`、`add8.sql`；生产合并脚本 **`sql/add6_7_wuadmin.sql`**（含流程中心 rename + 缓存 + 服务监控）。
+新增 **缓存监控**（Redis）与 **服务监控**（本机 JMX），前后端与菜单增量见 `sql/add7.sql`、`add8.sql`；生产合并脚本 **`sql/add6_7_wuadmin.sql`**（含流程中心 rename + 缓存 + 服务监控）。**查询权限**对齐见 **`sql/add20.sql`** / **`add20_wuadmin.sql`**（全量脚本 `admin_platform.sql`、`admin_platform_mysql56.sql` 已含菜单 188/189）。
 
 #### 能力一览
 
 | 页面 | 路由 | 权限 | 说明 |
 |------|------|------|------|
-| 缓存监控 | `/monitor/cache` | `monitor:cache:list` / `monitor:cache:delete` | Redis 概览、内存/QPS/命中率/连接数四宫格图表、SCAN 键列表与详情/删除 |
-| 服务监控 | `/monitor/server` | `monitor:server:list` | CPU/物理内存/JVM/磁盘、CPU 与 JVM 堆折线趋势 |
+| 缓存监控 | `/monitor/cache` | `monitor:cache:list`（菜单）/ `monitor:cache:query`（查询）/ `monitor:cache:delete`（删键） | Redis 概览、内存/QPS/命中率/连接数四宫格图表、SCAN 键列表与详情/删除 |
+| 服务监控 | `/monitor/server` | `monitor:server:list`（菜单）/ `monitor:server:query`（查询） | CPU/物理内存/JVM/磁盘、CPU 与 JVM 堆折线趋势 |
 
 #### 后端
 
 | 模块 | 路径 | 要点 |
 |------|------|------|
-| 缓存监控 | `CacheMonitorController` / `CacheMonitorServiceImpl` | `INFO` 统计、SCAN 键、`GET/DELETE` 键详情；删除键**前缀黑名单**（`Authorization:`、`satoken:`、`captcha:` 等） |
-| 服务监控 | `ServerMonitorController` / `ServerMonitorServiceImpl` | JMX 采集 CPU、堆/物理内存、磁盘；JDK 21+ 反射 `getCpuLoad()`，JDK 17 回退 `getSystemCpuLoad()` |
+| 缓存监控 | `CacheMonitorController` / `CacheMonitorServiceImpl` | `INFO` 统计、SCAN 键、`GET/DELETE` 键详情；只读接口校验 `monitor:cache:query`；删除键**前缀黑名单**（`Authorization:`、`satoken:`、`captcha:` 等） |
+| 服务监控 | `ServerMonitorController` / `ServerMonitorServiceImpl` | JMX 采集 CPU、堆/物理内存、磁盘；`GET /info` 校验 `monitor:server:query`；JDK 21+ 反射 `getCpuLoad()`，JDK 17 回退 `getSystemCpuLoad()` |
 
 主要 API：`GET /api/monitor/cache/info|stats|keys|value`、`DELETE /api/monitor/cache/key`；`GET /api/monitor/server/info`。
 
 #### 前端 · 折线图与后台采样
 
-登录进入布局后，若角色具备对应 `monitor:*:list` 权限，**无需打开监控页**即开始后台轮询（缓存 **3s**、服务 **5s**），折线采样写入 **`sessionStorage`**（同一标签页 **F5 刷新仍保留**，最多 **20** 个点）。切到其他菜单再返回，历史趋势不丢失。
+登录进入布局后，仅当用户角色为**超级管理员**（`admin` / `super_admin`）且具备对应 `monitor:cache:query` / `monitor:server:query` 权限时，**无需打开监控页**即开始后台轮询（缓存 **3s**、服务 **5s**）。**普通用户**进入监控页后才启动采样，**离开监控页即停止**，避免无意义的后台负载。折线采样写入 **`sessionStorage`**（同一标签页 **F5 刷新仍保留**，最多 **20** 个点）。切到其他菜单再返回，历史趋势不丢失。
 
 | 行为 | 说明 |
 |------|------|
-| 全局采样 | `useLayoutBootstrap` → `startMonitorBackground`（`composables/useMonitorBackground.ts`） |
+| 全局采样（仅管理员） | `useLayoutBootstrap` → `startMonitorBackground`（`composables/useMonitorBackground.ts`）；非 admin/super_admin 角色跳过全局轮询 |
+| 按需采样（普通用户） | 进入监控页 `onMounted` 时启动；`onUnmounted` 时 `stop*MonitorBackground`（管理员离页不停止，保持全局轮询） |
 | 图表状态 | `cacheMonitorChart.ts`、`serverMonitorChart.ts`（模块级 + sessionStorage） |
 | 「自动」开关 | 关闭后停止轮询；状态持久化，刷新后仍生效 |
 | 退出登录 | 停止采样并清空 session 中的监控折线数据 |
@@ -953,6 +965,11 @@ wu-admin/
 │   ├── add15_wuadmin.sql       # 增量 #15（生产）
 │   ├── add16.sql               # 增量 #16（调度日志 duration_ms，本地）
 │   ├── add17.sql               # 增量 #17（调度日志软删 + 回收，本地）
+│   ├── add18.sql               # 增量 #18（登录 maxRetryCountIp）
+│   ├── add19.sql               # 增量 #19（菜单图标）
+│   ├── add19_wuadmin.sql       # 生产 #19
+│   ├── add20.sql               # 增量 #20（缓存/服务监控 query 权限）
+│   ├── add20_wuadmin.sql       # 生产 #20
 │   # 生产 #15+#16+#17 已合并至 add15_wuadmin.sql
 │   └── disable_devtool_off.sql # 临时关闭「禁止前端调试」（MySQL 5.6 兼容）
 ├── data/                       # 本地上传目录（git 忽略，对应 file.storage.local-path）
@@ -1253,14 +1270,14 @@ cd backend && mvn test
 
 ## 数据库脚本
 
-维护 **`sql/admin_platform.sql`**（本地全量 + 附录）、**`sql/admin_platform_mysql56.sql`**（生产空库）与 **`sql/add1.sql` … `add17.sql`** 等增量：
+维护 **`sql/admin_platform.sql`**（本地全量 + 附录）、**`sql/admin_platform_mysql56.sql`**（生产空库）与 **`sql/add1.sql` … `add20.sql`** 等增量：
 
 | 场景 | 做法 |
 |------|------|
 | **全新安装（本地）** | 空库 `mysql -u root -p < sql/admin_platform.sql` |
 | **全新安装（生产 5.6）** | 空库 `mysql -u wuadmin -p wuadmin < sql/admin_platform_mysql56.sql` |
 | **极旧库首次升级** | 执行 `admin_platform.sql` 文末 **附录**（约 990 行起） |
-| **发版增量（本地）** | 按版本依次 `add1.sql` … **`add17.sql`**（勿跳号） |
+| **发版增量（本地）** | 按版本依次 `add1.sql` … **`add20.sql`**（勿跳号） |
 | **发版增量（生产）** | 按已执行版本补跑对应 `*_wuadmin.sql`（`add15_wuadmin.sql` 含 #15+#16+#17） |
 
 `addN.sql` 体量应保持在几十行量级；全量补丁逻辑在 `admin_platform.sql` 附录。
@@ -1289,6 +1306,9 @@ cd backend && mvn test
 | `add15_wuadmin.sql` | 生产合并 **#15 + #16 + #17**（负责人关联 + 调度日志耗时 + 软删） |
 | `add16.sql` | `sys_job_log.duration_ms`（执行耗时毫秒，本地） |
 | `add17.sql` | `sys_job_log` 软删字段；回收中心可恢复调度日志（本地） |
+| `add18.sql` | 登录配置 `maxRetryCountIp`（IP 锁定阈值，默认 20） |
+| `add19.sql` / `add19_wuadmin.sql` | 菜单图标：文件列表 / 工单 / 接口文档 / 代码生成 |
+| `add20.sql` / `add20_wuadmin.sql` | 缓存/服务监控补齐 **查询** 按钮权限（188/189）；已有监控菜单的角色自动补授 query |
 | `admin_platform_mysql56.sql` | 生产**空库全量**（38 表 + 初始数据，无附录 JSON 函数依赖） |
 
 > 生产环境若尚未执行 add3/add4，可将 `add3.sql`、`add4.sql` 中 `USE` 改为 `wuadmin` 后逐条执行，或直接依赖已更新的 `admin_platform.sql` 全量/附录。仓库内**无**单独的 `add3_add4_wuadmin.sql` 文件。
@@ -1578,10 +1598,13 @@ A：在 **系统配置 → 文件存储** 调整；单文件上限不得超过 5
 A：对已有库：极旧库先跑 **admin_platform.sql 附录**；发版增量依次跑 `sql/add1.sql` … `add4.sql`（生产改 `USE wuadmin` 后执行 add3/add4），**重启后端**后 **重新登录**。普通用户需角色分配菜单 170/172；只读权限用户访问 `:list` 接口时会映射为 `:query`。
 
 **Q：缓存/服务监控菜单不显示？**  
-A：已有库执行 `sql/add7.sql`、`add8.sql`（本地）或生产 **`sql/add6_7_wuadmin.sql`**，**重新登录**刷新侧栏；确认角色已分配 `monitor:cache:list` / `monitor:server:list`。
+A：已有库执行 `sql/add7.sql`、`sql/add8.sql`（本地）或生产 **`sql/add6_7_wuadmin.sql`**，**重新登录**刷新侧栏；确认角色已分配 `monitor:cache:list` / `monitor:server:list`（菜单）。若需查看数据，另勾选 **`monitor:cache:query`** / **`monitor:server:query`**（增量 **`add20.sql`** / **`add20_wuadmin.sql`**，全量脚本已含）。
+
+**Q：API 访问统计页报「服务器内部错误」？**  
+A：多为统计 SQL 误用 `deleted = 0` 而 `sys_api_access_log` 表无该字段；升级含修复的 **backend jar** 后重启即可（`ApiAccessLogMapper` 已去掉该条件）。与权限增量 `add20` 无关。
 
 **Q：监控折线图一切页或 F5 就清空？**  
-A：升级至含 **全局后台采样 + sessionStorage** 的前端后，登录即有权限则后台持续采样；同一标签页 F5 仍保留最近 20 个点。关闭标签页或退出登录会清空。仅更新前端 `dist` 即可，**无需改后端 jar**。
+A：升级至含 **全局后台采样 + sessionStorage** 的前端后，**管理员**登录且有 query 权限则后台持续采样；**普通用户**仅在本页采样、离页停止。同一标签页 F5 仍保留最近 20 个点。关闭标签页或退出登录会清空。仅更新前端 `dist` 即可；离页停采样需升级含该逻辑的前端（及 uni-app H5）。
 
 **Q：服务监控「平均负载」显示 `-`？**  
 A：**Windows** 不提供 Linux 式 load average，JMX 返回不可用，界面显示 `-` 属正常；请参考 **系统 CPU / 进程 CPU** 及 CPU 折线图。Linux 部署会显示数值。

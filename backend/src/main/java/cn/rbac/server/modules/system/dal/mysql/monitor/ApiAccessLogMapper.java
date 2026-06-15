@@ -21,7 +21,7 @@ public interface ApiAccessLogMapper extends BaseMapper<ApiAccessLogDO> {
             SELECT COUNT(*) AS totalCount,
                    COALESCE(SUM(CASE WHEN success = 1 THEN 1 ELSE 0 END), 0) AS successCount
             FROM sys_api_access_log
-            WHERE deleted = 0 AND start_time >= #{start} AND start_time < #{end}
+            WHERE start_time >= #{start} AND start_time < #{end}
             """)
     ApiAccessSummaryVO selectSummary(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
 
@@ -30,7 +30,7 @@ public interface ApiAccessLogMapper extends BaseMapper<ApiAccessLogDO> {
                    COUNT(*) AS total,
                    COALESCE(SUM(CASE WHEN success = 1 THEN 1 ELSE 0 END), 0) AS successCount
             FROM sys_api_access_log
-            WHERE deleted = 0 AND start_time >= #{start} AND start_time < #{end}
+            WHERE start_time >= #{start} AND start_time < #{end}
             GROUP BY DATE_FORMAT(start_time, '%Y-%m-%d')
             ORDER BY statDate
             """)
@@ -39,7 +39,7 @@ public interface ApiAccessLogMapper extends BaseMapper<ApiAccessLogDO> {
     @Select("""
             SELECT IFNULL(api_path, 'unknown') AS apiPath, COUNT(*) AS count
             FROM sys_api_access_log
-            WHERE deleted = 0 AND start_time >= #{start} AND start_time < #{end}
+            WHERE start_time >= #{start} AND start_time < #{end}
             GROUP BY api_path
             ORDER BY count DESC
             LIMIT #{limit}
@@ -51,7 +51,7 @@ public interface ApiAccessLogMapper extends BaseMapper<ApiAccessLogDO> {
     @Select("""
             SELECT IFNULL(method, 'unknown') AS method, COUNT(*) AS count
             FROM sys_api_access_log
-            WHERE deleted = 0 AND start_time >= #{start} AND start_time < #{end}
+            WHERE start_time >= #{start} AND start_time < #{end}
             GROUP BY method
             """)
     List<ApiAccessMethodStatVO> selectMethodCounts(@Param("start") LocalDateTime start,
@@ -60,7 +60,7 @@ public interface ApiAccessLogMapper extends BaseMapper<ApiAccessLogDO> {
     @Select("""
             SELECT user_id AS userId, COUNT(*) AS count
             FROM sys_api_access_log
-            WHERE deleted = 0 AND start_time >= #{start} AND start_time < #{end} AND user_id IS NOT NULL
+            WHERE start_time >= #{start} AND start_time < #{end} AND user_id IS NOT NULL
             GROUP BY user_id
             ORDER BY count DESC
             LIMIT #{limit}

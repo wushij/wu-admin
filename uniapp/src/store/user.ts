@@ -91,6 +91,12 @@ export const useUserStore = defineStore('user', () => {
     return checkMenuPermission(menus.value, perm)
   }
 
+  /** 工作台入口：仅以启用菜单树为准，停用菜单不会出现在侧栏/工作台 */
+  const hasMenuPermission = (perm: string): boolean => {
+    if (userInfo.value.roles?.includes('admin')) return true
+    return checkMenuPermission(menus.value, perm)
+  }
+
   return {
     userInfo,
     menus,
@@ -103,6 +109,7 @@ export const useUserStore = defineStore('user', () => {
     logout,
     logoutAction,
     hasPermission,
+    hasMenuPermission,
   }
 })
 

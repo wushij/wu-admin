@@ -252,8 +252,11 @@ public class CacheMonitorServiceImpl implements CacheMonitorService {
     }
 
     private Object readValueByType(String key, String type) {
-        String cacheKey = Objects.requireNonNull(key);
-        return RedisMonitorValueCodec.readValue(stringRedisTemplate, redissonClient, cacheKey, type);
+        return RedisMonitorValueCodec.readValue(
+                stringRedisTemplate,
+                redissonClient,
+                Objects.requireNonNull(key),
+                Objects.requireNonNull(type));
     }
 
     private Properties redisInfo() {

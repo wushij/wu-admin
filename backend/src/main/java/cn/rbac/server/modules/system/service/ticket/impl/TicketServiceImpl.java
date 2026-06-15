@@ -8,6 +8,7 @@ import cn.rbac.server.modules.system.dal.dataobject.notice.NoticeDO;
 import cn.rbac.server.modules.system.dal.dataobject.ticket.TicketAttachmentDO;
 import cn.rbac.server.modules.system.dal.dataobject.ticket.TicketCommentDO;
 import cn.rbac.server.modules.system.dal.dataobject.ticket.TicketDO;
+import cn.rbac.server.common.util.UserDisplayNames;
 import cn.rbac.server.modules.system.dal.dataobject.user.UserDO;
 import cn.rbac.server.modules.system.dal.mysql.notice.NoticeMapper;
 import cn.rbac.server.modules.system.dal.mysql.ticket.TicketAttachmentMapper;
@@ -308,7 +309,7 @@ public class TicketServiceImpl implements TicketService {
         if (userIds.isEmpty()) return;
         List<UserDO> userList = userMapper.selectByIds(userIds);
         Map<Long, String> userMap = (userList != null ? userList : Collections.<UserDO>emptyList()).stream()
-                .collect(Collectors.toMap(UserDO::getId, UserDO::getUsername, (a, b) -> a));
+                .collect(Collectors.toMap(UserDO::getId, UserDisplayNames::of, (a, b) -> a));
         tickets.forEach(ticket -> {
             if (ticket.getCreatorUserId() != null) {
                 ticket.setCreatorName(userMap.getOrDefault(ticket.getCreatorUserId(), "-"));
@@ -328,7 +329,7 @@ public class TicketServiceImpl implements TicketService {
         if (userIds.isEmpty()) return;
         List<UserDO> userList = userMapper.selectByIds(userIds);
         Map<Long, String> userMap = (userList != null ? userList : Collections.<UserDO>emptyList()).stream()
-                .collect(Collectors.toMap(UserDO::getId, UserDO::getUsername, (a, b) -> a));
+                .collect(Collectors.toMap(UserDO::getId, UserDisplayNames::of, (a, b) -> a));
         comments.forEach(comment -> comment.setUsername(userMap.getOrDefault(comment.getUserId(), "-")));
     }
 
@@ -337,7 +338,7 @@ public class TicketServiceImpl implements TicketService {
         if (userIds.isEmpty()) return;
         List<UserDO> userList = userMapper.selectByIds(userIds);
         Map<Long, String> userMap = (userList != null ? userList : Collections.<UserDO>emptyList()).stream()
-                .collect(Collectors.toMap(UserDO::getId, UserDO::getUsername, (a, b) -> a));
+                .collect(Collectors.toMap(UserDO::getId, UserDisplayNames::of, (a, b) -> a));
         attachments.forEach(a -> a.setUploaderName(userMap.getOrDefault(a.getUploaderUserId(), "-")));
     }
 

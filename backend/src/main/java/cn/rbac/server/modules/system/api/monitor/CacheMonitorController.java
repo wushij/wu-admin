@@ -26,21 +26,21 @@ public class CacheMonitorController {
 
     @Operation(summary = "Redis 实时统计（图表）")
     @GetMapping("/stats")
-    @PreAuthorize("@ss.hasPermission('monitor:cache:list')")
+    @PreAuthorize("@ss.hasPermission('monitor:cache:query')")
     public CommonResult<CacheStatsVO> stats() {
         return CommonResult.success(cacheMonitorService.getStats());
     }
 
     @Operation(summary = "Redis 服务信息")
     @GetMapping("/info")
-    @PreAuthorize("@ss.hasPermission('monitor:cache:list')")
+    @PreAuthorize("@ss.hasPermission('monitor:cache:query')")
     public CommonResult<CacheInfoVO> info() {
         return CommonResult.success(cacheMonitorService.getInfo());
     }
 
     @Operation(summary = "扫描缓存键（SCAN，上限 500）")
     @GetMapping("/keys")
-    @PreAuthorize("@ss.hasPermission('monitor:cache:list')")
+    @PreAuthorize("@ss.hasPermission('monitor:cache:query')")
     public CommonResult<CacheKeysVO> keys(
             @RequestParam(defaultValue = "*") String pattern,
             @RequestParam(defaultValue = "200") Integer limit) {
@@ -49,7 +49,7 @@ public class CacheMonitorController {
 
     @Operation(summary = "查看缓存键详情")
     @GetMapping("/value")
-    @PreAuthorize("@ss.hasPermission('monitor:cache:list')")
+    @PreAuthorize("@ss.hasPermission('monitor:cache:query')")
     public CommonResult<CacheValueVO> value(@RequestParam String key) {
         return CommonResult.success(cacheMonitorService.getValue(key));
     }

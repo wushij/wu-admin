@@ -7,7 +7,9 @@ import {
   setServerAutoRefresh,
   setServerInfoUpdateHandler,
   startServerMonitorBackground,
+  stopServerMonitorBackground,
 } from '@/composables/monitor/serverMonitorChart'
+import { isMonitorAdmin } from '@/composables/useMonitorBackground'
 
 export { resolveCpuChartValue } from '@/composables/monitor/serverMonitorChart'
 
@@ -67,6 +69,9 @@ export function useServerMonitor() {
 
   onUnmounted(() => {
     setServerInfoUpdateHandler(null)
+    if (!isMonitorAdmin()) {
+      stopServerMonitorBackground()
+    }
   })
 
   return {

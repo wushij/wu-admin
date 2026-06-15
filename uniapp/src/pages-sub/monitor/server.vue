@@ -187,7 +187,7 @@ import { useMonitorToolbarRefresh } from '@/composables/useMonitorToolbarRefresh
 import { diskProgressTone, useServerMonitor } from '@/composables/useServerMonitor'
 import { formatPercent } from '@/utils/format'
 
-const { allowed } = useModulePermission('monitor:server:list')
+const { allowed } = useModulePermission('monitor:server:query')
 
 const {
   info,

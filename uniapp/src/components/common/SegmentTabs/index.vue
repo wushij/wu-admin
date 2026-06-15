@@ -15,7 +15,8 @@
         @click="emit('update:modelValue', tab.key)"
       >
         <text class="segment-tabs__label">{{ tab.label }}</text>
-        <view v-if="tab.badge && tab.badge > 0" class="segment-tabs__badge">
+        <view v-if="tab.dot" class="segment-tabs__dot" />
+        <view v-else-if="tab.badge && tab.badge > 0" class="segment-tabs__badge">
           {{ tab.badge > 99 ? '99+' : tab.badge }}
         </view>
       </view>
@@ -38,7 +39,8 @@
       @click="emit('update:modelValue', tab.key)"
     >
       <text class="segment-tabs__label">{{ tab.label }}</text>
-      <view v-if="tab.badge && tab.badge > 0" class="segment-tabs__badge">
+      <view v-if="tab.dot" class="segment-tabs__dot" />
+      <view v-else-if="tab.badge && tab.badge > 0" class="segment-tabs__badge">
         {{ tab.badge > 99 ? '99+' : tab.badge }}
       </view>
     </view>
@@ -49,7 +51,7 @@
 withDefaults(
   defineProps<{
     modelValue: string
-    tabs: Array<{ key: string; label: string; badge?: number }>
+    tabs: Array<{ key: string; label: string; badge?: number; dot?: boolean }>
     compact?: boolean
     scroll?: boolean
     theme?: 'default' | 'teal'
@@ -97,6 +99,7 @@ const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
 }
 
 .segment-tabs__item {
+  position: relative;
   flex: 1;
   display: flex;
   align-items: center;
@@ -127,6 +130,16 @@ const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
   text-align: center;
 }
 
+.segment-tabs__dot {
+  position: absolute;
+  top: 10rpx;
+  right: 16rpx;
+  width: 14rpx;
+  height: 14rpx;
+  border-radius: 50%;
+  background: #fa5151;
+}
+
 .segment-tabs__item--active {
   background: linear-gradient(135deg, #4f46e5, #6366f1);
 
@@ -138,6 +151,11 @@ const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
   .segment-tabs__badge {
     background: rgba(255, 255, 255, 0.92);
     color: #ef4444;
+  }
+
+  .segment-tabs__dot {
+    background: #fa5151;
+    box-shadow: 0 0 0 2rpx rgba(255, 255, 255, 0.95);
   }
 }
 

@@ -1,5 +1,6 @@
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
+import { storeToRefs } from 'pinia'
 import {
   getMyAnnounce,
   getChatGroups,
@@ -13,6 +14,8 @@ import { MESSAGE_CHANNELS } from '@/constants/messageChannels'
 import { previewMessageText } from '@/utils/chat-message'
 import { formatListTime, summarizeText } from '@/utils/format'
 import { inboxContentPreview } from '@/utils/inbox-nav'
+import { isViewingChat } from '@/utils/message-push'
+import { onMessageWebSocket, type WsPushMessage } from '@/utils/webSocket'
 import type { AnnounceMyVO, ChatGroup, ChatUser, NoticeVO } from '@/types/message'
 
 export type MessageTabKey = 'announce' | 'inbox' | 'chat'
@@ -28,6 +31,7 @@ export interface ChatSessionPreview {
   desc: string
   time?: string
   badge: number
+  atMe?: boolean
   online?: boolean
   avatar?: string
 }
@@ -60,16 +64,21 @@ function saveTabMode(mode: MessageTabKey) {
 
 export function useMessageTab() {
   const messageStore = useMessageStore()
-  const { hasPerm } = usePermission()
+  const { groupUnreadById, groupAtMeById, privateReadTick, lastPrivateReadUserId } =
+    storeToRefs(messageStore)
+  const { hasMenuPerm } = usePermission()
   const mode = ref<MessageTabKey>('inbox')
   const tabInitialized = ref(false)
   const loading = ref(false)
   const announceList = ref<AnnounceMyVO[]>([])
   const inboxList = ref<NoticeVO[]>([])
-  const chatSessions = ref<ChatSessionPreview[]>([])
+  const chatUsers = ref<ChatUser[]>([])
+  const chatGroups = ref<ChatGroup[]>([])
+
+  let offWs: (() => void) | null = null
 
   const availableTabs = computed(() =>
-    MESSAGE_CHANNELS.filter((ch) => !ch.permission || hasPerm(ch.permission)).map((ch) => {
+    MESSAGE_CHANNELS.filter((ch) => !ch.permission || hasMenuPerm(ch.permission)).map((ch) => {
       const key = ch.key as MessageTabKey
       let badge = 0
       if (ch.countKey === 'announceCount') badge = messageStore.announceCount
@@ -87,9 +96,11 @@ export function useMessageTab() {
 
   const listPath = computed(() => TAB_META[mode.value].listPath)
 
-  function buildChatSessions(users: ChatUser[], groups: ChatGroup[]): ChatSessionPreview[] {
+  const chatSessions = computed(() => {
+    const unreadMap = groupUnreadById.value
+    const atMeMap = groupAtMeById.value
     const sessions: ChatSessionPreview[] = [
-      ...users.map((u) => ({
+      ...chatUsers.value.map((u) => ({
         key: `u-${u.id}`,
         type: 'user' as const,
         id: u.id,
@@ -100,14 +111,15 @@ export function useMessageTab() {
         online: u.online,
         avatar: u.avatar,
       })),
-      ...groups.map((g) => ({
+      ...chatGroups.value.map((g) => ({
         key: `g-${g.id}`,
         type: 'group' as const,
         id: g.id,
         title: g.name,
         desc: g.lastMessage || `${g.memberCount || 0} 人`,
         time: g.lastMessageTime,
-        badge: g.unreadCount || 0,
+        badge: unreadMap[g.id] || 0,
+        atMe: !!atMeMap[g.id],
       })),
     ]
     return sessions
@@ -117,6 +129,45 @@ export function useMessageTab() {
         return tb - ta
       })
       .slice(0, MESSAGE_PREVIEW_LIMIT)
+  })
+
+  function patchChatPreview(msg: WsPushMessage) {
+    if (msg.type === 'chat' && msg.senderId) {
+      const u = chatUsers.value.find((x) => x.id === msg.senderId)
+      const preview = previewMessageText({ content: msg.content, msgType: msg.msgType })
+      const time = msg.time ? String(msg.time) : new Date().toISOString()
+      if (u) {
+        u.lastMessage = preview
+        u.lastMessageTime = time
+        if (!isViewingChat(messageStore.activeChatTarget, msg)) {
+          u.unreadCount = (u.unreadCount || 0) + 1
+        }
+        return
+      }
+      loadChat()
+      return
+    }
+
+    if (msg.type === 'groupChat' && msg.groupId) {
+      const g = chatGroups.value.find((x) => x.id === msg.groupId)
+      const preview = msg.senderName
+        ? `${msg.senderName}: ${previewMessageText({ content: msg.content, msgType: msg.msgType })}`
+        : previewMessageText({ content: msg.content, msgType: msg.msgType })
+      const time = msg.time ? String(msg.time) : new Date().toISOString()
+      if (g) {
+        g.lastMessage = preview
+        g.lastMessageTime = time
+        return
+      }
+      loadChat()
+    }
+  }
+
+  function handleWs(msg: WsPushMessage) {
+    if (msg.recall) return
+    if (msg.type === 'chat' || msg.type === 'groupChat') {
+      patchChatPreview(msg)
+    }
   }
 
   async function loadAnnounce() {
@@ -131,7 +182,19 @@ export function useMessageTab() {
 
   async function loadChat() {
     const [userRes, groupRes] = await Promise.all([getChatUsers(), getChatGroups()])
-    chatSessions.value = buildChatSessions(userRes.data || [], groupRes.data || [])
+    chatUsers.value = userRes.data || []
+    chatGroups.value = groupRes.data || []
+    messageStore.syncGroupNotifySettings(chatGroups.value)
+  }
+
+  /** 后台同步会话列表（不触发 loading），用于返回页面时刷新角标 */
+  async function silentRefreshChat() {
+    try {
+      await loadChat()
+      await messageStore.refreshSummary()
+    } catch {
+      /* ignore */
+    }
   }
 
   async function loadCurrent() {
@@ -174,8 +237,11 @@ export function useMessageTab() {
   }
 
   function chatDesc(item: ChatSessionPreview) {
-    if (item.type === 'group' && item.desc.includes(':')) return item.desc
-    return previewMessageText({ content: item.desc })
+    let text = item.type === 'group' && item.desc.includes(':') ? item.desc : previewMessageText({ content: item.desc })
+    if (item.atMe && item.badge > 0) {
+      text = `[有人@你] ${text}`
+    }
+    return text
   }
 
   function pickDefaultTab(tabs: { key: string }[]): MessageTabKey {
@@ -208,8 +274,28 @@ export function useMessageTab() {
     if (tabInitialized.value) loadCurrent()
   })
 
+  watch(privateReadTick, () => {
+    const userId = lastPrivateReadUserId.value
+    if (!userId) return
+    const u = chatUsers.value.find((x) => x.id === userId)
+    if (u) u.unreadCount = 0
+  })
+
+  onMounted(() => {
+    offWs = onMessageWebSocket(handleWs)
+  })
+
+  onBeforeUnmount(() => {
+    offWs?.()
+    offWs = null
+  })
+
   onShow(() => {
-    refresh()
+    const run = () => {
+      refresh().catch(() => {})
+      silentRefreshChat()
+    }
+    run()
   })
 
   return {

@@ -1,15 +1,15 @@
 <template>
   <div class="app-container module-page server-monitor-page">
     <el-alert
-      v-if="!canList"
+      v-if="!canQuery"
       type="warning"
-      title="当前角色未分配「服务监控」权限，无法查看本机状态。"
+      title="当前角色未分配「服务监控查询」权限，无法查看本机状态。"
       :closable="false"
       show-icon
       class="no-perm-alert"
     />
 
-    <template v-if="canList">
+    <template v-if="canQuery">
       <el-card class="search-card module-hero-card" shadow="never">
         <div class="module-hero-row">
           <div class="module-hero-text">
@@ -220,13 +220,17 @@
 </template>
 
 <script setup lang="ts">
+import { ref } from 'vue'
 import { Coin, Cpu, Loading, Monitor, Platform } from '@element-plus/icons-vue'
 import ModulePageIcon from '@/components/ModulePageIcon.vue'
 import { MODULE_PAGE_ICON } from '@/constants/module-page-icons'
 import { useServerMonitorPage } from '../composables/useServerMonitorPage'
 
+const cpuChartRef = ref<HTMLElement | null>(null)
+const memoryChartRef = ref<HTMLElement | null>(null)
+
 const {
-  canList,
+  canQuery,
   info,
   refreshing,
   tableLoading,
@@ -235,12 +239,10 @@ const {
   heapDisplay,
   physicalDisplay,
   maxDiskPercent,
-  cpuChartRef,
-  memoryChartRef,
   refreshByUser,
   toggleAutoRefresh,
   diskProgressStatus,
-} = useServerMonitorPage()
+} = useServerMonitorPage({ cpuChartRef, memoryChartRef })
 
 function formatPercent(val?: number | null) {
   return val != null ? `${val.toFixed(2)}%` : '-'

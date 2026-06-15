@@ -252,7 +252,7 @@ import { showConfirm } from '@/utils/app-dialog'
 import { showSuccessToast } from '@/utils/app-toast'
 import type { CacheKeyItem, CacheKeysResult } from '@/types/system'
 
-const { allowed, hasPerm } = useModulePermission('monitor:cache:list')
+const { allowed, hasPerm } = useModulePermission('monitor:cache:query')
 const canDelete = computed(() => hasPerm('monitor:cache:delete'))
 
 const {

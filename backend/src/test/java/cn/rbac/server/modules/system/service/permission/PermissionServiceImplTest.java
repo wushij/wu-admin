@@ -2,8 +2,6 @@ package cn.rbac.server.modules.system.service.permission;
 
 import cn.rbac.server.modules.system.dal.dataobject.permission.MenuDO;
 import cn.rbac.server.modules.system.dal.dataobject.permission.RoleDO;
-import cn.rbac.server.modules.system.dal.dataobject.permission.RoleMenuDO;
-import cn.rbac.server.modules.system.dal.dataobject.permission.UserRoleDO;
 import cn.rbac.server.modules.system.dal.mysql.permission.MenuMapper;
 import cn.rbac.server.modules.system.dal.mysql.permission.RoleMapper;
 import cn.rbac.server.modules.system.dal.mysql.permission.RoleMenuMapper;

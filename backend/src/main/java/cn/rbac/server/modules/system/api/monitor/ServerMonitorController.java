@@ -21,7 +21,7 @@ public class ServerMonitorController {
 
     @Operation(summary = "本机 CPU / 内存 / JVM / 磁盘信息")
     @GetMapping("/info")
-    @PreAuthorize("@ss.hasPermission('monitor:server:list')")
+    @PreAuthorize("@ss.hasPermission('monitor:server:query')")
     public CommonResult<ServerInfoVO> info() {
         return CommonResult.success(serverMonitorService.getInfo());
     }
