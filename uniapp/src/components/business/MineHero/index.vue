@@ -5,9 +5,15 @@
         <view
           class="mine-hero__avatar"
           :class="{ 'mine-hero__avatar--photo': showPhoto }"
-          :style="avatarStyle"
         >
-          <text v-if="!showPhoto" class="mine-hero__fallback-text">{{ avatarFallback }}</text>
+          <image
+            v-if="showPhoto"
+            class="mine-hero__avatar-img"
+            :src="avatarSrc"
+            mode="aspectFill"
+            @error="avatarBroken = true"
+          />
+          <text v-else class="mine-hero__fallback-text">{{ avatarFallback }}</text>
         </view>
       </view>
 
@@ -68,20 +74,6 @@ const orgLine = computed(() => {
   return parts.length ? parts.join(' · ') : ''
 })
 
-const avatarStyle = computed(() => {
-  if (!showPhoto.value) {
-    return {
-      background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
-    }
-  }
-  return {
-    backgroundImage: `url("${avatarSrc.value}")`,
-    backgroundSize: 'cover',
-    backgroundPosition: 'center center',
-    backgroundRepeat: 'no-repeat',
-  }
-})
-
 const stats = computed(() => [
   {
     label: '最近登录',
@@ -103,18 +95,6 @@ watch(
     avatarBroken.value = false
   },
 )
-
-function preloadAvatar(url: string) {
-  if (!url) return
-  uni.getImageInfo({
-    src: url,
-    fail: () => {
-      avatarBroken.value = true
-    },
-  })
-}
-
-watch(avatarSrc, (url) => preloadAvatar(url), { immediate: true })
 </script>
 
 <style lang="scss" scoped>
@@ -157,10 +137,17 @@ watch(avatarSrc, (url) => preloadAvatar(url), { immediate: true })
   display: flex;
   align-items: center;
   justify-content: center;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+}
+
+.mine-hero__avatar-img {
+  width: 100%;
+  height: 100%;
 }
 
 .mine-hero__avatar--photo {
   background-color: #f3f4f6;
+  background-image: none;
 }
 
 .mine-hero__fallback-text {

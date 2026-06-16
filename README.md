@@ -73,6 +73,7 @@
 | **权限 · 在线用户** | 补齐按钮 **在线用户查询**（`monitor:online:query`，菜单 id=190）；与定时任务/缓存监控等模块一致；增量 **`add1.sql` / `add1_wuadmin.sql`** |
 | **权限 · 回收中心** | 补齐 **回收中心查询/恢复/删除**（`system:recycle:query|restore|delete`，id=191～193）；各模块 `/recycle/page` 改走 `hasRecycleRead()`，不再误要求各模块 `*:delete`；增量 **`add2.sql` / `add2_wuadmin.sql`** |
 | **移动端 · 系统配置** | 仅 **配置修改**（`system:config:update`）时显示密码小眼睛；只读用户（配置查询）不可查看 AppSecret/私钥明文 |
+| **移动端 · API 地址** | 拆分 **`.env`（本地开发）** 与 **`.env.production`（生产打包）**；`utils/api-base.ts` 的 `resolveApiBaseUrl()` 统一 HTTP / 上传 / 头像 / WebSocket 根路径；H5 线上访问时自动忽略误打包的局域网 IP，改走同域 `/api`；小程序生产包由 `VITE_API_PRODUCTION_ORIGIN` 拼完整 HTTPS 地址 |
 
 **本批升级部署提示**
 
@@ -80,7 +81,7 @@
 |----------|--------|
 | 滑块验证码 / WebSocket 握手 | **重启 backend.jar** |
 | 回收中心 / 在线用户 query 权限 | **执行 add1 + add2 SQL** → **重启 backend.jar** → **重新登录** |
-| H5 在线状态 / 滑块组件 / 配置密码小眼睛 | **`uniapp` `npm run build:h5`** 并上传 `app.wushij.online` |
+| H5 在线状态 / 滑块组件 / 配置密码小眼睛 / API 地址拆分 | **`uniapp` `npm run build:h5`**（读 `.env.production`）并上传 `app.wushij.online`；**勿**用含局域网 IP 的 `.env` 直接 build 上传 |
 | 回收中心 PC Tab / 操作按钮 | **`frontend` `npm run build`** 并上传 PC 站点 |
 | API 访问统计卡片对齐 | **`frontend` `npm run build`** 并上传 PC 站点 |
 
@@ -90,11 +91,21 @@ mysql -u root -p wu-admin < sql/add1.sql   # 在线用户查询 190
 mysql -u root -p wu-admin < sql/add2.sql   # 回收中心 query/restore/delete 191-193
 # 生产库名 wuadmin 时改用 add1_wuadmin.sql / add2_wuadmin.sql
 
-# 移动端 H5
+# 移动端 H5（本地开发）
 cd uniapp && npm install && npm run dev:h5
 ```
 
-生产 H5：`npm run build:h5` 后部署静态资源，**`/api` 反代到后端**（与 PC 相同）；WebSocket 路径 `wss://域名/api/ws/message` 须在 Nginx 配置 `Upgrade` 头（见 `docs/移动端子域名配置文件.txt`）。
+**环境变量（重要）**
+
+| 文件 | 用途 | `VITE_API_BASE_URL` 示例 |
+|------|------|---------------------------|
+| `.env` | `npm run dev:*` 本地 / 真机调试 | `http://127.0.0.1:8080/api`；小程序真机可改为 `http://10.x.x.x:8080/api` |
+| `.env.production` | `npm run build:h5` / `build:mp-weixin` | **`/api`**（H5 同域 Nginx 反代） |
+| `.env.production` | 同上，小程序专用 | **`VITE_API_PRODUCTION_ORIGIN=https://app.wushij.online`**（`api-base` 拼成 `https://app.wushij.online/api`） |
+
+复制 `.env.example` 为 `.env` 即可开始本地开发；**上传服务器前务必用 `.env.production` 打包**，不要把 `.env` 里的局域网 IP 打进生产包。运行时由 `utils/api-base.ts` → `resolveApiBaseUrl()` 解析（`request.ts`、`upload.ts`、头像 URL、`webSocket.ts` 均已接入）。
+
+生产 H5：`npm run build:h5` 后部署 `uniapp/dist/build/h5/` 静态资源至 **`app.wushij.online`**，**`/api` 反代到后端**（与 PC 相同）；WebSocket 路径 `wss://域名/api/ws/message` 须在 Nginx 配置 `Upgrade` 头（见 `docs/移动端子域名配置文件.txt`）。部署后自测 Network 中应为 `https://app.wushij.online/api/...`，**不应**出现 `10.x.x.x` 或 `127.0.0.1`。
 
 ---
 
@@ -152,7 +163,7 @@ cd uniapp && npm install && npm run dev:h5
 
 1. `cd backend && mvn clean package -DskipTests` → 上传 `backend.jar` 至 `C:\wu-admin\` → **重启**（工作目录建议 `C:\wu-admin`，与 `userDir` 一致）
 2. `cd frontend && npm run build` → 上传 `frontend/dist/` 至站点根目录
-3. `cd uniapp && npm run build:h5` → 上传 `uniapp/dist/build/h5/` 至 `app.wushij.online` 根目录
+3. `cd uniapp && npm run build:h5`（自动读 **`.env.production`**，`VITE_API_BASE_URL=/api`）→ 上传 `uniapp/dist/build/h5/` 至 `app.wushij.online` 根目录
 4. 宝塔 Nginx 粘贴模板（含 `/api/files/`、`gzip` 段）→ `nginx -t` → 重载
 5. 自测：`https://域名/api/auth/config` 返回 JSON；上传文件后缩略图 `GET /api/files/...` 为 **200**
 
@@ -216,7 +227,8 @@ cd uniapp && npm install && npm run dev:h5
 
 | 项 | 说明 |
 |------|------|
-| **工程** | `uniapp/`（Vue 3 + TS + Pinia）；`npm run dev:h5` / `build:h5` |
+| **工程** | `uniapp/`（Vue 3 + TS + Pinia）；`npm run dev:h5` / `build:h5` / `build:mp-weixin` |
+| **API 地址** | `.env` 本地开发；`.env.production` 生产打包（`/api` + `VITE_API_PRODUCTION_ORIGIN`）；`utils/api-base.ts` → `resolveApiBaseUrl()` |
 | **H5 导航** | `navigateTo` 拦截记录来源；选择页 URL 带 `from`；`navigateToParent` 浅栈回退 |
 | **交互** | `FormCell` 去除 H5 下 `@click` + `@tap` 重复触发导致 `navigateTo` 被取消 |
 
@@ -460,6 +472,7 @@ cd uniapp && npm run type-check
 | 开启「禁止前端调试」后 F12 打不开，无法排障 | `disableDevtool` 存于 `sys_config_group.security` | 执行 `sql/disable_devtool_off.sql`（**MySQL 5.6** 用 `REPLACE`，勿用 `JSON_SET`），重启后端并强刷浏览器；调试完在系统配置改回或改 SQL 还原 |
 | 企业 IM 输入框出现**黑色边框** | 拆分后 `chat-page.css` 中 `:deep()` 不生效 | 已改为 `.chat-textarea .el-textarea__inner { border: none !important; }` |
 | 联系人「在线/离线」不实时变，须刷新 | 旧版仅在 `loadUsers()` 时拉取 `online` 字段 | 已增加 WebSocket **`presence`** 推送；H5 另需 URL Token 鉴权与前台重连 |
+| H5 部署后请求 `10.x.x.x:8080` 或 `ERR_SSL_PROTOCOL_ERROR` | 生产包误用 **`.env` 局域网 IP** 打包（Vite 会把地址写进 JS） | 使用 **`.env.production`**（`VITE_API_BASE_URL=/api`）重新 `npm run build:h5` 并上传；或升级含 `resolveApiBaseUrl()` 兜底逻辑的版本后强刷 |
 | 字典管理多出多个「审批类型（副本）」 | 误点「复制类型」；每点一次生成一条 `_copy_时间戳` | 在字典管理删除多余副本即可，不影响业务字典 `sys_approval_form_type` |
 
 **Nginx 反代示例**（`/api` 须写在 `location /` 之前，建议加 `^~`）：
@@ -909,13 +922,15 @@ wu-admin/
 │       ├── framework/web/core/ # GlobalExceptionHandlerTest 等
 │       └── modules/system/service/  # 各 *ServiceImplTest
 ├── uniapp/                     # uni-app 移动端（H5 / 小程序）
+│   ├── .env.example            # 本地开发模板（复制为 .env）
+│   ├── .env.production         # 生产打包专用（build:h5 / build:mp-weixin）
 │   ├── src/
 │   │   ├── pages/              # Tab：首页、工作台、消息、我的
 │   │   ├── pages-sub/          # 子包：系统管理、监控、IM、个人资料等
 │   │   ├── composables/        # useH5ListPageNav、useProfileForm、useChatKeyboardInset 等
 │   │   ├── components/common/  # SubPageBackBar、H5BackButton、DataCard 等
 │   │   ├── components/business/# ChatComposer、EmojiPicker、ChatBubble 等
-│   │   ├── utils/              # nav-history、navigate-back、recent-emojis、chat-message
+│   │   ├── utils/              # api-base、nav-history、webSocket、request 等
 │   │   └── store/              # Pinia；h5-back-button（浮动返回显隐）
 │   └── package.json
 ├── frontend/                   # Vue 3 + TypeScript PC 前端
@@ -1152,7 +1167,7 @@ npm run dev
 
 访问：**http://localhost:3000**
 
-### 5. 启动移动端 H5（可选，5173）
+### 5. 启动移动端 H5（可选，5174）
 
 ```powershell
 cd uniapp
@@ -1160,7 +1175,7 @@ npm install
 npm run dev:h5
 ```
 
-浏览器访问终端提示的本地地址（通常 **http://localhost:5173**）。接口走 Vite 代理至 `http://localhost:8080/api`。
+浏览器访问终端提示的本地地址（通常 **http://localhost:5174**）。`.env` 默认 `VITE_API_BASE_URL=http://127.0.0.1:8080/api`；手机访问电脑局域网 H5（如 `http://10.x.x.x:5174`）时，Vite 已将 `/api` 代理到 `127.0.0.1:8080`，一般无需改 `.env`。小程序真机调试后端时，将 `.env` 改为电脑局域网 IP 即可。
 
 ### 6. 运行单元测试（可选）
 
@@ -1211,6 +1226,30 @@ cd backend && mvn test
 
 - 开发：`frontend/vite.config.ts`（`/api` 代理到 `localhost:8080`）
 - 生产：`npm run build` 后将 `dist` 部署到 Web 服务器，并将 `/api` 反代到后端 `8080`（context-path 为 `/api`）
+
+### 移动端 uni-app
+
+| 文件 | 说明 |
+|------|------|
+| `.env` | 本地 `npm run dev:h5` / `dev:mp-weixin`；默认 `http://127.0.0.1:8080/api` |
+| `.env.production` | **`npm run build:h5`** / **`build:mp-weixin`** 自动加载，覆盖 `.env` 中的开发地址 |
+| `vite.config.ts` | 开发端口 **5174**；`/api` 代理到 `127.0.0.1:8080`（含 WebSocket） |
+| `utils/api-base.ts` | `resolveApiBaseUrl()`：H5 线上忽略局域网/本机地址；小程序生产拼 `VITE_API_PRODUCTION_ORIGIN` |
+
+**`.env.production` 推荐值（`app.wushij.online`）**
+
+```env
+VITE_API_BASE_URL=/api
+VITE_API_PRODUCTION_ORIGIN=https://app.wushij.online
+```
+
+| 场景 | 命令 | API 实际地址 |
+|------|------|--------------|
+| 本地 H5 | `npm run dev:h5` | `.env` → 直连或经 Vite 代理 |
+| 生产 H5 上传 | `npm run build:h5` | 同域 **`/api`**（Nginx 反代） |
+| 生产微信小程序 | `npm run build:mp-weixin` | **`https://app.wushij.online/api`**（须在公众平台配置 request / socket 合法域名） |
+
+> **切勿**在 `.env` 写入局域网 IP 后直接 `build:h5` 上传服务器；该地址会被 Vite **编译进静态 JS**，线上用户无法访问你的内网 IP。
 
 ---
 
@@ -1432,6 +1471,13 @@ mvn test -Dtest=AuthServiceImplTest   # 指定类
 cd frontend
 npm run build
 
+# 移动端 H5 → uniapp/dist/build/h5/（读 .env.production，勿用含局域网 IP 的 .env）
+cd uniapp
+npm run build:h5
+
+# 微信小程序 → uniapp/dist/build/mp-weixin/（同上；上传前在微信公众平台配置合法域名）
+npm run build:mp-weixin
+
 # 后端 → backend/target/backend.jar（默认 prod profile）
 cd backend
 mvn clean package -DskipTests
@@ -1441,7 +1487,9 @@ mvn clean package -DskipTests
 
 | 产物 | 路径 | 说明 |
 |------|------|------|
-| 前端静态资源 | `frontend/dist/` | 部署到 Nginx 等 Web 服务器根目录 |
+| PC 前端静态资源 | `frontend/dist/` | 部署到 Nginx 等 Web 服务器根目录 |
+| 移动端 H5 | `uniapp/dist/build/h5/` | 部署到 **`app.wushij.online`** 根目录；`/api` 同域反代 |
+| 微信小程序 | `uniapp/dist/build/mp-weixin/` | 用微信开发者工具上传；API 须 HTTPS 合法域名 |
 | 后端可执行包 | `backend/target/backend.jar` | `java -jar backend.jar`，默认 `prod`，监听 `8080`，context-path `/api` |
 
 **生产默认连接配置**（`application-prod.yml`，部署前请修改）：
@@ -1451,7 +1499,7 @@ mvn clean package -DskipTests
 | MySQL 库名 | `wuadmin` |
 | MySQL 用户 / 密码 | `wuadmin` / `root` |
 | Redis 密码 | `root`（database `1`） |
-| CORS | `app.cors.allowed-origins` 须改为实际域名（示例：`https://wushij.online,https://www.wushij.online`） |
+| CORS | `app.cors.allowed-origins` 须改为实际域名（示例：`https://wushij.online,https://www.wushij.online,https://app.wushij.online`） |
 
 **Nginx 反代要点**：静态资源走 `root` + `try_files`；`/api/` 反代到 `http://127.0.0.1:8080/api/`；WebSocket 需 `Upgrade` / `Connection` 头（消息推送）。
 
@@ -1651,6 +1699,9 @@ A：升级后 `SecurityException`（如 `LocalFileStorage` 非法路径）返回
 
 **Q：部门负责人还是旧名字，或保存报 `leader_user_id` 不存在？**  
 A：极旧库执行 **`admin_platform.sql` 附录**（含 `leader_user_id` 字段），重启后端；PC / 移动端组织编辑须通过**选择用户**设置负责人，勿手填姓名。
+
+**Q：移动端 H5 上线后仍请求 `10.x.x.x` 或 `127.0.0.1`，报网络连接失败 / SSL 错误？**  
+A：生产包误用了 **`.env` 里的局域网地址** 打包（Vite 会把 `VITE_API_BASE_URL` 写进 JS）。① 确认仓库内 **`.env.production`** 为 `VITE_API_BASE_URL=/api`；② 重新执行 `cd uniapp && npm run build:h5` 并上传 `dist/build/h5/`；③ 浏览器 **Ctrl+F5** 强刷，Network 中应为 `https://app.wushij.online/api/...`。本地小程序真机调试才需要改 `.env` 为局域网 IP，**不要**用该配置 build 上传。
 
 **Q：移动端 H5 刷新后无返回键，或返回跳到工作台？**  
 A：① 升级含 **H5 浅栈导航** 的前端后 **Ctrl+F5** 强刷；② 列表页刷新后应出现页面内蓝色「‹ 返回」（`SubPageBackBar`），详情/编辑页为左上角浮动返回；③ 多级路径如「用户管理 → 详情 → 编辑 → F5」依赖 `localStorage` 父级映射，勿清理站点存储；④ 选择类子页 URL 带 `from` 参数；⑤ `FormCell` 已去除 H5 双事件导致的 `navigateTo` 取消。

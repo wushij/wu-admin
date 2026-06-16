@@ -11,19 +11,52 @@ export interface LoginRememberPayload {
   phone?: string
 }
 
+function utf8ToBytes(str: string): Uint8Array {
+  const encoded = encodeURIComponent(str)
+  const bytes: number[] = []
+  for (let i = 0; i < encoded.length; i++) {
+    if (encoded[i] === '%') {
+      bytes.push(parseInt(encoded.slice(i + 1, i + 3), 16))
+      i += 2
+    } else {
+      bytes.push(encoded.charCodeAt(i))
+    }
+  }
+  return new Uint8Array(bytes)
+}
+
+function bytesToUtf8(bytes: Uint8Array): string {
+  let encoded = ''
+  for (let i = 0; i < bytes.length; i++) {
+    encoded += `%${bytes[i].toString(16).padStart(2, '0')}`
+  }
+  return decodeURIComponent(encoded)
+}
+
 function encodeText(value: string): string {
   try {
-    return btoa(encodeURIComponent(value))
+    const buffer = utf8ToBytes(value).buffer
+    return uni.arrayBufferToBase64(buffer as ArrayBuffer)
   } catch {
     return value
   }
 }
 
 function decodeText(value: string): string {
+  if (!value) return ''
   try {
-    return decodeURIComponent(atob(value))
+    const buffer = uni.base64ToArrayBuffer(value)
+    return bytesToUtf8(new Uint8Array(buffer))
   } catch {
-    return value
+    /* 兼容旧版 btoa 存的数据 */
+    try {
+      if (typeof atob === 'function') {
+        return decodeURIComponent(atob(value))
+      }
+    } catch {
+      /* ignore */
+    }
+    return ''
   }
 }
 

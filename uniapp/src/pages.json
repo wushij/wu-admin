@@ -136,8 +136,10 @@
           "style": {
             "navigationBarTitleText": "编辑资料",
             "navigationBarBackgroundColor": "#eef2ff",
-            "navigationBarBorderStyle": "white",
-            "backgroundColor": "#f3f5f8"
+            "backgroundColor": "#f3f5f8",
+            "h5": {
+              "navigationBarBorderStyle": "white"
+            }
           }
         },
         {
@@ -145,8 +147,10 @@
           "style": {
             "navigationBarTitleText": "修改密码",
             "navigationBarBackgroundColor": "#eef2ff",
-            "navigationBarBorderStyle": "white",
-            "backgroundColor": "#f3f5f8"
+            "backgroundColor": "#f3f5f8",
+            "h5": {
+              "navigationBarBorderStyle": "white"
+            }
           }
         },
         {
@@ -154,8 +158,10 @@
           "style": {
             "navigationBarTitleText": "更换手机号",
             "navigationBarBackgroundColor": "#eef2ff",
-            "navigationBarBorderStyle": "white",
-            "backgroundColor": "#f3f5f8"
+            "backgroundColor": "#f3f5f8",
+            "h5": {
+              "navigationBarBorderStyle": "white"
+            }
           }
         },
         {
@@ -164,8 +170,10 @@
             "navigationBarTitleText": "登录记录",
             "enablePullDownRefresh": true,
             "navigationBarBackgroundColor": "#eef2ff",
-            "navigationBarBorderStyle": "white",
-            "backgroundColor": "#f3f5f8"
+            "backgroundColor": "#f3f5f8",
+            "h5": {
+              "navigationBarBorderStyle": "white"
+            }
           }
         },
         {
@@ -173,8 +181,10 @@
           "style": {
             "navigationBarTitleText": "账号概览",
             "navigationBarBackgroundColor": "#eef2ff",
-            "navigationBarBorderStyle": "white",
-            "backgroundColor": "#f3f5f8"
+            "backgroundColor": "#f3f5f8",
+            "h5": {
+              "navigationBarBorderStyle": "white"
+            }
           }
         },
         {
@@ -182,8 +192,10 @@
           "style": {
             "navigationBarTitleText": "关于应用",
             "navigationBarBackgroundColor": "#eef2ff",
-            "navigationBarBorderStyle": "white",
-            "backgroundColor": "#f3f5f8"
+            "backgroundColor": "#f3f5f8",
+            "h5": {
+              "navigationBarBorderStyle": "white"
+            }
           }
         }
       ]

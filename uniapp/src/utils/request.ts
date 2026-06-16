@@ -10,8 +10,9 @@ import {
   markErrorToastShown,
   showGlobalErrorToast,
 } from '@/plugins/global-error-handler'
+import { resolveApiBaseUrl } from '@/utils/api-base'
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api'
+const BASE_URL = resolveApiBaseUrl()
 
 const AUTH_PUBLIC_SUFFIXES = [
   '/auth/login',

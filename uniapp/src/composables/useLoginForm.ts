@@ -36,6 +36,8 @@ export function useLoginForm() {
 
   const captchaImg = ref('')
   const captchaUuid = ref('')
+  /** 小程序预填密码后强制重建输入框，避免 native 与 modelValue 不同步 */
+  const passwordFieldKey = ref(0)
 
   const loading = ref(false)
   const sendingSms = ref(false)
@@ -100,7 +102,10 @@ export function useLoginForm() {
     loginMode.value = saved.mode
     formData.rememberMe = true
     if (saved.username) formData.username = saved.username
-    if (saved.password) formData.password = saved.password
+    if (saved.password) {
+      formData.password = saved.password
+      passwordFieldKey.value += 1
+    }
     if (saved.phone) formData.phone = saved.phone
   }
 
@@ -298,6 +303,7 @@ export function useLoginForm() {
     sliderPurpose,
     captchaImg,
     formData,
+    passwordFieldKey,
     loading,
     sendingSms,
     smsCountdown,

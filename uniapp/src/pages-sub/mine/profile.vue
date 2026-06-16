@@ -44,7 +44,7 @@
               v-model="form.nickname"
               class="profile-field__input"
               placeholder="请输入昵称"
-              maxlength="30"
+              :maxlength="30"
             />
           </view>
 
@@ -54,7 +54,7 @@
               v-model="form.email"
               class="profile-field__input"
               placeholder="选填"
-              maxlength="64"
+              :maxlength="64"
             />
           </view>
 
@@ -100,7 +100,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted } from 'vue'
+import { computed, ref, onMounted, watch } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import IconFont from '@/components/common/IconFont/index.vue'
 import ModuleIcon from '@/components/common/ModuleIcon/index.vue'
@@ -145,6 +145,10 @@ function goMobileBind() {
 
 onMounted(load)
 onShow(load)
+
+watch(avatarUrl, () => {
+  avatarBroken.value = false
+})
 </script>
 
 <style lang="scss" scoped>

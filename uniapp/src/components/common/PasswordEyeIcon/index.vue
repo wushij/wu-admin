@@ -1,4 +1,5 @@
 <template>
+  <!-- #ifdef H5 -->
   <svg
     class="password-eye-icon"
     viewBox="0 0 24 24"
@@ -25,9 +26,27 @@
       stroke-linecap="round"
     />
   </svg>
+  <!-- #endif -->
+  <!-- #ifndef H5 -->
+  <image
+    class="password-eye-icon"
+    :src="slashed ? EYE_SLASHED_ICON : EYE_OPEN_ICON"
+    mode="aspectFit"
+  />
+  <!-- #endif -->
 </template>
 
 <script setup lang="ts">
+/* #ifndef H5 */
+const EYE_OPEN_ICON = '/static/icons/password-eye-open.svg'
+const EYE_SLASHED_ICON = '/static/icons/password-eye-slashed.svg'
+/* #endif */
+
+defineOptions({
+  // 避免小程序子组件额外包裹层导致 100% 尺寸塌陷
+  virtualHost: true,
+})
+
 defineProps<{
   /** 密码已明文显示时显示斜线 */
   slashed?: boolean
@@ -36,9 +55,10 @@ defineProps<{
 
 <style scoped>
 .password-eye-icon {
-  width: 100%;
-  height: 100%;
+  width: 36rpx;
+  height: 36rpx;
   display: block;
+  flex-shrink: 0;
   color: #909399;
 }
 </style>

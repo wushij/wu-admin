@@ -3,6 +3,7 @@
     <AuthParticleBackground />
 
     <view class="login-page__content">
+      <!-- #ifdef H5 -->
       <view class="login-page__brand">
         <AuthEarth
           class="login-page__globe"
@@ -12,6 +13,7 @@
           :enable-zoom="false"
         />
       </view>
+      <!-- #endif -->
 
       <AuthGlassForm>
         <view class="auth-form__head">
@@ -44,6 +46,7 @@
             placeholder="请输入用户名"
           />
           <AuthPasswordInput
+            :key="passwordFieldKey"
             v-model="formData.password"
             custom-class="auth-anim auth-anim--2"
             placeholder="请输入密码"
@@ -129,7 +132,9 @@
 import { ref, onMounted } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import SliderCaptcha from '@/components/business/SliderCaptcha/index.vue'
+// #ifdef H5
 import AuthEarth from '@/components/business/AuthEarth/index.vue'
+// #endif
 import AuthParticleBackground from '@/components/business/AuthParticleBackground/index.vue'
 import AuthGlassForm from '@/components/business/AuthGlassForm/index.vue'
 import AuthInput from '@/components/business/AuthInput/index.vue'
@@ -138,8 +143,11 @@ import AuthFooterLink from '@/components/business/AuthFooterLink/index.vue'
 import { useLoginForm } from '@/composables/useLoginForm'
 import { useH5PageHead } from '@/composables/useH5PageHead'
 
-const globeSize = ref(240)
 const pageReady = ref(false)
+
+// #ifdef H5
+const globeSize = ref(240)
+// #endif
 
 useH5PageHead('登录')
 
@@ -154,6 +162,7 @@ const {
   sliderPurpose,
   captchaImg,
   formData,
+  passwordFieldKey,
   loading,
   sendingSms,
   smsCountdown,
@@ -171,10 +180,16 @@ const {
 } = useLoginForm()
 
 onMounted(async () => {
+  // #ifdef H5
   const sysInfo = uni.getSystemInfoSync()
   globeSize.value = Math.min(Math.round(sysInfo.windowWidth * 0.6), 280)
+  // #endif
 
-  await appStore.loadPublicConfig()
+  try {
+    await appStore.loadPublicConfig()
+  } catch {
+    /* 离线或后端未启动时使用默认文案 */
+  }
   await loadConfig()
   restoreRemember()
   await refreshCaptcha()
@@ -208,6 +223,13 @@ onShow(() => {
   justify-content: flex-start;
   box-sizing: border-box;
 }
+
+/* #ifdef MP-WEIXIN */
+.login-page__content {
+  justify-content: center;
+  padding: calc(32rpx + env(safe-area-inset-top)) 40rpx calc(48rpx + env(safe-area-inset-bottom));
+}
+/* #endif */
 
 .login-page__brand {
   position: relative;

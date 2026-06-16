@@ -1,4 +1,5 @@
 import { getToken } from '@/utils/auth'
+import { resolveApiBaseUrl } from '@/utils/api-base'
 
 export type WsMessageType =
   | 'notice'
@@ -50,7 +51,7 @@ function appendToken(url: string, token: string): string {
 }
 
 function getWsUrl(): string {
-  const base = import.meta.env.VITE_API_BASE_URL || '/api'
+  const base = resolveApiBaseUrl()
   const token = getToken()
   let url: string
 
@@ -132,7 +133,12 @@ export function sendMessageWebSocket(payload: Record<string, unknown>): void {
 
 function sendPing(): void {
   if (!socketTask) return
-  socketTask.send({ data: JSON.stringify({ type: 'ping' }) })
+  try {
+    socketTask.send({ data: JSON.stringify({ type: 'ping' }) })
+  } catch {
+    // 连接已死但 onClose/onError 未被 OS 触发，强制清理并重建
+    forceReconnect()
+  }
 }
 
 function startHeartbeat(): void {
@@ -153,13 +159,38 @@ function scheduleReconnect(): void {
   reconnectTimer = setTimeout(() => connectMessageWebSocket(), 3000)
 }
 
-/** 前台恢复或网络恢复时主动重连（重置退避计数） */
+/** 强制关闭当前连接（可能已死）并立即重建，跳过退避限制 */
+function forceReconnect(): void {
+  stopHeartbeat()
+  if (reconnectTimer) {
+    clearTimeout(reconnectTimer)
+    reconnectTimer = null
+  }
+  const dead = socketTask
+  socketTask = null
+  if (dead) {
+    try { dead.close({}) } catch { /* already dead */ }
+  }
+  reconnectAttempts = 0
+  connectMessageWebSocket()
+}
+
+/** 前台恢复或网络恢复时主动重连（重置退避计数，并探测连接是否真正存活） */
 export function ensureMessageWebSocketConnected(): void {
   reconnectAttempts = 0
   if (reconnectTimer) {
     clearTimeout(reconnectTimer)
     reconnectTimer = null
   }
-  if (socketTask) return
+  if (socketTask) {
+    // socketTask 存在不代表连接仍存活（移动端 OS 可能在后台静默杀掉 TCP），
+    // 尝试发送探测帧；若失败 forceReconnect 会清理并重建
+    try {
+      socketTask.send({ data: JSON.stringify({ type: 'ping' }) })
+    } catch {
+      forceReconnect()
+    }
+    return
+  }
   connectMessageWebSocket()
 }

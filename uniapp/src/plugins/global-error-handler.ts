@@ -50,6 +50,7 @@ export function isBenignRequestError(source: unknown): boolean {
 function isBenignUniRuntimeError(source: unknown): boolean {
   if (isBenignRequestError(source)) return true
   const msg = extractApiErrorMessage(source, '')
+  if (/closeSocket:fail/i.test(msg) && /not connected/i.test(msg)) return true
   if (msg.includes('scrollTop') && msg.toLowerCase().includes('null')) return true
   if (msg.includes('navigateBack:fail') && msg.includes('onBackPress')) return true
   if (msg.includes('Maximum call stack size exceeded')) return true

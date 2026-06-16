@@ -56,7 +56,7 @@
                 :password="!showOldPassword"
                 placeholder="请输入原密码"
               />
-              <view class="password-field__toggle" @click="showOldPassword = !showOldPassword">
+              <view class="password-field__toggle" @tap.stop="showOldPassword = !showOldPassword">
                 <PasswordEyeIcon :slashed="showOldPassword" />
               </view>
             </view>
@@ -71,7 +71,7 @@
                 :password="!showNewPassword"
                 :placeholder="`至少 ${minPwdLen} 位`"
               />
-              <view class="password-field__toggle" @click="showNewPassword = !showNewPassword">
+              <view class="password-field__toggle" @tap.stop="showNewPassword = !showNewPassword">
                 <PasswordEyeIcon :slashed="showNewPassword" />
               </view>
             </view>
@@ -86,7 +86,7 @@
                 :password="!showConfirmPassword"
                 placeholder="再次输入新密码"
               />
-              <view class="password-field__toggle" @click="showConfirmPassword = !showConfirmPassword">
+              <view class="password-field__toggle" @tap.stop="showConfirmPassword = !showConfirmPassword">
                 <PasswordEyeIcon :slashed="showConfirmPassword" />
               </view>
             </view>
@@ -123,7 +123,7 @@
                 :password="!showSmsNewPassword"
                 :placeholder="`至少 ${minPwdLen} 位`"
               />
-              <view class="password-field__toggle" @click="showSmsNewPassword = !showSmsNewPassword">
+              <view class="password-field__toggle" @tap.stop="showSmsNewPassword = !showSmsNewPassword">
                 <PasswordEyeIcon :slashed="showSmsNewPassword" />
               </view>
             </view>
@@ -138,7 +138,7 @@
                 :password="!showSmsConfirmPassword"
                 placeholder="再次输入新密码"
               />
-              <view class="password-field__toggle" @click="showSmsConfirmPassword = !showSmsConfirmPassword">
+              <view class="password-field__toggle" @tap.stop="showSmsConfirmPassword = !showSmsConfirmPassword">
                 <PasswordEyeIcon :slashed="showSmsConfirmPassword" />
               </view>
             </view>
@@ -351,13 +351,16 @@ onLoad((options) => {
 }
 
 .password-field__input-wrap {
-  position: relative;
+  display: flex;
+  align-items: center;
 }
 
 .password-field__input {
-  width: 100%;
+  flex: 1;
+  min-width: 0;
+  width: auto;
   min-height: 80rpx;
-  padding: 0 72rpx 0 24rpx;
+  padding: 0 16rpx 0 24rpx;
   border: 1px solid $color-border-light;
   border-radius: $radius-md;
   background: linear-gradient(135deg, rgba(79, 70, 229, 0.03) 0%, $color-bg-muted 100%);
@@ -377,12 +380,10 @@ onLoad((options) => {
 }
 
 .password-field__toggle {
-  position: absolute;
-  right: 16rpx;
-  top: 50%;
-  transform: translateY(-50%);
+  flex-shrink: 0;
   width: 48rpx;
   height: 48rpx;
+  margin-right: 12rpx;
   display: flex;
   align-items: center;
   justify-content: center;

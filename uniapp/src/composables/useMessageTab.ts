@@ -62,18 +62,43 @@ function saveTabMode(mode: MessageTabKey) {
   }
 }
 
+function pickDefaultTab(tabs: { key: string }[]): MessageTabKey {
+  // 与 MESSAGE_CHANNELS 展示顺序一致：公告 → 企业 IM → 业务消息
+  for (const ch of MESSAGE_CHANNELS) {
+    if (tabs.some((t) => t.key === ch.key)) return ch.key as MessageTabKey
+  }
+  return (tabs[0]?.key || 'announce') as MessageTabKey
+}
+
+function resolveAvailableTabKeys(hasMenuPerm: (perm: string) => boolean): MessageTabKey[] {
+  return MESSAGE_CHANNELS.filter(
+    (ch) => !ch.permission || hasMenuPerm(ch.permission),
+  ).map((ch) => ch.key as MessageTabKey)
+}
+
+function resolveInitialTab(hasMenuPerm: (perm: string) => boolean): MessageTabKey {
+  const saved = readSavedTabMode()
+  const keys = resolveAvailableTabKeys(hasMenuPerm)
+  if (saved && keys.includes(saved)) return saved
+  // 权限尚未加载完时先恢复用户上次停留的 tab，避免刷新/重进页面闪到业务消息
+  if (saved) return saved
+  return pickDefaultTab(keys.map((key) => ({ key })))
+}
+
 export function useMessageTab() {
   const messageStore = useMessageStore()
   const { groupUnreadById, groupAtMeById, privateReadTick, lastPrivateReadUserId } =
     storeToRefs(messageStore)
   const { hasMenuPerm } = usePermission()
-  const mode = ref<MessageTabKey>('inbox')
-  const tabInitialized = ref(false)
+  const tabInitialized = ref(true)
   const loading = ref(false)
   const announceList = ref<AnnounceMyVO[]>([])
   const inboxList = ref<NoticeVO[]>([])
   const chatUsers = ref<ChatUser[]>([])
   const chatGroups = ref<ChatGroup[]>([])
+
+  // 同步从 storage 恢复 tab，避免刷新/重进时闪回默认业务消息
+  const mode = ref<MessageTabKey>(resolveInitialTab(hasMenuPerm))
 
   let offWs: (() => void) | null = null
 
@@ -209,7 +234,11 @@ export function useMessageTab() {
   }
 
   async function refresh() {
+    const currentMode = mode.value
     await messageStore.refreshSummary()
+    if (mode.value !== currentMode) {
+      mode.value = currentMode
+    }
     await loadCurrent()
   }
 
@@ -244,29 +273,19 @@ export function useMessageTab() {
     return text
   }
 
-  function pickDefaultTab(tabs: { key: string }[]): MessageTabKey {
-    const saved = readSavedTabMode()
-    if (saved && tabs.some((t) => t.key === saved)) return saved
-    const prefer: MessageTabKey[] = ['inbox', 'chat', 'announce']
-    const hit = prefer.find((key) => tabs.some((t) => t.key === key))
-    return (hit || tabs[0]?.key || 'inbox') as MessageTabKey
-  }
-
   watch(
-    availableTabs,
-    (tabs) => {
-      if (!tabs.length) return
-      if (!tabInitialized.value) {
-        tabInitialized.value = true
-        mode.value = pickDefaultTab(tabs)
+    () => resolveAvailableTabKeys(hasMenuPerm).join(','),
+    () => {
+      const keys = resolveAvailableTabKeys(hasMenuPerm)
+      if (!keys.length) return
+      if (keys.includes(mode.value)) return
+      const saved = readSavedTabMode()
+      if (saved && keys.includes(saved)) {
+        mode.value = saved
         return
       }
-      if (!tabs.some((t) => t.key === mode.value)) {
-        mode.value = pickDefaultTab(tabs)
-        saveTabMode(mode.value)
-      }
+      mode.value = pickDefaultTab(keys.map((key) => ({ key })))
     },
-    { immediate: true },
   )
 
   watch(mode, (next) => {

@@ -2,6 +2,7 @@
   <view
     class="chat-composer"
     :class="{ 'chat-composer--panel-open': emojiActive }"
+    :style="composerStyle"
   >
     <view
       class="chat-composer__tool"
@@ -39,8 +40,9 @@
 
 <script setup lang="ts">
 import { computed, getCurrentInstance, nextTick, ref } from 'vue'
+import { getSafeAreaBottom } from '@/utils/safe-area'
 
-defineProps<{
+const props = defineProps<{
   modelValue: string
   loading?: boolean
   placeholder?: string
@@ -54,6 +56,18 @@ const emit = defineEmits<{
   'toggle-emoji': []
   'close-panels': []
 }>()
+
+const isH5 = import.meta.env.UNI_PLATFORM === 'h5'
+const safeAreaBottom = isH5 ? 0 : getSafeAreaBottom()
+const basePaddingBottom = uni.upx2px(16)
+
+const composerStyle = computed(() => {
+  if (isH5) return {}
+  if (props.emojiActive) {
+    return { paddingBottom: `${basePaddingBottom}px` }
+  }
+  return { paddingBottom: `${basePaddingBottom + safeAreaBottom}px` }
+})
 
 const instance = getCurrentInstance()
 const inputId = `chat-input-${instance?.uid ?? 0}`
@@ -100,8 +114,12 @@ defineExpose({ focusInput })
   align-items: center;
   gap: 12rpx;
   flex-shrink: 0;
-  padding: 16rpx 24rpx calc(16rpx + env(safe-area-inset-bottom));
+  padding: 16rpx 24rpx 16rpx;
   background: #f7f7f7;
+
+  /* #ifdef H5 */
+  padding-bottom: calc(16rpx + env(safe-area-inset-bottom));
+  /* #endif */
 
   &--panel-open {
     padding-bottom: 16rpx;
