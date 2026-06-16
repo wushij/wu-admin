@@ -94,7 +94,7 @@ public class DeptController {
 
     @GetMapping("/recycle/page")
     @Operation(summary = "部门回收站分页")
-    @PreAuthorize("@ss.hasPermission('system:dept:delete')")
+    @PreAuthorize("@ss.hasRecycleRead()")
     public CommonResult<PageResult<DeptDO>> recyclePage(PageParam pageParam,
             @RequestParam(required = false) String name,
             @RequestParam(required = false) Integer status) {
@@ -103,7 +103,7 @@ public class DeptController {
 
     @PutMapping("/restore")
     @Operation(summary = "恢复部门")
-    @PreAuthorize("@ss.hasPermission('system:dept:delete')")
+    @PreAuthorize("@ss.hasRecycleRestore('system:dept:delete')")
     public CommonResult<Boolean> restore(@RequestParam Long id) {
         deptService.restore(id);
         return CommonResult.success(true);
@@ -111,7 +111,7 @@ public class DeptController {
 
     @DeleteMapping("/delete-permanent")
     @Operation(summary = "彻底删除部门")
-    @PreAuthorize("@ss.hasPermission('system:dept:delete')")
+    @PreAuthorize("@ss.hasRecycleDelete('system:dept:delete')")
     public CommonResult<Boolean> deletePermanent(@RequestParam Long id) {
         deptService.deletePermanent(id);
         return CommonResult.success(true);

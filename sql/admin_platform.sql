@@ -834,6 +834,9 @@ INSERT INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, c
 (130, '字典管理', 'system:dict:list', 2, 5, 1, '/system/dict', 'Collection', 'system/dict/index', 1),
 (160, '系统配置', 'system:config:list', 2, 6, 1, '/system/config', 'Tools', 'system/config/index', 1),
 (163, '回收中心', 'system:recycle:list', 2, 7, 1, '/system/recycle', 'Delete', 'system/recycle/index', 1),
+(191, '回收中心查询', 'system:recycle:query', 3, 1, 163, '', '', '', 1),
+(192, '回收中心恢复', 'system:recycle:restore', 3, 2, 163, '', '', '', 1),
+(193, '回收中心删除', 'system:recycle:delete', 3, 3, 163, '', '', '', 1),
 -- 流程中心目录（审批 + 工单）
 (8, '流程中心', '', 1, 7, 0, '/workflow', 'Operation', '', 1),
 -- 审批单中心
@@ -903,7 +906,8 @@ INSERT INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, c
 (102, '访问统计查询', 'monitor:apiAccess:query', 3, 1, 101, '', '', '', 1),
 -- 在线用户
 (103, '在线用户', 'monitor:online:list', 2, 2, 100, '/monitor/online', 'User', 'monitor/online/index', 1),
-(104, '在线用户强退', 'monitor:online:forceLogout', 3, 1, 103, '', '', '', 1),
+(190, '在线用户查询', 'monitor:online:query', 3, 1, 103, '', '', '', 1),
+(104, '在线用户强退', 'monitor:online:forceLogout', 3, 2, 103, '', '', '', 1),
 -- 定时任务
 (180, '定时任务', 'monitor:job:list', 2, 3, 100, '/monitor/job', 'Timer', 'monitor/job/index', 1),
 (181, '任务查询', 'monitor:job:query', 3, 1, 180, '', '', '', 1),
@@ -962,7 +966,7 @@ INSERT INTO sys_user_role (user_id, role_id) VALUES
 
 -- 超级管理员 ↔ 全部菜单
 INSERT INTO sys_role_menu (role_id, menu_id) VALUES
-(1, 1), (1, 2), (1, 3), (1, 4), (1, 5), (1, 130), (1, 160), (1, 163), (1, 7), (1, 8), (1, 9),
+(1, 1), (1, 2), (1, 3), (1, 4), (1, 5), (1, 130), (1, 160), (1, 163), (1, 191), (1, 192), (1, 193), (1, 7), (1, 8), (1, 9),
 (1, 6), (1, 120), (1, 121), (1, 126), (1, 127), (1, 128),
 (1, 10), (1, 11), (1, 12), (1, 13),
 (1, 20), (1, 21), (1, 22), (1, 23),
@@ -972,7 +976,7 @@ INSERT INTO sys_role_menu (role_id, menu_id) VALUES
 (1, 50), (1, 51), (1, 52),
 (1, 60), (1, 61), (1, 62), (1, 63), (1, 64), (1, 65),
 (1, 70), (1, 71), (1, 72), (1, 73), (1, 74),
-(1, 100), (1, 101), (1, 102), (1, 103), (1, 104), (1, 180), (1, 181), (1, 182), (1, 183), (1, 184), (1, 185), (1, 186), (1, 187), (1, 188), (1, 189),
+(1, 100), (1, 101), (1, 102), (1, 103), (1, 190), (1, 104), (1, 180), (1, 181), (1, 182), (1, 183), (1, 184), (1, 185), (1, 186), (1, 187), (1, 188), (1, 189),
 (1, 105), (1, 110), (1, 111), (1, 112), (1, 113),
 (1, 150), (1, 151), (1, 164), (1, 165), (1, 166), (1, 167), (1, 168), (1, 169), (1, 179),
 (1, 170), (1, 171), (1, 172), (1, 173), (1, 174), (1, 175), (1, 176), (1, 177), (1, 178);
@@ -1076,11 +1080,14 @@ WHERE group_code = 'thirdParty'
 INSERT IGNORE INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, component, status) VALUES
 (160, '系统配置', 'system:config:list', 2, 6, 1, '/system/config', 'Tools', 'system/config/index', 1),
 (163, '回收中心', 'system:recycle:list', 2, 7, 1, '/system/recycle', 'Delete', 'system/recycle/index', 1),
+(191, '回收中心查询', 'system:recycle:query', 3, 1, 163, '', '', '', 1),
+(192, '回收中心恢复', 'system:recycle:restore', 3, 2, 163, '', '', '', 1),
+(193, '回收中心删除', 'system:recycle:delete', 3, 3, 163, '', '', '', 1),
 (161, '配置查询', 'system:config:query', 3, 1, 160, '', '', '', 1),
 (162, '配置修改', 'system:config:update', 3, 2, 160, '', '', '', 1);
 
 INSERT IGNORE INTO sys_role_menu (role_id, menu_id) VALUES
-(1, 160), (1, 161), (1, 162), (1, 163);
+(1, 160), (1, 161), (1, 162), (1, 163), (1, 191), (1, 192), (1, 193);
 
 -- [附录·菜单] 代码生成 164-169,179（开发工具下；179 避开消息中心 170）
 INSERT IGNORE INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, component, status) VALUES
@@ -2101,3 +2108,51 @@ CALL sp_drop_index_if_exists('sys_notice', 'idx_user_read_status');
 CALL sp_drop_index_if_exists('sys_sms_log', 'idx_phone');
 
 DROP PROCEDURE IF EXISTS sp_drop_index_if_exists;
+
+-- [附录·菜单] add1：在线用户查询按钮 190（可重复执行）
+INSERT IGNORE INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, component, status) VALUES
+(190, '在线用户查询', 'monitor:online:query', 3, 1, 103, '', '', '', 1);
+
+UPDATE sys_menu
+SET name = '在线用户查询',
+    permission = 'monitor:online:query',
+    type = 3,
+    sort = 1,
+    parent_id = 103,
+    status = 1
+WHERE id = 190
+  AND (permission IS NULL OR permission = '' OR permission <> 'monitor:online:query');
+
+UPDATE sys_menu SET sort = 2 WHERE id = 104 AND parent_id = 103 AND sort = 1;
+
+INSERT IGNORE INTO sys_role_menu (role_id, menu_id) VALUES (1, 190);
+
+INSERT IGNORE INTO sys_role_menu (role_id, menu_id)
+SELECT rm.role_id, 190
+FROM sys_role_menu rm
+WHERE rm.menu_id = 103;
+
+-- [附录·菜单] add2：回收中心 query/restore/delete 191-193（可重复执行）
+INSERT IGNORE INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, component, status) VALUES
+(191, '回收中心查询', 'system:recycle:query', 3, 1, 163, '', '', '', 1),
+(192, '回收中心恢复', 'system:recycle:restore', 3, 2, 163, '', '', '', 1),
+(193, '回收中心删除', 'system:recycle:delete', 3, 3, 163, '', '', '', 1);
+
+UPDATE sys_menu
+SET name = '回收中心查询', permission = 'system:recycle:query', type = 3, sort = 1, parent_id = 163, status = 1
+WHERE id = 191 AND (permission IS NULL OR permission = '' OR permission <> 'system:recycle:query');
+
+UPDATE sys_menu
+SET name = '回收中心恢复', permission = 'system:recycle:restore', type = 3, sort = 2, parent_id = 163, status = 1
+WHERE id = 192 AND (permission IS NULL OR permission = '' OR permission <> 'system:recycle:restore');
+
+UPDATE sys_menu
+SET name = '回收中心删除', permission = 'system:recycle:delete', type = 3, sort = 3, parent_id = 163, status = 1
+WHERE id = 193 AND (permission IS NULL OR permission = '' OR permission <> 'system:recycle:delete');
+
+INSERT IGNORE INTO sys_role_menu (role_id, menu_id) VALUES (1, 191), (1, 192), (1, 193);
+
+INSERT IGNORE INTO sys_role_menu (role_id, menu_id)
+SELECT rm.role_id, 191
+FROM sys_role_menu rm
+WHERE rm.menu_id = 163;

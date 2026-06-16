@@ -129,7 +129,7 @@ public class AnnounceController {
     }
 
     @GetMapping("/recycle/page")
-    @PreAuthorize("@ss.hasPermission('system:announce:delete')")
+    @PreAuthorize("@ss.hasRecycleRead()")
     @Operation(summary = "回收站分页")
     public CommonResult<PageResult<AnnounceDO>> recyclePage(PageParam pageParam,
             @RequestParam(required = false) String title) {
@@ -137,7 +137,7 @@ public class AnnounceController {
     }
 
     @PutMapping("/restore")
-    @PreAuthorize("@ss.hasPermission('system:announce:delete')")
+    @PreAuthorize("@ss.hasRecycleRestore('system:announce:delete')")
     @Operation(summary = "恢复通知")
     public CommonResult<Boolean> restore(@RequestParam Long id) {
         announceService.restore(id);
@@ -145,7 +145,7 @@ public class AnnounceController {
     }
 
     @DeleteMapping("/delete-permanent")
-    @PreAuthorize("@ss.hasPermission('system:announce:delete')")
+    @PreAuthorize("@ss.hasRecycleDelete('system:announce:delete')")
     @Operation(summary = "彻底删除")
     public CommonResult<Boolean> deletePermanent(@RequestParam Long id) {
         announceService.deletePermanent(id);

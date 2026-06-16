@@ -90,7 +90,7 @@ public class TicketController {
 
     @Operation(summary = "回收站分页")
     @GetMapping("/recycle/page")
-    @PreAuthorize("@ss.hasPermission('system:ticket:delete')")
+    @PreAuthorize("@ss.hasRecycleRead()")
     public CommonResult<PageResult<TicketDO>> recyclePage(PageParam pageParam,
             @RequestParam(required = false) String title,
             @RequestParam(required = false) String status,
@@ -101,7 +101,7 @@ public class TicketController {
     @Log(title = "工单管理", businessType = Log.BusinessType.UPDATE)
     @Operation(summary = "恢复工单")
     @PutMapping("/restore")
-    @PreAuthorize("@ss.hasPermission('system:ticket:delete')")
+    @PreAuthorize("@ss.hasRecycleRestore('system:ticket:delete')")
     public CommonResult<Boolean> restore(@RequestParam Long id) {
         ticketService.restore(id);
         return CommonResult.success(true);
@@ -110,7 +110,7 @@ public class TicketController {
     @Log(title = "工单管理", businessType = Log.BusinessType.DELETE)
     @Operation(summary = "彻底删除工单")
     @DeleteMapping("/delete-permanent")
-    @PreAuthorize("@ss.hasPermission('system:ticket:delete')")
+    @PreAuthorize("@ss.hasRecycleDelete('system:ticket:delete')")
     public CommonResult<Boolean> deletePermanent(@RequestParam Long id) {
         ticketService.deletePermanent(id);
         return CommonResult.success(true);

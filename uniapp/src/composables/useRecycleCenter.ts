@@ -19,7 +19,10 @@ export function useRecycleCenter() {
   const searchForm = reactive<Record<string, string>>({})
   const searchKeyword = ref('')
 
-  const visibleModules = computed(() => RECYCLE_MODULES.filter((m) => hasPerm(m.listPerm)))
+  const visibleModules = computed(() => {
+    if (hasPerm('system:recycle:query')) return RECYCLE_MODULES
+    return RECYCLE_MODULES.filter((m) => hasPerm(m.deletePerm))
+  })
   const currentModule = computed(() => visibleModules.value.find((m) => m.key === activeType.value))
 
   const visiblePendingTotal = computed(() => {
@@ -35,9 +38,14 @@ export function useRecycleCenter() {
     return (summary.value as Record<string, number>)[activeType.value] || 0
   })
 
-  const canDelete = computed(() => {
+  const canRestore = computed(() => {
     const mod = currentModule.value
-    return mod ? hasPerm(mod.deletePerm) : false
+    return mod ? hasPerm('system:recycle:restore') || hasPerm(mod.deletePerm) : false
+  })
+
+  const canDeletePermanent = computed(() => {
+    const mod = currentModule.value
+    return mod ? hasPerm('system:recycle:delete') || hasPerm(mod.deletePerm) : false
   })
 
   const searchFields = computed(() => currentModule.value?.searchFields || [])
@@ -238,7 +246,8 @@ export function useRecycleCenter() {
     currentModule,
     visiblePendingTotal,
     activePendingCount,
-    canDelete,
+    canRestore,
+    canDeletePermanent,
     searchFields,
     list,
     loading,

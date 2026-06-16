@@ -37,7 +37,7 @@
             @input="onInput"
           />
           <view
-            v-if="password"
+            v-if="password && !disabled"
             class="form-cell__input-toggle"
             @tap.stop="togglePasswordVisible"
           >
@@ -120,6 +120,7 @@ const resolvedInputType = computed(() => {
 })
 
 function togglePasswordVisible() {
+  if (props.disabled) return
   passwordVisible.value = !passwordVisible.value
 }
 

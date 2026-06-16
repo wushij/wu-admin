@@ -81,7 +81,7 @@ public class PostController {
 
     @GetMapping("/recycle/page")
     @Operation(summary = "岗位回收站分页")
-    @PreAuthorize("@ss.hasPermission('system:post:delete')")
+    @PreAuthorize("@ss.hasRecycleRead()")
     public CommonResult<PageResult<PostDO>> recyclePage(PageParam pageParam,
                                                         @RequestParam(required = false) String postName,
                                                         @RequestParam(required = false) Integer status) {
@@ -90,7 +90,7 @@ public class PostController {
 
     @PutMapping("/restore")
     @Operation(summary = "恢复岗位")
-    @PreAuthorize("@ss.hasPermission('system:post:delete')")
+    @PreAuthorize("@ss.hasRecycleRestore('system:post:delete')")
     public CommonResult<Boolean> restore(@RequestParam Long id) {
         postService.restore(id);
         return CommonResult.success(true);
@@ -98,7 +98,7 @@ public class PostController {
 
     @DeleteMapping("/delete-permanent")
     @Operation(summary = "彻底删除岗位")
-    @PreAuthorize("@ss.hasPermission('system:post:delete')")
+    @PreAuthorize("@ss.hasRecycleDelete('system:post:delete')")
     public CommonResult<Boolean> deletePermanent(@RequestParam Long id) {
         postService.deletePermanent(id);
         return CommonResult.success(true);

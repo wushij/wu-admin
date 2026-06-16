@@ -146,7 +146,7 @@ public class GenController {
 
     @GetMapping("/recycle/page")
     @Operation(summary = "代码生成回收站分页")
-    @PreAuthorize("@ss.hasPermission('tool:gen:remove')")
+    @PreAuthorize("@ss.hasRecycleRead()")
     public CommonResult<PageResult<GenTableDO>> recyclePage(
             PageParam pageParam,
             @RequestParam(required = false) String tableName) {
@@ -155,7 +155,7 @@ public class GenController {
 
     @PutMapping("/restore")
     @Operation(summary = "恢复代码生成表配置")
-    @PreAuthorize("@ss.hasPermission('tool:gen:remove')")
+    @PreAuthorize("@ss.hasRecycleRestore('tool:gen:remove')")
     @Log(title = "代码生成", businessType = Log.BusinessType.UPDATE)
     public CommonResult<Boolean> restore(@RequestParam Long id) {
         genTableService.restore(id);
@@ -164,7 +164,7 @@ public class GenController {
 
     @DeleteMapping("/delete-permanent")
     @Operation(summary = "彻底删除代码生成表配置")
-    @PreAuthorize("@ss.hasPermission('tool:gen:remove')")
+    @PreAuthorize("@ss.hasRecycleDelete('tool:gen:remove')")
     @Log(title = "代码生成", businessType = Log.BusinessType.DELETE)
     public CommonResult<Boolean> deletePermanent(@RequestParam Long id) {
         genTableService.deletePermanent(id);

@@ -98,7 +98,7 @@ public class ApprovalFormController {
 
     @Operation(summary = "审批单回收站分页")
     @GetMapping("/recycle/page")
-    @PreAuthorize("@ss.hasPermission('system:approval:delete')")
+    @PreAuthorize("@ss.hasRecycleRead()")
     public CommonResult<PageResult<ApprovalFormDO>> recyclePage(PageParam pageParam,
             @RequestParam(required = false) String title,
             @RequestParam(required = false) String formType,
@@ -108,7 +108,7 @@ public class ApprovalFormController {
 
     @Operation(summary = "恢复审批单")
     @PutMapping("/restore")
-    @PreAuthorize("@ss.hasPermission('system:approval:delete')")
+    @PreAuthorize("@ss.hasRecycleRestore('system:approval:delete')")
     public CommonResult<Boolean> restore(@RequestParam Long id) {
         approvalFormService.restore(id);
         return CommonResult.success(true);
@@ -116,7 +116,7 @@ public class ApprovalFormController {
 
     @Operation(summary = "彻底删除审批单")
     @DeleteMapping("/delete-permanent")
-    @PreAuthorize("@ss.hasPermission('system:approval:delete')")
+    @PreAuthorize("@ss.hasRecycleDelete('system:approval:delete')")
     public CommonResult<Boolean> deletePermanent(@RequestParam Long id) {
         approvalFormService.deletePermanent(id);
         return CommonResult.success(true);

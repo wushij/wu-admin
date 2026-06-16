@@ -83,7 +83,7 @@ public class UserController {
 
     @Operation(summary = "用户回收站分页")
     @GetMapping("/recycle/page")
-    @PreAuthorize("@ss.hasPermission('system:user:delete')")
+    @PreAuthorize("@ss.hasRecycleRead()")
     public CommonResult<PageResult<UserDO>> recyclePage(PageParam pageParam,
             @RequestParam(required = false) String username,
             @RequestParam(required = false) String mobile,
@@ -94,7 +94,7 @@ public class UserController {
 
     @Operation(summary = "恢复用户")
     @PutMapping("/restore")
-    @PreAuthorize("@ss.hasPermission('system:user:delete')")
+    @PreAuthorize("@ss.hasRecycleRestore('system:user:delete')")
     public CommonResult<Boolean> restore(@RequestParam Long id) {
         userService.restore(id);
         return CommonResult.success(true);
@@ -102,7 +102,7 @@ public class UserController {
 
     @Operation(summary = "彻底删除用户")
     @DeleteMapping("/delete-permanent")
-    @PreAuthorize("@ss.hasPermission('system:user:delete')")
+    @PreAuthorize("@ss.hasRecycleDelete('system:user:delete')")
     public CommonResult<Boolean> deletePermanent(@RequestParam Long id) {
         userService.deletePermanent(id);
         return CommonResult.success(true);

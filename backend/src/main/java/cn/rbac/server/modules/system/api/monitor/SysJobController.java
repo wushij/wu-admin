@@ -150,7 +150,7 @@ public class SysJobController {
     }
 
     @GetMapping("/log/recycle/page")
-    @PreAuthorize("@ss.hasRead('system:recycle:list')")
+    @PreAuthorize("@ss.hasRecycleRead()")
     @Operation(summary = "调度日志回收站分页")
     public CommonResult<PageResult<SysJobLogDO>> logRecyclePage(
             PageParam pageParam,
@@ -160,7 +160,7 @@ public class SysJobController {
     }
 
     @PutMapping("/log/restore")
-    @PreAuthorize("@ss.hasPermission('monitor:job:delete')")
+    @PreAuthorize("@ss.hasRecycleRestore('monitor:job:delete')")
     @Log(title = "定时任务", businessType = Log.BusinessType.UPDATE)
     @Operation(summary = "恢复调度日志")
     public CommonResult<Boolean> restoreLog(@RequestParam Long id) {
@@ -169,7 +169,7 @@ public class SysJobController {
     }
 
     @DeleteMapping("/log/delete-permanent")
-    @PreAuthorize("@ss.hasPermission('monitor:job:delete')")
+    @PreAuthorize("@ss.hasRecycleDelete('monitor:job:delete')")
     @Log(title = "定时任务", businessType = Log.BusinessType.DELETE)
     @Operation(summary = "彻底删除调度日志")
     public CommonResult<Boolean> deleteLogPermanent(@RequestParam Long id) {
@@ -178,7 +178,7 @@ public class SysJobController {
     }
 
     @GetMapping("/recycle/page")
-    @PreAuthorize("@ss.hasRead('system:recycle:list')")
+    @PreAuthorize("@ss.hasRecycleRead()")
     @Operation(summary = "定时任务回收站分页")
     public CommonResult<PageResult<SysJobDO>> recyclePage(
             PageParam pageParam,
@@ -188,7 +188,7 @@ public class SysJobController {
     }
 
     @PutMapping("/restore")
-    @PreAuthorize("@ss.hasPermission('monitor:job:delete')")
+    @PreAuthorize("@ss.hasRecycleRestore('monitor:job:delete')")
     @Log(title = "定时任务", businessType = Log.BusinessType.UPDATE)
     @Operation(summary = "恢复定时任务")
     public CommonResult<Boolean> restore(@RequestParam Long id) {
@@ -197,7 +197,7 @@ public class SysJobController {
     }
 
     @DeleteMapping("/delete-permanent")
-    @PreAuthorize("@ss.hasPermission('monitor:job:delete')")
+    @PreAuthorize("@ss.hasRecycleDelete('monitor:job:delete')")
     @Log(title = "定时任务", businessType = Log.BusinessType.DELETE)
     @Operation(summary = "彻底删除定时任务")
     public CommonResult<Boolean> deletePermanent(@RequestParam Long id) {

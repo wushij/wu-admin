@@ -162,7 +162,7 @@ public class SysFileController {
     }
 
     @GetMapping("/recycle/page")
-    @PreAuthorize("@ss.hasPermission('sys:file:delete')")
+    @PreAuthorize("@ss.hasRecycleRead()")
     @Operation(summary = "文件回收站分页")
     public CommonResult<PageResult<SysFileDO>> recyclePage(
             PageParam pageParam,
@@ -171,7 +171,7 @@ public class SysFileController {
     }
 
     @PutMapping("/restore")
-    @PreAuthorize("@ss.hasPermission('sys:file:delete')")
+    @PreAuthorize("@ss.hasRecycleRestore('sys:file:delete')")
     @Operation(summary = "恢复文件")
     public CommonResult<Boolean> restore(@RequestParam Long id) {
         fileService.restore(id);
@@ -179,7 +179,7 @@ public class SysFileController {
     }
 
     @DeleteMapping("/delete-permanent")
-    @PreAuthorize("@ss.hasPermission('sys:file:delete')")
+    @PreAuthorize("@ss.hasRecycleDelete('sys:file:delete')")
     @Operation(summary = "彻底删除文件")
     public CommonResult<Boolean> deletePermanent(@RequestParam Long id) {
         fileService.deletePermanent(id);

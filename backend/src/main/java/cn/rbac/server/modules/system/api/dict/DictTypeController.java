@@ -104,7 +104,7 @@ public class DictTypeController {
 
     @GetMapping("/recycle/page")
     @Operation(summary = "字典类型回收站分页")
-    @PreAuthorize("@ss.hasPermission('system:dict:delete')")
+    @PreAuthorize("@ss.hasRecycleRead()")
     public CommonResult<PageResult<DictTypeDO>> recyclePage(PageParam pageParam,
                                                             @RequestParam(required = false) String dictName,
                                                             @RequestParam(required = false) String dictType) {
@@ -113,7 +113,7 @@ public class DictTypeController {
 
     @PutMapping("/restore")
     @Operation(summary = "恢复字典类型")
-    @PreAuthorize("@ss.hasPermission('system:dict:delete')")
+    @PreAuthorize("@ss.hasRecycleRestore('system:dict:delete')")
     public CommonResult<Boolean> restore(@RequestParam Long id) {
         dictTypeService.restore(id);
         return CommonResult.success(true);
@@ -121,7 +121,7 @@ public class DictTypeController {
 
     @DeleteMapping("/delete-permanent")
     @Operation(summary = "彻底删除字典类型")
-    @PreAuthorize("@ss.hasPermission('system:dict:delete')")
+    @PreAuthorize("@ss.hasRecycleDelete('system:dict:delete')")
     public CommonResult<Boolean> deletePermanent(@RequestParam Long id) {
         dictTypeService.deletePermanent(id);
         return CommonResult.success(true);

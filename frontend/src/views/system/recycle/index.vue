@@ -120,7 +120,7 @@
           <template #default="{ row }">
             <div class="action-buttons">
               <el-button
-                v-if="canDelete"
+                v-if="canRestore"
                 type="primary"
                 plain
                 size="small"
@@ -129,7 +129,7 @@
                 恢复
               </el-button>
               <el-button
-                v-if="canDelete"
+                v-if="canDeletePermanent"
                 type="danger"
                 plain
                 size="small"
@@ -201,9 +201,13 @@ const total = ref(0)
 const searchForm = reactive<Record<string, string>>({})
 const query = reactive({ pageNo: 1, pageSize: 10 })
 
-const visibleTypes = computed(() =>
-  RECYCLE_TYPES.filter((t) => hasMenuPermission(userStore.menus, t.permission)),
-)
+const visibleTypes = computed(() => {
+  const codes = userStore.userInfo?.permissions || []
+  const hasRecycleQuery =
+    codes.includes('system:recycle:query') || hasMenuPermission(userStore.menus, 'system:recycle:query')
+  if (hasRecycleQuery) return RECYCLE_TYPES
+  return RECYCLE_TYPES.filter((t) => hasMenuPermission(userStore.menus, t.deletePermission))
+})
 
 const currentType = computed(() => getRecycleType(activeType.value))
 
@@ -214,9 +218,21 @@ const visiblePendingTotal = computed(() =>
   visibleTypes.value.reduce((sum, type) => sum + (summary[type.key] ?? 0), 0),
 )
 
-const canDelete = computed(() => {
+function hasPermCode(code: string) {
+  const codes = userStore.userInfo?.permissions || []
+  return codes.includes(code) || hasMenuPermission(userStore.menus, code)
+}
+
+const canRestore = computed(() => {
   const perm = currentType.value?.deletePermission
-  return perm ? hasMenuPermission(userStore.menus, perm) : false
+  if (!perm) return false
+  return hasPermCode('system:recycle:restore') || hasMenuPermission(userStore.menus, perm)
+})
+
+const canDeletePermanent = computed(() => {
+  const perm = currentType.value?.deletePermission
+  if (!perm) return false
+  return hasPermCode('system:recycle:delete') || hasMenuPermission(userStore.menus, perm)
 })
 
 function initSearchForm() {

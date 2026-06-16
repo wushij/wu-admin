@@ -21,7 +21,7 @@ public class RecycleCenterController {
 
     @Operation(summary = "回收站汇总统计")
     @GetMapping("/summary")
-    @PreAuthorize("@ss.hasRead('system:recycle:list')")
+    @PreAuthorize("@ss.hasRecycleRead()")
     public CommonResult<RecycleSummaryVO> summary() {
         return CommonResult.success(recycleCenterService.summary());
     }

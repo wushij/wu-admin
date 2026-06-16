@@ -75,7 +75,7 @@ public class MenuController {
 
     @Operation(summary = "菜单回收站分页")
     @GetMapping("/recycle/page")
-    @PreAuthorize("@ss.hasPermission('system:menu:delete')")
+    @PreAuthorize("@ss.hasRecycleRead()")
     public CommonResult<PageResult<MenuDO>> recyclePage(PageParam pageParam,
             @RequestParam(required = false) String name,
             @RequestParam(required = false) Integer status) {
@@ -84,7 +84,7 @@ public class MenuController {
 
     @Operation(summary = "恢复菜单")
     @PutMapping("/restore")
-    @PreAuthorize("@ss.hasPermission('system:menu:delete')")
+    @PreAuthorize("@ss.hasRecycleRestore('system:menu:delete')")
     public CommonResult<Boolean> restore(@RequestParam Long id) {
         menuService.restoreMenu(id);
         return CommonResult.success(true);
@@ -92,7 +92,7 @@ public class MenuController {
 
     @Operation(summary = "彻底删除菜单")
     @DeleteMapping("/delete-permanent")
-    @PreAuthorize("@ss.hasPermission('system:menu:delete')")
+    @PreAuthorize("@ss.hasRecycleDelete('system:menu:delete')")
     public CommonResult<Boolean> deletePermanent(@RequestParam Long id) {
         menuService.deletePermanent(id);
         return CommonResult.success(true);

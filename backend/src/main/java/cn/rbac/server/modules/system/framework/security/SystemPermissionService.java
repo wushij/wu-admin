@@ -53,6 +53,27 @@ public class SystemPermissionService implements PermissionApi {
     }
 
     @Override
+    public boolean hasRecycleRead() {
+        return hasRead("system:recycle:list");
+    }
+
+    @Override
+    public boolean hasRecycleRestore(String moduleDeletePerm) {
+        if (hasPermission("system:recycle:restore")) {
+            return true;
+        }
+        return hasPermission(moduleDeletePerm);
+    }
+
+    @Override
+    public boolean hasRecycleDelete(String moduleDeletePerm) {
+        if (hasPermission("system:recycle:delete")) {
+            return true;
+        }
+        return hasPermission(moduleDeletePerm);
+    }
+
+    @Override
     public boolean hasRole(String role) {
         Long userId = SecurityUtils.getLoginUserId();
         if (userId == null) {

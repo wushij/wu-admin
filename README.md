@@ -70,18 +70,25 @@
 | **生产性能与并发** | 后端 Async/Druid/批量与 WS afterCommit、API 日志加速；Nginx 文件直出 + gzip/静态缓存；H5 聊天图压缩；并发优化第一批（touchLastAccess 节流、工作台在线人数、监控 in-flight）；**第二批**：监控权限/query 拆分、普通用户离页停采样、API 访问统计 SQL 修复；详见 [生产性能与并发优化](#生产性能与并发优化202606) |
 | **监控权限与采样** | 缓存/服务监控补齐 **查询** 按钮权限；管理员登录后全局轮询，普通用户**进页采样、离页停止**（PC + uni-app）；全量脚本已含 |
 | **API 访问统计** | 修复统计接口 500：`sys_api_access_log` 无 `deleted` 字段，聚合 SQL 已去掉误写的 `deleted = 0` |
+| **权限 · 在线用户** | 补齐按钮 **在线用户查询**（`monitor:online:query`，菜单 id=190）；与定时任务/缓存监控等模块一致；增量 **`add1.sql` / `add1_wuadmin.sql`** |
+| **权限 · 回收中心** | 补齐 **回收中心查询/恢复/删除**（`system:recycle:query|restore|delete`，id=191～193）；各模块 `/recycle/page` 改走 `hasRecycleRead()`，不再误要求各模块 `*:delete`；增量 **`add2.sql` / `add2_wuadmin.sql`** |
+| **移动端 · 系统配置** | 仅 **配置修改**（`system:config:update`）时显示密码小眼睛；只读用户（配置查询）不可查看 AppSecret/私钥明文 |
 
 **本批升级部署提示**
 
 | 变更类型 | 须部署 |
 |----------|--------|
 | 滑块验证码 / WebSocket 握手 | **重启 backend.jar** |
-| H5 在线状态 / 滑块组件 | **`uniapp` `npm run build:h5`** 并上传 `app.wushij.online` |
+| 回收中心 / 在线用户 query 权限 | **执行 add1 + add2 SQL** → **重启 backend.jar** → **重新登录** |
+| H5 在线状态 / 滑块组件 / 配置密码小眼睛 | **`uniapp` `npm run build:h5`** 并上传 `app.wushij.online` |
+| 回收中心 PC Tab / 操作按钮 | **`frontend` `npm run build`** 并上传 PC 站点 |
 | API 访问统计卡片对齐 | **`frontend` `npm run build`** 并上传 PC 站点 |
 
 ```bash
 # 已有库升级（极旧库先跑 admin_platform.sql 附录；后续发版按 add1.sql、add2.sql … 补跑）
-# mysql -u root -p wu-admin < sql/add1.sql
+mysql -u root -p wu-admin < sql/add1.sql   # 在线用户查询 190
+mysql -u root -p wu-admin < sql/add2.sql   # 回收中心 query/restore/delete 191-193
+# 生产库名 wuadmin 时改用 add1_wuadmin.sql / add2_wuadmin.sql
 
 # 移动端 H5
 cd uniapp && npm install && npm run dev:h5
@@ -174,6 +181,8 @@ cd uniapp && npm install && npm run dev:h5
 | **缓存/服务监控权限** | 补齐 `monitor:cache:query`、`monitor:server:query` 按钮权限，与操作日志、API 访问统计一致；菜单 `*:list` 控制侧栏，查询/删除独立分配；全量脚本 `admin_platform.sql`、`admin_platform_mysql56.sql` 已含 |
 | **普通用户离页停采样** | 非 admin 进入 `/monitor/cache`、`/monitor/server` 才轮询，离开页面立即停止，避免切走后仍打 Redis INFO / JMX |
 | **API 访问统计 500** | `GET /api/monitor/api-access/statistics` 聚合 SQL 误带 `deleted = 0`（表无该列）导致 MySQL 报错；已从 `ApiAccessLogMapper` 移除 |
+| **在线用户 query** | 菜单 id=190 `monitor:online:query`；增量 `add1.sql`；`query→list` 推导已有，后端接口无需改注解 |
+| **回收中心权限** | 菜单 191～193 + `hasRecycleRead/Restore/Delete`；增量 `add2.sql`；PC/uni-app Tab 与按钮权限对齐 |
 
 后端 `mvn test`、前端 `npm run typecheck` 已通过；**部署新 jar / dist 后线上才生效**。
 
@@ -320,32 +329,35 @@ cd uniapp && npm run type-check
 | 项 | 说明 |
 |------|------|
 | **路由** | `/system/recycle` |
-| **菜单** | id=**163**，权限 `system:recycle:list`（进入页）；恢复/彻底删除复用各模块 `*:delete` 权限 |
+| **菜单** | id=**163**，权限 `system:recycle:list`（进入页）；按钮 **191 查询** / **192 恢复** / **193 彻底删除**（`system:recycle:query|restore|delete`） |
+| **鉴权** | 汇总与各模块 `GET .../recycle/page` 使用 `@ss.hasRecycleRead()`（`query` 可推导 `list`）；恢复/清除使用 `@ss.hasRecycleRestore()` / `@ss.hasRecycleDelete()`，并**兼容**原各模块 `*:delete` 权限 |
 | **汇总 API** | `GET /api/system/recycle/summary` — 12 类软删数量角标 |
 | **前端** | `frontend/src/views/system/recycle/`（`recycle-config.ts` 驱动 Tab + 表格）；各业务列表页保留 **回收中心** 快捷入口 |
 
 **支持的 12 类**
 
-| Tab | 权限（列表） | 特殊说明 |
-|-----|--------------|----------|
-| 用户 | `system:user:list` | — |
-| 角色 | `system:role:list` | — |
-| 菜单 | `system:menu:list` | — |
-| 部门 | `system:dept:list` | — |
-| 岗位 | `system:post:list` | — |
-| 工单 | `system:ticket:list` | — |
-| 审批 | `system:approval:list` | — |
-| 字典类型 | `system:dict:list` | 恢复类型**不会**自动还原已级联删除的字典数据 |
-| 字典数据 | `system:dict:list` | 恢复/清除后自动 `dictCacheService.refreshAll()` |
-| 系统通知 | `system:announce:list` | 软删；彻底删除级联 `user_announce`、`send_log` |
-| 定时任务 | `monitor:job:list` | 恢复时重新注册 Quartz 调度 |
-| 文件 | `sys:file:list` | 软删不删磁盘；恢复前校验磁盘文件存在；超 **30 天** 可由内置任务 `purgeFileRecycleBin` 自动清盘 |
+| Tab | 前端 Tab 可见条件 | 特殊说明 |
+|-----|-------------------|----------|
+| 用户 | 有 `system:recycle:query` **或** 原 `system:user:delete` | — |
+| 角色 | 同上模式 | — |
+| 菜单 | 同上模式 | — |
+| 部门 | 同上模式 | — |
+| 岗位 | 同上模式 | — |
+| 工单 | 同上模式 | — |
+| 审批 | 同上模式 | — |
+| 字典类型 | 同上模式 | 恢复类型**不会**自动还原已级联删除的字典数据 |
+| 字典数据 | 同上模式 | 恢复/清除后自动 `dictCacheService.refreshAll()` |
+| 系统通知 | 同上模式 | 软删；彻底删除级联 `user_announce`、`send_log` |
+| 定时任务 | 同上模式 | 恢复时重新注册 Quartz 调度 |
+| 文件 | 同上模式 | 软删不删磁盘；恢复前校验磁盘文件存在；超 **30 天** 可由内置任务 `purgeFileRecycleBin` 自动清盘 |
+
+**角色分配建议**：只读查回收站 → 勾选「回收中心」+「回收中心查询」；需恢复/清除再分别勾选 192/193。
 
 各类型分页/恢复/彻底删除 API 仍挂在原模块路径下，例如：`GET /api/system/user/recycle/page`、`PUT .../restore/{id}`、`DELETE .../permanent/{id}`（以各 Controller 为准）。
 
 **数据库（全量脚本已含）**
 
-回收中心菜单 id=163、`sys_file` 软删字段、代码生成表/菜单及 `table_name` 唯一索引均已写入 `admin_platform.sql` / `admin_platform_mysql56.sql`。极旧库可执行 `admin_platform.sql` **附录** 补全。
+回收中心菜单 id=163、按钮 191～193、在线用户查询 id=190、`sys_file` 软删字段、代码生成表/菜单及 `table_name` 唯一索引均已写入 `admin_platform.sql` / `admin_platform_mysql56.sql`。极旧库可执行 `admin_platform.sql` **附录** 补全；已有库按 **`add1.sql` → `add2.sql`** 顺序补跑。
 
 ```bash
 # 极旧库补全（缺表/菜单时）
@@ -368,7 +380,7 @@ cd uniapp && npm run type-check
 | 工单 | `GET /api/system/export/ticket` | `system:ticket:list` |
 | 审批单 | `GET /api/system/export/approval` | `system:approval:list` |
 | API 访问 | `GET /api/monitor/api-access/export` | `monitor:apiAccess:query` |
-| 在线用户 | `GET /api/monitor/online/export` | `monitor:online:list` |
+| 在线用户 | `GET /api/monitor/online/export` | `monitor:online:list`（有 `monitor:online:query` 亦可） |
 
 导出写操作日志（`@Log` businessType=EXPORT）；`scope=filtered` 与列表当前筛选一致，`all` 在权限范围内导出全量（受 `PageParam` 上限约束）。
 
@@ -932,7 +944,7 @@ wu-admin/
 ├── sql/
 │   ├── admin_platform.sql          # 本地全量（wu-admin，MySQL 8）+ 附录（旧库升级）
 │   ├── admin_platform_mysql56.sql  # 生产空库全量（wuadmin，MySQL 5.6.5+）
-│   ├── add1.sql … addN.sql         # 本地发版增量（自下一版起从 add1 重新编号）
+│   ├── add1.sql … addN.sql         # 本地发版增量（add1=在线用户 query；add2=回收中心 query/restore/delete）
 │   ├── add1_wuadmin.sql …          # 生产发版增量（与 addN.sql 对齐，库名 wuadmin）
 │   └── disable_devtool_off.sql     # 临时关闭「禁止前端调试」（MySQL 5.6 兼容）
 ├── data/                       # 本地上传目录（git 忽略，对应 file.storage.local-path）
@@ -1509,7 +1521,13 @@ A：极旧库执行 **`admin_platform.sql` 附录**，**重新登录**。空库�
 A：MySQL 5.6 + utf8mb4 唯一索引上限 767 字节，请用 **`admin_platform_mysql56.sql`** 空库安装（`table_name VARCHAR(191)`），勿对生产库套用本地 `VARCHAR(200)` 建表语句。
 
 **Q：回收中心某个 Tab 看不到（如岗位）？**  
-A：Tab 按各模块 **列表权限** 显示（如岗位需 `system:post:list`）；无权限的类别不会展示，但汇总接口仍可能返回计数。
+A：须勾选 **回收中心查询**（`system:recycle:query`）；仅有「回收中心」菜单而无 query 时，汇总可见但列表会 403。旧版若只给了各模块 `*:delete` 仍可见对应 Tab（兼容）。
+
+**Q：普通用户勾了回收中心仍查不到数据？**  
+A：执行 **`add2.sql`** 并勾选 **回收中心查询**；**重启后端** 后 **重新登录**。此前后端误用各模块 `*:delete` 鉴权列表，与角色分配不一致。
+
+**Q：移动端普通用户能在系统配置点小眼睛看密码？**  
+A：升级含 `FormCell` 修复的 **uni-app H5** 后，仅 **配置修改**（`system:config:update`）显示小眼睛；只读 **配置查询** 用户密钥字段保持掩码。
 
 **Q：文件恢复失败提示磁盘不存在？**  
 A：软删仅改库表标记，若磁盘文件已被手动删除则无法恢复；可在回收中心「彻底删除」清理无效记录。超过 `app.job.file-recycle-retention-days`（默认 30 天）的记录可由定时任务 **文件回收站清理** 自动清盘（内置任务，默认暂停，需在定时任务页启用）。
