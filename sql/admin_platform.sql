@@ -6,14 +6,14 @@
 -- 【使用方式】
 --   全新安装（空库）  直接执行全文即可（自动检测空库放行 Part A/B）
 --                     示例: mysql -u root -p < sql/admin_platform.sql
---   已有库（有表）    勿跑全文 Part A/B；执行文末「附录」或 sql/add1.sql 等增量
+--   已有库（有表）    勿跑全文 Part A/B；仅执行文末「附录」
 --   强制重装         SET @WU_ADMIN_ALLOW_DROP=1; 后再执行全文（会 DROP 清库）
 --
 -- 【正文结构】
 --   Part A  建表      §1 用户 ~ §17 代码生成（gen_table 含 uk_gen_table_name_deleted 唯一索引）
 --   Part B  初始数据  组织/用户/字典/配置/菜单（含代码生成 164-169,179）/定时任务/角色权限
 --
--- 【附录】旧库补丁（含代码生成表/菜单/唯一索引迁移）；发版增量见 sql/add1.sql 等
+-- 【附录】旧库补丁（含代码生成表/菜单/唯一索引迁移及历次发版变更）
 -- =============================================================================
 
 -- 建库并切换
@@ -38,7 +38,7 @@ BEGIN
                   '[OK] @WU_ADMIN_ALLOW_DROP=1, forced reinstall') AS result;
     ELSE
         SIGNAL SQLSTATE '45000'
-            SET MESSAGE_TEXT = 'Part A/B 已拦截：wu-admin 已有表。旧库请执行文末附录或 sql/add1.sql；重装请 SET @WU_ADMIN_ALLOW_DROP=1;';
+            SET MESSAGE_TEXT = 'Part A/B 已拦截：wu-admin 已有表。旧库请执行文末附录；重装请 SET @WU_ADMIN_ALLOW_DROP=1;';
     END IF;
 END$$
 DELIMITER ;
@@ -998,7 +998,7 @@ INSERT INTO sys_role_menu (role_id, menu_id) VALUES
 -- =============================================================================
 -- 附录：已有库升级（极旧库首次补丁；可重复执行，无 DROP）
 -- 执行: 在客户端选中本节至文件末尾，或 mysql ... wu-admin < admin_platform.sql 仅当已跳过 Part A/B
--- 发版增量（非全量）见 sql/add1.sql；菜单默认 INSERT IGNORE，不覆盖 name/path/icon
+-- 菜单默认 INSERT IGNORE，不覆盖 name/path/icon
 -- =============================================================================
 
 SET @WU_ADMIN_SYNC_MENU := IFNULL(@WU_ADMIN_SYNC_MENU, 0);
@@ -1277,7 +1277,7 @@ CALL sp_add_unique_index_if_not_exists('gen_table', 'uk_gen_table_name_deleted',
 DROP PROCEDURE IF EXISTS sp_drop_index_if_exists;
 DROP PROCEDURE IF EXISTS sp_add_unique_index_if_not_exists;
 
--- [附录·菜单] 图标修正（增量见 add19.sql；生产见 add19_wuadmin.sql）
+-- [附录·菜单] 图标修正
 UPDATE sys_menu SET icon = 'UserFilled' WHERE id = 3 AND icon IN ('Key', 'key');
 UPDATE sys_menu SET icon = 'DocumentCopy' WHERE id = 110;
 UPDATE sys_menu SET icon = 'Tickets' WHERE id = 7;
@@ -1921,13 +1921,13 @@ SET config_value = JSON_SET(config_value, '$.smsLoginEnabled', CAST(false AS JSO
 WHERE group_code = 'login'
   AND JSON_EXTRACT(config_value, '$.smsLoginEnabled') IS NULL;
 
--- [附录·登录] 短信发送前滑块验证 smsLoginSliderCaptchaEnabled（增量见 add2.sql）
+-- [附录·登录] 短信发送前滑块验证 smsLoginSliderCaptchaEnabled
 UPDATE sys_config_group
 SET config_value = JSON_SET(config_value, '$.smsLoginSliderCaptchaEnabled', CAST(false AS JSON))
 WHERE group_code = 'login'
   AND JSON_EXTRACT(config_value, '$.smsLoginSliderCaptchaEnabled') IS NULL;
 
--- [附录·登录] IP 锁定阈值 maxRetryCountIp（增量见 add18.sql；生产见 add15_wuadmin.sql）
+-- [附录·登录] IP 锁定阈值 maxRetryCountIp
 UPDATE sys_config_group
 SET config_value = JSON_SET(config_value, '$.maxRetryCountIp', CAST(20 AS JSON)),
     remark = '验证码 image/slider；smsLoginEnabled 短信登录；smsLoginSliderCaptchaEnabled 短信发送前滑块；maxRetryCount 账号锁定阈值；maxRetryCountIp IP 锁定阈值'

@@ -58,20 +58,17 @@
 | **移动端个人中心** | 手机号绑定/更换独立页 `mobile-bind`；账号状态与 PC 对齐（`1=正常`、`0=已停用`）；「我的」卡片昵称布局微调 |
 | **工作台统计** | PC / 移动端新增 **企业 IM 未读**（`chatUnreadCount`）、**系统配置分组数**（`configGroupCount`） |
 | **系统通知** | 公告详情发布人昵称/头像按 `createBy` **实时解析**，改名后不再显示旧昵称 |
-| **部门负责人** | `sys_dept.leader_user_id` 关联用户；PC / 移动端选择用户，改名同步 `leader_name`；增量 `add15.sql` / `add15_wuadmin.sql` |
-| **定时任务日志** | `sys_job_log` 增加 `duration_ms`；调度日志支持软删并在回收中心恢复；本地 `add16.sql` + `add17.sql`，生产合并至 **`add15_wuadmin.sql`** |
+| **部门负责人** | `sys_dept.leader_user_id` 关联用户；PC / 移动端选择用户，改名同步 `leader_name`；全量脚本与附录已含 |
+| **定时任务日志** | `sys_job_log` 增加 `duration_ms`；调度日志支持软删并在回收中心恢复；全量脚本与附录已含 |
 | **移动端企业 IM** | 微信式聊天输入：**☺ / ⌨** 表情与键盘切换；底部输入栏 `fixed` + H5 `visualViewport` 键盘高度适配；**发送后保持键盘**不收回；表情面板 **「最近」** Tab（`uni.storage` 本地记录）；加号直选文件/图片；图片消息按比例缩略图；发送后自动滚至最新消息 |
 | **用户管理 · 登录锁定** | PC / 移动端用户列表与详情展示 **登录锁定** 标签；管理员可 **解除登录锁定**（`PUT /api/system/user/unlock-login`），同时清除账号与**该用户最近登录 IP** 的 Redis 锁定 |
 | **生产性能与并发** | 后端 Async/Druid/批量与 WS afterCommit、API 日志加速；Nginx 文件直出 + gzip/静态缓存；H5 聊天图压缩；并发优化第一批（touchLastAccess 节流、工作台在线人数、监控 in-flight）；**第二批**：监控权限/query 拆分、普通用户离页停采样、API 访问统计 SQL 修复；详见 [生产性能与并发优化](#生产性能与并发优化202606) |
-| **监控权限与采样** | 缓存/服务监控补齐 **查询** 按钮权限（`add20`）；管理员登录后全局轮询，普通用户**进页采样、离页停止**（PC + uni-app） |
+| **监控权限与采样** | 缓存/服务监控补齐 **查询** 按钮权限；管理员登录后全局轮询，普通用户**进页采样、离页停止**（PC + uni-app）；全量脚本已含 |
 | **API 访问统计** | 修复统计接口 500：`sys_api_access_log` 无 `deleted` 字段，聚合 SQL 已去掉误写的 `deleted = 0` |
 
 ```bash
-# 本地增量（按已执行版本补跑）
-mysql -u root -p wu-admin < sql/add15.sql
-mysql -u root -p wu-admin < sql/add16.sql
-mysql -u root -p wu-admin < sql/add17.sql
-mysql -u root -p wu-admin < sql/add20.sql   # 缓存/服务监控「查询」权限
+# 已有库升级（极旧库先跑 admin_platform.sql 附录；后续发版按 add1.sql、add2.sql … 补跑）
+# mysql -u root -p wu-admin < sql/add1.sql
 
 # 移动端 H5
 cd uniapp && npm install && npm run dev:h5
@@ -161,7 +158,7 @@ cd uniapp && npm install && npm run dev:h5
 
 | 改动 | 与改前差异 |
 |------|------------|
-| **缓存/服务监控权限** | 补齐 `monitor:cache:query`、`monitor:server:query` 按钮权限，与操作日志、API 访问统计一致；菜单 `*:list` 控制侧栏，查询/删除独立分配；增量 **`add20.sql`** / **`add20_wuadmin.sql`** |
+| **缓存/服务监控权限** | 补齐 `monitor:cache:query`、`monitor:server:query` 按钮权限，与操作日志、API 访问统计一致；菜单 `*:list` 控制侧栏，查询/删除独立分配；全量脚本 `admin_platform.sql`、`admin_platform_mysql56.sql` 已含 |
 | **普通用户离页停采样** | 非 admin 进入 `/monitor/cache`、`/monitor/server` 才轮询，离开页面立即停止，避免切走后仍打 Redis INFO / JMX |
 | **API 访问统计 500** | `GET /api/monitor/api-access/statistics` 聚合 SQL 误带 `deleted = 0`（表无该列）导致 MySQL 报错；已从 `ApiAccessLogMapper` 移除 |
 
@@ -281,12 +278,12 @@ cd uniapp && npm run type-check
 
 | 场景 | 脚本 |
 |------|------|
-| 本地已有库 | `sql/add11.sql`（#11 建表/菜单 + #12 唯一索引迁移，可重复执行） |
-| 生产已有库（MySQL 5.6+） | `sql/add11_wuadmin.sql`（同上；`table_name VARCHAR(191)` 适配 5.6 utf8mb4 索引 767 字节上限） |
+| 本地已有库 | 极旧库执行 `admin_platform.sql` **附录**；后续发版按 `add1.sql`、`add2.sql` … 补跑 |
+| 生产已有库（MySQL 5.6+） | 附录（需 MySQL 5.7.8+）或按 `add1_wuadmin.sql`、`add2_wuadmin.sql` … 补跑 |
 | 本地空库全量 | `sql/admin_platform.sql` Part A §17 + Part B 菜单已含 |
 | 生产空库全量 | `sql/admin_platform_mysql56.sql`（库名 `wuadmin`，§17 同上） |
 
-执行增量后 **重新登录** 刷新侧栏。`sql/add12.sql` 已合并进 `add11.sql`，单独执行仅提示 SKIP。
+执行增量后 **重新登录** 刷新侧栏。
 
 ### 管理页 UI 统一（2026.06）
 
@@ -333,27 +330,16 @@ cd uniapp && npm run type-check
 
 各类型分页/恢复/彻底删除 API 仍挂在原模块路径下，例如：`GET /api/system/user/recycle/page`、`PUT .../restore/{id}`、`DELETE .../permanent/{id}`（以各 Controller 为准）。
 
-**数据库增量（必跑）**
+**数据库（全量脚本已含）**
 
-| 脚本 | 环境 | 内容 |
-|------|------|------|
-| `sql/add10.sql` | 本地 `wu-admin` | 回收中心菜单 id=163 + `sys_file` 的 `update_time`、`deleted`、索引 `idx_deleted_update` |
-| `sql/add10_wuadmin.sql` | 生产 `wuadmin` | 同上 |
-| `sql/add11.sql` | 本地 `wu-admin` | 代码生成表/菜单 + `table_name` 唯一索引（#11+#12） |
-| `sql/add11_wuadmin.sql` | 生产 `wuadmin` | 同上（MySQL 5.6 兼容） |
+回收中心菜单 id=163、`sys_file` 软删字段、代码生成表/菜单及 `table_name` 唯一索引均已写入 `admin_platform.sql` / `admin_platform_mysql56.sql`。极旧库可执行 `admin_platform.sql` **附录** 补全。
 
 ```bash
-# 本地回收中心
-mysql -u root -p wu-admin < sql/add10.sql
-# 本地代码生成（在 add10 之后）
-mysql -u root -p wu-admin < sql/add11.sql
-# 生产回收中心
-mysql -u wuadmin -p wuadmin < sql/add10_wuadmin.sql
-# 生产代码生成
-mysql -u wuadmin -p wuadmin < sql/add11_wuadmin.sql
+# 极旧库补全（缺表/菜单时）
+# 执行 admin_platform.sql 文末附录段（约 990 行起）
 ```
 
-执行后 **重新登录** 刷新侧栏。`add10` 先加 `update_time` 再加 `deleted`（`AFTER update_time`），可重复执行。
+执行后 **重新登录** 刷新侧栏。
 
 配置项：`application.yml` → `app.job.file-recycle-retention-days: 30`（文件回收站保留天数）。
 
@@ -397,7 +383,7 @@ mysql -u wuadmin -p wuadmin < sql/add11_wuadmin.sql
 
 ### 系统监控 · 缓存/服务监控（2026.06）
 
-新增 **缓存监控**（Redis）与 **服务监控**（本机 JMX），前后端与菜单增量见 `sql/add7.sql`、`add8.sql`；生产合并脚本 **`sql/add6_7_wuadmin.sql`**（含流程中心 rename + 缓存 + 服务监控）。**查询权限**对齐见 **`sql/add20.sql`** / **`add20_wuadmin.sql`**（全量脚本 `admin_platform.sql`、`admin_platform_mysql56.sql` 已含菜单 188/189）。
+新增 **缓存监控**（Redis）与 **服务监控**（本机 JMX），菜单与查询权限已写入全量脚本 `admin_platform.sql`、`admin_platform_mysql56.sql`（含菜单 188/189）。极旧库可执行 `admin_platform.sql` **附录** 补全。
 
 #### 能力一览
 
@@ -514,7 +500,7 @@ location ^~ /api/ {
 
 ### 企业IM 能力增强
 
-企业 IM（菜单名由「即时聊天」更名为 **企业IM**，见 `sql/add3.sql`）近期新增以下能力，前后端与 WebSocket 需一并升级并 **重启后端**。
+企业 IM（菜单名 **企业IM**）近期新增以下能力，前后端与 WebSocket 需一并升级并 **重启后端**。相关表结构、菜单与字段已写入全量脚本与附录。
 
 | 能力 | 说明 |
 |------|------|
@@ -528,7 +514,7 @@ location ^~ /api/ {
 
 ### 企业IM · 群公告与免打扰（2026.06）
 
-群聊体验与通知策略增强，前后端 + WebSocket + 数据库增量（`sql/add9.sql`）需一并升级并 **重启后端**。
+群聊体验与通知策略增强，前后端 + WebSocket + 数据库字段（`notify_muted`、`announcement_read_time` 等）需一并升级并 **重启后端**。全量脚本与附录已含。
 
 | 能力 | 说明 |
 |------|------|
@@ -576,26 +562,17 @@ location ^~ /api/ {
 
 **在线状态**：用户 WebSocket 连接/断开时，后端向其他在线用户广播 `{ type: "presence", userId, online }`，企业 IM 联系人列表与聊天顶栏「在线/离线」**实时更新**，无需手动刷新。
 
-**数据库增量**
+**数据库（全量脚本已含）**
 
-| 脚本 | 环境 | 内容 |
-|------|------|------|
-| `sql/add3.sql` | 本地 dev（`wu-admin`） | 菜单更名为「企业IM」 |
-| `sql/add4.sql` | 本地 dev | 群消息表 `mention_ids` 字段 |
-| `sql/add9.sql` | 本地 dev | 群成员 `notify_muted`、`announcement_read_time`（群公告已读 / 免打扰） |
-| `sql/add6_7_wuadmin.sql` | **生产**（`wuadmin`） | 合并 add6～add8 + **add9**（流程中心、缓存/服务监控、群公告免打扰字段） |
-| `sql/add9_wuadmin.sql` | **生产**（`wuadmin`） | 仅 add9 字段（已跑过 `add6_7_wuadmin` 可跳过） |
+`mention_ids`、`notify_muted`、`announcement_read_time`、菜单「企业IM」等均已写入 `admin_platform.sql` / `admin_platform_mysql56.sql`。极旧库执行 `admin_platform.sql` **附录**；后续发版增量从 **`add1.sql` / `add1_wuadmin.sql`** 重新编号。
 
 ```bash
-# 本地（按版本依次）
-mysql -u root -p wu-admin < sql/add3.sql
-mysql -u root -p wu-admin < sql/add4.sql
-mysql -u root -p wu-admin < sql/add9.sql
+# 极旧库补全
+# 执行 admin_platform.sql 文末附录段（约 990 行起）
 
-# 生产（库名 wuadmin；若尚未执行 add3/add4，可先改脚本 USE 或逐条执行 add3、add4 后再跑）
-mysql -u wuadmin -p wuadmin < sql/add6_7_wuadmin.sql
-# 或仅补 add9：
-mysql -u wuadmin -p wuadmin < sql/add9_wuadmin.sql
+# 后续发版（按版本依次，勿跳号）
+# mysql -u root -p wu-admin < sql/add1.sql
+# mysql -u wuadmin -p wuadmin < sql/add1_wuadmin.sql
 ```
 
 ---
@@ -633,7 +610,7 @@ mysql -u wuadmin -p wuadmin < sql/add9_wuadmin.sql
 
 **短信登录**：在 **系统配置 → 登录认证** 开启「短信验证码登录」，并在 **短信配置** 中启用短信；登录页出现「账号登录 / 短信登录」切换，短信 Tab 仅需手机号与验证码（使用个人中心已绑定手机号）。
 
-**短信发码前滑块**（`smsLoginSliderCaptchaEnabled`，与账号登录验证码独立）：在「短信验证码登录」开启后，可再开启「发送前滑块验证」。用户输入手机号并点击「获取验证码」时先完成滑块验证，通过后才会调用 `/auth/sms-code` 发送短信。已有库升级见 `sql/add2.sql`。
+**短信发码前滑块**（`smsLoginSliderCaptchaEnabled`，与账号登录验证码独立）：在「短信验证码登录」开启后，可再开启「发送前滑块验证」。用户输入手机号并点击「获取验证码」时先完成滑块验证，通过后才会调用 `/auth/sms-code` 发送短信。极旧库可通过 `admin_platform.sql` **附录** 补全配置字段。
 
 **支付回调与查单**（回调无需登录，已在 Security 白名单 `/pay/notify/**`）：
 
@@ -798,14 +775,14 @@ frontend/src/
 | 场景 | 脚本 | 命令 |
 |------|------|------|
 | **全新安装（空库）** | 本地 `sql/admin_platform.sql`；生产 **MySQL 5.6** `sql/admin_platform_mysql56.sql`（库名 `wuadmin`） | 空库直接执行全文 |
-| **极旧库首次升级** | `admin_platform.sql` **附录段**（约 990 行起） | 补全缺表/菜单/索引（含代码生成与唯一索引迁移），可重复执行 |
-| **发版增量** | **`sql/add1.sql`** … **`add11.sql`** | 生产见 **`add6_7_wuadmin.sql`**、**`add10_wuadmin.sql`**、**`add11_wuadmin.sql`** |
+| **极旧库首次升级** | `admin_platform.sql` **附录段**（约 990 行起） | 补全缺表/菜单/索引，可重复执行 |
+| **发版增量** | `sql/add1.sql`、`add2.sql` …（本地 `wu-admin`） | 生产对应 `sql/add1_wuadmin.sql`、`add2_wuadmin.sql` …（`wuadmin`） |
 
 > 切勿对生产库直接跑 `admin_platform.sql` 全文（Part A 含 DROP，默认会被熔断拦截）。
 
 正文已含：消息中心表（§11b）、`sys_chat_group_log`、群消息 `mention_ids`、分级组织示例、定时任务、短信配置与 `sys_sms_log`、性能索引（含清理任务相关时间索引）。升级后涉及菜单变更时请 **重新登录**；WebSocket 与新接口需 **重启后端**。
 
-> 说明：历史聊天图片若曾走通用文件上传，可能仍出现在文件列表；升级后新发的聊天图片走 `images/chat/`、文件走 `files/chat/`，列表会自动排除。群公告/免打扰需执行 **`add9.sql`**（生产见 `add6_7_wuadmin.sql` 或 `add9_wuadmin.sql`）。
+> 说明：历史聊天图片若曾走通用文件上传，可能仍出现在文件列表；升级后新发的聊天图片走 `images/chat/`、文件走 `files/chat/`，列表会自动排除。群公告/免打扰相关字段已写入全量脚本与附录。
 
 ## 定时任务（系统监控 → 定时任务）
 
@@ -939,39 +916,11 @@ wu-admin/
 │   ├── vitest.config.ts        # 合并 vite.config 别名
 │   └── vite.config.ts          # 开发代理 /api → localhost:8080
 ├── sql/
-│   ├── admin_platform.sql      # 本地全量（wu-admin，MySQL 8）+ 附录
+│   ├── admin_platform.sql          # 本地全量（wu-admin，MySQL 8）+ 附录（旧库升级）
 │   ├── admin_platform_mysql56.sql  # 生产空库全量（wuadmin，MySQL 5.6.5+）
-│   ├── add1.sql                # 增量补丁 #1
-│   ├── add2.sql                # 增量补丁 #2（登录 smsLoginSliderCaptchaEnabled）
-│   ├── add3.sql                # 增量补丁 #3（菜单「企业IM」）
-│   ├── add4.sql                # 增量补丁 #4（群消息 mention_ids）
-│   ├── add5.sql                # 增量补丁 #5（工单字典）
-│   ├── add6.sql                # 增量补丁 #6（流程中心菜单）
-│   ├── add7.sql                # 增量补丁 #7（缓存监控菜单）
-│   ├── add8.sql                # 增量补丁 #8（服务监控菜单）
-│   ├── add9.sql                # 增量补丁 #9（群成员 notify_muted、announcement_read_time）
-│   ├── add10.sql               # 增量 #10（回收中心 + sys_file 软删）
-│   ├── add11.sql               # 增量 #11+#12（代码生成 + 唯一索引，本地）
-│   ├── add12.sql               # 已合并至 add11（SKIP 提示）
-│   ├── add6_7_wuadmin.sql      # 生产合并 add6+7+8+9
-│   ├── add9_wuadmin.sql        # 生产仅 add9 字段
-│   ├── add10_wuadmin.sql       # 生产 add10
-│   ├── add11_wuadmin.sql       # 生产 #11+#12（代码生成，5.6 兼容）
-│   ├── add13.sql               # 增量 #13（gen_table 软删 + 回收中心）
-│   ├── add13_wuadmin.sql       # 生产 #13
-│   ├── add14.sql               # 增量 #14（API 访问菜单排序）
-│   ├── add14_wuadmin.sql       # 生产 #14
-│   ├── add15.sql               # 增量 #15（部门 leader_user_id，本地）
-│   ├── add15_wuadmin.sql       # 增量 #15（生产）
-│   ├── add16.sql               # 增量 #16（调度日志 duration_ms，本地）
-│   ├── add17.sql               # 增量 #17（调度日志软删 + 回收，本地）
-│   ├── add18.sql               # 增量 #18（登录 maxRetryCountIp）
-│   ├── add19.sql               # 增量 #19（菜单图标）
-│   ├── add19_wuadmin.sql       # 生产 #19
-│   ├── add20.sql               # 增量 #20（缓存/服务监控 query 权限）
-│   ├── add20_wuadmin.sql       # 生产 #20
-│   # 生产 #15+#16+#17 已合并至 add15_wuadmin.sql
-│   └── disable_devtool_off.sql # 临时关闭「禁止前端调试」（MySQL 5.6 兼容）
+│   ├── add1.sql … addN.sql         # 本地发版增量（自下一版起从 add1 重新编号）
+│   ├── add1_wuadmin.sql …          # 生产发版增量（与 addN.sql 对齐，库名 wuadmin）
+│   └── disable_devtool_off.sql     # 临时关闭「禁止前端调试」（MySQL 5.6 兼容）
 ├── data/                       # 本地上传目录（git 忽略，对应 file.storage.local-path）
 └── README.md
 ```
@@ -1128,33 +1077,21 @@ catch (Exception e) { return CommonResult.error(500, e.getMessage()); }  // ❌ 
 # 空库全新安装（直接执行即可）
 mysql -u root -p < sql/admin_platform.sql
 
-# 已有库发版增量（按版本依次执行，本地库 wu-admin）
-mysql -u root -p wu-admin < sql/add1.sql
-mysql -u root -p wu-admin < sql/add2.sql
-mysql -u root -p wu-admin < sql/add3.sql
-mysql -u root -p wu-admin < sql/add4.sql
-mysql -u root -p wu-admin < sql/add5.sql
-mysql -u root -p wu-admin < sql/add6.sql
-mysql -u root -p wu-admin < sql/add7.sql
-mysql -u root -p wu-admin < sql/add8.sql
-mysql -u root -p wu-admin < sql/add9.sql
-mysql -u root -p wu-admin < sql/add10.sql
-mysql -u root -p wu-admin < sql/add11.sql
-# 按发版记录继续补跑 add13 … add17（见「数据库脚本」表）
+# 已有库升级
+# 极旧库（缺表/菜单）：执行 admin_platform.sql 文末附录段（约 990 行起）
+# 后续发版增量（本地 wu-admin，按版本依次，勿跳号）：
+# mysql -u root -p wu-admin < sql/add1.sql
+# mysql -u root -p wu-admin < sql/add2.sql
 
 # 生产空库全新安装（MySQL 5.6，库名 wuadmin）
 mysql -u wuadmin -p wuadmin < sql/admin_platform_mysql56.sql
 
-# 生产已有库增量
-mysql -u wuadmin -p wuadmin < sql/add6_7_wuadmin.sql   # 若未跑过 add6–9
-mysql -u wuadmin -p wuadmin < sql/add10_wuadmin.sql
-mysql -u wuadmin -p wuadmin < sql/add11_wuadmin.sql
-# 按发版记录继续补跑 add13_wuadmin … add15_wuadmin（见「数据库脚本」表）
-
-# 极旧库首次补全（缺表/菜单时，执行 admin_platform.sql 附录段，约 910 行起）
+# 生产已有库发版增量（按版本依次）：
+# mysql -u wuadmin -p wuadmin < sql/add1_wuadmin.sql
+# mysql -u wuadmin -p wuadmin < sql/add2_wuadmin.sql
 ```
 
-> 空库可直接跑全文；**已有表的旧库**跑全文会被熔断拦截。旧库请用附录或 `add1.sql`；强制重装须 `SET @WU_ADMIN_ALLOW_DROP=1`。
+> 空库可直接跑全文；**已有表的旧库**跑全文会被熔断拦截。旧库请用附录或发版 `addN.sql`；强制重装须 `SET @WU_ADMIN_ALLOW_DROP=1`。历史 `add1`～`add20` 已合并进全量脚本，**自下一版起**增量从 `add1.sql` / `add1_wuadmin.sql` 重新编号。
 
 ### 2. 启动 Redis
 
@@ -1270,48 +1207,29 @@ cd backend && mvn test
 
 ## 数据库脚本
 
-维护 **`sql/admin_platform.sql`**（本地全量 + 附录）、**`sql/admin_platform_mysql56.sql`**（生产空库）与 **`sql/add1.sql` … `add20.sql`** 等增量：
+维护 **`sql/admin_platform.sql`**（本地全量 + 附录）、**`sql/admin_platform_mysql56.sql`**（生产空库全量）及发版增量 **`sql/addN.sql`** / **`sql/addN_wuadmin.sql`**：
 
 | 场景 | 做法 |
 |------|------|
 | **全新安装（本地）** | 空库 `mysql -u root -p < sql/admin_platform.sql` |
 | **全新安装（生产 5.6）** | 空库 `mysql -u wuadmin -p wuadmin < sql/admin_platform_mysql56.sql` |
-| **极旧库首次升级** | 执行 `admin_platform.sql` 文末 **附录**（约 990 行起） |
-| **发版增量（本地）** | 按版本依次 `add1.sql` … **`add20.sql`**（勿跳号） |
-| **发版增量（生产）** | 按已执行版本补跑对应 `*_wuadmin.sql`（`add15_wuadmin.sql` 含 #15+#16+#17） |
+| **极旧库首次升级** | 执行 `admin_platform.sql` 文末 **附录**（约 990 行起；需 MySQL 5.7.8+） |
+| **发版增量（本地）** | 按版本依次 `add1.sql`、`add2.sql` …（库名 `wu-admin`） |
+| **发版增量（生产）** | 按版本依次 `add1_wuadmin.sql`、`add2_wuadmin.sql` …（库名 `wuadmin`） |
 
-`addN.sql` 体量应保持在几十行量级；全量补丁逻辑在 `admin_platform.sql` 附录。
+> **编号归零**：历史 `add1`～`add20` 及合并版 `*_wuadmin.sql` 已并入全量脚本与附录，仓库中不再保留；**自下一版发版起**增量从 **`add1.sql` / `add1_wuadmin.sql`** 重新计数。每发一版须同步把变更写入 `admin_platform.sql` 正文/附录，保证空库安装与附录可覆盖全部能力。
 
-| 增量脚本 | 内容 |
-|----------|------|
-| `add1.sql` | 清理旧版冗余索引等 |
-| `add2.sql` | 登录配置 `smsLoginSliderCaptchaEnabled`（短信发码前滑块，默认 `false`） |
-| `add3.sql` | 菜单 id=172「即时聊天」→「**企业IM**」 |
-| `add4.sql` | `sys_chat_group_message.mention_ids`（群 @ 提醒，可重复执行） |
-| `add5.sql` | 补全工单字典类型 `sys_ticket_status` / `sys_ticket_priority` |
-| `add6.sql` | 菜单 id=8「业务中心」→「**流程中心**」（path `/workflow`）；排序至消息中心与开发工具之间；本地库 `wu-admin` |
-| `add7.sql` | 系统监控新增「**缓存监控**」菜单与权限；本地库 `wu-admin` |
-| `add8.sql` | 系统监控新增「**服务监控**」菜单（本机 JMX）；本地库 `wu-admin` |
-| `add9.sql` | 群成员 `notify_muted`、`announcement_read_time`（群公告已读 / 免打扰）；本地库 `wu-admin` |
-| `add10.sql` | **回收中心**菜单 id=163；`sys_file` 软删字段；本地 `wu-admin` |
-| `add11.sql` | **代码生成** `gen_table` / `gen_table_column`、菜单 164–169/179、**`table_name` 唯一索引**（#11+#12）；本地 `wu-admin` |
-| `add12.sql` | 已合并至 `add11.sql`，单独执行仅 SKIP |
-| `add6_7_wuadmin.sql` | 生产 `wuadmin`：add6 + add7 + add8 + add9 |
-| `add9_wuadmin.sql` | 生产仅 add9 字段 |
-| `add10_wuadmin.sql` | 生产 add10 |
-| `add11_wuadmin.sql` | 生产 add11+#12（`table_name VARCHAR(191)` 适配 MySQL 5.6） |
-| `add13.sql` / `add13_wuadmin.sql` | `gen_table` 软删；回收中心支持代码生成表 |
-| `add14.sql` / `add14_wuadmin.sql` | 系统监控「API 访问统计」菜单排序调至最底 |
-| `add15.sql` | 部门表 `leader_user_id` 及按姓名回填（本地） |
-| `add15_wuadmin.sql` | 生产合并 **#15 + #16 + #17**（负责人关联 + 调度日志耗时 + 软删） |
-| `add16.sql` | `sys_job_log.duration_ms`（执行耗时毫秒，本地） |
-| `add17.sql` | `sys_job_log` 软删字段；回收中心可恢复调度日志（本地） |
-| `add18.sql` | 登录配置 `maxRetryCountIp`（IP 锁定阈值，默认 20） |
-| `add19.sql` / `add19_wuadmin.sql` | 菜单图标：文件列表 / 工单 / 接口文档 / 代码生成 |
-| `add20.sql` / `add20_wuadmin.sql` | 缓存/服务监控补齐 **查询** 按钮权限（188/189）；已有监控菜单的角色自动补授 query |
-| `admin_platform_mysql56.sql` | 生产**空库全量**（38 表 + 初始数据，无附录 JSON 函数依赖） |
+`addN.sql` 体量应保持在几十行量级，可重复执行、尽量非破坏性；全量历史补丁逻辑集中在 `admin_platform.sql` 附录。
 
-> 生产环境若尚未执行 add3/add4，可将 `add3.sql`、`add4.sql` 中 `USE` 改为 `wuadmin` 后逐条执行，或直接依赖已更新的 `admin_platform.sql` 全量/附录。仓库内**无**单独的 `add3_add4_wuadmin.sql` 文件。
+| 脚本 | 说明 |
+|------|------|
+| `admin_platform.sql` | 本地 **`wu-admin`** 库；Part A 建表 + Part B 初始数据 + **附录**（旧库升级） |
+| `admin_platform_mysql56.sql` | 生产 **`wuadmin`** 空库；Part A/B 全量（`table_name VARCHAR(191)` 等 5.6 适配）；**不含附录** |
+| `addN.sql` | 本地发版补丁（`USE wu-admin`） |
+| `addN_wuadmin.sql` | 生产发版补丁（`USE wuadmin`；内容与 `addN.sql` 对齐，适配 MySQL 5.6 差异） |
+| `disable_devtool_off.sql` | 临时关闭「禁止前端调试」（MySQL 5.6 用 `REPLACE`） |
+
+> 切勿对**已有表**的生产库直接跑 `admin_platform.sql` 全文（Part A 含 DROP，默认会被熔断拦截）。生产旧库升级请用附录（MySQL 5.7.8+）或对应 `addN_wuadmin.sql`。
 
 **附录 / 增量行为（可重复执行、尽量非破坏性）：**
 
@@ -1556,7 +1474,7 @@ A：① 浏览器访问 `https://域名/api/auth/config`，若返回 `index.html
 A：确认已导入 `admin_platform.sql` 或为角色分配菜单，然后重新登录。
 
 **Q：系统配置页报错或只有 login/register？**  
-A：对已有库：极旧库先跑 **admin_platform.sql 附录**（补全 site/session/file/rateLimit 等）；已跑过附录则按需依次执行 `add1.sql`、`add2.sql` 增量。
+A：对已有库：极旧库先跑 **admin_platform.sql 附录**（补全 site/session/file/rateLimit 等）；已跑过附录则按发版记录补跑 `add1.sql`、`add2.sql` … 增量。
 
 **Q：注册后无法登录？**  
 A：若开启「注册需审核」，需管理员在审批单中心通过；登录提示「账号待审核」属正常。驳回后账号已软删，需重新注册或联系管理员。
@@ -1568,13 +1486,13 @@ A：升级后默认列表已排除待审核/驳回用户；待审用户仅在审
 A：① 确认 **注册认证** 已开启开放注册；② 升级后软删用户名可自动恢复再注册；③ 若 **回收中心** 仍有该用户，可「彻底删除」后再试；④ 注册/登录请求勿带管理员 Token（新版前端已自动跳过）。
 
 **Q：回收中心菜单不显示，或文件列表报 `Unknown column 'deleted'`？**  
-A：对已有库执行 **`sql/add10.sql`**（生产 **`add10_wuadmin.sql`**），**重新登录**。全量新库已含菜单 163 与 `sys_file` 软删字段。
+A：极旧库执行 **`admin_platform.sql` 附录**，**重新登录**。空库/已跑全量或附录的库已含菜单 163 与 `sys_file` 软删字段。
 
 **Q：代码生成菜单不显示，或导入报「表已导入」/ 表不存在？**  
-A：已有库执行 **`sql/add11.sql`**（生产 **`add11_wuadmin.sql`**），**重新登录**。空库请用已含 §17 的 `admin_platform.sql` 或 `admin_platform_mysql56.sql`。生产 MySQL 5.6 勿用本地 `admin_platform.sql` 全文（附录含 5.7+ JSON 函数）。
+A：极旧库执行 **`admin_platform.sql` 附录**，**重新登录**。空库请用已含 §17 的 `admin_platform.sql` 或 `admin_platform_mysql56.sql`。生产 MySQL 5.6 勿对已有库跑本地 `admin_platform.sql` 全文（附录含 5.7+ JSON 函数）。
 
 **Q：生产导入 gen_table 报 `Specified key was too long`（1071）？**  
-A：MySQL 5.6 + utf8mb4 唯一索引上限 767 字节，请用 **`add11_wuadmin.sql`** 或 **`admin_platform_mysql56.sql`**（`table_name VARCHAR(191)`），勿对生产库套用本地 `VARCHAR(200)` 建表语句。
+A：MySQL 5.6 + utf8mb4 唯一索引上限 767 字节，请用 **`admin_platform_mysql56.sql`** 空库安装（`table_name VARCHAR(191)`），勿对生产库套用本地 `VARCHAR(200)` 建表语句。
 
 **Q：回收中心某个 Tab 看不到（如岗位）？**  
 A：Tab 按各模块 **列表权限** 显示（如岗位需 `system:post:list`）；无权限的类别不会展示，但汇总接口仍可能返回计数。
@@ -1583,7 +1501,7 @@ A：Tab 按各模块 **列表权限** 显示（如岗位需 `system:post:list`�
 A：软删仅改库表标记，若磁盘文件已被手动删除则无法恢复；可在回收中心「彻底删除」清理无效记录。超过 `app.job.file-recycle-retention-days`（默认 30 天）的记录可由定时任务 **文件回收站清理** 自动清盘（内置任务，默认暂停，需在定时任务页启用）。
 
 **Q：如何开启短信发码前滑块？**  
-A：**系统配置 → 登录认证** 开启「短信验证码登录」与「发送前滑块验证」；已有库执行 `sql/add2.sql` 补配置字段，保存后刷新登录页。
+A：**系统配置 → 登录认证** 开启「短信验证码登录」与「发送前滑块验证」；极旧库可跑 **admin_platform.sql 附录** 补配置字段，保存后刷新登录页。
 
 **Q：接口文档 iframe 空白或 `/v3/api-docs` 403？**  
 A：① 确认后端（8080）已启动，浏览器访问 `http://127.0.0.1:8080/api/v3/api-docs` 应返回 JSON；② 开发环境重启 Vite 以加载 Knife4j 代理；③ 生产环境确认已部署含 `Knife4jIframeHeaderFilter` 的后端（响应头 `X-Frame-Options: SAMEORIGIN`）；④ 勿将 springdoc 降为 2.6（与 Spring Boot 3.5 不兼容）；⑤ `knife4j.enable` 保持 `false` 直至升级兼容的 Knife4j 版本。
@@ -1595,13 +1513,13 @@ A：已配置 OpenAPI 默认服务 `http://localhost:3000/api`；重启后端与
 A：在 **系统配置 → 文件存储** 调整；单文件上限不得超过 500MB。
 
 **Q：消息中心菜单不显示或聊天 403？**  
-A：对已有库：极旧库先跑 **admin_platform.sql 附录**；发版增量依次跑 `sql/add1.sql` … `add4.sql`（生产改 `USE wuadmin` 后执行 add3/add4），**重启后端**后 **重新登录**。普通用户需角色分配菜单 170/172；只读权限用户访问 `:list` 接口时会映射为 `:query`。
+A：对已有库：极旧库先跑 **admin_platform.sql 附录**；后续发版按 `sql/add1.sql` … 补跑，**重启后端**后 **重新登录**。普通用户需角色分配菜单 170/172；只读权限用户访问 `:list` 接口时会映射为 `:query`。
 
 **Q：缓存/服务监控菜单不显示？**  
-A：已有库执行 `sql/add7.sql`、`sql/add8.sql`（本地）或生产 **`sql/add6_7_wuadmin.sql`**，**重新登录**刷新侧栏；确认角色已分配 `monitor:cache:list` / `monitor:server:list`（菜单）。若需查看数据，另勾选 **`monitor:cache:query`** / **`monitor:server:query`**（增量 **`add20.sql`** / **`add20_wuadmin.sql`**，全量脚本已含）。
+A：极旧库执行 **admin_platform.sql 附录**，**重新登录**刷新侧栏；确认角色已分配 `monitor:cache:list` / `monitor:server:list`（菜单）。若需查看数据，另勾选 **`monitor:cache:query`** / **`monitor:server:query`**（全量脚本已含）。
 
 **Q：API 访问统计页报「服务器内部错误」？**  
-A：多为统计 SQL 误用 `deleted = 0` 而 `sys_api_access_log` 表无该字段；升级含修复的 **backend jar** 后重启即可（`ApiAccessLogMapper` 已去掉该条件）。与权限增量 `add20` 无关。
+A：多为统计 SQL 误用 `deleted = 0` 而 `sys_api_access_log` 表无该字段；升级含修复的 **backend jar** 后重启即可（`ApiAccessLogMapper` 已去掉该条件）。
 
 **Q：监控折线图一切页或 F5 就清空？**  
 A：升级至含 **全局后台采样 + sessionStorage** 的前端后，**管理员**登录且有 query 权限则后台持续采样；**普通用户**仅在本页采样、离页停止。同一标签页 F5 仍保留最近 20 个点。关闭标签页或退出登录会清空。仅更新前端 `dist` 即可；离页停采样需升级含该逻辑的前端（及 uni-app H5）。
@@ -1616,19 +1534,19 @@ A：确认 WebSocket 已连接（登录后自动初始化）；在顶栏铃铛�
 A：升级后新图片走 `/system/chat/upload/image`（`images/chat/`）、新文件走 `/system/chat/upload/file`（`files/chat/`），文件列表已排除；历史旧数据可手动删除。
 
 **Q：群公告保存后别人看不到置顶条，或没有弹窗提醒？**  
-A：① 执行 `sql/add9.sql`（生产 `add9_wuadmin.sql` 或 `add6_7_wuadmin.sql`）；② **重启后端**；③ 前后端一并升级（需 `groupAnnouncement` WebSocket）；④ 公告变更会重置全员已读，成员进入群聊或收到推送后应显示置顶条。
+A：① 极旧库执行 **admin_platform.sql 附录** 补全 `notify_muted`、`announcement_read_time` 等字段；② **重启后端**；③ 前后端一并升级（需 `groupAnnouncement` WebSocket）；④ 公告变更会重置全员已读，成员进入群聊或收到推送后应显示置顶条。
 
 **Q：开了群免打扰仍收到所有消息提醒？**  
-A：确认 `sys_chat_group_member.notify_muted` 字段已入库（add9）；升级含 `message-push.ts` 的前端后，仅 **@ 我** 与 **群公告** 会弹窗并计角标，普通群消息应被过滤。
+A：确认 `sys_chat_group_member.notify_muted` 字段已入库（全量脚本/附录已含）；升级含 `message-push.ts` 的前端后，仅 **@ 我** 与 **群公告** 会弹窗并计角标，普通群消息应被过滤。
 
 **Q：普通成员能改群名称或群公告吗？**  
 A：不能。仅 **群主 / 群管理员** 可编辑；普通成员群组详情中为只读，保存按钮对其不可见或无权限。
 
 **Q：企业IM 升级后 @ / 撤回 / 文件发送不可用？**  
-A：① 已有库执行 `sql/add4.sql`（生产改 `USE wuadmin`）；② **重启后端**；③ 重新登录刷新菜单名「企业IM」；④ 确认角色有 `system:chat:list`。
+A：① 极旧库执行 **admin_platform.sql 附录** 补全 `mention_ids` 等；② **重启后端**；③ 重新登录刷新菜单名「企业IM」；④ 确认角色有 `system:chat:list`。
 
 **Q：群聊 @ 没有强提醒或角标？**  
-A：确认 `mention_ids` 字段已入库（add4）；被 @ 时 WebSocket 推送带 `atMe: true`，顶栏通知标题为 `[有人@你]`。
+A：确认 `mention_ids` 字段已入库（全量脚本/附录已含）；被 @ 时 WebSocket 推送带 `atMe: true`，顶栏通知标题为 `[有人@你]`。
 
 **Q：撤回后对方要刷新才看到？**  
 A：升级至含撤回 WebSocket 同步的版本并重启后端；私聊/群聊均通过 `recall` 事件实时更新，无需刷新。
@@ -1655,7 +1573,7 @@ A：组件化拆分时独立 CSS 中 `:deep()` 无效所致；升级至已修复
 A：「复制类型」每点一次生成一条（`原编码_copy_时间戳`），误点多次即多条；删除多余副本并「刷新缓存」即可，业务仍用原字典类型。
 
 **Q：系统配置没有「第三方配置 / 支付配置 / 短信配置」Tab？**  
-A：对已有库：极旧库先跑 **admin_platform.sql 附录**；发版增量跑 `sql/add1.sql`；**重启后端**并刷新页面。
+A：对已有库：极旧库先跑 **admin_platform.sql 附录**；后续发版按 `sql/add1.sql` … 补跑；**重启后端**并刷新页面。
 
 **Q：登录页没有「短信登录」？**  
 A：在 **系统配置 → 登录认证** 开启「短信验证码登录」，并在 **短信配置** 中启用短信；保存后刷新登录页。短信 Tab 仅支持已在个人中心绑定的手机号。
@@ -1697,7 +1615,7 @@ A：升级后 `BusinessException` 已通过 `ResponseEntity` 对齐 HTTP 状态�
 A：升级后 `SecurityException`（如 `LocalFileStorage` 非法路径）返回 **403** 并记 warn 日志含 IP。
 
 **Q：部门负责人还是旧名字，或保存报 `leader_user_id` 不存在？**  
-A：对已有库执行 **`sql/add15.sql`**（生产 **`add15_wuadmin.sql`**），重启后端；PC / 移动端组织编辑须通过**选择用户**设置负责人，勿手填姓名。
+A：极旧库执行 **`admin_platform.sql` 附录**（含 `leader_user_id` 字段），重启后端；PC / 移动端组织编辑须通过**选择用户**设置负责人，勿手填姓名。
 
 **Q：移动端 H5 刷新后无返回键，或返回跳到工作台？**  
 A：① 升级含 **H5 浅栈导航** 的前端后 **Ctrl+F5** 强刷；② 列表页刷新后应出现页面内蓝色「‹ 返回」（`SubPageBackBar`），详情/编辑页为左上角浮动返回；③ 多级路径如「用户管理 → 详情 → 编辑 → F5」依赖 `localStorage` 父级映射，勿清理站点存储；④ 选择类子页 URL 带 `from` 参数；⑤ `FormCell` 已去除 H5 双事件导致的 `navigateTo` 取消。
