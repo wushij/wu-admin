@@ -4,6 +4,8 @@ import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { getCaptcha, register, getConfig } from '@/api/system/auth'
 import type { RegisterForm } from '@/types/api'
 import { getErrorMessage } from '@/utils/axiosError'
+import { sliderVerifyToRequest } from '@/types/slider-captcha'
+import type { SliderVerifyPayload } from '@/types/slider-captcha'
 
 type CaptchaMode = 'image' | 'slider'
 
@@ -166,7 +168,7 @@ export function useRegisterForm() {
     await doRegister()
   }
 
-  async function doRegister() {
+  async function doRegister(sliderCaptcha?: { uuid: string; code: string }) {
     loading.value = true
     try {
       const registerData: RegisterForm = {
@@ -177,7 +179,9 @@ export function useRegisterForm() {
 
       if (captchaEnabled.value) {
         if (captchaType.value === 'slider') {
-          registerData.code = 'slider_verified'
+          if (!sliderCaptcha) return
+          registerData.uuid = sliderCaptcha.uuid
+          registerData.code = sliderCaptcha.code
         } else {
           registerData.uuid = captchaUuid.value
           registerData.code = formData.code
@@ -200,6 +204,10 @@ export function useRegisterForm() {
     } finally {
       loading.value = false
     }
+  }
+
+  function onSliderSuccess(payload: SliderVerifyPayload) {
+    void doRegister(sliderVerifyToRequest(payload))
   }
 
   function goLogin() {
@@ -230,6 +238,7 @@ export function useRegisterForm() {
     agreeRowAlert,
     loading,
     showSliderModal,
+    onSliderSuccess,
     loadCaptcha,
     handleRegister,
     doRegister,

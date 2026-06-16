@@ -12,6 +12,9 @@ public interface AuthService {
     /** 生成图片验证码 */
     Map<String, Object> generateCaptcha(String scene, String clientIp);
 
+    /** 生成滑块验证码 challenge（token + 拼图参数） */
+    Map<String, Object> createSliderChallenge(String scene, String clientIp);
+
     /** 获取公开登录配置 */
     Map<String, Object> getPublicConfig();
 

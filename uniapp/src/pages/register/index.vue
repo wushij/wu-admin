@@ -44,7 +44,7 @@
     </AuthGlassForm>
     </view>
 
-    <SliderCaptcha v-model:show="showSlider" @success="onSliderSuccess" />
+    <SliderCaptcha v-model:show="showSlider" scene="register" @success="onSliderSuccess" />
   </view>
 </template>
 
@@ -52,7 +52,8 @@
 import { reactive, ref, onMounted } from 'vue'
 import { register, getCaptcha, getConfig } from '@/api/system/auth'
 import { useAppStore } from '@/store/app'
-import { SLIDER_VERIFIED_CODE } from '@/constants'
+import { sliderVerifyToRequest } from '@/utils/slider-captcha'
+import type { SliderVerifyPayload } from '@/utils/slider-captcha'
 import SliderCaptcha from '@/components/business/SliderCaptcha/index.vue'
 import AuthParticleBackground from '@/components/business/AuthParticleBackground/index.vue'
 import AuthGlassForm from '@/components/business/AuthGlassForm/index.vue'
@@ -111,7 +112,7 @@ async function refreshCaptcha() {
   }
 }
 
-async function doRegister(sliderCode?: string) {
+async function doRegister(sliderCaptcha?: { uuid: string; code: string }) {
   if (!agreeTerms.value) {
     agreeAlert.value = true
     uni.showToast({ title: '请先同意用户协议', icon: 'none' })
@@ -124,17 +125,23 @@ async function doRegister(sliderCode?: string) {
   }
   loading.value = true
   try {
-    const res = await register({
+    const payload: Parameters<typeof register>[0] = {
       username: form.username.trim(),
       password: form.password,
       nickname: form.nickname.trim() || undefined,
       mobile: form.mobile.trim() || undefined,
-      uuid: captchaType.value === 'image' ? captchaUuid.value : undefined,
-      code:
-        captchaEnabled.value && captchaType.value === 'slider'
-          ? sliderCode || SLIDER_VERIFIED_CODE
-          : form.code || undefined,
-    })
+    }
+    if (captchaEnabled.value) {
+      if (captchaType.value === 'slider') {
+        if (!sliderCaptcha) return
+        payload.uuid = sliderCaptcha.uuid
+        payload.code = sliderCaptcha.code
+      } else {
+        payload.uuid = captchaUuid.value
+        payload.code = form.code || undefined
+      }
+    }
+    const res = await register(payload)
     const msg = res.message || res.msg || '注册成功，请登录'
     uni.showToast({ title: msg, icon: 'success' })
     setTimeout(() => goLogin(), 500)
@@ -154,8 +161,8 @@ function handleSubmit() {
   doRegister()
 }
 
-function onSliderSuccess() {
-  doRegister(SLIDER_VERIFIED_CODE)
+function onSliderSuccess(payload: SliderVerifyPayload) {
+  doRegister(sliderVerifyToRequest(payload))
 }
 
 function goLogin() {

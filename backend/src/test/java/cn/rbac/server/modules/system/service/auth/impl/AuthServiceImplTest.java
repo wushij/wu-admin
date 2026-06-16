@@ -9,6 +9,7 @@ import cn.rbac.server.modules.system.dal.mysql.permission.RoleMapper;
 import cn.rbac.server.modules.system.dal.mysql.user.UserMapper;
 import cn.rbac.server.modules.system.service.approval.RegisterApprovalService;
 import cn.rbac.server.modules.system.service.auth.LoginLockService;
+import cn.rbac.server.modules.system.service.auth.SliderCaptchaService;
 import cn.rbac.server.modules.system.service.config.SystemConfigHelper;
 import cn.rbac.server.modules.system.service.loginlog.LoginLogService;
 import cn.rbac.server.modules.system.service.monitor.OnlineUserService;
@@ -73,6 +74,8 @@ class AuthServiceImplTest extends MybatisLambdaTestBase {
     private AliyunDypnsSmsVerifyService aliyunDypnsSmsVerifyService;
     @Mock
     private LoginLockService loginLockService;
+    @Mock
+    private SliderCaptchaService sliderCaptchaService;
 
     @InjectMocks
     private AuthServiceImpl authService;

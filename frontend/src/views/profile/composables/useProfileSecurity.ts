@@ -4,6 +4,8 @@ import {
   changePassword, sendProfilePasswordSmsCode, resetPasswordBySms,
   sendProfileMobileBindSmsCode, bindProfileMobile,
 } from '@/api/system/profile'
+import { sliderVerifyToRequest } from '@/types/slider-captcha'
+import type { SliderVerifyPayload } from '@/types/slider-captcha'
 
 export function useProfileSecurity(
   getMinPwdLen: () => number,
@@ -148,11 +150,12 @@ export function useProfileSecurity(
     showSliderModal.value = true
   }
 
-  async function onSliderSuccess() {
+  async function onSliderSuccess(payload: SliderVerifyPayload) {
+    const slider = sliderVerifyToRequest(payload)
     if (sliderTarget.value === 'bindMobile') {
       sendingBindSmsCode.value = true
       try {
-        await sendProfileMobileBindSmsCode({ mobile: getInfoForm().bindMobile.trim(), code: 'slider_verified' })
+        await sendProfileMobileBindSmsCode({ mobile: getInfoForm().bindMobile.trim(), ...slider })
         ElMessage.success('验证码已发送')
         startBindSmsCountdown()
       } catch { /* request 拦截器已提示 */ }
@@ -161,7 +164,7 @@ export function useProfileSecurity(
     }
     sendingSmsCode.value = true
     try {
-      await sendProfilePasswordSmsCode('slider_verified')
+      await sendProfilePasswordSmsCode(slider)
       ElMessage.success('验证码已发送')
       startSmsCountdown()
     } catch { /* request 拦截器已提示 */ }

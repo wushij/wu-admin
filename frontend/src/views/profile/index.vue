@@ -56,7 +56,7 @@
     </el-row>
 
     <input ref="avatarInputRef" type="file" accept="image/jpeg,image/png,image/gif,image/webp" class="avatar-input" @change="handleAvatarChange" />
-    <SliderCaptcha v-model:show="showSliderModal" @success="onSliderSuccess" />
+    <SliderCaptcha v-model:show="showSliderModal" scene="profile" @success="onSliderSuccess" />
   </div>
 </template>
 

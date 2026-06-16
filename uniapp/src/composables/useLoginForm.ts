@@ -3,7 +3,8 @@ import { useUserStore } from '@/store/user'
 import { useAppStore } from '@/store/app'
 import { getCaptcha, getConfig, sendSmsCode } from '@/api/system/auth'
 import type { LoginForm } from '@/types/api'
-import { SLIDER_VERIFIED_CODE } from '@/constants'
+import { sliderVerifyToRequest } from '@/utils/slider-captcha'
+import type { SliderVerifyPayload } from '@/utils/slider-captcha'
 import {
   clearLoginRemember,
   loadLoginRemember,
@@ -129,15 +130,16 @@ export function useLoginForm() {
     showSliderModal.value = true
   }
 
-  async function onSliderSuccess() {
+  async function onSliderSuccess(payload: SliderVerifyPayload) {
+    const slider = sliderVerifyToRequest(payload)
     if (sliderPurpose.value === 'sms') {
-      await doSendSms()
+      await doSendSms(slider)
       return
     }
-    await submitLogin(SLIDER_VERIFIED_CODE)
+    await submitLogin(slider)
   }
 
-  async function doSendSms() {
+  async function doSendSms(slider?: { uuid: string; code: string }) {
     if (sendingSms.value || smsCountdown.value > 0) return
     const phone = formData.phone.trim()
     if (!phone) {
@@ -154,8 +156,7 @@ export function useLoginForm() {
     }
     sendingSms.value = true
     try {
-      const sliderCode = smsLoginSliderCaptchaEnabled.value ? SLIDER_VERIFIED_CODE : undefined
-      await sendSmsCode(formData.phone, sliderCode)
+      await sendSmsCode(formData.phone, slider)
       uni.showToast({ title: '验证码已发送', icon: 'success' })
       smsCountdown.value = 60
       smsTimer = setInterval(() => {
@@ -220,7 +221,7 @@ export function useLoginForm() {
     return true
   }
 
-  async function submitLogin(sliderCode?: string) {
+  async function submitLogin(sliderCaptcha?: { uuid: string; code: string }) {
     if (!validateForm()) return
     loading.value = true
     try {
@@ -233,7 +234,9 @@ export function useLoginForm() {
         loginData.password = formData.password
         if (captchaEnabled.value) {
           if (captchaType.value === 'slider') {
-            loginData.code = sliderCode || SLIDER_VERIFIED_CODE
+            if (!sliderCaptcha) return
+            loginData.uuid = sliderCaptcha.uuid
+            loginData.code = sliderCaptcha.code
           } else {
             loginData.uuid = captchaUuid.value
             loginData.code = formData.code
@@ -292,6 +295,7 @@ export function useLoginForm() {
     rememberMeEnabled,
     registerEnabled,
     showSliderModal,
+    sliderPurpose,
     captchaImg,
     formData,
     loading,

@@ -5,6 +5,8 @@ import { useUserStore } from '@/store/user'
 import { getCaptcha, getConfig, sendSmsCode } from '@/api/system/auth'
 import type { LoginForm } from '@/types/api'
 import { getErrorMessage } from '@/utils/axiosError'
+import { sliderVerifyToRequest } from '@/types/slider-captcha'
+import type { SliderVerifyPayload } from '@/types/slider-captcha'
 import {
   clearLoginRemember,
   loadLoginRemember,
@@ -236,12 +238,11 @@ export function useLoginForm() {
     await doSendSmsCode()
   }
 
-  async function doSendSmsCode() {
+  async function doSendSmsCode(slider?: { uuid: string; code: string }) {
     if (sendingSms.value || smsCountdown.value > 0) return
     sendingSms.value = true
     try {
-      const sliderCode = smsLoginSliderCaptchaEnabled.value ? 'slider_verified' : undefined
-      await sendSmsCode(formData.phone, sliderCode)
+      await sendSmsCode(formData.phone, slider)
       ElMessage.success('验证码已发送至绑定手机号')
       startSmsCountdown()
     } catch (error) {
@@ -251,11 +252,12 @@ export function useLoginForm() {
     }
   }
 
-  function onSliderSuccess() {
+  function onSliderSuccess(payload: SliderVerifyPayload) {
+    const slider = sliderVerifyToRequest(payload)
     if (sliderPurpose.value === 'sms') {
-      void doSendSmsCode()
+      void doSendSmsCode(slider)
     } else {
-      void doLogin()
+      void doLogin(slider)
     }
   }
 
@@ -279,7 +281,7 @@ export function useLoginForm() {
     await doLogin()
   }
 
-  async function doLogin() {
+  async function doLogin(sliderCaptcha?: { uuid: string; code: string }) {
     loading.value = true
     try {
       let loginData: LoginForm
@@ -298,7 +300,9 @@ export function useLoginForm() {
           rememberMe: formData.rememberMe,
         }
         if (captchaEnabled.value && captchaType.value === 'slider') {
-          loginData.code = 'slider_verified'
+          if (!sliderCaptcha) return
+          loginData.uuid = sliderCaptcha.uuid
+          loginData.code = sliderCaptcha.code
         } else if (captchaEnabled.value && captchaType.value === 'image') {
           loginData.uuid = captchaUuid.value
           loginData.code = formData.code
@@ -379,6 +383,7 @@ export function useLoginForm() {
     smsCountdown,
     loading,
     showSliderModal,
+    sliderPurpose,
     loadCaptcha,
     handleSendSmsCode,
     handleLogin,

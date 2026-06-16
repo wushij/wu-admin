@@ -4,6 +4,7 @@ import { getMessageSummary, getChatGroups } from '@/api/message'
 import {
   connectMessageWebSocket,
   disconnectMessageWebSocket,
+  ensureMessageWebSocketConnected,
   onMessageWebSocket,
   type WsPushMessage,
 } from '@/utils/webSocket'
@@ -232,6 +233,10 @@ export const useMessageStore = defineStore('message', () => {
     refreshSummary()
   }
 
+  function reconnectWebSocket() {
+    ensureMessageWebSocketConnected()
+  }
+
   function destroyWebSocket() {
     offWs?.()
     offWs = null
@@ -282,6 +287,7 @@ export const useMessageStore = defineStore('message', () => {
     getGroupAtMe,
     markPrivateChatRead,
     initWebSocket,
+    reconnectWebSocket,
     destroyWebSocket,
     closeNotification,
     showPushNotification,

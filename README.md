@@ -41,7 +41,7 @@
 | **文件管理** | 分组 CRUD、按类型筛选；图片/PDF/Office 预览；大小与扩展名受**系统配置**约束 |
 | **流程中心** | **工单**：优先级、截止/超时、评论附件、指派与全员通知（非超管仅看本人相关）；**审批**：请假/采购/报销/用印/合同/通用 + `REGISTER` 注册审核，**详情抽屉内可直接通过/驳回**，支持归档 |
 | **消息中心** | **业务消息**（`sys_notice`，工单/审批触达）、系统通知（全员/用户/部门定向、发送日志）、**企业IM**（私聊/群聊、文件、@、撤回、正在输入等）、WebSocket |
-| **认证安全** | 图片/滑块验证码、**短信验证码登录**（独立开关，与账号验证码分离）、**短信发码前滑块**（可选）、登录失败锁定（用户+IP）、记住我、登录/注册/短信**限流防刷**；账号密码错误统一提示「账号或密码错误」；Sa-Token 会话（Redis db=1） |
+| **认证安全** | 图片/滑块验证码（**服务端 challenge + Redis 校验**，废弃 `slider_verified` 硬编码绕过）、**短信验证码登录**（独立开关，与账号验证码分离）、**短信发码前滑块**（可选）、登录失败锁定（用户+IP）、记住我、登录/注册/短信**限流防刷**；账号密码错误统一提示「账号或密码错误」；Sa-Token 会话（Redis db=1） |
 | **界面体验** | 主题色切换；登录/注册页 Three.js 地球 + 粒子背景；顶栏消息铃铛三 Tab；管理页统一 **module-page** 头图/搜索/表格样式，Hero 图标与侧栏菜单一致 |
 
 侧栏菜单由 `sys_menu` 按角色动态渲染（超级管理员默认全部）；页面路由在 `frontend/src/router` **静态注册**，新增菜单时需保证 `path` 与路由一致。修改菜单或角色后需**重新登录**刷新侧栏。
@@ -54,8 +54,13 @@
 
 | 模块 | 变更 |
 |------|------|
+| **滑块验证码（安全）** | 服务端生成 challenge：`GET /api/auth/slider-challenge?scene=login\|register\|sms\|profile\|forgot` 返回 `token`、`targetX`、`pieceTop`、`bgIndex`；Redis 存缺口位置，提交时校验 `offsetX` 并**一次性消费** token；**废弃**前端硬编码 `slider_verified` 绕过；登录、注册、短信发码、个人中心绑定/改密、忘记密码 **PC + 移动端** 统一对接；新增 `SliderCaptchaService` 与单测 |
+| **企业 IM · H5 在线状态** | 企业 IM 在线/离线依赖 WebSocket 长连接。H5 浏览器无法自定义 WS Header，现改为连接 URL 携带 `?Authorization=token`，后端握手支持 Header / Cookie / **查询参数** 三种鉴权；`App.vue` 切回前台与网络恢复时自动重连 WS。修复「移动端 H5 在用、PC 企业 IM 仍显示离线」 |
+| **企业 IM · 滑块与发码** | 短信登录/注册/个人中心/忘记密码发码前滑块：PC `SliderCaptcha.vue`、移动端 `SliderCaptcha` 均拉取服务端 challenge，成功回调 `{ token, offsetX }` 随发码请求提交（`uuid` + `code` 字段） |
+| **API 访问统计 UI** | PC 页顶三张统计卡片（请求总数 / 成功 / 失败）数字与标签**居中对齐**；独立类名 `api-stat-card`，避免与个人中心全局 `.stat-value` 样式冲突导致对角错位 |
 | **移动端 H5 返回** | F5 刷新后页面栈为 1 时：`localStorage` 持久化父级路由（`pinNavParent`）、列表页 **`SubPageBackBar`** 内返回条、Tab 页 `onShow` 不再误关返回按钮；详情/编辑在 `onLoad` 锁定返回目标；子包列表 `redirectTo` 回退避免 `switchTab` 闪屏 |
 | **移动端个人中心** | 手机号绑定/更换独立页 `mobile-bind`；账号状态与 PC 对齐（`1=正常`、`0=已停用`）；「我的」卡片昵称布局微调 |
+| **移动端监控 · 在线用户** | 强退按钮改 `@tap.stop` 防误触；强退后通过 `eventChannel` 通知列表刷新并可靠返回 |
 | **工作台统计** | PC / 移动端新增 **企业 IM 未读**（`chatUnreadCount`）、**系统配置分组数**（`configGroupCount`） |
 | **系统通知** | 公告详情发布人昵称/头像按 `createBy` **实时解析**，改名后不再显示旧昵称 |
 | **部门负责人** | `sys_dept.leader_user_id` 关联用户；PC / 移动端选择用户，改名同步 `leader_name`；全量脚本与附录已含 |
@@ -66,6 +71,14 @@
 | **监控权限与采样** | 缓存/服务监控补齐 **查询** 按钮权限；管理员登录后全局轮询，普通用户**进页采样、离页停止**（PC + uni-app）；全量脚本已含 |
 | **API 访问统计** | 修复统计接口 500：`sys_api_access_log` 无 `deleted` 字段，聚合 SQL 已去掉误写的 `deleted = 0` |
 
+**本批升级部署提示**
+
+| 变更类型 | 须部署 |
+|----------|--------|
+| 滑块验证码 / WebSocket 握手 | **重启 backend.jar** |
+| H5 在线状态 / 滑块组件 | **`uniapp` `npm run build:h5`** 并上传 `app.wushij.online` |
+| API 访问统计卡片对齐 | **`frontend` `npm run build`** 并上传 PC 站点 |
+
 ```bash
 # 已有库升级（极旧库先跑 admin_platform.sql 附录；后续发版按 add1.sql、add2.sql … 补跑）
 # mysql -u root -p wu-admin < sql/add1.sql
@@ -74,7 +87,7 @@
 cd uniapp && npm install && npm run dev:h5
 ```
 
-生产 H5：`npm run build:h5` 后部署静态资源，**`/api` 反代到后端**（与 PC 相同）。
+生产 H5：`npm run build:h5` 后部署静态资源，**`/api` 反代到后端**（与 PC 相同）；WebSocket 路径 `wss://域名/api/ws/message` 须在 Nginx 配置 `Upgrade` 头（见 `docs/移动端子域名配置文件.txt`）。
 
 ---
 
@@ -434,7 +447,7 @@ cd uniapp && npm run type-check
 | master 能登、dev 包不能登（已确认 Nginx 正常） | dev 将 CORS 从 `*` 改为 `application-prod.yml` 域名，**勿留占位符** `your-domain.com` | 改为实际域名，如 `https://wushij.online,https://www.wushij.online`，重新打包并重启 jar |
 | 开启「禁止前端调试」后 F12 打不开，无法排障 | `disableDevtool` 存于 `sys_config_group.security` | 执行 `sql/disable_devtool_off.sql`（**MySQL 5.6** 用 `REPLACE`，勿用 `JSON_SET`），重启后端并强刷浏览器；调试完在系统配置改回或改 SQL 还原 |
 | 企业 IM 输入框出现**黑色边框** | 拆分后 `chat-page.css` 中 `:deep()` 不生效 | 已改为 `.chat-textarea .el-textarea__inner { border: none !important; }` |
-| 联系人「在线/离线」不实时变，须刷新 | 旧版仅在 `loadUsers()` 时拉取 `online` 字段 | 已增加 WebSocket **`presence`** 推送；前后端需一并升级 |
+| 联系人「在线/离线」不实时变，须刷新 | 旧版仅在 `loadUsers()` 时拉取 `online` 字段 | 已增加 WebSocket **`presence`** 推送；H5 另需 URL Token 鉴权与前台重连 |
 | 字典管理多出多个「审批类型（副本）」 | 误点「复制类型」；每点一次生成一条 `_copy_时间戳` | 在字典管理删除多余副本即可，不影响业务字典 `sys_approval_form_type` |
 
 **Nginx 反代示例**（`/api` 须写在 `location /` 之前，建议加 `^~`）：
@@ -462,7 +475,7 @@ location ^~ /api/ {
 
 | 接口 | 说明 |
 |------|------|
-| `POST /api/auth/profile/mobile/sms-code` | 发绑定验证码，body：`{ "mobile": "13800138000", "code": "slider_verified" }` |
+| `POST /api/auth/profile/mobile/sms-code` | 发绑定验证码，body：`{ "mobile": "13800138000", "uuid": "<slider-token>", "code": "<offsetX>" }`（须先 `GET /auth/slider-challenge?scene=profile`） |
 | `PUT /api/auth/profile/mobile` | 绑定/更换，body：`{ "mobile": "13800138000", "smsCode": "123456" }` |
 
 后端：`ProfileSmsMobileBindService`；前端：`frontend/src/views/profile/`（`useProfileInfo.ts`、`BasicInfoForm.vue` 等）。
@@ -560,7 +573,7 @@ location ^~ /api/ {
 
 **WebSocket 推送类型**：`notice` / `chat` / `groupChat` / **`groupAnnouncement`** / `typing` / **`presence`**（联系人上线/下线）；群消息可带 `atMe: true`；撤回带 `recall: true` 与 `messageId`。
 
-**在线状态**：用户 WebSocket 连接/断开时，后端向其他在线用户广播 `{ type: "presence", userId, online }`，企业 IM 联系人列表与聊天顶栏「在线/离线」**实时更新**，无需手动刷新。
+**在线状态**：用户 WebSocket 连接/断开时，后端向其他在线用户广播 `{ type: "presence", userId, online }`，企业 IM 联系人列表与聊天顶栏「在线/离线」**实时更新**，无需手动刷新。PC 端握手走 **httpOnly Cookie**；**移动端 H5** 因浏览器限制须在连接 URL 携带 `Authorization` 查询参数（后端握手同时支持 Header / Cookie / 查询参数）。
 
 **数据库（全量脚本已含）**
 
@@ -605,12 +618,13 @@ location ^~ /api/ {
 - `POST /api/system/config-group/test-sms`，body：`{ "phone": "13800138000" }`（需 `system:config:update`，**须先保存短信配置**）
 - `GET /api/system/config-group/sms-logs/recent?limit=5`
 - `GET /api/system/config-group/sms-logs?page=1&size=10&phone=&status=`
-- `POST /api/auth/sms-code`，body：`{ "phone": "13800138000", "code": "slider_verified" }`（发码；开启「发送前滑块验证」时 `code` 必填；Redis 校验，受 `rateLimit` 短信限流约束）
+- `GET /api/auth/slider-challenge?scene=login|register|sms|profile|forgot`，返回滑块 challenge（`token`、`targetX`、`pieceTop`、`bgIndex`），5 分钟有效，校验后一次性消费
+- `POST /api/auth/sms-code`，body：`{ "phone": "13800138000", "uuid": "<slider-token>", "code": "<offsetX>" }`（发码；开启「发送前滑块验证」时 `uuid`/`code` 必填，须先拉取 `scene=sms` 的 challenge；受 `rateLimit` 短信限流约束）
 - `POST /api/auth/login`，body 含 `loginType`：`account`（账号+密码+图形/滑块验证码）或 `sms`（手机号+短信验证码，须为已绑定手机）
 
 **短信登录**：在 **系统配置 → 登录认证** 开启「短信验证码登录」，并在 **短信配置** 中启用短信；登录页出现「账号登录 / 短信登录」切换，短信 Tab 仅需手机号与验证码（使用个人中心已绑定手机号）。
 
-**短信发码前滑块**（`smsLoginSliderCaptchaEnabled`，与账号登录验证码独立）：在「短信验证码登录」开启后，可再开启「发送前滑块验证」。用户输入手机号并点击「获取验证码」时先完成滑块验证，通过后才会调用 `/auth/sms-code` 发送短信。极旧库可通过 `admin_platform.sql` **附录** 补全配置字段。
+**短信发码前滑块**（`smsLoginSliderCaptchaEnabled`，与账号登录验证码独立）：在「短信验证码登录」开启后，可再开启「发送前滑块验证」。用户输入手机号并点击「获取验证码」时先 `GET /auth/slider-challenge?scene=sms` 完成滑块，再将 `uuid`（token）与 `code`（offsetX）随 `/auth/sms-code` 提交。极旧库可通过 `admin_platform.sql` **附录** 补全配置字段。
 
 **支付回调与查单**（回调无需登录，已在 Security 白名单 `/pay/notify/**`）：
 
@@ -629,9 +643,9 @@ location ^~ /api/ {
 | `GET /api/auth/profile` | 当前用户资料（部门、角色、岗位、最近登录等） |
 | `PUT /api/auth/profile` | 更新昵称、邮箱、头像（**手机号须走下方 `/mobile` 接口**） |
 | `PUT /api/auth/profile/password` | 已知原密码时自助改密 |
-| `POST /api/auth/profile/password/sms-code` | 发送重置密码短信（body：`{ "code": "slider_verified" }`，**发码前强制滑块**，不受登录页「发码前滑块」开关影响） |
+| `POST /api/auth/profile/password/sms-code` | 发送重置密码短信（body：`uuid`、`code` 为滑块 challenge 校验结果，**发码前强制滑块**，不受登录页「发码前滑块」开关影响） |
 | `PUT /api/auth/profile/password/sms-reset` | 短信验证重置密码（body：`smsCode`、`newPassword`、`confirmPassword`） |
-| `POST /api/auth/profile/mobile/sms-code` | 发送绑定/更换手机号短信（body：`mobile`、`code: slider_verified`，**发码前强制滑块**） |
+| `POST /api/auth/profile/mobile/sms-code` | 发送绑定/更换手机号短信（body：`mobile`、`uuid`、`code` 滑块校验结果，**发码前强制滑块**） |
 | `PUT /api/auth/profile/mobile` | 短信验证绑定或更换手机号（body：`mobile`、`smsCode`） |
 | `POST /api/auth/profile/avatar` | 上传头像（最大 2MB） |
 | `GET /api/auth/profile/login-logs` | 我的登录记录分页 |
@@ -731,7 +745,7 @@ location ^~ /api/ {
 | 群聊 | `POST /system/chat/group/{groupId}/notify-muted?muted=` | 设置本群免打扰 |
 | 聊天图片 | `POST /system/chat/upload/image` | 上传至 `images/chat/`，**不出现在文件管理列表** |
 | 聊天文件 | `POST /system/chat/upload/file` | 上传至 `files/chat/`，受文件配置大小/扩展名约束 |
-| WebSocket | `ws(s)://{host}/api/ws/message` | 握手时从 **httpOnly Cookie**（或 Header）鉴权，不再 URL 传 Token；推送：`notice` / `chat` / `groupChat` / **`groupAnnouncement`** / `typing` / `presence`；群聊可带 `atMe`；撤回带 `recall` + `messageId` |
+| WebSocket | `ws(s)://{host}/api/ws/message` | 握手鉴权：**Header / Cookie 优先**；移动端 H5 / 小程序等无法自定义 WS Header 时可在 URL 传 `?Authorization=<token>`；推送：`notice` / `chat` / `groupChat` / **`groupAnnouncement`** / `typing` / `presence`；群聊可带 `atMe`；撤回带 `recall` + `messageId` |
 
 ### 前端关键文件
 
@@ -1192,7 +1206,7 @@ cd backend && mvn test
 
 | 前缀 | 说明 |
 |------|------|
-| `/api/auth/**` | 登录、注册、验证码、`config`（公开配置）、**profile**（个人中心）；`/auth/**` 匿名可访问，业务接口内由 Sa-Token 校验登录态 |
+| `/api/auth/**` | 登录、注册、验证码、**滑块 challenge**（`/auth/slider-challenge`）、`config`（公开配置）、**profile**（个人中心）；`/auth/**` 匿名可访问，业务接口内由 Sa-Token 校验登录态 |
 | `/api/system/**` | 用户、角色、菜单、组织、字典、**config-group**（含 test-payment）、审批、工单、**announce/chat** 等 |
 | `/api/pay/**` | 支付回调（`/notify/*` 公开）、测试订单查单 |
 | `/api/files/**` | 文件上传与访问 |
@@ -1564,7 +1578,10 @@ A：在 **系统配置 → 安全配置** 保存后需 **整页刷新**；缺 `s
 A：执行 `sql/disable_devtool_off.sql`（库名 `wuadmin`；**MySQL 5.6 勿用 JSON_SET**），重启后端并 `Ctrl+F5` 强刷；或在系统配置关闭后保存。调试完请恢复。
 
 **Q：企业 IM 联系人在线状态不实时更新？**  
-A：升级至含 **`presence` WebSocket 推送** 的版本并重启后端；双方均须已登录且 WebSocket 已连接。旧版仅进入页面时 `loadUsers()` 拉取一次在线状态。
+A：① 升级至含 **`presence` WebSocket 推送** 的版本并重启后端；双方均须已登录且 WebSocket 已连接；② **移动端 H5** 须同时升级 uni-app 构建（WS URL 带 Token + 切前台重连），否则 HTTP 正常但 IM 仍显示离线；③ 旧版仅进入页面时 `loadUsers()` 拉取一次在线状态。
+
+**Q：H5 账号在线但 PC 企业 IM 显示离线（或相反）？**  
+A：企业 IM 在线状态只看 **WebSocket 是否连接**，与「在线用户监控」Redis 心跳不是同一套。H5 部署后确认 Network 里 `wss://.../api/ws/message` 为 **101**；后端日志应有 `WS connected userId=...`。若握手 403，检查是否已部署含查询参数鉴权的 backend 与最新 H5 包。
 
 **Q：企业 IM 输入框多了一圈黑边框？**  
 A：组件化拆分时独立 CSS 中 `:deep()` 无效所致；升级至已修复的 `chat-page.css` 后重新 `npm run build` 部署前端。

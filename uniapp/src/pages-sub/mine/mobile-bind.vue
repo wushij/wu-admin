@@ -62,6 +62,8 @@
         {{ hasBoundMobile ? '确认更换' : '确认绑定' }}
       </button>
     </PageFooter>
+
+    <SliderCaptcha v-model:show="showSlider" scene="profile" @success="onSliderSuccess" />
   </view>
 </template>
 
@@ -71,6 +73,7 @@ import { onShow } from '@dcloudio/uni-app'
 import ModuleIcon from '@/components/common/ModuleIcon/index.vue'
 import ListLoading from '@/components/common/ListLoading/index.vue'
 import PageFooter from '@/components/common/PageFooter/index.vue'
+import SliderCaptcha from '@/components/business/SliderCaptcha/index.vue'
 import { maskBoundMobile, useMobileBindForm } from '@/composables/useMobileBindForm'
 import { useShallowStackBackFallback } from '@/composables/useShallowStackBackFallback'
 
@@ -86,8 +89,10 @@ const {
   form,
   hasBoundMobile,
   pageTitle,
+  showSlider,
   load,
   sendBindSmsCode,
+  onSliderSuccess,
   submit,
 } = useMobileBindForm()
 

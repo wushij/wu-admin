@@ -83,16 +83,28 @@
 import { ref, computed, watch, nextTick, onBeforeUnmount } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Close, ArrowRight, Refresh, Check } from '@element-plus/icons-vue'
+import { getSliderChallenge } from '@/api/system/auth'
+import type { SliderVerifyPayload } from '@/types/slider-captcha'
 
 const visible = defineModel('show', { type: Boolean, default: false })
-const emit = defineEmits(['success', 'close'])
+
+const props = withDefaults(
+  defineProps<{
+    /** login | register | sms | profile | forgot */
+    scene?: string
+  }>(),
+  { scene: 'login' },
+)
+
+const emit = defineEmits<{
+  success: [payload: SliderVerifyPayload]
+  close: []
+}>()
 
 const PIECE_W = 52
 const PIECE_H = 52
 const IMAGE_H = 200
 const TOLERANCE = 6
-const TARGET_MIN = 130
-const TARGET_RANGE = 110
 
 /** 缺口与拼图块共用造型（右侧凸起拼图） */
 const PUZZLE_CLIP =
@@ -115,6 +127,8 @@ const dragging = ref(false)
 const verified = ref(false)
 const bgIndex = ref(0)
 const captchaId = ref('')
+const challengeToken = ref('')
+const loadingChallenge = ref(false)
 
 let dragStartX = 0
 
@@ -138,42 +152,42 @@ const pieceImgStyle = computed(() => ({
   transform: `translate3d(${-targetX.value}px, ${-pieceTop.value}px, 0)`
 }))
 
-function genCaptchaId() {
-  const d = new Date()
-  const pad = (n: number) => String(n).padStart(2, '0')
-  const ts =
-    d.getFullYear() +
-    pad(d.getMonth() + 1) +
-    pad(d.getDate()) +
-    pad(d.getHours()) +
-    pad(d.getMinutes()) +
-    pad(d.getSeconds())
-  return ts + Math.random().toString(16).slice(2, 10).toUpperCase()
-}
-
 function measure() {
   nextTick(() => {
     const box = imageRef.value
     if (box) {
       imageWidth.value = box.clientWidth || 340
       maxOffset.value = Math.max(PIECE_W, box.clientWidth - PIECE_W)
+      if (targetX.value > maxOffset.value - PIECE_W) {
+        targetX.value = Math.max(0, maxOffset.value - PIECE_W)
+      }
     }
-    targetX.value = TARGET_MIN + Math.floor(Math.random() * TARGET_RANGE)
-    targetX.value = Math.min(targetX.value, maxOffset.value - PIECE_W)
-    pieceTop.value = 28 + Math.floor(Math.random() * (IMAGE_H - PIECE_H - 56))
   })
 }
 
-function onImageLoad() {
-  measure()
-}
-
-function refresh() {
+async function refresh() {
   offsetX.value = 0
   verified.value = false
   dragging.value = false
-  bgIndex.value = Math.floor(Math.random() * BG_URLS.length)
-  captchaId.value = genCaptchaId()
+  loadingChallenge.value = true
+  try {
+    const res = await getSliderChallenge(props.scene)
+    const data = res.data
+    challengeToken.value = data.token
+    captchaId.value = data.token.slice(0, 16).toUpperCase()
+    bgIndex.value = data.bgIndex ?? 0
+    pieceTop.value = data.pieceTop ?? 74
+    targetX.value = data.targetX ?? 180
+    measure()
+  } catch {
+    ElMessage.error('加载滑块验证失败，请重试')
+    challengeToken.value = ''
+  } finally {
+    loadingChallenge.value = false
+  }
+}
+
+function onImageLoad() {
   measure()
 }
 
@@ -221,10 +235,15 @@ function onDragEnd() {
   if (Math.abs(offsetX.value - targetX.value) <= TOLERANCE) {
     verified.value = true
     offsetX.value = targetX.value
+    if (!challengeToken.value) {
+      ElMessage.error('验证数据无效，请刷新')
+      return
+    }
     ElMessage.success('验证成功')
+    const payload: SliderVerifyPayload = { token: challengeToken.value, offsetX: offsetX.value }
     setTimeout(() => {
       visible.value = false
-      emit('success')
+      emit('success', payload)
     }, 450)
   } else {
     ElMessage.warning('验证失败，请重试')

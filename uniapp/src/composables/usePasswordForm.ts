@@ -1,7 +1,8 @@
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { getConfig } from '@/api/system/auth'
 import { getProfile, changePassword, sendProfilePasswordSmsCode, resetPasswordBySms } from '@/api/system/profile'
-import { SLIDER_VERIFIED_CODE } from '@/constants'
+import { sliderVerifyToRequest } from '@/utils/slider-captcha'
+import type { SliderVerifyPayload } from '@/utils/slider-captcha'
 import { logger } from '@/utils/logger'
 
 type SecurityMode = 'password' | 'sms'
@@ -15,6 +16,7 @@ export function usePasswordForm() {
   const hasMobile = ref(false)
   const maskedMobile = ref('')
   const minPwdLen = ref(6)
+  const showSlider = ref(false)
 
   const form = reactive({
     oldPassword: '',
@@ -115,11 +117,11 @@ export function usePasswordForm() {
     }
   }
 
-  async function sendSmsCode() {
+  async function doSendSmsCode(slider: { uuid: string; code: string }) {
     if (sendingSms.value || smsCountdown.value > 0) return
     sendingSms.value = true
     try {
-      await sendProfilePasswordSmsCode(SLIDER_VERIFIED_CODE)
+      await sendProfilePasswordSmsCode(slider)
       uni.showToast({ title: '验证码已发送', icon: 'success' })
       smsCountdown.value = 60
       smsTimer = setInterval(() => {
@@ -134,6 +136,14 @@ export function usePasswordForm() {
     } finally {
       sendingSms.value = false
     }
+  }
+
+  function sendSmsCode() {
+    showSlider.value = true
+  }
+
+  async function onSliderSuccess(payload: SliderVerifyPayload) {
+    await doSendSmsCode(sliderVerifyToRequest(payload))
   }
 
   async function submitSmsReset() {
@@ -171,8 +181,10 @@ export function usePasswordForm() {
     canUseSmsReset,
     maskedMobile,
     minPwdLen,
+    showSlider,
     submit,
     sendSmsCode,
+    onSliderSuccess,
     submitSmsReset,
     openSmsMode,
     openSmsModeFromQuery,

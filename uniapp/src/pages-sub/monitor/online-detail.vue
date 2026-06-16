@@ -54,7 +54,7 @@
     <EmptyState v-else-if="!loading" title="会话不存在或已失效" icon="manager-o" />
 
     <PageFooter v-if="user && canForce">
-      <button class="page-footer__btn page-footer__btn--danger" @click="onForce">强退下线</button>
+      <button class="page-footer__btn page-footer__btn--danger" @tap.stop="onForce">强退下线</button>
     </PageFooter>
 
     <AppDialogHost />
@@ -71,13 +71,19 @@ import PageFooter from '@/components/common/PageFooter/index.vue'
 import AppDialogHost from '@/components/common/AppDialogHost/index.vue'
 import { forceLogoutOnlineUser } from '@/api/monitor/online'
 import { useModulePermission } from '@/composables/useModulePermission'
-import { resolveOnlineUserDetail } from '@/utils/online-detail-cache'
+import { clearOnlineUserDetail, resolveOnlineUserDetail } from '@/utils/online-detail-cache'
 import { showConfirm } from '@/utils/app-dialog'
 import { formatDateTime } from '@/utils/format'
 import type { OnlineUser } from '@/types/system'
 
+type OpenerEventChannel = {
+  emit: (event: string, data?: unknown) => void
+}
+
 const user = ref<OnlineUser | null>(null)
 const loading = ref(true)
+const forcing = ref(false)
+let openerChannel: OpenerEventChannel | null = null
 const { hasPerm } = useModulePermission('monitor:online:list')
 const canForce = computed(() => hasPerm('monitor:online:forceLogout'))
 
@@ -87,9 +93,30 @@ const displayName = computed(() => {
   return u.nickname || u.username || u.loginName || '用户'
 })
 
+function refreshOpenerChannel() {
+  const page = getCurrentPages().slice(-1)[0] as {
+    getOpenerEventChannel?: () => OpenerEventChannel
+  } | undefined
+  openerChannel = page?.getOpenerEventChannel?.() ?? openerChannel
+}
+
+function navigateBackToList() {
+  setTimeout(() => {
+    uni.navigateBack({
+      fail: () => {
+        forcing.value = false
+        uni.showToast({ title: '返回失败，请重试', icon: 'none' })
+      },
+      complete: () => {
+        forcing.value = false
+      },
+    })
+  }, 32)
+}
+
 async function onForce() {
   const u = user.value
-  if (!u) return
+  if (!u || forcing.value) return
   const { confirmed } = await showConfirm({
     title: '强退确认',
     content: `确定强制下线「${displayName.value}」？`,
@@ -97,12 +124,21 @@ async function onForce() {
     confirmText: '强退',
   })
   if (!confirmed) return
-  await forceLogoutOnlineUser(u.userId)
-  uni.showToast({ title: '已强退', icon: 'success' })
-  setTimeout(() => uni.navigateBack(), 400)
+  forcing.value = true
+  try {
+    await forceLogoutOnlineUser(u.userId)
+    clearOnlineUserDetail()
+    refreshOpenerChannel()
+    openerChannel?.emit('forceLogout', { userId: u.userId })
+    uni.showToast({ title: '已强退', icon: 'success' })
+    navigateBackToList()
+  } catch {
+    forcing.value = false
+  }
 }
 
 onLoad(async (options) => {
+  refreshOpenerChannel()
   const id = Number(options?.id)
   loading.value = true
   try {

@@ -15,6 +15,13 @@ public final class AuthTokenResolver {
     }
 
     public static String resolve(HttpServletRequest request) {
+        return resolve(request, false);
+    }
+
+    /**
+     * @param allowQueryParam 为 true 时在 Header/Cookie 缺失时回退读取 URL 查询参数（WebSocket 握手等场景）
+     */
+    public static String resolve(HttpServletRequest request, boolean allowQueryParam) {
         if (request == null) {
             return null;
         }
@@ -28,6 +35,12 @@ public final class AuthTokenResolver {
                 if (TOKEN_NAME.equals(cookie.getName()) && StringUtils.hasText(cookie.getValue())) {
                     return cookie.getValue().trim();
                 }
+            }
+        }
+        if (allowQueryParam) {
+            String query = request.getParameter(TOKEN_NAME);
+            if (StringUtils.hasText(query)) {
+                return query.trim();
             }
         }
         return null;

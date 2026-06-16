@@ -16,7 +16,7 @@ import org.springframework.web.socket.server.HandshakeInterceptor;
 import java.util.Map;
 
 /**
- * WebSocket 握手鉴权：从 Cookie / Header 读取 Token，不再使用 URL 查询参数。
+ * WebSocket 握手鉴权：Header / Cookie 优先，移动端 H5 等无法自定义 WS Header 时回退 URL 查询参数。
  */
 @Component
 public class WebSocketHandshakeInterceptor implements HandshakeInterceptor {
@@ -30,7 +30,7 @@ public class WebSocketHandshakeInterceptor implements HandshakeInterceptor {
         if (!(request instanceof ServletServerHttpRequest servletRequest)) {
             return false;
         }
-        String token = AuthTokenResolver.resolve(servletRequest.getServletRequest());
+        String token = AuthTokenResolver.resolve(servletRequest.getServletRequest(), true);
         if (!StringUtils.hasText(token)) {
             return false;
         }

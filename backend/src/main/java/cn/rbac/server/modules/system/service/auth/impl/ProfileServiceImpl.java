@@ -106,7 +106,7 @@ public class ProfileServiceImpl implements ProfileService {
     @Override
     public String sendMobileBindSmsCode(Long userId, ProfileMobileBindSmsCodeReqVO reqVO, String clientIp) {
         return profileSmsMobileBindService.sendBindCode(
-                userId, reqVO.getMobile(), clientIp, reqVO.getCode());
+                userId, reqVO.getMobile(), clientIp, reqVO.getUuid(), reqVO.getCode());
     }
 
     @Override
@@ -146,7 +146,7 @@ public class ProfileServiceImpl implements ProfileService {
     @Override
     public String sendPasswordResetSmsCode(Long userId, ProfilePasswordSmsCodeReqVO reqVO, String clientIp) {
         UserDO user = requireUser(userId);
-        return profileSmsPasswordService.sendResetCode(user, clientIp, reqVO.getCode());
+        return profileSmsPasswordService.sendResetCode(user, clientIp, reqVO.getUuid(), reqVO.getCode());
     }
 
     @Override

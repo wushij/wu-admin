@@ -92,7 +92,7 @@
       </AuthGlassForm>
     </view>
 
-    <SliderCaptcha v-model:show="showSlider" @success="onSliderSuccess" />
+    <SliderCaptcha v-model:show="showSlider" scene="forgot" @success="onSliderSuccess" />
   </view>
 </template>
 

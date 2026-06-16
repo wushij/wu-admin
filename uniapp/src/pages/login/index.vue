@@ -117,7 +117,11 @@
       </AuthGlassForm>
     </view>
 
-    <SliderCaptcha v-model:show="showSliderModal" @success="onSliderSuccess" />
+    <SliderCaptcha
+      v-model:show="showSliderModal"
+      :scene="sliderPurpose === 'sms' ? 'sms' : 'login'"
+      @success="onSliderSuccess"
+    />
   </view>
 </template>
 
@@ -147,6 +151,7 @@ const {
   rememberMeEnabled,
   registerEnabled,
   showSliderModal,
+  sliderPurpose,
   captchaImg,
   formData,
   loading,

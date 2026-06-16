@@ -7,7 +7,8 @@ import {
 import { getConfig } from '@/api/system/auth'
 import { logger } from '@/utils/logger'
 import { useUserStore } from '@/store/user'
-import { SLIDER_VERIFIED_CODE } from '@/constants'
+import { sliderVerifyToRequest } from '@/utils/slider-captcha'
+import type { SliderVerifyPayload } from '@/utils/slider-captcha'
 import { safeNavigateBack } from '@/utils/navigate-back'
 
 const PROFILE_URL = '/pages-sub/mine/profile'
@@ -25,6 +26,7 @@ export function useMobileBindForm() {
   const bindSmsCountdown = ref(0)
   const smsEnabled = ref(false)
   const currentMobile = ref('')
+  const showSlider = ref(false)
 
   const form = reactive({
     bindMobile: '',
@@ -64,7 +66,7 @@ export function useMobileBindForm() {
     }, 1000)
   }
 
-  async function sendBindSmsCode() {
+  async function doSendBindSmsCode(slider: { uuid: string; code: string }) {
     const mobile = form.bindMobile.trim()
     if (!/^1[3-9]\d{9}$/.test(mobile)) {
       uni.showToast({ title: '请输入正确手机号', icon: 'none' })
@@ -72,7 +74,7 @@ export function useMobileBindForm() {
     }
     sendingBindSms.value = true
     try {
-      await sendProfileMobileBindSmsCode({ mobile, code: SLIDER_VERIFIED_CODE })
+      await sendProfileMobileBindSmsCode({ mobile, ...slider })
       uni.showToast({ title: '验证码已发送', icon: 'success' })
       startBindSmsCountdown()
     } catch (e) {
@@ -80,6 +82,19 @@ export function useMobileBindForm() {
     } finally {
       sendingBindSms.value = false
     }
+  }
+
+  function sendBindSmsCode() {
+    const mobile = form.bindMobile.trim()
+    if (!/^1[3-9]\d{9}$/.test(mobile)) {
+      uni.showToast({ title: '请输入正确手机号', icon: 'none' })
+      return
+    }
+    showSlider.value = true
+  }
+
+  async function onSliderSuccess(payload: SliderVerifyPayload) {
+    await doSendBindSmsCode(sliderVerifyToRequest(payload))
   }
 
   async function submit() {
@@ -126,8 +141,10 @@ export function useMobileBindForm() {
     form,
     hasBoundMobile,
     pageTitle,
+    showSlider,
     load,
     sendBindSmsCode,
+    onSliderSuccess,
     submit,
   }
 }

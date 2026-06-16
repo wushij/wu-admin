@@ -50,7 +50,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { onPullDownRefresh } from '@dcloudio/uni-app'
+import { onPullDownRefresh, onShow } from '@dcloudio/uni-app'
 import ModuleDarkHero from '@/components/common/ModuleDarkHero/index.vue'
 import SearchBar from '@/components/common/SearchBar/index.vue'
 import ListCard from '@/components/common/ListCard/index.vue'
@@ -88,7 +88,14 @@ function displayName(user: OnlineUser) {
 
 function goDetail(user: OnlineUser) {
   setOnlineUserDetail(user as unknown as Record<string, unknown>)
-  uni.navigateTo({ url: `/pages-sub/monitor/online-detail?id=${user.userId}` })
+  uni.navigateTo({
+    url: `/pages-sub/monitor/online-detail?id=${user.userId}`,
+    events: {
+      forceLogout: ({ userId }: { userId: number }) => {
+        list.value = list.value.filter((u) => u.userId !== userId)
+      },
+    },
+  })
 }
 
 async function refresh() {
@@ -114,7 +121,20 @@ async function onForce(user: OnlineUser) {
   await refresh()
 }
 
+const skipNextShowRefresh = ref(true)
+
 onMounted(refresh)
+
+onShow(async () => {
+  if (skipNextShowRefresh.value) {
+    skipNextShowRefresh.value = false
+    return
+  }
+  if (allowed.value) {
+    await refresh()
+  }
+})
+
 onPullDownRefresh(async () => {
   await refresh()
   uni.stopPullDownRefresh()

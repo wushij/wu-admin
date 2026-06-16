@@ -23,8 +23,8 @@ export function changePassword(data: ChangePasswordDTO) {
   return put<unknown>('/auth/profile/password', data)
 }
 
-export function sendProfilePasswordSmsCode(sliderCode: string) {
-  return post<boolean>('/auth/profile/password/sms-code', { code: sliderCode })
+export function sendProfilePasswordSmsCode(slider: { uuid: string; code: string }) {
+  return post<boolean>('/auth/profile/password/sms-code', slider)
 }
 
 export function resetPasswordBySms(data: ProfilePasswordSmsResetDTO) {

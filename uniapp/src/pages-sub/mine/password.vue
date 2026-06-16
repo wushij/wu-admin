@@ -164,6 +164,8 @@
         {{ mode === 'password' ? '确认修改' : '确认重置' }}
       </button>
     </PageFooter>
+
+    <SliderCaptcha v-model:show="showSlider" scene="profile" @success="onSliderSuccess" />
   </view>
 </template>
 
@@ -174,6 +176,7 @@ import IconFont from '@/components/common/IconFont/index.vue'
 import ModuleIcon from '@/components/common/ModuleIcon/index.vue'
 import PasswordEyeIcon from '@/components/common/PasswordEyeIcon/index.vue'
 import PageFooter from '@/components/common/PageFooter/index.vue'
+import SliderCaptcha from '@/components/business/SliderCaptcha/index.vue'
 import { usePasswordForm } from '@/composables/usePasswordForm'
 
 const showOldPassword = ref(false)
@@ -192,8 +195,10 @@ const {
   canUseSmsReset,
   maskedMobile,
   minPwdLen,
+  showSlider,
   submit,
   sendSmsCode,
+  onSliderSuccess,
   submitSmsReset,
   openSmsMode,
   openSmsModeFromQuery,

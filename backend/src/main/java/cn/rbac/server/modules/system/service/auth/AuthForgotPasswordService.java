@@ -56,8 +56,8 @@ public class AuthForgotPasswordService {
         return phone.substring(0, 3) + "****" + phone.substring(7);
     }
 
-    public String sendResetCode(UserDO user, String clientIp, String sliderCode) {
-        return profileSmsPasswordService.sendResetCode(user, clientIp, sliderCode);
+    public String sendResetCode(UserDO user, String clientIp, String sliderToken, String offsetXStr) {
+        return profileSmsPasswordService.sendResetCode(user, clientIp, sliderToken, offsetXStr);
     }
 
     public String resetPasswordBySms(UserDO user, String smsCode, String newPassword, String confirmPassword) {

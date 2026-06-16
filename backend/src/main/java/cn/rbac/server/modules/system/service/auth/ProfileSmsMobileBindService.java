@@ -39,8 +39,10 @@ public class ProfileSmsMobileBindService {
     private AliyunDypnsSmsVerifyService aliyunDypnsSmsVerifyService;
     @Resource
     private UserMapper userMapper;
+    @Resource
+    private SliderCaptchaService sliderCaptchaService;
 
-    public String sendBindCode(Long userId, String newMobile, String clientIp, String sliderCode) {
+    public String sendBindCode(Long userId, String newMobile, String clientIp, String sliderToken, String offsetXStr) {
         if (userId == null) {
             return "用户不存在";
         }
@@ -62,9 +64,9 @@ public class ProfileSmsMobileBindService {
         if (exist != null) {
             return "该手机号已被其他账号使用";
         }
-        String captchaInput = sliderCode == null ? "" : sliderCode.trim();
-        if (!SystemConfigHelper.SLIDER_VERIFIED_CODE.equals(captchaInput)) {
-            return "请完成滑块验证";
+        String sliderErr = sliderCaptchaService.verifyAndConsume(sliderToken, offsetXStr);
+        if (sliderErr != null) {
+            return sliderErr;
         }
         String rateErr = checkSmsSendRateLimit(phone, clientIp);
         if (rateErr != null) {

@@ -107,7 +107,7 @@
         </div>
       </div>
     </AuthSplitLayout>
-    <SliderCaptcha v-model:show="showSliderModal" @success="doRegister" />
+    <SliderCaptcha v-model:show="showSliderModal" scene="register" @success="onSliderSuccess" />
   </div>
 </template>
 
@@ -133,9 +133,9 @@ const {
   agreeRowAlert,
   loading,
   showSliderModal,
+  onSliderSuccess,
   loadCaptcha,
   handleRegister,
-  doRegister,
   goLogin,
 } = useRegisterForm()
 </script>

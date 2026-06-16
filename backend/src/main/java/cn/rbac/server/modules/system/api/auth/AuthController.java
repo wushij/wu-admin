@@ -46,6 +46,15 @@ public class AuthController {
         return CommonResult.success(authService.generateCaptcha(scene, clientIp));
     }
 
+    @Operation(summary = "获取滑块验证码 challenge")
+    @GetMapping("/slider-challenge")
+    public CommonResult<Map<String, Object>> sliderChallenge(
+            @RequestParam(value = "scene", defaultValue = "login") String scene,
+            HttpServletRequest request) {
+        String clientIp = ClientIpUtils.resolve(request);
+        return CommonResult.success(authService.createSliderChallenge(scene, clientIp));
+    }
+
     @Operation(summary = "获取登录配置")
     @GetMapping("/config")
     public CommonResult<Map<String, Object>> config() {
@@ -135,7 +144,8 @@ public class AuthController {
         if (validateErr != null) {
             throw new BusinessException(400, validateErr);
         }
-        String err = authForgotPasswordService.sendResetCode(user, ClientIpUtils.resolve(request), reqVO.getCode());
+        String err = authForgotPasswordService.sendResetCode(
+                user, ClientIpUtils.resolve(request), reqVO.getUuid(), reqVO.getCode());
         if (err != null) {
             throw new BusinessException(400, err);
         }

@@ -1,6 +1,7 @@
 import { ref, reactive, onUnmounted } from 'vue'
 import { getConfig, checkForgotPassword, sendForgotPasswordSmsCode, resetForgotPassword } from '@/api/system/auth'
-import { SLIDER_VERIFIED_CODE } from '@/constants'
+import { sliderVerifyToRequest } from '@/utils/slider-captcha'
+import type { SliderVerifyPayload } from '@/utils/slider-captcha'
 import { navigateToLogin } from '@/utils/auth-route'
 import { logger } from '@/utils/logger'
 
@@ -79,11 +80,11 @@ export function useForgotPasswordForm() {
     }, 1000)
   }
 
-  async function doSendSms() {
+  async function doSendSms(slider: { uuid: string; code: string }) {
     if (sendingSms.value || smsCountdown.value > 0) return
     sendingSms.value = true
     try {
-      await sendForgotPasswordSmsCode(form.username.trim(), SLIDER_VERIFIED_CODE)
+      await sendForgotPasswordSmsCode(form.username.trim(), slider)
       uni.showToast({ title: '验证码已发送', icon: 'success' })
       startSmsCountdown()
     } catch (e) {
@@ -97,8 +98,8 @@ export function useForgotPasswordForm() {
     showSlider.value = true
   }
 
-  async function onSliderSuccess() {
-    await doSendSms()
+  async function onSliderSuccess(payload: SliderVerifyPayload) {
+    await doSendSms(sliderVerifyToRequest(payload))
   }
 
   function submitSmsStep() {

@@ -41,7 +41,7 @@ onLaunch(async () => {
 
   uni.onNetworkStatusChange((res) => {
     if (res.isConnected && hasToken()) {
-      useMessageStore().initWebSocket()
+      useMessageStore().reconnectWebSocket()
     }
   })
 })
@@ -49,6 +49,7 @@ onLaunch(async () => {
 onShow(() => {
   if (hasToken()) {
     onMonitorAppShow()
+    useMessageStore().reconnectWebSocket()
   }
 })
 

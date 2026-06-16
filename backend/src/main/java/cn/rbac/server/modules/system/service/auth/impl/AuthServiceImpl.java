@@ -20,6 +20,7 @@ import cn.rbac.server.modules.system.dal.mysql.user.UserMapper;
 import cn.rbac.server.modules.system.service.approval.RegisterApprovalService;
 import cn.rbac.server.modules.system.service.auth.AuthService;
 import cn.rbac.server.modules.system.service.auth.LoginLockService;
+import cn.rbac.server.modules.system.service.auth.SliderCaptchaService;
 import cn.rbac.server.modules.system.service.config.SystemConfigHelper;
 import cn.rbac.server.modules.system.service.loginlog.LoginLogService;
 import cn.rbac.server.modules.system.service.monitor.OnlineUserService;
@@ -63,6 +64,7 @@ public class AuthServiceImpl implements AuthService {
     @Resource private SmsServiceFactory smsServiceFactory;
     @Resource private AliyunDypnsSmsVerifyService aliyunDypnsSmsVerifyService;
     @Resource private LoginLockService loginLockService;
+    @Resource private SliderCaptchaService sliderCaptchaService;
 
     private static final String CAPTCHA_KEY = "captcha:";
     private static final String SMS_CODE_KEY = "sms:login:";
@@ -98,6 +100,11 @@ public class AuthServiceImpl implements AuthService {
         result.put("uuid", uuid);
         result.put("img", imageBase64);
         return result;
+    }
+
+    @Override
+    public Map<String, Object> createSliderChallenge(String scene, String clientIp) {
+        return sliderCaptchaService.createChallenge(scene, clientIp);
     }
 
     @Override
@@ -206,9 +213,9 @@ public class AuthServiceImpl implements AuthService {
             throw new BusinessException(400, "该手机号未绑定任何账号");
         }
         if (systemConfigHelper.isSmsLoginSliderCaptchaEnabled()) {
-            String captchaInput = reqVO.getCode() == null ? "" : reqVO.getCode().trim();
-            if (!SystemConfigHelper.SLIDER_VERIFIED_CODE.equals(captchaInput)) {
-                throw new BusinessException(400, "请完成滑块验证");
+            String sliderErr = sliderCaptchaService.verifyAndConsume(reqVO.getUuid(), reqVO.getCode());
+            if (sliderErr != null) {
+                throw new BusinessException(400, sliderErr);
             }
         }
         String code = String.valueOf((int) ((Math.random() * 9 + 1) * 100000));
@@ -352,8 +359,7 @@ public class AuthServiceImpl implements AuthService {
         String captchaInput = reqVO.getCode() == null ? "" : reqVO.getCode().trim();
         if (SystemConfigHelper.CAPTCHA_TYPE_SMS.equals(captchaType)) return null;
         if (SystemConfigHelper.CAPTCHA_TYPE_SLIDER.equals(captchaType)) {
-            if (!SystemConfigHelper.SLIDER_VERIFIED_CODE.equals(captchaInput)) return "请完成滑块验证";
-            return null;
+            return sliderCaptchaService.verifyAndConsume(reqVO.getUuid(), reqVO.getCode());
         }
         return validateImageCaptcha(reqVO.getUuid(), captchaInput);
     }
@@ -391,8 +397,7 @@ public class AuthServiceImpl implements AuthService {
         String captchaType = systemConfigHelper.getRegisterCaptchaType();
         String captchaInput = code == null ? "" : code.trim();
         if (SystemConfigHelper.CAPTCHA_TYPE_SLIDER.equals(captchaType)) {
-            if (!SystemConfigHelper.SLIDER_VERIFIED_CODE.equals(captchaInput)) return "请完成滑块验证";
-            return null;
+            return sliderCaptchaService.verifyAndConsume(uuid, code);
         }
         return validateImageCaptcha(uuid, captchaInput);
     }

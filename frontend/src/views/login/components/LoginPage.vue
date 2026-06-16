@@ -147,7 +147,11 @@
       </div>
     </div>
   </AuthSplitLayout>
-  <SliderCaptcha v-model:show="showSliderModal" @success="onSliderSuccess" />
+  <SliderCaptcha
+    v-model:show="showSliderModal"
+    :scene="sliderPurpose === 'sms' ? 'sms' : 'login'"
+    @success="onSliderSuccess"
+  />
   </div>
 </template>
 
@@ -179,6 +183,7 @@ const {
   smsCountdown,
   loading,
   showSliderModal,
+  sliderPurpose,
   loadCaptcha,
   handleSendSmsCode,
   handleLogin,

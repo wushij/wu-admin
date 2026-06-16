@@ -24,21 +24,21 @@
 
       <el-row :gutter="16" class="stats-cards">
         <el-col :span="8">
-          <el-card shadow="hover" class="stat-card">
-            <div class="stat-value">{{ stats.totalCount }}</div>
-            <div class="stat-label">请求总数</div>
+          <el-card shadow="hover" class="api-stat-card">
+            <div class="api-stat-value">{{ stats.totalCount }}</div>
+            <div class="api-stat-label">请求总数</div>
           </el-card>
         </el-col>
         <el-col :span="8">
-          <el-card shadow="hover" class="stat-card success">
-            <div class="stat-value">{{ stats.successCount }}</div>
-            <div class="stat-label">成功</div>
+          <el-card shadow="hover" class="api-stat-card success">
+            <div class="api-stat-value">{{ stats.successCount }}</div>
+            <div class="api-stat-label">成功</div>
           </el-card>
         </el-col>
         <el-col :span="8">
-          <el-card shadow="hover" class="stat-card fail">
-            <div class="stat-value">{{ stats.failCount }}</div>
-            <div class="stat-label">失败</div>
+          <el-card shadow="hover" class="api-stat-card fail">
+            <div class="api-stat-value">{{ stats.failCount }}</div>
+            <div class="api-stat-label">失败</div>
           </el-card>
         </el-col>
       </el-row>
@@ -440,22 +440,30 @@ onUnmounted(() => {
   .stats-cards {
     margin-bottom: 16px;
   }
-  .stat-card {
-    text-align: center;
-    .stat-value {
+  .api-stat-card {
+    :deep(.el-card__body) {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 20px 16px;
+      gap: 8px;
+    }
+    .api-stat-value {
       font-size: 28px;
       font-weight: 700;
+      line-height: 1.2;
       color: var(--el-text-color-primary);
     }
-    .stat-label {
-      margin-top: 8px;
+    .api-stat-label {
       font-size: 14px;
       color: var(--el-text-color-secondary);
     }
-    &.success .stat-value {
+    &.success .api-stat-value {
       color: var(--el-color-success);
     }
-    &.fail .stat-value {
+    &.fail .api-stat-value {
       color: var(--el-color-danger);
     }
   }

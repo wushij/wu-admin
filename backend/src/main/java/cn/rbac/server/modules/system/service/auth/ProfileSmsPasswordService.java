@@ -37,8 +37,10 @@ public class ProfileSmsPasswordService {
     private AliyunDypnsSmsVerifyService aliyunDypnsSmsVerifyService;
     @Resource
     private PasswordEncoder passwordEncoder;
+    @Resource
+    private SliderCaptchaService sliderCaptchaService;
 
-    public String sendResetCode(UserDO user, String clientIp, String sliderCode) {
+    public String sendResetCode(UserDO user, String clientIp, String sliderToken, String offsetXStr) {
         if (user == null || user.getId() == null) {
             return "用户不存在";
         }
@@ -49,9 +51,9 @@ public class ProfileSmsPasswordService {
         if (phone == null) {
             return "请先在基本资料中绑定手机号";
         }
-        String captchaInput = sliderCode == null ? "" : sliderCode.trim();
-        if (!SystemConfigHelper.SLIDER_VERIFIED_CODE.equals(captchaInput)) {
-            return "请完成滑块验证";
+        String sliderErr = sliderCaptchaService.verifyAndConsume(sliderToken, offsetXStr);
+        if (sliderErr != null) {
+            return sliderErr;
         }
         String rateErr = checkSmsSendRateLimit(phone, clientIp);
         if (rateErr != null) {

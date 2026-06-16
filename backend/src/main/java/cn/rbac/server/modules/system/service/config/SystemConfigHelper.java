@@ -30,6 +30,7 @@ public class SystemConfigHelper {
     public static final String CAPTCHA_TYPE_IMAGE = "image";
     public static final String CAPTCHA_TYPE_SLIDER = "slider";
     public static final String CAPTCHA_TYPE_SMS = "sms";
+    /** @deprecated 服务端已不再接受 slider_verified，须传 uuid + offsetX */
     public static final String SLIDER_VERIFIED_CODE = "slider_verified";
     public static final String LOGIN_TYPE_ACCOUNT = "account";
     public static final String LOGIN_TYPE_SMS = "sms";

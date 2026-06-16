@@ -4,6 +4,8 @@ import lombok.Data;
 
 @Data
 public class ProfilePasswordSmsCodeReqVO {
-    /** 滑块验证通过时传 slider_verified */
+    /** 滑块 challenge token */
+    private String uuid;
+    /** 滑块拖动 offsetX（整数） */
     private String code;
 }
