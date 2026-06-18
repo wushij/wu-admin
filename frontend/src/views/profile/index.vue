@@ -13,8 +13,9 @@
           <el-tabs v-model="activeTab" class="profile-tabs">
             <el-tab-pane label="基本资料" name="info">
               <BasicInfoForm
+                ref="basicInfoFormRef"
                 :profile="profile" :info-form="infoForm" :info-rules="infoRules"
-                :info-form-ref="infoFormRef" :has-bound-mobile="hasBoundMobile"
+                :has-bound-mobile="hasBoundMobile"
                 :masked-mobile="maskedMobile" :mobile-bind-editing="mobileBindEditing"
                 :sms-enabled="smsEnabled" :show-mobile-bind-fields="showMobileBindFields"
                 :bind-sms-countdown="bindSmsCountdown" :sending-bind-sms-code="sendingBindSmsCode"
@@ -78,7 +79,7 @@ const activeTab = ref('info')
 const smsEnabled = ref(false)
 
 const {
-  profile, pageLoading, savingInfo, avatarInputRef, infoFormRef,
+  profile, pageLoading, savingInfo, avatarInputRef, basicInfoFormRef, getInfoFormRef,
   mobileBindEditing, infoForm,
   avatarSrc, avatarFallback, statusLabel, statusTagType,
   postDisplay, lastLoginDisplay, maskedMobile, hasBoundMobile,
@@ -109,7 +110,7 @@ const {
   () => maskedMobile.value,
   () => (profile.value.mobile || '').trim(),
   loadProfile,
-  () => infoFormRef.value,
+  getInfoFormRef,
   () => infoForm,
 )
 

@@ -1,7 +1,7 @@
 <template>
   <div class="tab-pane-fill">
     <div class="tab-intro"><el-icon><User /></el-icon><span>维护您的昵称与联系方式，便于同事识别与系统通知触达。</span></div>
-    <el-form ref="infoFormRef" :model="infoForm" :rules="infoRules" label-width="88px" class="info-form" @submit.prevent>
+    <el-form ref="formRef" :model="infoForm" :rules="infoRules" label-width="88px" class="info-form" @submit.prevent>
       <el-form-item label="用户名"><el-input :model-value="profile.username" disabled /></el-form-item>
       <el-form-item label="昵称" prop="nickname">
         <el-input v-model="infoForm.nickname" placeholder="请输入昵称" maxlength="30" show-word-limit />
@@ -42,6 +42,7 @@
 </template>
 
 <script setup lang="ts">
+import { ref } from 'vue'
 import { User } from '@element-plus/icons-vue'
 import type { FormInstance, FormRules } from 'element-plus'
 import type { UserProfile } from '@/types/profile'
@@ -50,7 +51,6 @@ defineProps<{
   profile: UserProfile
   infoForm: { nickname: string; email: string; bindMobile: string; bindSmsCode: string }
   infoRules: FormRules
-  infoFormRef: FormInstance | undefined
   hasBoundMobile: boolean
   maskedMobile: string
   mobileBindEditing: boolean
@@ -71,4 +71,7 @@ defineEmits<{
   handleSaveInfo: []
   resetInfoForm: []
 }>()
+
+const formRef = ref<FormInstance>()
+defineExpose({ formRef })
 </script>

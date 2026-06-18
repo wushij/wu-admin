@@ -145,7 +145,14 @@ export function useProfileSecurity(
     if (!getSmsEnabled() || sendingBindSmsCode.value || bindSmsCountdown.value > 0) return
     try { await getInfoFormRef()?.validateField('bindMobile') } catch { return }
     const phone = getInfoForm().bindMobile.trim()
-    if (phone === getProfileMobile()) { ElMessage.warning('新手机号不能与当前绑定的号码相同'); return }
+    if (!phone) {
+      ElMessage.warning('请输入手机号')
+      return
+    }
+    if (getHasBoundMobile() && phone === getProfileMobile()) {
+      ElMessage.warning('新手机号不能与当前绑定的号码相同')
+      return
+    }
     sliderTarget.value = 'bindMobile'
     showSliderModal.value = true
   }

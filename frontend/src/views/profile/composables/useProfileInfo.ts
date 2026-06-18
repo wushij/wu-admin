@@ -13,8 +13,12 @@ export function useProfileInfo() {
   const pageLoading = ref(false)
   const savingInfo = ref(false)
   const avatarInputRef = ref<HTMLInputElement>()
-  const infoFormRef = ref<FormInstance>()
+  const basicInfoFormRef = ref<{ formRef?: FormInstance }>()
   const mobileBindEditing = ref(false)
+
+  function getInfoFormRef() {
+    return basicInfoFormRef.value?.formRef
+  }
 
   const infoForm = reactive({
     nickname: '',
@@ -90,13 +94,13 @@ export function useProfileInfo() {
 
   function resetInfoForm() {
     syncInfoForm()
-    infoFormRef.value?.clearValidate()
+    getInfoFormRef()?.clearValidate()
   }
 
   async function handleSaveInfo() {
     try {
-      await infoFormRef.value?.validateField('nickname')
-      await infoFormRef.value?.validateField('email')
+      await getInfoFormRef()?.validateField('nickname')
+      await getInfoFormRef()?.validateField('email')
     } catch { return }
     savingInfo.value = true
     try {
@@ -131,18 +135,18 @@ export function useProfileInfo() {
     mobileBindEditing.value = true
     infoForm.bindMobile = ''
     infoForm.bindSmsCode = ''
-    infoFormRef.value?.clearValidate(['bindMobile', 'bindSmsCode'])
+    getInfoFormRef()?.clearValidate(['bindMobile', 'bindSmsCode'])
   }
 
   function cancelMobileBindEditing() {
     mobileBindEditing.value = false
     infoForm.bindMobile = ''
     infoForm.bindSmsCode = ''
-    infoFormRef.value?.clearValidate(['bindMobile', 'bindSmsCode'])
+    getInfoFormRef()?.clearValidate(['bindMobile', 'bindSmsCode'])
   }
 
   return {
-    profile, pageLoading, savingInfo, avatarInputRef, infoFormRef,
+    profile, pageLoading, savingInfo, avatarInputRef, basicInfoFormRef, getInfoFormRef,
     mobileBindEditing, infoForm,
     avatarSrc, avatarFallback, statusLabel, statusTagType,
     postDisplay, lastLoginDisplay, maskedMobile, hasBoundMobile,
