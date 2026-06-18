@@ -18,8 +18,8 @@
             <el-form-item prop="username" class="form-item">
               <el-input
                 v-model="formData.username"
-                placeholder="用户名（4-20位字母数字下划线）"
-                maxlength="20"
+                placeholder="用户名（4-12位字母数字下划线）"
+                maxlength="12"
                 class="form-input"
               >
                 <template #prefix><el-icon class="input-icon"><User /></el-icon></template>

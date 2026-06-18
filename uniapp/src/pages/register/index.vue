@@ -9,7 +9,7 @@
         <text class="auth-form__platform">{{ appStore.platformName }}</text>
       </view>
 
-      <AuthInput v-model="form.username" icon="user" placeholder="用户名（4-20位字母数字下划线）" :maxlength="20" />
+      <AuthInput v-model="form.username" icon="user" placeholder="用户名（4-12位字母数字下划线）" :maxlength="12" />
       <AuthPasswordInput v-model="form.password" placeholder="请输入密码（6-20位）" :maxlength="20" />
       <AuthInput v-model="form.nickname" icon="user-o" placeholder="昵称（可选）" :maxlength="20" />
       <AuthInput
@@ -119,14 +119,19 @@ async function doRegister(sliderCaptcha?: { uuid: string; code: string }) {
     return
   }
   agreeAlert.value = false
-  if (!form.username.trim() || !form.password) {
+  const username = form.username.trim()
+  if (!username || !form.password) {
     uni.showToast({ title: '请填写用户名和密码', icon: 'none' })
+    return
+  }
+  if (!/^[a-zA-Z0-9_]{4,12}$/.test(username)) {
+    uni.showToast({ title: '用户名只能包含字母、数字、下划线，长度4-12位', icon: 'none' })
     return
   }
   loading.value = true
   try {
     const payload: Parameters<typeof register>[0] = {
-      username: form.username.trim(),
+      username,
       password: form.password,
       nickname: form.nickname.trim() || undefined,
       mobile: form.mobile.trim() || undefined,

@@ -10,7 +10,8 @@ import java.util.List;
 @Data
 public class UserCreateReqVO {
     @NotBlank(message = "用户名不能为空")
-    @Size(min = 2, max = 30, message = "用户名长度 2~30 个字符")
+    @Size(min = 4, max = 12, message = "用户名长度 4~12 个字符")
+    @Pattern(regexp = "^[a-zA-Z0-9_]+$", message = "用户名只能包含字母、数字、下划线")
     private String username;
     @NotBlank(message = "密码不能为空")
     @Size(min = 6, max = 50, message = "密码长度 6~50 个字符")
