@@ -64,6 +64,7 @@
 </template>
 
 <script setup lang="ts">
+import { ref } from 'vue'
 import { Lock, ArrowLeft, Iphone } from '@element-plus/icons-vue'
 import type { FormInstance, FormRules } from 'element-plus'
 
@@ -71,19 +72,21 @@ defineProps<{
   securityMode: 'password' | 'sms'
   pwdForm: { oldPassword: string; newPassword: string; confirmPassword: string }
   pwdRules: FormRules
-  pwdFormRef: FormInstance | undefined
   savingPwd: boolean
   canUseSmsReset: boolean
   hasBoundMobile: boolean
   minPwdLen: number
   smsPwdForm: { smsCode: string; newPassword: string; confirmPassword: string }
   smsPwdRules: FormRules
-  smsPwdFormRef: FormInstance | undefined
   maskedMobile: string
   smsCountdown: number
   sendingSmsCode: boolean
   savingSmsPwd: boolean
 }>()
+
+const pwdFormRef = ref<FormInstance>()
+const smsPwdFormRef = ref<FormInstance>()
+defineExpose({ pwdFormRef, smsPwdFormRef })
 
 defineEmits<{
   openSmsResetMode: []

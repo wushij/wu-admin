@@ -30,11 +30,12 @@
             </el-tab-pane>
             <el-tab-pane label="安全设置" name="security">
               <SecuritySettings
+                ref="securitySettingsRef"
                 :security-mode="securityMode" :pwd-form="pwdForm" :pwd-rules="pwdRules"
-                :pwd-form-ref="pwdFormRef" :saving-pwd="savingPwd"
+                :saving-pwd="savingPwd"
                 :can-use-sms-reset="canUseSmsReset" :has-bound-mobile="hasBoundMobile"
                 :min-pwd-len="minPwdLen" :sms-pwd-form="smsPwdForm" :sms-pwd-rules="smsPwdRules"
-                :sms-pwd-form-ref="smsPwdFormRef" :masked-mobile="maskedMobile"
+                :masked-mobile="maskedMobile"
                 :sms-countdown="smsCountdown" :sending-sms-code="sendingSmsCode" :saving-sms-pwd="savingSmsPwd"
                 @open-sms-reset-mode="openSmsResetModeWrapper"
                 @close-sms-reset-mode="closeSmsResetMode"
@@ -66,6 +67,7 @@ import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { getMyLoginLogs } from '@/api/system/profile'
 import { getConfig } from '@/api/system/auth'
 import SliderCaptcha from '@/components/SliderCaptcha.vue'
+import type { FormInstance } from 'element-plus'
 import type { LoginLogVO } from '@/api/system/login-log'
 import ProfileHero from './components/ProfileHero.vue'
 import BasicInfoForm from './components/BasicInfoForm.vue'
@@ -77,6 +79,7 @@ import { useProfileSecurity } from './composables/useProfileSecurity'
 
 const activeTab = ref('info')
 const smsEnabled = ref(false)
+const securitySettingsRef = ref<{ pwdFormRef?: FormInstance; smsPwdFormRef?: FormInstance }>()
 
 const {
   profile, pageLoading, savingInfo, avatarInputRef, basicInfoFormRef, getInfoFormRef,
@@ -95,7 +98,7 @@ const showMobileBindFields = computed(
 )
 
 const {
-  savingPwd, pwdFormRef, smsPwdFormRef, securityMode, showSliderModal,
+  savingPwd, securityMode, showSliderModal,
   sendingSmsCode, sendingBindSmsCode, savingSmsPwd, bindingMobile,
   smsCountdown, bindSmsCountdown,
   pwdForm, smsPwdForm, canUseSmsReset,
@@ -112,6 +115,8 @@ const {
   loadProfile,
   getInfoFormRef,
   () => infoForm,
+  () => securitySettingsRef.value?.pwdFormRef,
+  () => securitySettingsRef.value?.smsPwdFormRef,
 )
 
 function openSmsResetModeWrapper() {

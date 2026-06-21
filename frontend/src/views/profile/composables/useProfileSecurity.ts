@@ -16,10 +16,10 @@ export function useProfileSecurity(
   reloadProfile: () => Promise<void>,
   getInfoFormRef: () => FormInstance | undefined,
   getInfoForm: () => { bindMobile: string; bindSmsCode: string },
+  getPwdFormRef: () => FormInstance | undefined,
+  getSmsPwdFormRef: () => FormInstance | undefined,
 ) {
   const savingPwd = ref(false)
-  const pwdFormRef = ref<FormInstance>()
-  const smsPwdFormRef = ref<FormInstance>()
   const securityMode = ref<'password' | 'sms'>('password')
   const sliderTarget = ref<'resetPwd' | 'bindMobile'>('resetPwd')
   const showSliderModal = ref(false)
@@ -127,12 +127,12 @@ export function useProfileSecurity(
 
   function resetSmsPwdForm() {
     smsPwdForm.smsCode = ''; smsPwdForm.newPassword = ''; smsPwdForm.confirmPassword = ''
-    smsPwdFormRef.value?.clearValidate()
+    getSmsPwdFormRef()?.clearValidate()
   }
 
   function resetPwdForm() {
     pwdForm.oldPassword = ''; pwdForm.newPassword = ''; pwdForm.confirmPassword = ''
-    pwdFormRef.value?.clearValidate()
+    getPwdFormRef()?.clearValidate()
   }
 
   function handleSendResetSmsCode() {
@@ -194,7 +194,7 @@ export function useProfileSecurity(
   }
 
   async function handleChangePassword() {
-    const valid = await pwdFormRef.value?.validate().catch(() => false)
+    const valid = await getPwdFormRef()?.validate().catch(() => false)
     if (!valid) return
     savingPwd.value = true
     try {
@@ -205,7 +205,7 @@ export function useProfileSecurity(
   }
 
   async function handleSmsResetPassword() {
-    const valid = await smsPwdFormRef.value?.validate().catch(() => false)
+    const valid = await getSmsPwdFormRef()?.validate().catch(() => false)
     if (!valid) return
     savingSmsPwd.value = true
     try {
@@ -223,7 +223,7 @@ export function useProfileSecurity(
   })
 
   return {
-    savingPwd, pwdFormRef, smsPwdFormRef, securityMode, sliderTarget, showSliderModal,
+    savingPwd, securityMode, sliderTarget, showSliderModal,
     sendingSmsCode, sendingBindSmsCode, savingSmsPwd, bindingMobile,
     smsCountdown, bindSmsCountdown,
     pwdForm, smsPwdForm, canUseSmsReset, showMobileBindFields,
