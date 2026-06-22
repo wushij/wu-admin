@@ -17,8 +17,10 @@ import {
   flattenMenuTree,
   isExternalMenuComponent,
 } from '@/utils/menu-tree'
+import { useUserStore } from '@/store/user'
 
 export function useMenuPage() {
+  const userStore = useUserStore()
   const loading = ref(false)
   const submitLoading = ref(false)
   const menuList = ref<MenuVO[]>([])
@@ -148,6 +150,12 @@ export function useMenuPage() {
       await updateMenuStatus(row.id, row.status)
       ElMessage.success(`${text}成功`)
       await getList()
+      // 当前登录用户若也受该菜单影响，立即刷新权限/菜单树，保证工作台入口与直链访问同步收敛
+      try {
+        await userStore.refreshUserStore()
+      } catch {
+        /* ignore */
+      }
     } catch {
       row.status = row.status === 1 ? 0 : 1
     }
@@ -209,6 +217,11 @@ export function useMenuPage() {
         }
         dialogVisible.value = false
         getList()
+        try {
+          await userStore.refreshUserStore()
+        } catch {
+          /* ignore */
+        }
       } finally {
         submitLoading.value = false
       }

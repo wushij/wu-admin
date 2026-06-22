@@ -1,5 +1,7 @@
 import { createRouter, createWebHistory, RouteRecordRaw } from 'vue-router'
 import { useUserStore } from '@/store/user'
+import { ElMessage } from 'element-plus'
+import { hasMenuPermission } from '@/directives/permission'
 
 const routes: RouteRecordRaw[] = [
   {
@@ -170,6 +172,14 @@ const router = createRouter({
   routes
 })
 
+/** 路由页访问仅以启用菜单树为准，避免 permissions 别名导致停用菜单仍可直链进入 */
+function hasRoutePermission(userStore: ReturnType<typeof useUserStore>, required?: unknown): boolean {
+  if (!required) return true
+  const requiredPerm = String(required)
+  if (!requiredPerm) return true
+  return hasMenuPermission(userStore.menus || [], requiredPerm)
+}
+
 router.beforeEach(async (to, _from, next) => {
   const userStore = useUserStore()
 
@@ -184,24 +194,29 @@ router.beforeEach(async (to, _from, next) => {
     return
   }
 
-  if (!userStore.isLoggedIn) {
+  if (!userStore.isLoggedIn || !userStore.menus?.length) {
     try {
       await userStore.refreshUserStore()
-      next()
-    } catch {
-      next('/login')
-    }
-    return
-  }
-
-  if (!userStore.menus || userStore.menus.length === 0) {
-    try {
-      await userStore.refreshUserStore()
-      next()
     } catch (error) {
       console.error('获取用户信息失败:', error)
       next('/login')
+      return
     }
+  }
+
+  if (!userStore.isLoggedIn) {
+    next('/login')
+    return
+  }
+
+  const required = to.matched
+    .slice()
+    .reverse()
+    .find((record) => record.meta.permission)?.meta.permission
+
+  if (required && !hasRoutePermission(userStore, required)) {
+    ElMessage.error('无权限访问该页面')
+    next('/dashboard')
     return
   }
 

@@ -20,6 +20,7 @@
       </template>
     </ModuleDarkHero>
 
+    <SegmentTabs v-model="statusMode" :tabs="statusTabs" compact />
     <SearchBar v-model="keyword" placeholder="搜索菜单名称、路由、权限" @search="refresh" />
 
     <ListLoading v-if="loading && !menuRows.length" />
@@ -80,6 +81,7 @@ import { useAppDialogBackPress } from '@/composables/useAppDialogBackPress'
 import ModuleDarkHero from '@/components/common/ModuleDarkHero/index.vue'
 import IconFont from '@/components/common/IconFont/index.vue'
 import SearchBar from '@/components/common/SearchBar/index.vue'
+import SegmentTabs from '@/components/common/SegmentTabs/index.vue'
 import ListLoading from '@/components/common/ListLoading/index.vue'
 import EmptyState from '@/components/common/EmptyState/index.vue'
 import FabButton from '@/components/common/FabButton/index.vue'
@@ -113,11 +115,22 @@ useAppDialogBackPress()
 const keyword = ref('')
 const loading = ref(false)
 const menuRows = ref<MenuRow[]>([])
+const statusMode = ref<'all' | '1' | '0'>('all')
+const statusTabs = [
+  { key: 'all', label: '全部' },
+  { key: '1', label: '启用' },
+  { key: '0', label: '停用' },
+]
 
 const filteredRows = computed(() => {
+  const mode = statusMode.value
+  const base =
+    mode === 'all'
+      ? menuRows.value
+      : menuRows.value.filter((r) => (r.status ?? 1) === Number(mode))
   const q = keyword.value.trim().toLowerCase()
-  if (!q) return menuRows.value
-  return menuRows.value.filter(
+  if (!q) return base
+  return base.filter(
     (r) =>
       r.label.toLowerCase().includes(q) ||
       (r.path && r.path.toLowerCase().includes(q)) ||

@@ -9,11 +9,10 @@
       </div>
       <el-tag type="info" size="small" effect="plain">常用功能</el-tag>
     </div>
-    <div class="quick-grid">
+    <div v-if="visibleEntries.length" class="quick-grid">
       <div
-        v-for="item in quickEntries"
+        v-for="item in visibleEntries"
         :key="item.key"
-        v-permission="item.permission"
         class="quick-item"
         @click="goQuick(item)"
       >
@@ -27,15 +26,25 @@
         <el-icon class="quick-arrow"><ArrowRight /></el-icon>
       </div>
     </div>
+    <div v-else class="quick-empty">暂无可用快捷入口</div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { Grid, ArrowRight } from '@element-plus/icons-vue'
+import { useUserStore } from '@/store/user'
+import { hasMenuPerm } from '@/utils/hasMenuPerm'
 import { quickEntries, type QuickEntry } from '../constants/quickEntries'
 
 const router = useRouter()
+const userStore = useUserStore()
+
+/** 仅以启用菜单树为准，停用菜单不展示在工作台 */
+const visibleEntries = computed(() =>
+  quickEntries.filter((item) => hasMenuPerm(userStore.menus, item.permission)),
+)
 
 function goQuick(item: QuickEntry) {
   if (item.query) {
@@ -92,6 +101,13 @@ function goQuick(item: QuickEntry) {
   grid-template-columns: repeat(3, 1fr);
   gap: 16px;
   padding: 24px;
+}
+
+.quick-empty {
+  padding: 48px 24px;
+  text-align: center;
+  font-size: 14px;
+  color: var(--theme-text-secondary, #6B7280);
 }
 
 .quick-item {
