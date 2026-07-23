@@ -198,7 +198,19 @@ export function installH5ShallowStackTrapIfNeeded() {
   if (window.history.state?.wuAdminShallowTrap && window.history.state?.route === route) return
 
   trapRoute = route
-  window.history.pushState({ wuAdminShallowTrap: 1, route, fallback }, '', window.location.href)
+  const currentState = window.history.state || {}
+  // 1. 将当前页面（刷新后的初始帧）通过 replaceState 标注为 Base 帧
+  window.history.replaceState(
+    { ...currentState, wuAdminShallowTrap: 'base', route, fallback },
+    '',
+    window.location.href
+  )
+  // 2. 向上 pushState 压入 Top 顶层帧，确保手机右滑/返回时弹退至 Base 帧而非直接退出应用
+  window.history.pushState(
+    { ...currentState, wuAdminShallowTrap: 'top', route, fallback },
+    '',
+    window.location.href
+  )
 }
 
 function clearTrapRoute() {
@@ -253,12 +265,27 @@ export function handleShallowStackPopstate() {
     clearTrapRoute()
     return
   }
+
+  const route = getCurrentRoute()
+  const normalizedRoute = route ? pathOnly(route) : ''
+
+  // 如果手机右滑手势已经自然返回到了 Tab 页面（如 /pages/mine/index），说明原生返回已完成
+  if (normalizedRoute && TAB_PAGES.has(normalizedRoute)) {
+    clearTrapRoute()
+    return
+  }
+
+  // 当在子页面刷新后右滑：从 Top 帧弹退到了 Base 帧，拦截并无缝切回上一级父页面（如 /pages/mine/index），防止直接退出应用
+  if (window.history.state?.wuAdminShallowTrap === 'base') {
+    performShallowBack()
+    return
+  }
+
   if (getCurrentPages().length > 1) {
     clearTrapRoute()
     return
   }
 
-  const route = getCurrentRoute()
   if (!route || isAuthRoute(route)) return
   if (shouldSuppressPopstate()) {
     clearTrapRoute()

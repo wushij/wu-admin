@@ -16,3 +16,11 @@ button {
 button::after {
   border: none;
 }
+
+/* 隐藏 H5 框架自带的原生 uni-tabbar 节点，消除底部白色背景遮挡 */
+/* #ifdef H5 */
+uni-tabbar {
+  display: none !important;
+}
+/* #endif */
+

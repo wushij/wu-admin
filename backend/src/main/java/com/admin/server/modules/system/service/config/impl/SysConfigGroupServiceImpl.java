@@ -1,0 +1,205 @@
+package com.admin.server.modules.system.service.config.impl;
+
+import cn.hutool.core.util.StrUtil;
+import cn.hutool.json.JSONObject;
+import cn.hutool.json.JSONUtil;
+import com.admin.server.common.pojo.BusinessException;
+import com.admin.server.modules.system.dal.dataobject.config.SysConfigGroupDO;
+import com.admin.server.modules.system.dal.mysql.config.SysConfigGroupMapper;
+import com.admin.server.modules.system.framework.cache.SysConfigCacheService;
+import com.admin.server.modules.system.service.config.SysConfigGroupService;
+import com.admin.server.modules.system.service.config.SystemConfigHelper;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import org.springframework.stereotype.Service;
+
+import jakarta.annotation.Resource;
+import java.util.List;
+import java.util.Set;
+
+@Service
+public class SysConfigGroupServiceImpl implements SysConfigGroupService {
+
+    private static final Set<String> LOGIN_CAPTCHA_TYPES = Set.of(
+            SystemConfigHelper.CAPTCHA_TYPE_IMAGE,
+            SystemConfigHelper.CAPTCHA_TYPE_SLIDER);
+
+    private static final Set<String> REGISTER_CAPTCHA_TYPES = Set.of(
+            SystemConfigHelper.CAPTCHA_TYPE_IMAGE,
+            SystemConfigHelper.CAPTCHA_TYPE_SLIDER);
+
+    @Resource
+    private SysConfigGroupMapper configGroupMapper;
+    @Resource
+    private SysConfigCacheService sysConfigCacheService;
+    @Resource
+    private SystemConfigHelper systemConfigHelper;
+
+    @Override
+    public List<SysConfigGroupDO> listAll() {
+        return configGroupMapper.selectList(
+                new LambdaQueryWrapper<SysConfigGroupDO>().orderByAsc(SysConfigGroupDO::getId));
+    }
+
+    @Override
+    public SysConfigGroupDO getByGroupCode(String groupCode) {
+        return configGroupMapper.selectOne(
+                new LambdaQueryWrapper<SysConfigGroupDO>().eq(SysConfigGroupDO::getGroupCode, groupCode));
+    }
+
+    @Override
+    public void updateConfig(String groupCode, String configValue) {
+        if (!JSONUtil.isTypeJSON(configValue)) {
+            throw new BusinessException("配置内容必须是合法 JSON");
+        }
+        JSONObject json = JSONUtil.parseObj(configValue);
+        validateGroupConfig(groupCode, json);
+        SysConfigGroupDO row = getByGroupCode(groupCode);
+        if (row == null) {
+            throw new BusinessException("配置分组不存在: " + groupCode);
+        }
+        row.setConfigValue(json.toString());
+        configGroupMapper.updateById(row);
+        sysConfigCacheService.refreshAll();
+    }
+
+    private void validateGroupConfig(String groupCode, JSONObject json) {
+        switch (groupCode) {
+            case SystemConfigHelper.GROUP_SITE:
+                validateSiteConfig(json);
+                break;
+            case SystemConfigHelper.GROUP_SESSION:
+                validateSessionConfig(json);
+                break;
+            case SystemConfigHelper.GROUP_FILE:
+                validateFileConfig(json);
+                break;
+            case SystemConfigHelper.GROUP_RATE_LIMIT:
+                validateRateLimitConfig(json);
+                break;
+            case SystemConfigHelper.GROUP_LOGIN:
+                validateLoginConfig(json);
+                break;
+            case SystemConfigHelper.GROUP_REGISTER:
+                validateRegisterConfig(json);
+                break;
+            case SystemConfigHelper.GROUP_SMS:
+                validateSmsConfig(json);
+                break;
+            default:
+                break;
+        }
+    }
+
+    private void validateSiteConfig(JSONObject json) {
+        if (StrUtil.isBlank(json.getStr("platformName"))) {
+            throw new BusinessException("平台名称不能为空");
+        }
+    }
+
+    private void validateSessionConfig(JSONObject json) {
+        int hours = json.getInt("tokenExpireHours", 24);
+        if (hours < 1 || hours > 720) {
+            throw new BusinessException("Token 有效期须在 1～720 小时之间");
+        }
+    }
+
+    private void validateFileConfig(JSONObject json) {
+        int mb = json.getInt("maxSizeMb", 50);
+        if (mb < 1 || mb > SystemConfigHelper.PLATFORM_MAX_FILE_MB) {
+            throw new BusinessException(
+                    "文件大小上限须在 1～" + SystemConfigHelper.PLATFORM_MAX_FILE_MB + " MB 之间");
+        }
+        if (StrUtil.isBlank(json.getStr("allowedExtensions"))) {
+            throw new BusinessException("允许扩展名不能为空");
+        }
+    }
+
+    private void validateRateLimitConfig(JSONObject json) {
+        validateRate(json.getInt("captchaPerIpMinute", 40), "验证码接口");
+        validateRate(json.getInt("loginPerIpMinute", 30), "登录接口");
+        validateRate(json.getInt("registerPerIpMinute", 10), "注册接口");
+        validateRate(json.getInt("smsPerIpMinute", 5), "短信发送");
+        int interval = json.getInt("smsSendIntervalSeconds", 60);
+        if (interval < 30 || interval > 300) {
+            throw new BusinessException("短信发送间隔须在 30～300 秒之间");
+        }
+        validateDailyLimit(json.getInt("smsPerPhoneDaily", 10), "手机号每日短信");
+        validateDailyLimit(json.getInt("smsPerIpDaily", 30), "IP 每日短信");
+    }
+
+    private void validateDailyLimit(int n, String label) {
+        if (n < 0 || n > 500) {
+            throw new BusinessException(label + "上限须在 0～500 之间（0 表示不限制）");
+        }
+    }
+
+    private void validateRate(int n, String label) {
+        if (n < 0 || n > 200) {
+            throw new BusinessException(label + "每分钟限流须在 0～200 之间（0 表示不限制）");
+        }
+    }
+
+    private void validateLoginConfig(JSONObject json) {
+        boolean captchaEnabled = json.getBool("captchaEnabled", true);
+        if (captchaEnabled) {
+            String type = json.getStr("captchaType", SystemConfigHelper.CAPTCHA_TYPE_IMAGE);
+            if (SystemConfigHelper.CAPTCHA_TYPE_SMS.equals(type)) {
+                throw new BusinessException("短信登录请使用「短信验证码登录」开关，验证码类型仅支持 image 或 slider");
+            }
+            if (StrUtil.isBlank(type) || !LOGIN_CAPTCHA_TYPES.contains(type)) {
+                throw new BusinessException("验证码类型仅支持 image 或 slider");
+            }
+        }
+        boolean smsLoginEnabled = json.getBool("smsLoginEnabled", false);
+        if (smsLoginEnabled && !systemConfigHelper.isSmsEnabled()) {
+            throw new BusinessException("启用短信验证码登录须先在短信配置中开启短信功能");
+        }
+        boolean smsLoginSliderCaptchaEnabled = json.getBool("smsLoginSliderCaptchaEnabled", false);
+        if (smsLoginSliderCaptchaEnabled && !smsLoginEnabled) {
+            throw new BusinessException("启用短信发送前滑块验证须先开启短信验证码登录");
+        }
+        int maxRetry = json.getInt("maxRetryCount", 5);
+        if (maxRetry < 1 || maxRetry > 20) {
+            throw new BusinessException("账号最大重试次数须在 1～20 之间");
+        }
+        int maxRetryIp = json.getInt("maxRetryCountIp", 20);
+        if (maxRetryIp < 1 || maxRetryIp > 50) {
+            throw new BusinessException("IP 最大重试次数须在 1～50 之间");
+        }
+        int lockTime = json.getInt("lockTime", 10);
+        if (lockTime < 1 || lockTime > 120) {
+            throw new BusinessException("锁定时长须在 1～120 分钟之间");
+        }
+    }
+
+    private void validateRegisterConfig(JSONObject json) {
+        boolean captchaEnabled = json.getBool("captchaEnabled", true);
+        if (captchaEnabled) {
+            String type = json.getStr("captchaType", SystemConfigHelper.CAPTCHA_TYPE_IMAGE);
+            if (StrUtil.isBlank(type) || !REGISTER_CAPTCHA_TYPES.contains(type)) {
+                throw new BusinessException("注册验证码类型仅支持 image 或 slider");
+            }
+        }
+        if (json.containsKey("defaultRoleCode")) {
+            String code = json.getStr("defaultRoleCode");
+            if (StrUtil.isBlank(code)) {
+                throw new BusinessException("默认角色编码不能为空");
+            }
+        }
+        int minLen = json.getInt("minPasswordLength", 6);
+        if (minLen < 6 || minLen > 32) {
+            throw new BusinessException("密码最小长度须在 6～32 之间");
+        }
+    }
+
+    private void validateSmsConfig(JSONObject json) {
+        String provider = json.getStr("provider", "aliyunAuth");
+        if ("aliyun".equals(provider)) {
+            json.set("provider", "aliyunAuth");
+            provider = "aliyunAuth";
+        }
+        if (StrUtil.isBlank(provider) || (!"aliyunAuth".equals(provider) && !"tencent".equals(provider))) {
+            throw new BusinessException("短信服务商仅支持 aliyunAuth 或 tencent");
+        }
+    }
+}

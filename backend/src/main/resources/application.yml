@@ -74,7 +74,7 @@ mybatis-plus:
       id-type: AUTO
       logic-delete-value: 1
       logic-not-delete-value: 0
-  type-aliases-package: cn.rbac.server.modules.**.dal.dataobject
+  type-aliases-package: com.admin.server.modules.**.dal.dataobject
 
 springdoc:
   api-docs:

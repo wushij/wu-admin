@@ -1,6 +1,6 @@
-package cn.rbac.server.modules.system.dal.dataobject.${businessName};
+package com.admin.server.modules.system.dal.dataobject.${businessName};
 
-import cn.rbac.server.common.mybatis.BaseEntity;
+import com.admin.server.common.mybatis.BaseEntity;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
