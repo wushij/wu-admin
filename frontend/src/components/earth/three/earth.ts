@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 import type { EarthGroupResult } from './types'
 
-const TEXTURE_BASE = 'https://threejs.org/examples/textures/planets/'
+const TEXTURE_BASE = '/earth/'
 
 export interface EarthCreateOptions {
   /** 透明背景场景：提亮地表与夜景，弥补无 Bloom 时的对比度 */
