@@ -19,36 +19,40 @@ export function maskBoundMobile(mobile?: string) {
   return `${m.slice(0, 3)} **** ${m.slice(-4)}`
 }
 
+const form = reactive({
+  bindMobile: '',
+  bindSmsCode: '',
+})
+
+const currentMobile = ref('')
+const bindSmsCountdown = ref(0)
+let bindSmsTimer: ReturnType<typeof setInterval> | null = null
+let initialized = false
+
 export function useMobileBindForm() {
   const loading = ref(false)
   const bindingMobile = ref(false)
   const sendingBindSms = ref(false)
-  const bindSmsCountdown = ref(0)
   const smsEnabled = ref(false)
-  const currentMobile = ref('')
   const showSlider = ref(false)
-
-  const form = reactive({
-    bindMobile: '',
-    bindSmsCode: '',
-  })
-
-  let bindSmsTimer: ReturnType<typeof setInterval> | null = null
 
   const hasBoundMobile = computed(() => /^1[3-9]\d{9}$/.test(currentMobile.value.trim()))
   const pageTitle = computed(() => (hasBoundMobile.value ? '更换手机号' : '绑定手机号'))
 
   async function load() {
-    loading.value = true
+    if (!initialized) {
+      loading.value = true
+    }
     try {
       const [cfgRes, profileRes] = await Promise.all([getConfig(), getProfile()])
       smsEnabled.value = cfgRes.data?.login?.smsEnabled === true
       currentMobile.value = profileRes.data?.mobile || ''
-      form.bindMobile = ''
-      form.bindSmsCode = ''
+      initialized = true
     } catch (e) {
       logger.error(e)
-      uni.showToast({ title: '加载失败', icon: 'none' })
+      if (!initialized) {
+        uni.showToast({ title: '加载失败', icon: 'none' })
+      }
     } finally {
       loading.value = false
     }
@@ -112,6 +116,13 @@ export function useMobileBindForm() {
     const isChange = hasBoundMobile.value
     try {
       await bindProfileMobile({ mobile, smsCode })
+      form.bindMobile = ''
+      form.bindSmsCode = ''
+      bindSmsCountdown.value = 0
+      if (bindSmsTimer) {
+        clearInterval(bindSmsTimer)
+        bindSmsTimer = null
+      }
       await useUserStore().getUserInfo().catch((e) => logger.warn('同步用户信息失败', e))
       uni.showToast({
         title: isChange ? '手机号已更换' : '绑定成功',

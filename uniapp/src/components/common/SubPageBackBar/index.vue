@@ -16,11 +16,11 @@ import IconFont from '@/components/common/IconFont/index.vue'
 import { navigateToParent } from '@/utils/nav-history'
 import { scheduleSyncH5BackButton } from '@/store/h5-back-button'
 
-const visible = ref(false)
+const visible = ref(true)
 
 function syncVisible() {
+  visible.value = true
   // #ifdef H5
-  visible.value = getCurrentPages().length <= 1
   scheduleSyncH5BackButton()
   // #endif
 }

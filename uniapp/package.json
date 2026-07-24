@@ -58,6 +58,7 @@
     "dayjs": "^1.11.21",
     "luch-request": "^3.1.1",
     "pinia": "^2.1.7",
+    "sm-crypto": "^0.5.3",
     "three": "^0.184.0",
     "vue": "^3.4.21"
   },
@@ -68,6 +69,7 @@
     "@dcloudio/uni-stacktracey": "3.0.0-4080420251103001",
     "@dcloudio/vite-plugin-uni": "3.0.0-4080420251103001",
     "@types/node": "^25.9.2",
+    "@types/sm-crypto": "^0.3.4",
     "@uni-helper/uni-app-types": "^1.0.1",
     "@vue/runtime-core": "^3.4.21",
     "@vue/tsconfig": "^0.1.3",

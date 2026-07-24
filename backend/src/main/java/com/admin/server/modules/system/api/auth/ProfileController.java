@@ -67,6 +67,26 @@ public class ProfileController {
         return CommonResult.success(true);
     }
 
+    @Operation(summary = "发送绑定/更换邮箱验证码")
+    @PostMapping("/email/code")
+    public CommonResult<Boolean> sendEmailBindCode(@Validated @RequestBody ProfileEmailCodeReqVO reqVO) {
+        StpUtil.checkLogin();
+        String err = profileService.sendEmailBindCode(StpUtil.getLoginIdAsLong(), reqVO);
+        if (err != null) {
+            throw new BusinessException(400, err);
+        }
+        return CommonResult.success(true);
+    }
+
+    @Operation(summary = "邮箱验证码绑定/更换邮箱")
+    @Log(title = "个人中心", businessType = Log.BusinessType.UPDATE)
+    @PutMapping("/email")
+    public CommonResult<Boolean> bindEmail(@Validated @RequestBody ProfileEmailBindReqVO reqVO) {
+        StpUtil.checkLogin();
+        profileService.bindEmail(StpUtil.getLoginIdAsLong(), reqVO);
+        return CommonResult.success(true);
+    }
+
     @Operation(summary = "修改当前用户密码")
     @Log(title = "个人中心", businessType = Log.BusinessType.UPDATE, isSaveRequestData = false, isSaveResponseData = false)
     @PutMapping("/password")
@@ -95,6 +115,26 @@ public class ProfileController {
     public CommonResult<Boolean> resetPasswordBySms(@Validated @RequestBody ProfilePasswordSmsResetReqVO reqVO) {
         StpUtil.checkLogin();
         profileService.resetPasswordBySms(StpUtil.getLoginIdAsLong(), reqVO);
+        return CommonResult.success(true);
+    }
+
+    @Operation(summary = "发送重置密码邮箱验证码")
+    @PostMapping("/password/email-code")
+    public CommonResult<Boolean> sendPasswordResetEmailCode() {
+        StpUtil.checkLogin();
+        String err = profileService.sendPasswordResetEmailCode(StpUtil.getLoginIdAsLong());
+        if (err != null) {
+            throw new BusinessException(400, err);
+        }
+        return CommonResult.success(true);
+    }
+
+    @Operation(summary = "邮箱验证重置当前用户密码")
+    @Log(title = "个人中心", businessType = Log.BusinessType.UPDATE, isSaveRequestData = false, isSaveResponseData = false)
+    @PutMapping("/password/email-reset")
+    public CommonResult<Boolean> resetPasswordByEmail(@Validated @RequestBody ProfilePasswordEmailResetReqVO reqVO) {
+        StpUtil.checkLogin();
+        profileService.resetPasswordByEmail(StpUtil.getLoginIdAsLong(), reqVO);
         return CommonResult.success(true);
     }
 

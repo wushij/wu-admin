@@ -44,6 +44,10 @@ export function testSms(phone: string, templateCode?: string) {
   })
 }
 
+export function testEmail(toEmail: string) {
+  return post<boolean>('/system/config-group/test-email', { toEmail })
+}
+
 export function getRecentSmsLogs(limit = 5) {
   return get<SmsLogRecord[]>('/system/config-group/sms-logs/recent', { limit })
 }

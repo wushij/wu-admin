@@ -87,6 +87,16 @@ export interface SecurityConfig {
   disableDevtool: boolean
   /** Sa-Token is-concurrent，false 表示禁止多端同时在线 */
   isConcurrent: boolean
+  /** 是否启用接口请求/响应数据加密 (国密 SM4) */
+  sm4EncryptEnabled?: boolean
+  /** 是否启用接口数字签名验签 (国密 SM2) */
+  sm2SignEnabled?: boolean
+  /** 校验请求时间，防止过期请求 (时间戳) */
+  timestampEnabled?: boolean
+  /** 校验随机数，防止重放攻击 (Nonce) */
+  nonceEnabled?: boolean
+  /** SM4 秘钥 */
+  sm4SecretKey?: string
 }
 
 export interface ThirdPartyOAuthConfig {
@@ -166,6 +176,27 @@ export interface SmsLogRecord {
   createTime: string
 }
 
+export interface EmailConfig {
+  enabled: boolean
+  provider: 'qq' | '163' | 'gmail' | 'custom'
+  host: string
+  port: number
+  username: string
+  password: string
+  fromName: string
+  authEnabled: boolean
+  securityType: 'SSL' | 'TLS' | 'STARTTLS' | 'NONE'
+  connectionTimeoutMs: number
+  timeoutMs: number
+  writeTimeoutMs: number
+  encoding: string
+  debug: boolean
+  codeExpireMinutes: number
+  codeLength: number
+  dailyLimitPerEmail: number
+  sendIntervalSeconds: number
+}
+
 export type ConfigGroupCode =
   | 'site'
   | 'session'
@@ -176,6 +207,7 @@ export type ConfigGroupCode =
   | 'thirdParty'
   | 'payment'
   | 'sms'
+  | 'email'
   | 'security'
 
 export interface ConfigGroupMap {
@@ -188,6 +220,7 @@ export interface ConfigGroupMap {
   thirdParty: ThirdPartyConfig
   payment: PaymentConfig
   sms: SmsConfig
+  email: EmailConfig
   security: SecurityConfig
 }
 

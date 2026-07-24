@@ -21,6 +21,10 @@ export function testSms(phone: string, templateCode?: string) {
   })
 }
 
+export function testEmail(toEmail: string) {
+  return post<boolean>('/system/config-group/test-email', { toEmail })
+}
+
 export interface TestPaymentResult {
   orderNo: string
   qrcode?: string

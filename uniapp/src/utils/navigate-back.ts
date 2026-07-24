@@ -192,7 +192,6 @@ export function installH5ShallowStackTrapIfNeeded() {
 
   const route = getCurrentRoute()
   if (!route || isAuthRoute(route) || isWhiteRoute(`/${route}`)) return
-  if (isFormChildLeaveRoute(route)) return
 
   const fallback = rememberShallowBackTarget(route)
   if (window.history.state?.wuAdminShallowTrap && window.history.state?.route === route) return
@@ -247,59 +246,47 @@ function performShallowBack() {
   handlingShallowBack = true
   const fallback = readShallowBackTarget()
   clearTrapRoute()
-  navigateToFallback(fallback, { rebuildStack: needsStackRebuild(fallback) })
-  setTimeout(() => {
+  
+  const target = normalizePageUrl(fallback)
+  const path = pathOnly(target)
+
+  const finish = () => {
     handlingShallowBack = false
-  }, 400)
+    scheduleSyncH5BackButton()
+  }
+
+  if (TAB_PAGES.has(path)) {
+    uni.switchTab({
+      url: path,
+      complete: finish,
+    })
+  } else {
+    uni.reLaunch({
+      url: target,
+      complete: finish,
+    })
+  }
 }
 
 export function handleShallowStackPopstate() {
   if (typeof window === 'undefined' || handlingShallowBack || formLeaveInProgress) return
 
-  const path = getActiveRoutePath()
-  if (hasToken() && path && isAuthRoute(path)) {
-    performShallowBack()
-    return
-  }
-  if (!hasToken()) {
-    clearTrapRoute()
-    return
-  }
-
   const route = getCurrentRoute()
   const normalizedRoute = route ? pathOnly(route) : ''
 
-  // 如果手机右滑手势已经自然返回到了 Tab 页面（如 /pages/mine/index），说明原生返回已完成
   if (normalizedRoute && TAB_PAGES.has(normalizedRoute)) {
     clearTrapRoute()
     return
   }
 
-  // 当在子页面刷新后右滑：从 Top 帧弹退到了 Base 帧，拦截并无缝切回上一级父页面（如 /pages/mine/index），防止直接退出应用
-  if (window.history.state?.wuAdminShallowTrap === 'base') {
+  if (!hasToken()) {
+    clearTrapRoute()
+    return
+  }
+
+  if (window.history.state?.wuAdminShallowTrap === 'base' || getCurrentPages().length <= 1) {
     performShallowBack()
-    return
   }
-
-  if (getCurrentPages().length > 1) {
-    clearTrapRoute()
-    return
-  }
-
-  if (!route || isAuthRoute(route)) return
-  if (shouldSuppressPopstate()) {
-    clearTrapRoute()
-    return
-  }
-
-  clearTrapRoute()
-  handlingShallowBack = true
-  setTimeout(() => {
-    navigateToParent()
-    setTimeout(() => {
-      handlingShallowBack = false
-    }, 400)
-  }, 0)
 }
 
 function isFormChildRoute(route: string): boolean {

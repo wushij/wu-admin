@@ -50,12 +50,14 @@
 
           <view class="profile-field">
             <text class="profile-field__label">邮箱</text>
-            <input
-              v-model="form.email"
-              class="profile-field__input"
-              placeholder="选填"
-              :maxlength="64"
-            />
+            <view class="profile-field__mobile">
+              <text class="profile-field__value">
+                {{ hasBoundEmail ? maskEmail(form.email) : '未绑定' }}
+              </text>
+              <text class="profile-field__link" @click.stop="goEmailBind">
+                {{ hasBoundEmail ? '更换邮箱' : '绑定邮箱' }}
+              </text>
+            </view>
           </view>
 
           <view class="profile-field profile-field--last">
@@ -120,6 +122,8 @@ const {
   form,
   hasBoundMobile,
   maskMobile,
+  hasBoundEmail,
+  maskEmail,
   load,
   pickAvatar,
   save,
@@ -141,6 +145,10 @@ function goMobileBind() {
     return
   }
   uni.navigateTo({ url: appendNavFromParam('/pages-sub/mine/mobile-bind') })
+}
+
+function goEmailBind() {
+  uni.navigateTo({ url: appendNavFromParam('/pages-sub/mine/email-bind') })
 }
 
 onMounted(load)

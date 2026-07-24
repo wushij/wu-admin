@@ -300,6 +300,86 @@
         </view>
       </view>
 
+      <!-- 邮件 -->
+      <view v-else-if="tab === 'email'" class="config-security-wrap">
+        <ConfigSectionCard title="SMTP 基础配置">
+          <view class="form-panel form-panel--flat">
+            <FormCell label="启用邮件服务" switch-cell>
+              <switch :checked="emailDraft.enabled" :disabled="!canEdit" @change="emailDraft.enabled = $event.detail.value" />
+            </FormCell>
+            <FormCell label="邮件服务商" clickable boxed arrow @click="pickEmailProvider">
+              <text class="picker-value">{{ emailProviderLabel }}</text>
+            </FormCell>
+            <FormCell v-model="emailDraft.username" label="发件邮箱账号" editable boxed placeholder="如 wu@gmail.com" :disabled="!canEdit" />
+            <FormCell v-model="emailDraft.password" label="SMTP 授权码" editable boxed placeholder="秘钥/授权码" password :disabled="!canEdit" />
+            <FormCell v-model="emailDraft.host" label="SMTP 服务器" editable boxed placeholder="如 smtp.qq.com" :disabled="!canEdit" />
+            <FormCell label="SMTP 端口">
+              <NumberStepper v-model="emailDraft.port" :min="1" :max="65535" :disabled="!canEdit" />
+            </FormCell>
+            <FormCell label="加密传输方式" clickable boxed arrow @click="pickEmailSecurityType">
+              <text class="picker-value">{{ emailSecurityLabel }}</text>
+            </FormCell>
+            <FormCell label="SMTP 认证" switch-cell>
+              <switch :checked="emailDraft.authEnabled" :disabled="!canEdit" @change="emailDraft.authEnabled = $event.detail.value" />
+            </FormCell>
+            <FormCell v-model="emailDraft.fromName" label="发件人显示名称" editable boxed placeholder="如 wu-admin 系统团队" :disabled="!canEdit" last />
+          </view>
+        </ConfigSectionCard>
+
+        <ConfigSectionCard title="高级网络与超时配置">
+          <view class="form-panel form-panel--flat">
+            <FormCell label="连接超时(ms)">
+              <NumberStepper v-model="emailDraft.connectionTimeoutMs" :min="1000" :max="30000" :step="1000" :disabled="!canEdit" />
+            </FormCell>
+            <FormCell label="读取超时(ms)">
+              <NumberStepper v-model="emailDraft.timeoutMs" :min="1000" :max="30000" :step="1000" :disabled="!canEdit" />
+            </FormCell>
+            <FormCell label="写入超时(ms)">
+              <NumberStepper v-model="emailDraft.writeTimeoutMs" :min="1000" :max="30000" :step="1000" :disabled="!canEdit" />
+            </FormCell>
+            <FormCell label="默认字符编码" clickable boxed arrow @click="pickEmailEncoding">
+              <text class="picker-value">{{ emailEncodingLabel }}</text>
+            </FormCell>
+            <FormCell label="Debug 日志" switch-cell last>
+              <switch :checked="emailDraft.debug" :disabled="!canEdit" @change="emailDraft.debug = $event.detail.value" />
+            </FormCell>
+          </view>
+        </ConfigSectionCard>
+
+        <ConfigSectionCard title="验证码与防刷规则">
+          <view class="form-panel form-panel--flat">
+            <FormCell label="验证码有效期">
+              <NumberStepper v-model="emailDraft.codeExpireMinutes" :min="1" :max="30" :disabled="!canEdit" />
+              <text class="config-unit">分钟</text>
+            </FormCell>
+            <FormCell label="验证码长度">
+              <NumberStepper v-model="emailDraft.codeLength" :min="4" :max="8" :disabled="!canEdit" />
+              <text class="config-unit">位</text>
+            </FormCell>
+            <FormCell label="防刷间隔">
+              <NumberStepper v-model="emailDraft.sendIntervalSeconds" :min="10" :max="300" :disabled="!canEdit" />
+              <text class="config-unit">秒</text>
+            </FormCell>
+            <FormCell label="单箱每日上限" last>
+              <NumberStepper v-model="emailDraft.dailyLimitPerEmail" :min="1" :max="100" :disabled="!canEdit" />
+              <text class="config-unit">次</text>
+            </FormCell>
+          </view>
+        </ConfigSectionCard>
+
+        <ConfigSectionCard title="测试发送邮件">
+          <view class="form-panel form-panel--flat">
+            <view class="sms-test__row">
+              <input v-model="testEmailTo" class="sms-test__input" placeholder="请输入接收测试邮箱" />
+              <button class="sms-test__btn" :disabled="!canEdit || emailTesting" @click="sendTestEmailAction">
+                {{ emailTesting ? '发送中...' : '测试发送' }}
+              </button>
+            </view>
+            <text class="config-hint config-hint--inline">发送测试报文到该邮箱，验证 SMTP 配置与安全端口连通性</text>
+          </view>
+        </ConfigSectionCard>
+      </view>
+
       <!-- 安全 -->
       <view v-else-if="tab === 'security'" class="config-security-wrap">
         <ConfigSectionCard title="前端安全">
@@ -326,8 +406,41 @@
             </FormCell>
           </view>
         </ConfigSectionCard>
+        <ConfigSectionCard title="API 安全防线与防重放">
+          <view class="form-panel form-panel--flat">
+            <FormCell
+              label="SM4 数据加密"
+              hint="是否启用接口请求/响应数据加密（国密 SM4）"
+              switch-cell
+            >
+              <switch :checked="securityDraft.sm4EncryptEnabled" :disabled="!canEdit" @change="onSecuritySwitch('sm4EncryptEnabled', $event)" />
+            </FormCell>
+            <FormCell
+              label="SM2 数字签名"
+              hint="是否启用接口签名验签（国密 SM2）"
+              switch-cell
+            >
+              <switch :checked="securityDraft.sm2SignEnabled" :disabled="!canEdit" @change="onSecuritySwitch('sm2SignEnabled', $event)" />
+            </FormCell>
+            <FormCell
+              label="时间戳校验"
+              hint="校验请求时间，防止过期请求（5分钟时间窗口）"
+              switch-cell
+            >
+              <switch :checked="securityDraft.timestampEnabled ?? true" :disabled="!canEdit" @change="onSecuritySwitch('timestampEnabled', $event)" />
+            </FormCell>
+            <FormCell
+              label="Nonce 校验"
+              hint="校验随机数，防止高频重放攻击（Redis 查重）"
+              switch-cell
+              last
+            >
+              <switch :checked="securityDraft.nonceEnabled ?? true" :disabled="!canEdit" @change="onSecuritySwitch('nonceEnabled', $event)" />
+            </FormCell>
+          </view>
+        </ConfigSectionCard>
         <view class="config-info">
-          <text>保存全部后立即生效：禁止多端对新登录生效；禁止前端调试需刷新页面。</text>
+          <text>保存全部后立即生效：接口安全开关即时作用于全部 REST 接口；时间戳与 Nonce 建议保持开启。</text>
         </view>
       </view>
     </scroll-view>
@@ -398,18 +511,19 @@ const tabs = [
   { key: 'thirdParty', label: '第三方' },
   { key: 'payment', label: '支付' },
   { key: 'sms', label: '短信' },
+  { key: 'email', label: '邮件' },
   { key: 'security', label: '安全' },
 ]
 
 const {
-  loading, saving, smsTesting, paymentTesting, platformMaxFileMb, isDirty, forbidConcurrentLogin,
-  siteDraft, sessionDraft, securityDraft, loginDraft, registerDraft, smsDraft,
-  fileDraft, rateDraft, thirdDraft, paymentDraft,
+  loading, saving, smsTesting, emailTesting, testEmailTo, paymentTesting, platformMaxFileMb, isDirty, forbidConcurrentLogin,
+  siteDraft, sessionDraft, securityDraft, loginDraft, registerDraft, smsDraft, emailDraft,
+  fileDraft, rateDraft, thirdDraft, paymentDraft, savedSnapshot,
   roleOptions, userOptions, testSmsPhone, testSmsTemplate, recentSmsLogs,
   showPaymentModal, payOrderStatus, payStatusRefreshing, paymentResult,
   captchaTypeOptions, providerOptions, smsTemplateOptions, alipaySignOptions, alipayGatewayOptions,
   smsStatusText, load, saveAll, resetAll, loadRecentSmsLogs, openSmsLogs,
-  sendTestSms, sendTestPayment, pollPayOrderStatus, closePaymentModal,
+  sendTestSms, sendTestEmailAction, sendTestPayment, pollPayOrderStatus, closePaymentModal,
 } = useConfigEditor()
 
 useUnsavedLeaveGuard()
@@ -444,6 +558,35 @@ const alipayGatewayLabel = computed(() =>
   alipayGatewayOptions.find((o) => o.value === paymentDraft.alipay.gatewayUrl)?.label || '自定义',
 )
 
+const emailProviderOptions = [
+  { label: 'QQ 邮箱 (smtp.qq.com)', value: 'qq' },
+  { label: '网易 163 邮箱 (smtp.163.com)', value: '163' },
+  { label: 'Google Gmail (smtp.gmail.com)', value: 'gmail' },
+  { label: '自定义 SMTP 服务器', value: 'custom' },
+]
+const emailSecurityOptions = [
+  { label: 'SSL (推荐 465)', value: 'SSL' },
+  { label: 'TLS (587)', value: 'TLS' },
+  { label: 'STARTTLS', value: 'STARTTLS' },
+  { label: '无加密 (25)', value: 'NONE' },
+]
+const emailEncodingOptions = [
+  { label: 'UTF-8 (推荐通用编码)', value: 'UTF-8' },
+  { label: 'GBK (简体中文扩展)', value: 'GBK' },
+  { label: 'GB2312 (国标简体)', value: 'GB2312' },
+  { label: 'ISO-8859-1 (西欧编码)', value: 'ISO-8859-1' },
+]
+
+const emailProviderLabel = computed(() =>
+  emailProviderOptions.find((o) => o.value === emailDraft.provider)?.label || emailDraft.provider || '自定义',
+)
+const emailSecurityLabel = computed(() =>
+  emailSecurityOptions.find((o) => o.value === emailDraft.securityType)?.label || emailDraft.securityType || 'SSL',
+)
+const emailEncodingLabel = computed(() =>
+  emailEncodingOptions.find((o) => o.value === emailDraft.encoding)?.label || emailDraft.encoding || 'UTF-8',
+)
+
 function onLoginSwitch(key: keyof typeof loginDraft, e: { detail: { value: boolean } }) {
   ;(loginDraft as Record<string, unknown>)[key] = e.detail.value
 }
@@ -473,6 +616,60 @@ async function pickFromOptions(itemList: string[], onPick: (index: number) => vo
   } catch {
     // 用户取消
   }
+}
+
+function pickEmailProvider() {
+  if (!canEdit.value) return
+  pickFromOptions(emailProviderOptions.map((o) => o.label), (i) => {
+    const item = emailProviderOptions[i]
+    if (item) {
+      emailDraft.provider = item.value
+      const saved = savedSnapshot.email as EmailAdminConfig | undefined
+      // 如果切回当前数据库已保存绑定的服务商，恢复原保存的账号与授权码
+      if (saved && item.value && item.value === saved.provider) {
+        emailDraft.host = saved.host || 'smtp.qq.com'
+        emailDraft.port = saved.port || 465
+        emailDraft.securityType = saved.securityType || 'SSL'
+        emailDraft.username = saved.username || ''
+        emailDraft.password = saved.password || ''
+        return
+      }
+
+      // 否则切到未绑定的新服务商，填充预设网络参数并清空账号与密码
+      if (item.value === 'qq') {
+        emailDraft.host = 'smtp.qq.com'
+        emailDraft.port = 465
+        emailDraft.securityType = 'SSL'
+      } else if (item.value === '163') {
+        emailDraft.host = 'smtp.163.com'
+        emailDraft.port = 465
+        emailDraft.securityType = 'SSL'
+      } else if (item.value === 'gmail') {
+        emailDraft.host = 'smtp.gmail.com'
+        emailDraft.port = 587
+        emailDraft.securityType = 'TLS'
+      }
+
+      emailDraft.username = ''
+      emailDraft.password = ''
+    }
+  })
+}
+
+function pickEmailSecurityType() {
+  if (!canEdit.value) return
+  pickFromOptions(emailSecurityOptions.map((o) => o.label), (i) => {
+    const item = emailSecurityOptions[i]
+    if (item) emailDraft.securityType = item.value as any
+  })
+}
+
+function pickEmailEncoding() {
+  if (!canEdit.value) return
+  pickFromOptions(emailEncodingOptions.map((o) => o.label), (i) => {
+    const item = emailEncodingOptions[i]
+    if (item) emailDraft.encoding = item.value
+  })
 }
 
 function pickDefaultRole() {

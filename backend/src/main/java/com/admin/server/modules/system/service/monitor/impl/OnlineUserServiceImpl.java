@@ -137,10 +137,10 @@ public class OnlineUserServiceImpl implements OnlineUserService {
         List<OnlineUserVO> list = new ArrayList<>();
         for (Long userId : resolveActiveUserIds()) {
             try {
-                TokenService.LoginInfo loginInfo = tokenService.getLoginInfo(userId);
-                if (loginInfo == null) {
-                    loginInfo = minimalLoginInfo(userId);
+                if (!isUserActive(userId)) {
+                    continue;
                 }
+                TokenService.LoginInfo loginInfo = tokenService.getLoginInfo(userId);
                 if (loginInfo == null) {
                     continue;
                 }
@@ -158,19 +158,29 @@ public class OnlineUserServiceImpl implements OnlineUserService {
         return list;
     }
 
+    private boolean isUserActive(Long userId) {
+        if (userId == null) {
+            return false;
+        }
+        try {
+            return StpUtil.isLogin(userId);
+        } catch (Exception e) {
+            return tokenService.getLoginInfo(userId) != null;
+        }
+    }
+
     private List<Long> resolveActiveUserIds() {
         Set<Long> ids = new LinkedHashSet<>(tokenService.listActiveUserIds());
         if (ids.isEmpty()) {
             collectUserIdsFromRedisSessions(ids);
         }
-        try {
-            if (StpUtil.isLogin()) {
-                ids.add(StpUtil.getLoginIdAsLong());
+        List<Long> result = new ArrayList<>();
+        for (Long userId : ids) {
+            if (isUserActive(userId)) {
+                result.add(userId);
             }
-        } catch (Exception e) {
-            log.warn("解析当前登录用户失败", e);
         }
-        return new ArrayList<>(ids);
+        return result;
     }
 
     /** 从 Sa-Token 在 Redis 中的 session 键解析在线用户（searchSessionId 为空时的兜底） */
@@ -180,12 +190,12 @@ public class OnlineUserServiceImpl implements OnlineUserService {
             RKeys keys = redissonClient.getKeys();
             for (String pattern : new String[] {
                     "Authorization:login:session:*",
-                    "Authorization:login:last-active:*"
+                    "Authorization:login:token:*"
             }) {
                 Iterable<String> found = keys.getKeysByPattern(pattern, 500);
                 for (String key : found) {
                     Long userId = parseLoginIdFromSaTokenKey(key);
-                    if (userId != null) {
+                    if (userId != null && isUserActive(userId)) {
                         ids.add(userId);
                     }
                 }
@@ -204,29 +214,31 @@ public class OnlineUserServiceImpl implements OnlineUserService {
             return null;
         }
         try {
-            return Long.parseLong(key.substring(idx + 1).trim());
-        } catch (NumberFormatException e) {
+            String tokenOrId = key.substring(idx + 1).trim();
+            if (tokenOrId.matches("^\\d+$")) {
+                return Long.parseLong(tokenOrId);
+            }
+            Object loginId = StpUtil.getLoginIdByToken(tokenOrId);
+            if (loginId != null) {
+                return Long.parseLong(loginId.toString());
+            }
+            return null;
+        } catch (Exception e) {
             return null;
         }
-    }
-
-    private TokenService.LoginInfo minimalLoginInfo(Long userId) {
-        UserDO user = userMapper.selectById(userId);
-        if (user == null) {
-            return null;
-        }
-        TokenService.LoginInfo info = new TokenService.LoginInfo();
-        info.setUserId(userId);
-        info.setUsername(user.getUsername());
-        info.setToken("");
-        long now = System.currentTimeMillis();
-        info.setCreateTime(now);
-        info.setExpireTime(now);
-        return info;
     }
 
     @Override
     public void forceLogout(Long userId) {
+        if (userId == null) {
+            return;
+        }
+        try {
+            StpUtil.kickout(userId);
+        } catch (Exception ignored) {}
+        try {
+            StpUtil.logout(userId);
+        } catch (Exception ignored) {}
         tokenService.removeToken(userId);
         redissonClient.getBucket(ONLINE_DETAIL_PREFIX + userId).delete();
         redissonClient.getBucket(ONLINE_ACTIVE_PREFIX + userId).delete();

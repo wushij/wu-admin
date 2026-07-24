@@ -11,6 +11,7 @@ import {
   showGlobalErrorToast,
 } from '@/plugins/global-error-handler'
 import { resolveApiBaseUrl } from '@/utils/api-base'
+import { generateNonce, getTimestamp, encryptSm4, decryptSm4, signSm2 } from '@/utils/crypto'
 
 const BASE_URL = resolveApiBaseUrl()
 
@@ -58,12 +59,19 @@ const http = new Request({
 http.interceptors.request.use(
   (config) => {
     const token = getToken()
-    if (token) {
-      config.header = {
-        ...config.header,
-        Authorization: token,
-      }
+    const timestamp = getTimestamp()
+    const nonce = generateNonce()
+
+    config.header = {
+      ...config.header,
+      'X-Timestamp': timestamp,
+      'X-Nonce': nonce,
     }
+
+    if (token) {
+      config.header.Authorization = token
+    }
+
     return config
   },
   (error) => Promise.reject(error),

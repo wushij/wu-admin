@@ -5,7 +5,8 @@ import cn.hutool.json.JSONArray;
 import cn.hutool.json.JSONObject;
 import com.admin.server.modules.system.framework.cache.SysConfigCacheService;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
+import org.springframework.mail.javamail.JavaMailSenderImpl;
+import org.springframework.stereotype.Service;
 
 import jakarta.annotation.Resource;
 import java.util.ArrayList;
@@ -13,8 +14,9 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 
-@Component
+@Service
 public class SystemConfigHelper {
 
     public static final String GROUP_SITE = "site";
@@ -27,6 +29,7 @@ public class SystemConfigHelper {
     public static final String GROUP_THIRD_PARTY = "thirdParty";
     public static final String GROUP_PAYMENT = "payment";
     public static final String GROUP_SMS = "sms";
+    public static final String GROUP_EMAIL = "email";
     public static final String CAPTCHA_TYPE_IMAGE = "image";
     public static final String CAPTCHA_TYPE_SLIDER = "slider";
     public static final String CAPTCHA_TYPE_SMS = "sms";
@@ -266,7 +269,7 @@ public class SystemConfigHelper {
         return n < 6 ? 6 : Math.min(n, 32);
     }
 
-    // ---------- 前端安全 ----------
+    // ---------- 前端与 API 安全 ----------
     public boolean isDisableDevtool() {
         return getGroupJson(GROUP_SECURITY).getBool("disableDevtool", false);
     }
@@ -274,6 +277,42 @@ public class SystemConfigHelper {
     /** Sa-Token is-concurrent，默认 false（禁止多端同时在线） */
     public boolean isConcurrentLogin() {
         return getGroupJson(GROUP_SECURITY).getBool("isConcurrent", false);
+    }
+
+    /** SM4 数据加密开启状态 */
+    public boolean isSm4EncryptEnabled() {
+        return getGroupJson(GROUP_SECURITY).getBool("sm4EncryptEnabled", false);
+    }
+
+    /** SM2 数字签名开启状态 */
+    public boolean isSm2SignEnabled() {
+        return getGroupJson(GROUP_SECURITY).getBool("sm2SignEnabled", false);
+    }
+
+    /** 时间戳校验开启状态（默认开启） */
+    public boolean isTimestampEnabled() {
+        return getGroupJson(GROUP_SECURITY).getBool("timestampEnabled", true);
+    }
+
+    /** Nonce 随机数防重放校验开启状态（默认开启） */
+    public boolean isNonceEnabled() {
+        return getGroupJson(GROUP_SECURITY).getBool("nonceEnabled", true);
+    }
+
+    /** SM4 对称秘钥（16 字节密钥） */
+    public String getSm4SecretKey() {
+        String key = getGroupJson(GROUP_SECURITY).getStr("sm4SecretKey", "WuAdmin16BytesKey");
+        return StrUtil.isBlank(key) ? "WuAdmin16BytesKey" : key.trim();
+    }
+
+    /** SM2 数字签名公钥 */
+    public String getSm2PublicKey() {
+        return getGroupJson(GROUP_SECURITY).getStr("sm2PublicKey", "");
+    }
+
+    /** SM2 数字签名私钥 */
+    public String getSm2PrivateKey() {
+        return getGroupJson(GROUP_SECURITY).getStr("sm2PrivateKey", "");
     }
 
     // ---------- 短信配置 ----------
@@ -348,6 +387,123 @@ public class SystemConfigHelper {
 
     public boolean isAliyunAuthSmsProvider() {
         return "aliyunAuth".equals(getSmsProvider());
+    }
+
+    // ---------- 邮件配置 ----------
+    public boolean isEmailEnabled() {
+        return getGroupJson(GROUP_EMAIL).getBool("enabled", true);
+    }
+
+    public String getEmailProvider() {
+        return getGroupJson(GROUP_EMAIL).getStr("provider", "qq");
+    }
+
+    public String getEmailHost() {
+        return getGroupJson(GROUP_EMAIL).getStr("host", "smtp.qq.com");
+    }
+
+    public int getEmailPort() {
+        return getGroupJson(GROUP_EMAIL).getInt("port", 465);
+    }
+
+    public String getEmailUsername() {
+        return getGroupJson(GROUP_EMAIL).getStr("username", "974473458@qq.com");
+    }
+
+    public String getEmailPassword() {
+        return getGroupJson(GROUP_EMAIL).getStr("password", "cqjvfpulydqwbegh");
+    }
+
+    public String getEmailFromName() {
+        return getGroupJson(GROUP_EMAIL).getStr("fromName", "wu-admin 系统团队");
+    }
+
+    public boolean isEmailAuthEnabled() {
+        return getGroupJson(GROUP_EMAIL).getBool("authEnabled", true);
+    }
+
+    public String getEmailSecurityType() {
+        return getGroupJson(GROUP_EMAIL).getStr("securityType", "SSL");
+    }
+
+    public int getEmailConnectionTimeoutMs() {
+        int ms = getGroupJson(GROUP_EMAIL).getInt("connectionTimeoutMs", 5000);
+        return ms < 1000 ? 5000 : Math.min(ms, 30000);
+    }
+
+    public int getEmailTimeoutMs() {
+        int ms = getGroupJson(GROUP_EMAIL).getInt("timeoutMs", 5000);
+        return ms < 1000 ? 5000 : Math.min(ms, 30000);
+    }
+
+    public int getEmailWriteTimeoutMs() {
+        int ms = getGroupJson(GROUP_EMAIL).getInt("writeTimeoutMs", 5000);
+        return ms < 1000 ? 5000 : Math.min(ms, 30000);
+    }
+
+    public String getEmailEncoding() {
+        String enc = getGroupJson(GROUP_EMAIL).getStr("encoding", "UTF-8");
+        return StrUtil.isBlank(enc) ? "UTF-8" : enc.trim();
+    }
+
+    public boolean isEmailDebug() {
+        return getGroupJson(GROUP_EMAIL).getBool("debug", false);
+    }
+
+    public int getEmailCodeExpireMinutes() {
+        int m = getGroupJson(GROUP_EMAIL).getInt("codeExpireMinutes", 5);
+        return m < 1 ? 5 : Math.min(m, 30);
+    }
+
+    public int getEmailCodeLength() {
+        int len = getGroupJson(GROUP_EMAIL).getInt("codeLength", 6);
+        return len < 4 ? 6 : Math.min(len, 8);
+    }
+
+    public int getEmailDailyLimitPerEmail() {
+        int limit = getGroupJson(GROUP_EMAIL).getInt("dailyLimitPerEmail", 20);
+        return limit < 1 ? 20 : Math.min(limit, 100);
+    }
+
+    public int getEmailSendIntervalSeconds() {
+        int s = getGroupJson(GROUP_EMAIL).getInt("sendIntervalSeconds", 60);
+        return s < 10 ? 60 : Math.min(s, 300);
+    }
+
+    public JavaMailSenderImpl buildDynamicMailSender() {
+        JavaMailSenderImpl impl = new JavaMailSenderImpl();
+        impl.setHost(getEmailHost());
+        impl.setPort(getEmailPort());
+        impl.setUsername(getEmailUsername());
+        impl.setPassword(getEmailPassword());
+        impl.setDefaultEncoding(getEmailEncoding());
+
+        Properties props = impl.getJavaMailProperties();
+        props.put("mail.smtp.auth", String.valueOf(isEmailAuthEnabled()));
+
+        String secType = getEmailSecurityType();
+        if ("SSL".equalsIgnoreCase(secType)) {
+            props.put("mail.smtp.ssl.enable", "true");
+            props.put("mail.smtp.socketFactory.class", "javax.net.ssl.SSLSocketFactory");
+            props.put("mail.smtp.socketFactory.port", String.valueOf(getEmailPort()));
+        } else if ("TLS".equalsIgnoreCase(secType) || "STARTTLS".equalsIgnoreCase(secType)) {
+            props.put("mail.smtp.starttls.enable", "true");
+            props.put("mail.smtp.starttls.required", "true");
+        }
+
+        int connTimeout = getEmailConnectionTimeoutMs();
+        int timeout = getEmailTimeoutMs();
+        int writeTimeout = getEmailWriteTimeoutMs();
+
+        props.put("mail.smtp.connectiontimeout", String.valueOf(connTimeout));
+        props.put("mail.smtp.timeout", String.valueOf(timeout));
+        props.put("mail.smtp.writetimeout", String.valueOf(writeTimeout));
+
+        if (isEmailDebug()) {
+            props.put("mail.debug", "true");
+        }
+
+        return impl;
     }
 
     /** 工作台统计：每组配置只读一次 Redis，避免重复 getGroupJson */

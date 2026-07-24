@@ -805,7 +805,7 @@ INSERT INTO sys_dict_data (dict_type, sort, dict_label, dict_value, list_class, 
 ('sys_approval_status', 3, '已驳回', 'REJECTED', 'danger', 0, 1),
 ('sys_approval_status', 4, '已归档', 'ARCHIVED', 'info', 0, 1);
 
--- 系统配置（10 分组：site / session / file / rateLimit / login / register / thirdParty / payment / sms / security）
+-- 系统配置（11 分组：site / session / file / rateLimit / login / register / thirdParty / payment / sms / email / security）
 INSERT INTO sys_config_group (group_code, group_name, config_value, remark) VALUES
 ('site', '基础信息', '{"platformName":"Admin Platform","platformSubtitle":"统一运维 · 高效管控","loginWelcome":"Welcome","registerTitle":"Sign Up","copyright":""}', '平台展示名称与登录页文案'),
 ('session', '会话配置', '{"tokenExpireHours":24}', 'JWT 与 Redis 会话有效期（小时）'),
@@ -816,7 +816,8 @@ INSERT INTO sys_config_group (group_code, group_name, config_value, remark) VALU
 ('thirdParty', '第三方配置', '{"wechat":{"enabled":false,"appId":"","appSecret":""},"alipay":{"enabled":false,"appId":"","privateKey":"","publicKey":""},"github":{"enabled":false,"clientId":"","clientSecret":""},"google":{"enabled":false,"clientId":"","clientSecret":"","redirectUri":""}}', '微信/支付宝/GitHub/Google 第三方登录'),
 ('payment', '支付配置', '{"wechatPay":{"enabled":false,"mchId":"","appId":"","apiV3Key":"","privateKey":"","certSerialNo":"","notifyUrl":""},"alipay":{"enabled":false,"appId":"","privateKey":"","publicKey":"","signType":"RSA2","gatewayUrl":"https://openapi.alipay.com/gateway.do","notifyUrl":"","returnUrl":""}}', '微信/支付宝支付与测试下单'),
 ('sms', '短信配置', '{"enabled":false,"provider":"aliyunAuth","accessKeyId":"","accessKeySecret":"","signName":"","tencentAppId":"","templateVerifyCode":"100001","templateModifyPhone":"100002","templateResetPassword":"100003","templateBindPhone":"100004","templateVerifyBindPhone":"100005","schemeName":"","codeExpireMinutes":5}', '阿里云短信认证/腾讯云'),
-('security', '安全配置', '{"disableDevtool":false,"isConcurrent":false}', '前端安全与会话：禁止调试、禁止多端同时在线');
+('email', '邮件配置', '{"enabled":true,"provider":"qq","host":"smtp.qq.com","port":465,"username":"974473458@qq.com","password":"cqjvfpulydqwbegh","fromName":"wu-admin 系统团队","authEnabled":true,"securityType":"SSL","connectionTimeoutMs":5000,"timeoutMs":5000,"writeTimeoutMs":5000,"encoding":"UTF-8","debug":false,"codeExpireMinutes":5,"codeLength":6,"dailyLimitPerEmail":20,"sendIntervalSeconds":60}', '企业级 SMTP 邮件服务配置：发件人、SSL端口、超时限额与验证码防刷规则'),
+('security', '安全配置', '{"disableDevtool":false,"isConcurrent":false,"sm4EncryptEnabled":false,"sm2SignEnabled":false,"timestampEnabled":true,"nonceEnabled":true,"sm4SecretKey":"WuAdmin16BytesKey"}', '安全防线与会话：SM4加密、SM2数字签名、时间戳与Nonce防重放');
 
 -- 菜单与按钮（一级目录 sort：系统管理 1 / 监控 3 / 日志 4 / 文件 5 / 消息 6 / 流程 7 / 工具 8）
 INSERT INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, component, status) VALUES
@@ -2156,3 +2157,4 @@ INSERT IGNORE INTO sys_role_menu (role_id, menu_id)
 SELECT rm.role_id, 191
 FROM sys_role_menu rm
 WHERE rm.menu_id = 163;
+

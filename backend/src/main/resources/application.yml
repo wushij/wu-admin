@@ -60,6 +60,19 @@ spring:
   security:
     user:
       password: disabled
+  mail:
+    host: ${SPRING_MAIL_HOST:smtp.qq.com}
+    port: ${SPRING_MAIL_PORT:465}
+    username: ${SPRING_MAIL_USERNAME:974473458@qq.com}
+    password: ${SPRING_MAIL_PASSWORD:cqjvfpulydqwbegh}
+    protocol: smtp
+    default-encoding: UTF-8
+    properties:
+      mail:
+        smtp:
+          auth: true
+          ssl:
+            enable: true
   servlet:
     multipart:
       # 平台物理上限（MB），实际上传限制由系统配置-文件存储中的 maxSizeMb 控制（保存后立即生效）

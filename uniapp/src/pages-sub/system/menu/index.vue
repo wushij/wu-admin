@@ -267,14 +267,25 @@ onPullDownRefresh(async () => {
 @use '@/styles/common.scss' as *;
 
 .menu-page {
-  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  /* #ifdef H5 */
+  height: calc(100vh - var(--window-top, 0px));
+  /* #endif */
   box-sizing: border-box;
+  overflow: hidden;
   background: $color-bg-page;
 }
 
 .menu-page__scroll {
-  height: calc(100vh - 340rpx);
+  flex: 1;
+  min-height: 0;
   margin-top: 16rpx;
+
+  :deep(.uni-scroll-view-content) {
+    padding-bottom: calc(160rpx + env(safe-area-inset-bottom));
+  }
 }
 
 .menu-tree {

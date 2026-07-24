@@ -18,11 +18,19 @@ public interface ProfileService {
 
     void bindMobile(Long userId, ProfileMobileBindReqVO reqVO);
 
+    String sendEmailBindCode(Long userId, ProfileEmailCodeReqVO reqVO);
+
+    void bindEmail(Long userId, ProfileEmailBindReqVO reqVO);
+
     void changePassword(Long userId, ChangePasswordReqVO reqVO);
 
     String sendPasswordResetSmsCode(Long userId, ProfilePasswordSmsCodeReqVO reqVO, String clientIp);
 
     void resetPasswordBySms(Long userId, ProfilePasswordSmsResetReqVO reqVO);
+
+    String sendPasswordResetEmailCode(Long userId);
+
+    void resetPasswordByEmail(Long userId, ProfilePasswordEmailResetReqVO reqVO);
 
     String uploadAvatar(Long userId, MultipartFile file);
 

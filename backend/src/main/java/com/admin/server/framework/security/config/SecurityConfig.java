@@ -1,5 +1,6 @@
 package com.admin.server.framework.security.config;
 
+import com.admin.server.framework.security.core.filter.ApiSecurityFilter;
 import com.admin.server.framework.security.handler.JsonAccessDeniedHandler;
 import com.admin.server.framework.security.handler.JsonAuthenticationEntryPoint;
 import com.admin.server.framework.web.filter.SaTokenAuthenticationFilter;
@@ -38,6 +39,9 @@ public class SecurityConfig {
 
     @Resource
     private SaTokenAuthenticationFilter saTokenAuthenticationFilter;
+
+    @Resource
+    private ApiSecurityFilter apiSecurityFilter;
 
     @Resource
     private JsonAuthenticationEntryPoint jsonAuthenticationEntryPoint;
@@ -92,6 +96,7 @@ public class SecurityConfig {
                     .authenticationEntryPoint(jsonAuthenticationEntryPoint)
                     .accessDeniedHandler(jsonAccessDeniedHandler))
             .headers(headers -> headers.frameOptions(HeadersConfigurer.FrameOptionsConfig::disable))
+            .addFilterBefore(apiSecurityFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(saTokenAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

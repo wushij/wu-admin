@@ -83,8 +83,13 @@ function selectAll() {
   emit('dept-click', null)
 }
 
+let debounceTimer: ReturnType<typeof setTimeout> | null = null
+
 watch(treeSearch, (val) => {
-  treeRef.value?.filter(val)
+  if (debounceTimer) clearTimeout(debounceTimer)
+  debounceTimer = setTimeout(() => {
+    treeRef.value?.filter(val)
+  }, 250)
 })
 
 defineExpose({

@@ -145,7 +145,13 @@ onPullDownRefresh(async () => {
 @use '@/styles/common.scss' as *;
 
 .page-list__scroll {
-  height: calc(100vh - 280rpx);
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+
+  :deep(.uni-scroll-view-content) {
+    padding-bottom: calc(160rpx + env(safe-area-inset-bottom));
+  }
 }
 
 .online-row {

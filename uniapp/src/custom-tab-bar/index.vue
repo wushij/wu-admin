@@ -60,12 +60,12 @@ function switchTab(index: number, url: string) {
   display: flex;
   height: 112rpx;
   align-items: center;
-  background: rgba(255, 251, 251, 0.88);
+  background: rgba(255, 255, 255, 0.96);
   backdrop-filter: blur(24rpx);
   -webkit-backdrop-filter: blur(24rpx);
   border-radius: 999rpx;
-  border: 1rpx solid rgba(240, 212, 212, 0.72);
-  box-shadow: 0 6rpx 28rpx rgba(239, 68, 68, 0.08), 0 2rpx 10rpx rgba(239, 68, 68, 0.05);
+  border: 1rpx solid rgba(226, 232, 240, 0.9);
+  box-shadow: 0 8rpx 32rpx rgba(15, 23, 42, 0.08), 0 2rpx 8rpx rgba(15, 23, 42, 0.04);
   padding: 8rpx 6rpx;
   box-sizing: border-box;
 }

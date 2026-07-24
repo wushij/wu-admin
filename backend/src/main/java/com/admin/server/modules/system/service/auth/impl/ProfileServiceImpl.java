@@ -16,6 +16,8 @@ import com.admin.server.modules.system.dal.mysql.permission.RoleMapper;
 import com.admin.server.modules.system.dal.mysql.post.PostMapper;
 import com.admin.server.modules.system.dal.mysql.user.UserMapper;
 import com.admin.server.modules.system.dal.mysql.user.UserPostMapper;
+import com.admin.server.modules.system.service.email.EmailCodeService;
+import com.admin.server.modules.system.service.auth.ProfileEmailPasswordService;
 import com.admin.server.modules.system.service.auth.ProfileService;
 import com.admin.server.modules.system.service.auth.ProfileSmsMobileBindService;
 import com.admin.server.modules.system.service.auth.ProfileSmsPasswordService;
@@ -64,7 +66,11 @@ public class ProfileServiceImpl implements ProfileService {
     @Resource
     private ProfileSmsPasswordService profileSmsPasswordService;
     @Resource
+    private ProfileEmailPasswordService profileEmailPasswordService;
+    @Resource
     private ProfileSmsMobileBindService profileSmsMobileBindService;
+    @Resource
+    private EmailCodeService emailCodeService;
     @Resource
     private DeptService deptService;
 
@@ -120,6 +126,48 @@ public class ProfileServiceImpl implements ProfileService {
     }
 
     @Override
+    public String sendEmailBindCode(Long userId, ProfileEmailCodeReqVO reqVO) {
+        if (reqVO == null || !StringUtils.hasText(reqVO.getEmail())) {
+            return "新邮箱不能为空";
+        }
+        String newEmail = reqVO.getEmail().trim();
+        UserDO exist = userMapper.selectOne(new LambdaQueryWrapper<UserDO>()
+                .eq(UserDO::getEmail, newEmail)
+                .ne(UserDO::getId, userId)
+                .eq(UserDO::getDeleted, 0));
+        if (exist != null) {
+            return "该邮箱已被其他账号使用";
+        }
+        return emailCodeService.sendEmailCode(newEmail);
+    }
+
+    @Override
+    public void bindEmail(Long userId, ProfileEmailBindReqVO reqVO) {
+        if (reqVO == null || !StringUtils.hasText(reqVO.getEmail()) || !StringUtils.hasText(reqVO.getCode())) {
+            throw new BusinessException(400, "邮箱和验证码不能为空");
+        }
+        String newEmail = reqVO.getEmail().trim();
+        String code = reqVO.getCode().trim();
+
+        UserDO exist = userMapper.selectOne(new LambdaQueryWrapper<UserDO>()
+                .eq(UserDO::getEmail, newEmail)
+                .ne(UserDO::getId, userId)
+                .eq(UserDO::getDeleted, 0));
+        if (exist != null) {
+            throw new BusinessException(400, "该邮箱已被其他账号使用");
+        }
+
+        String err = emailCodeService.verifyEmailCode(newEmail, code);
+        if (err != null) {
+            throw new BusinessException(400, err);
+        }
+
+        UserDO user = requireUser(userId);
+        user.setEmail(newEmail);
+        userMapper.updateById(user);
+    }
+
+    @Override
     public void changePassword(Long userId, ChangePasswordReqVO reqVO) {
         if (!StringUtils.hasText(reqVO.getOldPassword()) || !StringUtils.hasText(reqVO.getNewPassword())) {
             throw new BusinessException(400, "请填写原密码和新密码");
@@ -158,6 +206,22 @@ public class ProfileServiceImpl implements ProfileService {
             throw new BusinessException(400, err);
         }
         userMapper.updateById(user);
+    }
+
+    @Override
+    public String sendPasswordResetEmailCode(Long userId) {
+        UserDO user = requireUser(userId);
+        return profileEmailPasswordService.sendResetCode(user);
+    }
+
+    @Override
+    public void resetPasswordByEmail(Long userId, ProfilePasswordEmailResetReqVO reqVO) {
+        UserDO user = requireUser(userId);
+        String err = profileEmailPasswordService.resetPasswordByEmail(
+                user, reqVO.getEmailCode(), reqVO.getNewPassword(), reqVO.getConfirmPassword());
+        if (err != null) {
+            throw new BusinessException(400, err);
+        }
     }
 
     @Override

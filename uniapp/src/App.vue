@@ -10,7 +10,6 @@ import H5BackButton from '@/components/common/H5BackButton/index.vue'
 import { useUserStore } from '@/store/user'
 import { useAppStore } from '@/store/app'
 import { setupRouteGuard, bootstrapSession } from '@/utils/route-guard'
-import { setupDialogBackGuard } from '@/utils/dialog-back-guard'
 import { ensureH5Favicon } from '@/utils/h5-document-head'
 import { hasToken } from '@/utils/auth'
 import { shouldRedirectAuthedUserToHome } from '@/utils/launch-route'
@@ -20,7 +19,6 @@ import { useMessageStore } from '@/store/message'
 
 onLaunch(async () => {
   setupRouteGuard()
-  setupDialogBackGuard()
   ensureH5Favicon()
 
   const appStore = useAppStore()

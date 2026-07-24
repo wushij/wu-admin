@@ -39,6 +39,9 @@ public class SysConfigGroupController {
     @Resource
     private SmsLogService smsLogService;
 
+    @Resource
+    private com.admin.server.modules.system.service.email.EmailCodeService emailCodeService;
+
     @GetMapping("/list")
     @Operation(summary = "配置分组列表")
     @PreAuthorize("@ss.hasRead('system:config:list')")
@@ -151,5 +154,24 @@ public class SysConfigGroupController {
         private String phone;
         /** 测试指定模板 CODE，为空则使用登录/注册模板 */
         private String templateCode;
+    }
+
+    @Operation(summary = "测试发送邮件")
+    @PostMapping("/test-email")
+    @PreAuthorize("@ss.hasPermission('system:config:update')")
+    public CommonResult<Boolean> testEmail(@RequestBody TestEmailRequest request) {
+        if (request.getToEmail() == null || !request.getToEmail().matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$")) {
+            throw new BusinessException(400, "请输入正确的接收邮箱");
+        }
+        String err = emailCodeService.sendTestEmail(request.getToEmail().trim());
+        if (err != null) {
+            throw new BusinessException(500, "邮件发送失败：" + err);
+        }
+        return CommonResult.success(true);
+    }
+
+    @Data
+    public static class TestEmailRequest {
+        private String toEmail;
     }
 }

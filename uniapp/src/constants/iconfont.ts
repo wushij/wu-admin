@@ -24,6 +24,7 @@ export type IconName =
   | 'completed'
   | 'contact-o'
   | 'phone-o'
+  | 'envelop-o'
   | 'lock'
   | 'shield-o'
   | 'eye-o'
@@ -56,6 +57,7 @@ export const ICON_CHARS: Record<IconName, string> = {
   completed: '\ue641',
   'contact-o': '\ue69f',
   'phone-o': '\ue6fc',
+  'envelop-o': '\ue6ae',
   lock: '\ue6dc',
   'shield-o': '\ue74b',
   'eye-o': '\ue6b2',

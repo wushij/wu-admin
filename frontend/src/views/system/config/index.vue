@@ -63,6 +63,13 @@
             @test-sms="handleTestSms" @show-all-sms-logs="handleShowAllSmsLogs"
           />
         </el-tab-pane>
+        <el-tab-pane label="邮件配置" name="email">
+          <EmailConfigTab
+            :draft="draft.email" :saved-email="savedSnapshot.email" :can-edit="canEdit"
+            :email-testing="emailTesting"
+            @test-email="handleTestEmail"
+          />
+        </el-tab-pane>
         <el-tab-pane label="安全配置" name="security">
           <SecurityConfigTab :draft="draft.security" :can-edit="canEdit" v-model:forbid-concurrent-login="forbidConcurrentLogin" />
         </el-tab-pane>
@@ -133,11 +140,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
+import { ElMessage } from 'element-plus'
 import ModulePageIcon from '@/components/ModulePageIcon.vue'
 import { MODULE_PAGE_ICON } from '@/constants/module-page-icons'
 
-const configTabCount = 10
+const configTabCount = 11
 import SiteConfigTab from './components/SiteConfigTab.vue'
 import SessionConfigTab from './components/SessionConfigTab.vue'
 import FileConfigTab from './components/FileConfigTab.vue'
@@ -147,14 +155,16 @@ import RegisterConfigTab from './components/RegisterConfigTab.vue'
 import ThirdPartyConfigTab from './components/ThirdPartyConfigTab.vue'
 import PaymentConfigTab from './components/PaymentConfigTab.vue'
 import SmsConfigTab from './components/SmsConfigTab.vue'
+import EmailConfigTab from './components/EmailConfigTab.vue'
 import SecurityConfigTab from './components/SecurityConfigTab.vue'
+import { testEmail as apiTestEmail } from '@/api/system/config'
 import { useConfigDraft } from './composables/useConfigDraft'
 import { usePaymentTest } from './composables/usePaymentTest'
 import { useSmsTest } from './composables/useSmsTest'
 
 const {
   canEdit, activeTab, loading, saving, roleOptions, userOptions, platformMaxFileMb,
-  draft, isDirty, forbidConcurrentLogin,
+  draft, savedSnapshot, isDirty, forbidConcurrentLogin,
   loadAll, handleReset, handleSave,
 } = useConfigDraft()
 
@@ -176,6 +186,27 @@ const {
   loadSmsLogs, handleSearchSmsLogs, handleResetSmsLogsSearch, handleSmsLogsSizeChange,
   syncTemplateFromConfig,
 } = useSmsTest(() => isDirty.value, () => draft.sms.provider)
+
+const emailTesting = ref(false)
+async function handleTestEmail(toEmail: string) {
+  if (isDirty.value) {
+    ElMessage.warning('配置已修改，请先保存全部后再测试发送')
+    return
+  }
+  if (!toEmail || !toEmail.includes('@')) {
+    ElMessage.warning('请输入正确的接收测试邮箱')
+    return
+  }
+  emailTesting.value = true
+  try {
+    await apiTestEmail(toEmail)
+    ElMessage.success('测试邮件已发送，请登录接收邮箱查收')
+  } catch {
+    /* 异常已由全局 response interceptor 统一弹出 ElMessage.error */
+  } finally {
+    emailTesting.value = false
+  }
+}
 
 watch(activeTab, (tab) => {
   if (tab === 'sms') {

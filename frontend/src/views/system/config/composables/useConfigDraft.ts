@@ -9,7 +9,7 @@ import { useSiteStore } from '@/store/site'
 import type { ConfigGroupCode, ConfigGroupMap } from '@/types/config'
 
 export const GROUP_CODES = [
-  'site', 'session', 'file', 'rateLimit', 'login', 'register', 'thirdParty', 'payment', 'sms', 'security',
+  'site', 'session', 'file', 'rateLimit', 'login', 'register', 'thirdParty', 'payment', 'sms', 'email', 'security',
 ] as const satisfies readonly ConfigGroupCode[]
 
 const DEFAULTS = {
@@ -83,6 +83,17 @@ const DEFAULTS = {
     templateResetPassword: '100003', templateBindPhone: '100004',
     templateVerifyBindPhone: '100005',
     schemeName: '', codeExpireMinutes: 5,
+  },
+  email: {
+    enabled: true, provider: 'qq',
+    host: 'smtp.qq.com', port: 465,
+    username: '974473458@qq.com', password: 'cqjvfpulydqwbegh',
+    fromName: 'wu-admin 系统团队',
+    authEnabled: true, securityType: 'SSL',
+    connectionTimeoutMs: 5000, timeoutMs: 5000, writeTimeoutMs: 5000,
+    encoding: 'UTF-8', debug: false,
+    codeExpireMinutes: 5, codeLength: 6,
+    dailyLimitPerEmail: 20, sendIntervalSeconds: 60,
   },
 } satisfies ConfigGroupMap
 
