@@ -281,16 +281,17 @@ wu-admin/
 │   ├── pom.xml
 │   ├── data/                      # 开发态上传目录（git 忽略）
 │   └── src/
-│       ├── main/java/cn/rbac/server/
+│       ├── main/java/com/admin/server/
 │       │   ├── RbacServerApplication.java
 │       │   ├── common/            # 通用层：CommonResult、BusinessException、工具类
 │       │   ├── framework/         # 框架层：安全、MyBatis、Redis、Filter、WebSocket
-│       │   └── modules/system/    # 业务模块：api / service / dal / pay / sms / task
+│       │   └── modules/system/    # 业务模块：api / service / dal / pay / sms / email / task
 │       │       ├── api/           # Controller + VO（参数校验，委托 Service）
 │       │       ├── service/       # Service 接口与实现（业务逻辑）
 │       │       ├── dal/           # DO 实体 + Mapper
 │       │       ├── pay/           # 微信/支付宝支付
-│       │       ├── sms/           # 阿里云/腾讯云短信
+│       │       ├── sms/           # 阿里云/腾讯云短信（策略模式）
+│       │       ├── email/         # 邮件服务（SMTP + 发信日志）
 │       │       └── task/          # 系统定时任务
 │       ├── main/resources/
 │       │   ├── application.yml / application-dev.yml / application-prod.yml
@@ -354,7 +355,7 @@ wu-admin/
 ### 后端包分层约定
 
 ```
-cn.rbac.server/
+com.admin.server/
 ├── common/           # 通用层
 │   ├── pojo/         # CommonResult、PageParam、PageResult、BusinessException
 │   ├── util/         # ClientIpUtils、IpLocationUtils、UserAgentUtils、UserDisplayNames
@@ -373,16 +374,17 @@ cn.rbac.server/
 │   └── export/       # Excel/CSV 导出工具
 └── modules/system/
     ├── api/          # 瘦 Controller：只做校验（@Validated）与委派（Service）
-    ├── service/      # 业务逻辑：auth/user/role/ticket/message/chat 等
+    ├── service/      # 业务逻辑：auth/user/role/ticket/message/chat/email 等
     ├── dal/          # DO 实体 + Mapper（约 30 张表）
     ├── framework/    # SPI 实现 + 模块级框架
     │   ├── security/     # SystemPermissionService（bean 名 ss）
     │   ├── cache/        # DictCacheService、SysConfigCacheService、CacheWarmupRunner
-    │   ├── operlog/      # LogAspect + OperLogRecorder（@Log AOP）
+    │   ├── operlog/      # LogAspect + OperLogRecorder + OperLogContext（@Log AOP）
     │   ├── monitor/      # API 访问采集拦截器 + WebConfig
     │   └── config/       # SystemConfigProvider
     ├── pay/          # 微信支付 APIv3 + 支付宝 SDK（工厂模式）
     ├── sms/          # 阿里云/腾讯云短信（策略模式）
+    ├── email/        # SMTP 邮件服务 + sys_email_log 发信日志（EmailCodeService / EmailLogService）
     └── task/         # 系统定时任务（日志清理/消息回收/文件清盘/缓存刷新）
 ```
 
