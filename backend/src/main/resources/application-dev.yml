@@ -4,6 +4,9 @@ spring:
     url: jdbc:mysql://127.0.0.1:3306/wu-admin?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&nullCatalogMeansCurrent=true
     username: root
     password: root
+    druid:
+      initial-size: 1
+      min-idle: 1
   data:
     redis:
       host: 127.0.0.1

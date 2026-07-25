@@ -47,9 +47,14 @@ public class SliderCaptchaService {
             }
         } else if (!systemConfigHelper.isCaptchaEnabled()
                 || !SystemConfigHelper.CAPTCHA_TYPE_SLIDER.equals(systemConfigHelper.getCaptchaType())) {
-            // login / profile / forgot 等场景：登录滑块未开时仍允许拉 challenge（如短信发码前滑块）
-            if (!"sms".equalsIgnoreCase(scene) && !"profile".equalsIgnoreCase(scene)
-                    && !"forgot".equalsIgnoreCase(scene)) {
+            // sms / email / profile / forgot 等场景：登录通用滑块未开时，若为独立发码前滑块场景仍允许拉取 challenge
+            boolean isCodeSliderAllowed = "sms".equalsIgnoreCase(scene)
+                    || "email".equalsIgnoreCase(scene)
+                    || "profile".equalsIgnoreCase(scene)
+                    || "forgot".equalsIgnoreCase(scene)
+                    || systemConfigHelper.isSmsLoginSliderCaptchaEnabled()
+                    || systemConfigHelper.isEmailLoginSliderCaptchaEnabled();
+            if (!isCodeSliderAllowed) {
                 throw new BusinessException(400, "当前未启用滑块验证码");
             }
         }

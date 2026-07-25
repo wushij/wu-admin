@@ -174,4 +174,40 @@ public class SysConfigGroupController {
     public static class TestEmailRequest {
         private String toEmail;
     }
+
+    @Resource
+    private com.admin.server.modules.system.service.email.EmailLogService emailLogService;
+
+    @Operation(summary = "最近邮件发送记录")
+    @GetMapping("/email-logs/recent")
+    @PreAuthorize("@ss.hasRead('system:config:list')")
+    public CommonResult<List<com.admin.server.modules.system.dal.dataobject.email.EmailLogDO>> getRecentEmailLogs(
+            @RequestParam(defaultValue = "5") Integer limit) {
+        int size = limit == null || limit < 1 ? 5 : Math.min(limit, 50);
+        LambdaQueryWrapper<com.admin.server.modules.system.dal.dataobject.email.EmailLogDO> wrapper = new LambdaQueryWrapper<>();
+        wrapper.orderByDesc(com.admin.server.modules.system.dal.dataobject.email.EmailLogDO::getCreateTime).last("LIMIT " + size);
+        return CommonResult.success(emailLogService.list(wrapper));
+    }
+
+    @Operation(summary = "分页查询邮件发送记录")
+    @GetMapping("/email-logs")
+    @PreAuthorize("@ss.hasRead('system:config:list')")
+    public CommonResult<PageResult<com.admin.server.modules.system.dal.dataobject.email.EmailLogDO>> getEmailLogs(
+            @RequestParam(defaultValue = "1") Integer page,
+            @RequestParam(defaultValue = "10") Integer size,
+            @RequestParam(required = false) String email,
+            @RequestParam(required = false) Integer status) {
+        int pageNo = page == null || page < 1 ? 1 : page;
+        int pageSize = size == null || size < 1 ? 10 : Math.min(size, 100);
+        LambdaQueryWrapper<com.admin.server.modules.system.dal.dataobject.email.EmailLogDO> wrapper = new LambdaQueryWrapper<>();
+        if (email != null && !email.isBlank()) {
+            wrapper.like(com.admin.server.modules.system.dal.dataobject.email.EmailLogDO::getEmail, email.trim());
+        }
+        if (status != null) {
+            wrapper.eq(com.admin.server.modules.system.dal.dataobject.email.EmailLogDO::getStatus, status);
+        }
+        wrapper.orderByDesc(com.admin.server.modules.system.dal.dataobject.email.EmailLogDO::getCreateTime);
+        Page<com.admin.server.modules.system.dal.dataobject.email.EmailLogDO> result = emailLogService.page(new Page<>(pageNo, pageSize), wrapper);
+        return CommonResult.success(PageResult.of(result.getRecords(), result.getTotal()));
+    }
 }

@@ -16,6 +16,8 @@ import jakarta.annotation.Resource;
 import java.util.List;
 import java.util.Set;
 
+import com.admin.server.modules.system.framework.operlog.OperLogContext;
+
 @Service
 public class SysConfigGroupServiceImpl implements SysConfigGroupService {
 
@@ -57,9 +59,139 @@ public class SysConfigGroupServiceImpl implements SysConfigGroupService {
         if (row == null) {
             throw new BusinessException("配置分组不存在: " + groupCode);
         }
+
+        JSONObject oldJson = null;
+        if (StrUtil.isNotBlank(row.getConfigValue()) && JSONUtil.isTypeJSON(row.getConfigValue())) {
+            oldJson = JSONUtil.parseObj(row.getConfigValue());
+        } else {
+            oldJson = new JSONObject();
+        }
+
+        List<String> diffItems = buildConfigDiffs(groupCode, oldJson, json);
+        if (diffItems.isEmpty()) {
+            // 未发生任何实际配置改动：跳过生成无意义的操作日志与 DB 更新
+            OperLogContext.setSkipLog(true);
+            return;
+        }
+
+        String groupTitle = getGroupTitle(groupCode);
+        OperLogContext.setTitle("系统配置 - " + groupTitle);
+        OperLogContext.setDiffItems(diffItems);
+        OperLogContext.setAction("修改系统配置「" + groupTitle + "」: " + String.join("；", diffItems));
+
         row.setConfigValue(json.toString());
         configGroupMapper.updateById(row);
         sysConfigCacheService.refreshAll();
+    }
+
+    private String getGroupTitle(String groupCode) {
+        if (groupCode == null) return "未知分组";
+        switch (groupCode) {
+            case SystemConfigHelper.GROUP_SITE: return "基础信息";
+            case SystemConfigHelper.GROUP_SESSION: return "会话令牌";
+            case SystemConfigHelper.GROUP_FILE: return "文件存储";
+            case SystemConfigHelper.GROUP_RATE_LIMIT: return "接口限流";
+            case SystemConfigHelper.GROUP_LOGIN: return "登录认证";
+            case SystemConfigHelper.GROUP_REGISTER: return "注册认证";
+            case SystemConfigHelper.GROUP_SMS: return "短信配置";
+            case SystemConfigHelper.GROUP_EMAIL: return "邮件配置";
+            case SystemConfigHelper.GROUP_THIRD_PARTY: return "第三方配置";
+            case SystemConfigHelper.GROUP_PAYMENT: return "支付配置";
+            case SystemConfigHelper.GROUP_SECURITY: return "安全防刷";
+            default: return groupCode;
+        }
+    }
+
+    private List<String> buildConfigDiffs(String groupCode, JSONObject oldJson, JSONObject newJson) {
+        List<String> diffs = new java.util.ArrayList<>();
+        if (oldJson == null) oldJson = new JSONObject();
+        if (newJson == null) newJson = new JSONObject();
+
+        Set<String> allKeys = new java.util.LinkedHashSet<>();
+        allKeys.addAll(oldJson.keySet());
+        allKeys.addAll(newJson.keySet());
+
+        for (String key : allKeys) {
+            Object oldVal = oldJson.get(key);
+            Object newVal = newJson.get(key);
+            if (java.util.Objects.equals(oldVal, newVal)) {
+                continue;
+            }
+            String label = getFieldLabel(groupCode, key);
+            String oldStr = formatConfigValue(oldVal);
+            String newStr = formatConfigValue(newVal);
+            diffs.add(label + ": " + oldStr + " -> " + newStr);
+        }
+        return diffs;
+    }
+
+    private String getFieldLabel(String groupCode, String key) {
+        if (SystemConfigHelper.GROUP_LOGIN.equals(groupCode)) {
+            switch (key) {
+                case "captchaEnabled": return "登录人机校检";
+                case "captchaType": return "验证码类型";
+                case "smsLoginEnabled": return "短信验证码登录";
+                case "smsLoginSliderCaptchaEnabled": return "短信发送前滑块";
+                case "emailLoginEnabled": return "邮箱验证码登录";
+                case "emailLoginSliderCaptchaEnabled": return "邮箱发送前滑块";
+                case "rememberMe": return "记住我";
+                case "maxRetryCount": return "账号最大重试";
+                case "maxRetryCountIp": return "IP最大重试";
+                case "lockTime": return "锁定时长";
+                default: break;
+            }
+        } else if (SystemConfigHelper.GROUP_SITE.equals(groupCode)) {
+            switch (key) {
+                case "platformName": return "系统名称";
+                case "platformSubtitle": return "系统副标题";
+                case "loginWelcome": return "登录页欢迎语";
+                case "registerTitle": return "注册页标题";
+                case "copyright": return "版权信息";
+                default: break;
+            }
+        } else if (SystemConfigHelper.GROUP_REGISTER.equals(groupCode)) {
+            switch (key) {
+                case "enabled": return "开放注册";
+                case "captchaEnabled": return "注册验证码";
+                case "captchaType": return "验证码类型";
+                case "needAudit": return "注册审核";
+                default: break;
+            }
+        } else if (SystemConfigHelper.GROUP_SMS.equals(groupCode)) {
+            switch (key) {
+                case "enabled": return "启用短信";
+                case "provider": return "短信服务商";
+                default: break;
+            }
+        } else if (SystemConfigHelper.GROUP_EMAIL.equals(groupCode)) {
+            switch (key) {
+                case "enabled": return "启用邮件";
+                case "fromEmail": return "发件人邮箱";
+                case "host": return "SMTP 服务器";
+                default: break;
+            }
+        } else if (SystemConfigHelper.GROUP_SECURITY.equals(groupCode)) {
+            switch (key) {
+                case "disableDevtool": return "禁用开发者工具";
+                case "isConcurrent": return "并发登录";
+                default: break;
+            }
+        }
+        return key;
+    }
+
+    private String formatConfigValue(Object val) {
+        if (val == null) return "无";
+        if (val instanceof Boolean) {
+            return ((Boolean) val) ? "开启" : "关闭";
+        }
+        if ("image".equals(val)) return "图片";
+        if ("slider".equals(val)) return "滑块";
+        String s = val.toString();
+        if (s.length() > 20) {
+            return s.substring(0, 17) + "...";
+        }
+        return s;
     }
 
     private void validateGroupConfig(String groupCode, JSONObject json) {

@@ -240,6 +240,12 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <profiles>
+                        <profile>dev</profile>
+                    </profiles>
+                    <jvmArguments>-XX:TieredStopAtLevel=1</jvmArguments>
+                </configuration>
             </plugin>
         </plugins>
     </build>

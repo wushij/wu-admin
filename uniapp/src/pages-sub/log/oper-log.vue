@@ -79,6 +79,7 @@
             </view>
 
             <text class="oper-log-card__title">{{ item.title || '—' }}</text>
+            <text v-if="getActionSummary(item)" class="oper-log-card__summary">{{ getActionSummary(item) }}</text>
 
             <view class="oper-log-card__meta">
               <text>{{ item.operName || '—' }}</text>
@@ -145,6 +146,17 @@ import type { OperLogVO } from '@/types/system'
 const { allowed, hasPerm } = useModulePermission('system:operLog:query')
 const canDelete = computed(() => hasPerm('system:operLog:delete'))
 const canClear = computed(() => hasPerm('system:operLog:clear'))
+
+function getActionSummary(item: OperLogVO): string {
+  if (!item.operParam) return ''
+  try {
+    const obj = JSON.parse(item.operParam)
+    if (obj && typeof obj === 'object' && obj.action) {
+      return String(obj.action)
+    }
+  } catch {}
+  return ''
+}
 
 const total = ref(0)
 const hasFetched = ref(false)
@@ -413,6 +425,15 @@ onPullDownRefresh(async () => {
   font-weight: $font-weight-semibold;
   color: $color-text-primary;
   line-height: 1.45;
+}
+
+.oper-log-card__summary {
+  display: block;
+  margin-top: 8rpx;
+  font-size: $font-size-sm;
+  color: $color-primary;
+  line-height: 1.4;
+  word-break: break-all;
 }
 
 .oper-log-card__meta {

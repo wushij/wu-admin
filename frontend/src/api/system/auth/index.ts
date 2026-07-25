@@ -50,6 +50,15 @@ export function sendSmsCode(phone: string, slider?: { uuid: string; code: string
   return post<boolean>('/auth/sms-code', payload)
 }
 
+export function sendEmailCode(email: string, slider?: { uuid: string; code: string }) {
+  const payload: { email: string; uuid?: string; code?: string } = { email }
+  if (slider) {
+    payload.uuid = slider.uuid
+    payload.code = slider.code
+  }
+  return post<boolean>('/auth/email-code', payload)
+}
+
 export function logout() {
   return post<unknown>('/auth/logout')
 }

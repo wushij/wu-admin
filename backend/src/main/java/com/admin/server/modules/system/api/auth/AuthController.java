@@ -5,6 +5,7 @@ import com.admin.server.common.pojo.CommonResult;
 import com.admin.server.common.util.ClientIpUtils;
 import com.admin.server.framework.log.annotation.Log;
 import com.admin.server.common.pojo.BusinessException;
+import com.admin.server.modules.system.api.auth.vo.EmailCodeReqVO;
 import com.admin.server.modules.system.api.auth.vo.ForgotPasswordCheckReqVO;
 import com.admin.server.modules.system.api.auth.vo.ForgotPasswordResetReqVO;
 import com.admin.server.modules.system.api.auth.vo.ForgotPasswordSmsCodeReqVO;
@@ -70,6 +71,9 @@ public class AuthController {
         if (SystemConfigHelper.LOGIN_TYPE_SMS.equalsIgnoreCase(reqVO.getLoginType())) {
             return CommonResult.success(authService.loginBySms(reqVO, clientIp, userAgent));
         }
+        if (SystemConfigHelper.LOGIN_TYPE_EMAIL.equalsIgnoreCase(reqVO.getLoginType())) {
+            return CommonResult.success(authService.loginByEmail(reqVO, clientIp, userAgent));
+        }
         return CommonResult.success(authService.loginByAccount(reqVO, clientIp, userAgent));
     }
 
@@ -94,6 +98,13 @@ public class AuthController {
     @PostMapping("/sms-code")
     public CommonResult<Boolean> sendSmsCode(@Validated @RequestBody SmsCodeReqVO reqVO, HttpServletRequest request) {
         authService.sendSmsCode(reqVO, ClientIpUtils.resolve(request));
+        return CommonResult.success(true);
+    }
+
+    @Operation(summary = "发送登录邮箱验证码")
+    @PostMapping("/email-code")
+    public CommonResult<Boolean> sendEmailCode(@Validated @RequestBody EmailCodeReqVO reqVO, HttpServletRequest request) {
+        authService.sendEmailCode(reqVO, ClientIpUtils.resolve(request));
         return CommonResult.success(true);
     }
 

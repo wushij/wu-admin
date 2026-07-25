@@ -38,6 +38,7 @@ public class LogAspect {
     @Before("@annotation(controllerLog)")
     public void doBefore(JoinPoint joinPoint, Log controllerLog) {
         START_TIME.set(System.currentTimeMillis());
+        OperLogContext.clear();
     }
 
     @AfterReturning(pointcut = "@annotation(controllerLog)", returning = "jsonResult")
@@ -51,6 +52,9 @@ public class LogAspect {
     }
 
     protected void handleLog(JoinPoint joinPoint, Log controllerLog, Exception e, Object jsonResult) {
+        if (OperLogContext.isSkipLog()) {
+            return;
+        }
         try {
             OperLogDO operLog = new OperLogDO();
             operLog.setStatus(0);
@@ -72,11 +76,16 @@ public class LogAspect {
             String className = joinPoint.getTarget().getClass().getName();
             String methodName = joinPoint.getSignature().getName();
             operLog.setMethod(className + "." + methodName + "()");
-            operLog.setTitle(controllerLog.title());
+            
+            String customTitle = OperLogContext.getTitle();
+            String customAction = OperLogContext.getAction();
+            java.util.List<String> diffItems = OperLogContext.getDiffItems();
+
+            operLog.setTitle(customTitle != null && !customTitle.isBlank() ? customTitle : controllerLog.title());
             operLog.setBusinessType(controllerLog.businessType().getValue());
 
             if (controllerLog.isSaveRequestData()) {
-                setRequestValue(joinPoint, operLog);
+                setRequestValue(joinPoint, operLog, customAction, diffItems);
             }
 
             if (controllerLog.isSaveResponseData() && jsonResult != null) {
@@ -99,23 +108,46 @@ public class LogAspect {
             log.error("记录操作日志异常", ex);
         } finally {
             START_TIME.remove();
+            OperLogContext.clear();
         }
     }
 
-    private void setRequestValue(JoinPoint joinPoint, OperLogDO operLog) {
+    private void setRequestValue(JoinPoint joinPoint, OperLogDO operLog, String customAction, java.util.List<String> diffItems) {
         try {
             Object[] args = joinPoint.getArgs();
-            if (args == null || args.length == 0) {
-                return;
+            java.util.Map<String, Object> reqData = new java.util.LinkedHashMap<>();
+            if (customAction != null && !customAction.isBlank()) {
+                reqData.put("action", customAction);
             }
-            StringBuilder params = new StringBuilder();
-            for (Object arg : args) {
-                if (arg != null && !isFilterObject(arg)) {
+            if (diffItems != null && !diffItems.isEmpty()) {
+                reqData.put("diffItems", diffItems);
+            }
+
+            java.util.List<Object> validArgs = new java.util.ArrayList<>();
+            if (args != null && args.length > 0) {
+                for (Object arg : args) {
+                    if (arg != null && !isFilterObject(arg)) {
+                        validArgs.add(arg);
+                    }
+                }
+            }
+
+            if (!reqData.isEmpty()) {
+                if (validArgs.size() == 1) {
+                    reqData.put("params", validArgs.get(0));
+                } else if (!validArgs.isEmpty()) {
+                    reqData.put("params", validArgs);
+                }
+                String jsonStr = objectMapper.writeValueAsString(reqData);
+                operLog.setOperParam(truncate(maskSensitive(jsonStr), 2000));
+            } else if (!validArgs.isEmpty()) {
+                StringBuilder params = new StringBuilder();
+                for (Object arg : validArgs) {
                     String jsonArg = objectMapper.writeValueAsString(arg);
                     params.append(maskSensitive(jsonArg)).append(' ');
                 }
+                operLog.setOperParam(truncate(params.toString().trim(), 2000));
             }
-            operLog.setOperParam(truncate(params.toString().trim(), 2000));
         } catch (Exception ex) {
             log.error("获取请求参数异常", ex);
         }

@@ -48,6 +48,8 @@ const LOGIN_DEFAULTS: LoginAdminConfig = {
   captchaType: 'image',
   smsLoginEnabled: false,
   smsLoginSliderCaptchaEnabled: false,
+  emailLoginEnabled: false,
+  emailLoginSliderCaptchaEnabled: false,
   rememberMe: true,
   maxRetryCount: 5,
   maxRetryCountIp: 20,

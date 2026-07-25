@@ -30,11 +30,20 @@
             账号登录
           </view>
           <view
+            v-if="smsLoginEnabled && smsEnabled"
             class="login-mode-switch__item"
             :class="{ 'login-mode-switch__item--active': loginMode === 'sms' }"
             @click="switchLoginMode('sms')"
           >
             短信登录
+          </view>
+          <view
+            v-if="emailLoginEnabled && emailEnabled"
+            class="login-mode-switch__item"
+            :class="{ 'login-mode-switch__item--active': loginMode === 'email' }"
+            @click="switchLoginMode('email')"
+          >
+            邮箱登录
           </view>
         </view>
 
@@ -72,7 +81,7 @@
           </view>
         </view>
 
-        <view v-else class="form-block">
+        <view v-else-if="loginMode === 'sms'" class="form-block">
           <AuthInput
             v-model="formData.phone"
             icon="phone-o"
@@ -100,6 +109,33 @@
           </view>
         </view>
 
+        <view v-else-if="loginMode === 'email'" class="form-block">
+          <AuthInput
+            v-model="formData.email"
+            icon="envelop-o"
+            custom-class="auth-anim"
+            placeholder="请输入绑定的邮箱地址"
+            :maxlength="60"
+          />
+          <view class="sms-row auth-anim auth-anim--2">
+            <AuthInput
+              v-model="formData.code"
+              icon="key"
+              custom-class="sms-input"
+              placeholder="请输入验证码"
+              :maxlength="6"
+            />
+            <button
+              class="sms-btn"
+              :disabled="!emailEnabled || sendingEmail || emailCountdown > 0"
+              :loading="sendingEmail"
+              @click="handleSendEmail"
+            >
+              {{ emailCountdown > 0 ? `${emailCountdown}s` : '获取验证码' }}
+            </button>
+          </view>
+        </view>
+
         <view class="remember-row auth-anim auth-anim--4">
           <label v-if="rememberMeEnabled" class="remember-label">
             <checkbox :checked="formData.rememberMe" @click="formData.rememberMe = !formData.rememberMe" />
@@ -122,7 +158,7 @@
 
     <SliderCaptcha
       v-model:show="showSliderModal"
-      :scene="sliderPurpose === 'sms' ? 'sms' : 'login'"
+      :scene="sliderPurpose"
       @success="onSliderSuccess"
     />
   </view>
@@ -155,6 +191,8 @@ const {
   appStore,
   captchaEnabled,
   captchaType,
+  smsLoginEnabled,
+  emailLoginEnabled,
   loginMode,
   rememberMeEnabled,
   registerEnabled,
@@ -165,14 +203,18 @@ const {
   passwordFieldKey,
   loading,
   sendingSms,
+  sendingEmail,
   smsCountdown,
+  emailCountdown,
   smsEnabled,
+  emailEnabled,
   showLoginModeSwitch,
   loadConfig,
   refreshCaptcha,
   restoreRemember,
   switchLoginMode,
   handleSendSms,
+  handleSendEmail,
   handleSubmit,
   onSliderSuccess,
   goRegister,

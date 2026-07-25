@@ -68,7 +68,7 @@
 
       <!-- 登录 -->
       <view v-else-if="tab === 'login'" class="form-panel">
-        <FormCell label="启用验证码" switch-cell>
+        <FormCell label="登录人机校检" switch-cell>
           <switch :checked="loginDraft.captchaEnabled" :disabled="!canEdit" @change="onLoginSwitch('captchaEnabled', $event)" />
         </FormCell>
         <FormCell v-if="loginDraft.captchaEnabled" label="验证码类型">
@@ -86,6 +86,15 @@
         </FormCell>
         <view v-if="loginDraft.smsLoginEnabled && !smsDraft.enabled" class="config-warn">
           <text>请先在「短信」中开启短信功能，否则无法保存</text>
+        </view>
+        <FormCell label="邮箱验证码登录" switch-cell>
+          <switch :checked="loginDraft.emailLoginEnabled" :disabled="!canEdit" @change="onLoginSwitch('emailLoginEnabled', $event)" />
+        </FormCell>
+        <FormCell v-if="loginDraft.emailLoginEnabled" label="邮箱发送前滑块" switch-cell>
+          <switch :checked="loginDraft.emailLoginSliderCaptchaEnabled" :disabled="!canEdit" @change="onLoginSwitch('emailLoginSliderCaptchaEnabled', $event)" />
+        </FormCell>
+        <view v-if="loginDraft.emailLoginEnabled && !emailDraft.enabled" class="config-warn">
+          <text>请先在「邮件」中开启邮件功能，否则无法保存</text>
         </view>
         <FormCell label="记住我" switch-cell>
           <switch :checked="loginDraft.rememberMe" :disabled="!canEdit" @change="onLoginSwitch('rememberMe', $event)" />
@@ -492,6 +501,7 @@ import AppDialogHost from '@/components/common/AppDialogHost/index.vue'
 import { useConfigEditor } from '@/composables/useConfigEditor'
 import { useUnsavedLeaveGuard } from '@/composables/useUnsavedLeaveGuard'
 import { useModulePermission } from '@/composables/useModulePermission'
+import type { EmailAdminConfig } from '@/types/config-types'
 import { showActionSheet } from '@/utils/app-dialog'
 import { appendNavFromParam } from '@/utils/nav-from'
 import { consumePagePickerResult, clearPagePickerResult } from '@/utils/page-picker-result'
@@ -623,7 +633,7 @@ function pickEmailProvider() {
   pickFromOptions(emailProviderOptions.map((o) => o.label), (i) => {
     const item = emailProviderOptions[i]
     if (item) {
-      emailDraft.provider = item.value
+      emailDraft.provider = item.value as 'qq' | '163' | 'gmail' | 'custom'
       const saved = savedSnapshot.email as EmailAdminConfig | undefined
       // 如果切回当前数据库已保存绑定的服务商，恢复原保存的账号与授权码
       if (saved && item.value && item.value === saved.provider) {

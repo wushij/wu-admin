@@ -1,7 +1,7 @@
 import { ref, reactive, computed, onUnmounted } from 'vue'
 import { useUserStore } from '@/store/user'
 import { useAppStore } from '@/store/app'
-import { getCaptcha, getConfig, sendSmsCode } from '@/api/system/auth'
+import { getCaptcha, getConfig, sendSmsCode, sendEmailCode } from '@/api/system/auth'
 import type { LoginForm } from '@/types/api'
 import { sliderVerifyToRequest } from '@/utils/slider-captcha'
 import type { SliderVerifyPayload } from '@/utils/slider-captcha'
@@ -16,8 +16,8 @@ import { navigateToRegister } from '@/utils/auth-route'
 import { logger } from '@/utils/logger'
 
 type CaptchaMode = 'image' | 'slider'
-type LoginMode = 'account' | 'sms'
-type SliderPurpose = 'login' | 'sms'
+type LoginMode = 'account' | 'sms' | 'email'
+type SliderPurpose = 'login' | 'sms' | 'email'
 
 export function useLoginForm() {
   const userStore = useUserStore()
@@ -27,8 +27,11 @@ export function useLoginForm() {
   const captchaType = ref<CaptchaMode>('image')
   const smsLoginEnabled = ref(false)
   const smsLoginSliderCaptchaEnabled = ref(false)
+  const emailLoginEnabled = ref(false)
+  const emailLoginSliderCaptchaEnabled = ref(false)
   const loginMode = ref<LoginMode>('account')
   const smsEnabled = ref(true)
+  const emailEnabled = ref(true)
   const rememberMeEnabled = ref(true)
   const registerEnabled = ref(true)
   const showSliderModal = ref(false)
@@ -41,18 +44,24 @@ export function useLoginForm() {
 
   const loading = ref(false)
   const sendingSms = ref(false)
+  const sendingEmail = ref(false)
   const smsCountdown = ref(0)
+  const emailCountdown = ref(0)
   let smsTimer: ReturnType<typeof setInterval> | null = null
+  let emailTimer: ReturnType<typeof setInterval> | null = null
 
   const formData = reactive({
     username: '',
     password: '',
     phone: '',
+    email: '',
     code: '',
     rememberMe: false,
   })
 
-  const showLoginModeSwitch = computed(() => smsLoginEnabled.value && smsEnabled.value)
+  const showLoginModeSwitch = computed(
+    () => (smsLoginEnabled.value && smsEnabled.value) || (emailLoginEnabled.value && emailEnabled.value),
+  )
 
   function parseCaptchaMode(value: string | undefined): CaptchaMode {
     return value === 'slider' ? 'slider' : 'image'
@@ -60,12 +69,9 @@ export function useLoginForm() {
 
   function switchLoginMode(mode: LoginMode) {
     loginMode.value = mode
-    if (mode === 'account') {
-      formData.phone = ''
-      formData.code = ''
-    } else {
-      formData.code = ''
-    }
+    formData.phone = ''
+    formData.email = ''
+    formData.code = ''
   }
 
   async function loadConfig() {
@@ -77,7 +83,10 @@ export function useLoginForm() {
       captchaType.value = parseCaptchaMode(login?.captchaType)
       smsLoginEnabled.value = !!login?.smsLoginEnabled
       smsLoginSliderCaptchaEnabled.value = !!login?.smsLoginSliderCaptchaEnabled
+      emailLoginEnabled.value = login?.emailLoginEnabled === true && login?.emailEnabled !== false
+      emailLoginSliderCaptchaEnabled.value = !!login?.emailLoginSliderCaptchaEnabled
       smsEnabled.value = login?.smsEnabled !== false
+      emailEnabled.value = login?.emailEnabled !== false
       rememberMeEnabled.value = login?.rememberMe !== false
       registerEnabled.value = register?.enabled !== false
     } catch {
@@ -99,7 +108,9 @@ export function useLoginForm() {
   function restoreRemember() {
     const saved = loadLoginRemember()
     if (!saved) return
-    loginMode.value = saved.mode
+    if (saved.mode === 'account' || saved.mode === 'sms' || saved.mode === 'email') {
+      loginMode.value = saved.mode as LoginMode
+    }
     formData.rememberMe = true
     if (saved.username) formData.username = saved.username
     if (saved.password) {
@@ -121,12 +132,14 @@ export function useLoginForm() {
         username: formData.username,
         password: formData.password,
       })
-    } else {
+    } else if (loginMode.value === 'sms') {
       saveLoginRemember({
         mode: 'sms',
         rememberMe: true,
         phone: formData.phone,
       })
+    } else {
+      clearLoginRemember()
     }
   }
 
@@ -139,6 +152,10 @@ export function useLoginForm() {
     const slider = sliderVerifyToRequest(payload)
     if (sliderPurpose.value === 'sms') {
       await doSendSms(slider)
+      return
+    }
+    if (sliderPurpose.value === 'email') {
+      await doSendEmail(slider)
       return
     }
     await submitLogin(slider)
@@ -199,6 +216,61 @@ export function useLoginForm() {
     await doSendSms()
   }
 
+  async function doSendEmail(slider?: { uuid: string; code: string }) {
+    if (sendingEmail.value || emailCountdown.value > 0) return
+    const email = formData.email.trim()
+    if (!email) {
+      uni.showToast({ title: '请输入邮箱地址', icon: 'none' })
+      return
+    }
+    if (!/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(email)) {
+      uni.showToast({ title: '请输入正确的邮箱地址', icon: 'none' })
+      return
+    }
+    if (!emailEnabled.value) {
+      uni.showToast({ title: '邮件功能未启用', icon: 'none' })
+      return
+    }
+    sendingEmail.value = true
+    try {
+      await sendEmailCode(formData.email, slider)
+      uni.showToast({ title: '验证码已发送', icon: 'success' })
+      emailCountdown.value = 60
+      emailTimer = setInterval(() => {
+        emailCountdown.value -= 1
+        if (emailCountdown.value <= 0 && emailTimer) {
+          clearInterval(emailTimer)
+          emailTimer = null
+        }
+      }, 1000)
+    } catch (e) {
+      logger.error(e)
+    } finally {
+      sendingEmail.value = false
+    }
+  }
+
+  async function handleSendEmail() {
+    const email = formData.email.trim()
+    if (!email) {
+      uni.showToast({ title: '请输入邮箱地址', icon: 'none' })
+      return
+    }
+    if (!/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(email)) {
+      uni.showToast({ title: '请输入正确的邮箱地址', icon: 'none' })
+      return
+    }
+    if (!emailEnabled.value) {
+      uni.showToast({ title: '邮件功能未启用', icon: 'none' })
+      return
+    }
+    if (emailLoginSliderCaptchaEnabled.value) {
+      openSlider('email')
+      return
+    }
+    await doSendEmail()
+  }
+
   function validateForm(): boolean {
     if (loginMode.value === 'account') {
       if (!formData.username.trim()) {
@@ -209,7 +281,7 @@ export function useLoginForm() {
         uni.showToast({ title: '请输入密码', icon: 'none' })
         return false
       }
-    } else {
+    } else if (loginMode.value === 'sms') {
       if (!formData.phone.trim()) {
         uni.showToast({ title: '请输入手机号', icon: 'none' })
         return false
@@ -220,6 +292,19 @@ export function useLoginForm() {
       }
       if (!formData.code.trim()) {
         uni.showToast({ title: '请输入短信验证码', icon: 'none' })
+        return false
+      }
+    } else if (loginMode.value === 'email') {
+      if (!formData.email.trim()) {
+        uni.showToast({ title: '请输入邮箱地址', icon: 'none' })
+        return false
+      }
+      if (!/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(formData.email.trim())) {
+        uni.showToast({ title: '请输入正确的邮箱地址', icon: 'none' })
+        return false
+      }
+      if (!formData.code.trim()) {
+        uni.showToast({ title: '请输入邮箱验证码', icon: 'none' })
         return false
       }
     }
@@ -247,10 +332,14 @@ export function useLoginForm() {
             loginData.code = formData.code
           }
         }
-      } else {
+      } else if (loginMode.value === 'sms') {
         loginData.loginType = 'sms'
         loginData.phone = formData.phone
         loginData.code = formData.code
+      } else if (loginMode.value === 'email') {
+        loginData.loginType = 'email'
+        loginData.email = formData.email
+        loginData.emailCode = formData.code
       }
 
       await userStore.loginAction(loginData)
@@ -289,6 +378,7 @@ export function useLoginForm() {
 
   onUnmounted(() => {
     if (smsTimer) clearInterval(smsTimer)
+    if (emailTimer) clearInterval(emailTimer)
   })
 
   return {
@@ -296,6 +386,7 @@ export function useLoginForm() {
     captchaEnabled,
     captchaType,
     smsLoginEnabled,
+    emailLoginEnabled,
     loginMode,
     rememberMeEnabled,
     registerEnabled,
@@ -306,14 +397,18 @@ export function useLoginForm() {
     passwordFieldKey,
     loading,
     sendingSms,
+    sendingEmail,
     smsCountdown,
+    emailCountdown,
     smsEnabled,
+    emailEnabled,
     showLoginModeSwitch,
     loadConfig,
     refreshCaptcha,
     restoreRemember,
     switchLoginMode,
     handleSendSms,
+    handleSendEmail,
     handleSubmit,
     onSliderSuccess,
     goRegister,

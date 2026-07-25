@@ -37,6 +37,7 @@ public class SystemConfigHelper {
     public static final String SLIDER_VERIFIED_CODE = "slider_verified";
     public static final String LOGIN_TYPE_ACCOUNT = "account";
     public static final String LOGIN_TYPE_SMS = "sms";
+    public static final String LOGIN_TYPE_EMAIL = "email";
 
     /** 平台级上传上限（MB），与 spring.servlet.multipart 一致，后台配置不得超过此值 */
     public static final int PLATFORM_MAX_FILE_MB = 500;
@@ -193,6 +194,24 @@ public class SystemConfigHelper {
             return false;
         }
         return login.getBool("smsLoginSliderCaptchaEnabled", false);
+    }
+
+    /** 是否开启邮箱验证码快捷登录 */
+    public boolean isEmailLoginEnabled() {
+        if (!isEmailEnabled()) {
+            return false;
+        }
+        JSONObject login = getGroupJson(GROUP_LOGIN);
+        return login.getBool("emailLoginEnabled", false);
+    }
+
+    /** 邮箱登录获取验证码前是否需滑块验证 */
+    public boolean isEmailLoginSliderCaptchaEnabled() {
+        JSONObject login = getGroupJson(GROUP_LOGIN);
+        if (!isEmailLoginEnabled()) {
+            return false;
+        }
+        return login.getBool("emailLoginSliderCaptchaEnabled", false);
     }
 
     public boolean isRememberMeEnabled() {
@@ -553,11 +572,14 @@ public class SystemConfigHelper {
         login.put("captchaType", getCaptchaType());
         login.put("smsLoginEnabled", isSmsLoginEnabled());
         login.put("smsLoginSliderCaptchaEnabled", isSmsLoginSliderCaptchaEnabled());
+        login.put("emailLoginEnabled", isEmailLoginEnabled());
+        login.put("emailLoginSliderCaptchaEnabled", isEmailLoginSliderCaptchaEnabled());
         login.put("rememberMe", loginJson.getBool("rememberMe", true));
         login.put("maxRetryCount", getMaxRetryCount());
         login.put("maxRetryCountIp", getMaxRetryCountIp());
         login.put("lockTime", getLockTimeMinutes());
         login.put("smsEnabled", isSmsEnabled());
+        login.put("emailEnabled", isEmailEnabled());
         result.put("login", login);
 
         Map<String, Object> register = new HashMap<>();

@@ -12,8 +12,11 @@ export interface LoginConfig {
   captchaType?: string
   smsLoginEnabled?: boolean
   smsLoginSliderCaptchaEnabled?: boolean
+  emailLoginEnabled?: boolean
+  emailLoginSliderCaptchaEnabled?: boolean
   rememberMe?: boolean
   smsEnabled?: boolean
+  emailEnabled?: boolean
 }
 
 export interface RegisterConfig {
@@ -67,6 +70,8 @@ export interface LoginAdminConfig {
   captchaType: string
   smsLoginEnabled: boolean
   smsLoginSliderCaptchaEnabled: boolean
+  emailLoginEnabled?: boolean
+  emailLoginSliderCaptchaEnabled?: boolean
   rememberMe: boolean
   maxRetryCount: number
   maxRetryCountIp: number
@@ -176,6 +181,19 @@ export interface SmsLogRecord {
   createTime: string
 }
 
+export interface EmailLogRecord {
+  id?: number
+  email: string
+  subject?: string
+  content?: string
+  scene?: string
+  provider?: string
+  status: number
+  resultMsg?: string
+  ip?: string
+  createTime?: string
+}
+
 export interface EmailConfig {
   enabled: boolean
   provider: 'qq' | '163' | 'gmail' | 'custom'
@@ -233,3 +251,4 @@ export interface PayOrderRecord {
   createTime?: string
   paidTime?: string
 }
+

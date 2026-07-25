@@ -17,10 +17,12 @@ export interface PageResult<T> {
 }
 
 export interface LoginForm {
-  loginType?: 'account' | 'sms'
+  loginType?: 'account' | 'sms' | 'email'
   username?: string
   password?: string
   phone?: string
+  email?: string
+  emailCode?: string
   uuid?: string
   code?: string
   rememberMe?: boolean

@@ -1,5 +1,6 @@
 package com.admin.server.modules.system.service.auth;
 
+import com.admin.server.modules.system.api.auth.vo.EmailCodeReqVO;
 import com.admin.server.modules.system.api.auth.vo.LoginReqVO;
 import com.admin.server.modules.system.api.auth.vo.RegisterReqVO;
 import com.admin.server.modules.system.api.auth.vo.SmsCodeReqVO;
@@ -26,6 +27,12 @@ public interface AuthService {
 
     /** 发送登录短信验证码 */
     void sendSmsCode(SmsCodeReqVO reqVO, String clientIp);
+
+    /** 邮箱验证码登录 */
+    Map<String, Object> loginByEmail(LoginReqVO reqVO, String clientIp, String userAgent);
+
+    /** 发送登录邮箱验证码 */
+    void sendEmailCode(EmailCodeReqVO reqVO, String clientIp);
 
     /** 核验短信验证码 */
     boolean verifySmsCode(SmsCodeVerifyReqVO reqVO);

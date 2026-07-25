@@ -5,12 +5,14 @@ import lombok.Data;
 
 @Data
 public class LoginReqVO {
-    /** account | sms */
+    /** account | sms | email */
     private String loginType;
     private String username;
     private String password;
     @Pattern(regexp = "^1[3-9]\\d{9}$", message = "手机号格式不正确")
     private String phone;
+    private String email;
+    private String emailCode;
     private String uuid;
     private String code;
 }

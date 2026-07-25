@@ -139,8 +139,8 @@
 
         <!-- 测试发送邮件 -->
         <el-card shadow="never" class="sms-section-card" style="margin-top: 16px;">
-          <template #header><span class="sms-card-title">在线测试发送邮件</span></template>
-          <el-form label-width="80px" class="sms-test-form" autocomplete="off" @submit.prevent>
+          <template #header><span class="sms-card-title">测试发送</span></template>
+          <el-form label-width="72px" class="sms-test-form" autocomplete="off" @submit.prevent>
             <el-form-item label="接收邮箱">
               <div class="sms-test-row">
                 <el-input v-model="testEmail" name="email-test-to" autocomplete="off" placeholder="请输入接收测试邮件的邮箱" maxlength="100" />
@@ -149,6 +149,27 @@
             </el-form-item>
           </el-form>
           <el-alert type="info" :closable="false" show-icon title="发送一条测试报文到该邮箱，验证 SMTP 连通性、账号密码及安全端口。" />
+        </el-card>
+
+        <!-- 邮件发送记录 -->
+        <el-card shadow="never" class="sms-section-card" style="margin-top: 16px;">
+          <template #header>
+            <div class="sms-log-header">
+              <span class="sms-card-title">发送记录</span>
+              <el-button link type="primary" @click="$emit('showAllEmailLogs')">查看全部</el-button>
+            </div>
+          </template>
+          <el-table v-if="recentEmailLogs.length" :data="recentEmailLogs" size="small" stripe>
+            <el-table-column prop="email" label="接收邮箱" min-width="140" show-overflow-tooltip />
+            <el-table-column prop="content" label="验证码/摘要" width="100" show-overflow-tooltip />
+            <el-table-column label="状态" width="72">
+              <template #default="{ row }">
+                <el-tag :type="emailStatusTagType(row.status)" size="small">{{ emailStatusText(row.status) }}</el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column prop="createTime" label="时间" width="140" show-overflow-tooltip />
+          </el-table>
+          <el-empty v-else description="暂无发送记录" :image-size="64" />
         </el-card>
       </div>
     </div>
@@ -160,6 +181,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import type { EmailLogRecord } from '@/types/config'
 
 const props = defineProps<{
   draft: {
@@ -192,10 +214,14 @@ const props = defineProps<{
   }
   canEdit: boolean
   emailTesting: boolean
+  recentEmailLogs: EmailLogRecord[]
+  emailStatusText: (status: number) => string
+  emailStatusTagType: (status: number) => 'success' | 'danger' | 'warning'
 }>()
 
 defineEmits<{
   testEmail: [toEmail: string]
+  showAllEmailLogs: []
 }>()
 
 const testEmail = ref('')

@@ -8,6 +8,7 @@ import com.admin.server.common.pojo.BusinessException;
 import com.admin.server.common.util.IpLocationUtils;
 import com.admin.server.common.util.UserAgentUtils;
 import com.admin.server.framework.security.core.service.TokenService;
+import com.admin.server.modules.system.api.auth.vo.EmailCodeReqVO;
 import com.admin.server.modules.system.api.auth.vo.LoginReqVO;
 import com.admin.server.modules.system.api.auth.vo.RegisterReqVO;
 import com.admin.server.modules.system.api.auth.vo.SmsCodeReqVO;
@@ -22,6 +23,7 @@ import com.admin.server.modules.system.service.auth.AuthService;
 import com.admin.server.modules.system.service.auth.LoginLockService;
 import com.admin.server.modules.system.service.auth.SliderCaptchaService;
 import com.admin.server.modules.system.service.config.SystemConfigHelper;
+import com.admin.server.modules.system.service.email.EmailCodeService;
 import com.admin.server.modules.system.service.loginlog.LoginLogService;
 import com.admin.server.modules.system.service.monitor.OnlineUserService;
 import com.admin.server.modules.system.service.permission.PermissionService;
@@ -65,6 +67,7 @@ public class AuthServiceImpl implements AuthService {
     @Resource private AliyunDypnsSmsVerifyService aliyunDypnsSmsVerifyService;
     @Resource private LoginLockService loginLockService;
     @Resource private SliderCaptchaService sliderCaptchaService;
+    @Resource private EmailCodeService emailCodeService;
 
     private static final String CAPTCHA_KEY = "captcha:";
     private static final String SMS_CODE_KEY = "sms:login:";
@@ -225,6 +228,86 @@ public class AuthServiceImpl implements AuthService {
         }
         setWithTtl(redissonClient.getBucket(SMS_CODE_KEY + phone), code, 5, TimeUnit.MINUTES);
         recordSmsSendOnSuccess(phone, clientIp);
+    }
+
+    @Override
+    public Map<String, Object> loginByEmail(LoginReqVO reqVO, String clientIp, String userAgent) {
+        if (!systemConfigHelper.isEmailEnabled()) {
+            throw new BusinessException(400, "邮件服务未启用");
+        }
+        if (!systemConfigHelper.isEmailLoginEnabled()) {
+            throw new BusinessException(400, "当前未启用邮箱快捷登录");
+        }
+        String email = reqVO.getEmail() == null ? "" : reqVO.getEmail().trim();
+        if (!email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$")) {
+            throw new BusinessException(400, "请输入正确的邮箱地址");
+        }
+        String code = reqVO.getEmailCode() == null ? "" : reqVO.getEmailCode().trim();
+        if (code.isEmpty()) {
+            throw new BusinessException(400, "请输入邮箱验证码");
+        }
+        UserDO user = findUserByEmail(email);
+        String username = user != null ? user.getUsername() : email;
+
+        String rlMsg = rateLimitByIp(clientIp, "login", systemConfigHelper.getLoginPerIpMinute());
+        if (rlMsg != null) {
+            recordLoginLog(null, username, 1, rlMsg, clientIp, userAgent);
+            throw new BusinessException(429, rlMsg);
+        }
+        String lockMessage = loginLockService.checkLoginLockMessage(username, clientIp);
+        if (lockMessage != null) {
+            recordLoginLog(null, username, 1, lockMessage, clientIp, userAgent);
+            throw new BusinessException(429, lockMessage);
+        }
+        String verifyErr = emailCodeService.verifyEmailCode(email, code);
+        if (verifyErr != null) {
+            loginLockService.recordLoginFailure(username, clientIp);
+            recordLoginLog(null, username, 1, verifyErr, clientIp, userAgent);
+            throw new BusinessException(400, verifyErr);
+        }
+        if (user == null) {
+            loginLockService.recordLoginFailure(username, clientIp);
+            recordLoginLog(null, username, 1, "该邮箱未绑定任何账号", clientIp, userAgent);
+            throw new BusinessException(400, "该邮箱未绑定任何账号");
+        }
+        String statusErr = checkUserLoginStatus(user);
+        if (statusErr != null) {
+            recordLoginLog(user.getId(), username, 1, statusErr, clientIp, userAgent);
+            throw new BusinessException(403, statusErr);
+        }
+        return completeLogin(user, clientIp, userAgent);
+    }
+
+    @Override
+    public void sendEmailCode(EmailCodeReqVO reqVO, String clientIp) {
+        if (!systemConfigHelper.isEmailEnabled()) {
+            throw new BusinessException(400, "邮件服务未启用，请联系管理员");
+        }
+        if (!systemConfigHelper.isEmailLoginEnabled()) {
+            throw new BusinessException(400, "当前未启用邮箱快捷登录");
+        }
+        String email = reqVO.getEmail() == null ? "" : reqVO.getEmail().trim();
+        if (!email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$")) {
+            throw new BusinessException(400, "请输入正确的邮箱地址");
+        }
+        String rlMsg = rateLimitByIp(clientIp, "email-code", systemConfigHelper.getCaptchaPerIpMinute());
+        if (rlMsg != null) {
+            throw new BusinessException(429, rlMsg);
+        }
+        UserDO user = findUserByEmail(email);
+        if (user == null) {
+            throw new BusinessException(400, "该邮箱未绑定任何账号，请先在系统内绑定邮箱");
+        }
+        if (systemConfigHelper.isEmailLoginSliderCaptchaEnabled()) {
+            String sliderErr = sliderCaptchaService.verifyAndConsume(reqVO.getUuid(), reqVO.getCode());
+            if (sliderErr != null) {
+                throw new BusinessException(400, sliderErr);
+            }
+        }
+        String err = emailCodeService.sendEmailCode(email, "login");
+        if (err != null) {
+            throw new BusinessException(400, err);
+        }
     }
 
     @Override
@@ -514,5 +597,12 @@ public class AuthServiceImpl implements AuthService {
             roleIds.add(defaultRole.getId());
             permissionService.assignUserRole(user.getId(), roleIds);
         }
+    }
+
+    private UserDO findUserByEmail(String email) {
+        if (StringUtils.hasText(email)) {
+            return userMapper.selectOne(new LambdaQueryWrapper<UserDO>().eq(UserDO::getEmail, email.trim()));
+        }
+        return null;
     }
 }
