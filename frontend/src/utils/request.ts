@@ -5,6 +5,7 @@ import type { ApiResult } from '@/types/api'
 import { isApiSuccessCode } from '@/utils/api-response'
 import { getErrorMessage, markErrorToastShown } from '@/utils/axiosError'
 import { useUserStore } from '@/store/user'
+import { generateNonce, getTimestamp, encryptSm4, decryptSm4, signSm2 } from '@/utils/crypto'
 
 export type { ApiResult } from '@/types/api'
 export { getErrorMessage, isErrorToastShown } from '@/utils/axiosError'
@@ -64,7 +65,39 @@ const service: AxiosInstance = axios.create({
 })
 
 service.interceptors.request.use(
-  (config) => config,
+  (config) => {
+    // 自动植入时间戳与 Nonce 防重放 Request Headers
+    const timestamp = getTimestamp()
+    const nonce = generateNonce()
+
+    config.headers['X-Timestamp'] = timestamp
+    config.headers['X-Nonce'] = nonce
+
+    // 读取客户端配置或 SessionStorage 中的安全策略（如从安全配置中读出的配置）
+    const secConfig = (window as unknown as { __WU_ADMIN_SECURITY__?: {
+      sm4EncryptEnabled?: boolean
+      sm2SignEnabled?: boolean
+      sm4Key?: string
+      sm2PrivateKey?: string
+    } }).__WU_ADMIN_SECURITY__ || {}
+
+    if (secConfig.sm4EncryptEnabled && config.data) {
+      const plainStr = typeof config.data === 'string' ? config.data : JSON.stringify(config.data)
+      config.data = encryptSm4(plainStr, secConfig.sm4Key || 'WuAdmin16BytesKey')
+      config.headers['X-Encrypted'] = '1'
+    }
+
+    if (secConfig.sm2SignEnabled && secConfig.sm2PrivateKey) {
+      const bodyStr = typeof config.data === 'string' ? config.data : (config.data ? JSON.stringify(config.data) : '')
+      const signContent = `${config.method?.toUpperCase()}\n${config.url || ''}\n${timestamp}\n${nonce}\n${bodyStr}`
+      const signature = signSm2(signContent, secConfig.sm2PrivateKey)
+      if (signature) {
+        config.headers['X-Signature'] = signature
+      }
+    }
+
+    return config
+  },
   (error) => {
     console.error('请求错误:', error)
     return Promise.reject(error)
@@ -73,6 +106,17 @@ service.interceptors.request.use(
 
 service.interceptors.response.use(
   (response: AxiosResponse) => {
+    // 若响应标明 SM4 加密，自动解密
+    if (response?.headers?.['x-encrypted'] === '1' && typeof response.data === 'string') {
+      const secConfig = (window as unknown as { __WU_ADMIN_SECURITY__?: { sm4Key?: string } }).__WU_ADMIN_SECURITY__ || {}
+      const plainJson = decryptSm4(response.data, secConfig.sm4Key || 'WuAdmin16BytesKey')
+      try {
+        response.data = JSON.parse(plainJson)
+      } catch {
+        response.data = plainJson
+      }
+    }
+
     const res = response.data
     const { code, message } = res
 

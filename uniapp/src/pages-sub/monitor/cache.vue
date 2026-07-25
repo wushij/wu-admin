@@ -252,7 +252,7 @@ import { showConfirm } from '@/utils/app-dialog'
 import { showSuccessToast } from '@/utils/app-toast'
 import type { CacheKeyItem, CacheKeysResult } from '@/types/system'
 
-const { allowed, hasPerm } = useModulePermission('monitor:cache:list')
+const { allowed, hasPerm } = useModulePermission('monitor:cache:query')
 const canDelete = computed(() => hasPerm('monitor:cache:delete'))
 
 const {
@@ -428,13 +428,20 @@ onPullDownRefresh(async () => {
   display: flex;
   flex-direction: column;
   height: 100vh;
+  /* #ifdef H5 */
+  height: calc(100vh - var(--window-top, 0px));
+  /* #endif */
   box-sizing: border-box;
+  overflow: hidden;
 }
 
 .page-list__scroll {
   flex: 1;
   min-height: 0;
-  padding-bottom: 32rpx;
+
+  :deep(.uni-scroll-view-content) {
+    padding-bottom: calc(160rpx + env(safe-area-inset-bottom));
+  }
 }
 
 .cache-tabs {

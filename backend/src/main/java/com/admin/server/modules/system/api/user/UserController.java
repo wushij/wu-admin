@@ -1,13 +1,11 @@
 package com.admin.server.modules.system.api.user;
 
 import com.admin.server.framework.log.annotation.Log;
-import com.admin.server.common.core.CommonResult;
-import com.admin.server.common.core.PageParam;
-import com.admin.server.common.core.PageResult;
-import com.admin.server.common.util.BeanMappingUtils;
+import com.admin.server.common.pojo.CommonResult;
+import com.admin.server.common.pojo.PageParam;
+import com.admin.server.common.pojo.PageResult;
 import com.admin.server.modules.system.api.user.vo.AssignRoleReqVO;
 import com.admin.server.modules.system.api.user.vo.UserCreateReqVO;
-import com.admin.server.modules.system.api.user.vo.UserRespVO;
 import com.admin.server.modules.system.api.user.vo.UserUpdateReqVO;
 import com.admin.server.modules.system.dal.dataobject.user.UserDO;
 import com.admin.server.modules.system.service.user.UserService;
@@ -32,15 +30,14 @@ public class UserController {
     @Operation(summary = "获取用户列表")
     @GetMapping("/list")
     @PreAuthorize("@ss.hasRead('system:user:list')")
-    public CommonResult<List<UserRespVO>> list() {
-        List<UserDO> list = userService.listAll();
-        return CommonResult.success(BeanMappingUtils.copyListProperties(list, UserRespVO.class));
+    public CommonResult<List<UserDO>> list() {
+        return CommonResult.success(userService.listAll());
     }
 
     @Operation(summary = "获取用户分页")
     @GetMapping("/page")
     @PreAuthorize("@ss.hasRead('system:user:list')")
-    public CommonResult<PageResult<UserRespVO>> page(PageParam pageParam,
+    public CommonResult<PageResult<UserDO>> page(PageParam pageParam,
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String username,
             @RequestParam(required = false) String mobile,
@@ -48,16 +45,14 @@ public class UserController {
             @RequestParam(required = false) Long deptId,
             @RequestParam(required = false) Long postId,
             @RequestParam(required = false) Boolean loginLocked) {
-        PageResult<UserDO> page = userService.page(pageParam, keyword, username, mobile, status, deptId, postId, loginLocked);
-        return CommonResult.success(BeanMappingUtils.copyPageProperties(page, UserRespVO.class));
+        return CommonResult.success(userService.page(pageParam, keyword, username, mobile, status, deptId, postId, loginLocked));
     }
 
     @Operation(summary = "获取用户详情")
     @GetMapping("/get")
     @PreAuthorize("@ss.hasPermission('system:user:query')")
-    public CommonResult<UserRespVO> get(@RequestParam Long id) {
-        UserDO user = userService.getDetail(id);
-        return CommonResult.success(BeanMappingUtils.copyProperties(user, UserRespVO.class));
+    public CommonResult<UserDO> get(@RequestParam Long id) {
+        return CommonResult.success(userService.getDetail(id));
     }
 
     @Log(title = "用户管理", businessType = Log.BusinessType.INSERT, isSaveRequestData = false)
@@ -89,13 +84,12 @@ public class UserController {
     @Operation(summary = "用户回收站分页")
     @GetMapping("/recycle/page")
     @PreAuthorize("@ss.hasRecycleRead()")
-    public CommonResult<PageResult<UserRespVO>> recyclePage(PageParam pageParam,
+    public CommonResult<PageResult<UserDO>> recyclePage(PageParam pageParam,
             @RequestParam(required = false) String username,
             @RequestParam(required = false) String mobile,
             @RequestParam(required = false) Integer status,
             @RequestParam(required = false) Long deptId) {
-        PageResult<UserDO> page = userService.recyclePage(pageParam, username, mobile, status, deptId);
-        return CommonResult.success(BeanMappingUtils.copyPageProperties(page, UserRespVO.class));
+        return CommonResult.success(userService.recyclePage(pageParam, username, mobile, status, deptId));
     }
 
     @Operation(summary = "恢复用户")

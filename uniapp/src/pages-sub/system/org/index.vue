@@ -11,6 +11,7 @@
     </ModuleDarkHero>
 
     <SegmentTabs v-model="mode" :tabs="tabs" compact />
+    <SegmentTabs v-model="statusMode" :tabs="statusTabs" compact />
 
     <scroll-view scroll-y class="org-page__scroll">
       <view v-if="rows.length" class="org-tree card--elevated">
@@ -75,11 +76,22 @@ const tabs = [
 const { allowed, hasPerm } = useModulePermission('system:dept:list')
 
 const mode = ref<'dept' | 'post'>('dept')
+const statusMode = ref<'all' | '1' | '0'>('all')
+const statusTabs = [
+  { key: 'all', label: '全部' },
+  { key: '1', label: '启用' },
+  { key: '0', label: '停用' },
+]
 const deptRows = ref<FlatTreeNode[]>([])
 const postRows = ref<FlatTreeNode[]>([])
 const loading = ref(false)
 
-const rows = computed(() => (mode.value === 'dept' ? deptRows.value : postRows.value))
+const rows = computed(() => {
+  const base = mode.value === 'dept' ? deptRows.value : postRows.value
+  const s = statusMode.value
+  if (s === 'all') return base
+  return base.filter((n) => (n.status ?? 1) === Number(s))
+})
 
 const canCreate = computed(() =>
   mode.value === 'dept' ? hasPerm('system:dept:create') : hasPerm('system:post:create'),
@@ -184,13 +196,24 @@ onPullDownRefresh(async () => {
 @use '@/styles/common.scss' as *;
 
 .org-page {
-  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  /* #ifdef H5 */
+  height: calc(100vh - var(--window-top, 0px));
+  /* #endif */
   box-sizing: border-box;
+  overflow: hidden;
   background: $color-bg-page;
 }
 
 .org-page__scroll {
-  height: calc(100vh - 300rpx);
+  flex: 1;
+  min-height: 0;
+
+  :deep(.uni-scroll-view-content) {
+    padding-bottom: calc(160rpx + env(safe-area-inset-bottom));
+  }
 }
 
 .org-tree {

@@ -90,7 +90,14 @@ export function useUserPage() {
   })
 
   const rules = {
-    username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
+    username: [
+      { required: true, message: '请输入用户名', trigger: 'blur' },
+      {
+        pattern: /^[a-zA-Z0-9_]{4,12}$/,
+        message: '用户名只能包含字母、数字、下划线，长度4-12位',
+        trigger: 'blur',
+      },
+    ],
     nickname: [{ required: true, message: '请输入昵称', trigger: 'blur' }],
     password: [{ required: true, message: '请输入密码', trigger: 'blur' }],
   }

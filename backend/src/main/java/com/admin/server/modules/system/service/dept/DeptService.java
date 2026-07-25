@@ -1,7 +1,7 @@
 package com.admin.server.modules.system.service.dept;
 
-import com.admin.server.common.core.PageParam;
-import com.admin.server.common.core.PageResult;
+import com.admin.server.common.pojo.PageParam;
+import com.admin.server.common.pojo.PageResult;
 import com.admin.server.modules.system.dal.dataobject.dept.DeptDO;
 
 import java.util.List;

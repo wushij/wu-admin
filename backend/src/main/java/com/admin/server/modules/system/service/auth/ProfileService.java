@@ -1,7 +1,7 @@
 package com.admin.server.modules.system.service.auth;
 
-import com.admin.server.common.core.PageParam;
-import com.admin.server.common.core.PageResult;
+import com.admin.server.common.pojo.PageParam;
+import com.admin.server.common.pojo.PageResult;
 import com.admin.server.modules.system.api.auth.vo.*;
 import com.admin.server.modules.system.dal.dataobject.loginlog.LoginLogDO;
 import org.springframework.web.multipart.MultipartFile;

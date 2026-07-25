@@ -1,8 +1,8 @@
 package com.admin.server.modules.system.service.notice.impl;
 
-import com.admin.server.common.exception.BusinessException;
+import com.admin.server.common.pojo.BusinessException;
 import com.admin.server.modules.system.dal.dataobject.notice.NoticeDO;
-import com.admin.server.modules.ticket.dal.mysql.approval.ApprovalFormMapper;
+import com.admin.server.modules.system.dal.mysql.approval.ApprovalFormMapper;
 import com.admin.server.modules.system.dal.mysql.notice.NoticeMapper;
 import com.admin.server.testsupport.MybatisLambdaTestBase;
 import com.admin.server.testsupport.MybatisMockMatchers;

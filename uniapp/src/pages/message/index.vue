@@ -83,7 +83,9 @@
               </view>
               <text class="message-item__desc">{{ chatDesc(item) }}</text>
             </view>
-            <view v-if="item.badge" class="message-item__badge">{{ item.badge > 99 ? '99+' : item.badge }}</view>
+            <view v-if="item.badge" class="message-item__badge" :class="{ 'message-item__badge--at': item.atMe }">
+              {{ item.atMe ? '@' : (item.badge > 99 ? '99+' : item.badge) }}
+            </view>
           </view>
           <EmptyState v-if="!chatSessions.length" title="暂无会话" icon="chat-o" />
         </template>
@@ -333,6 +335,12 @@ onPullDownRefresh(async () => {
   font-size: 22rpx;
   line-height: 36rpx;
   text-align: center;
+}
+
+.message-item__badge--at {
+  min-width: 40rpx;
+  font-size: 24rpx;
+  font-weight: $font-weight-bold;
 }
 
 .message-hub__more {

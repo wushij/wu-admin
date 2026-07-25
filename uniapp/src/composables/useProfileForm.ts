@@ -24,6 +24,7 @@ export function useProfileForm() {
   })
 
   const hasBoundMobile = computed(() => /^1[3-9]\d{9}$/.test((form.mobile || '').trim()))
+  const hasBoundEmail = computed(() => /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test((form.email || '').trim()))
 
   function maskMobile(mobile?: string) {
     const m = (mobile || '').trim()
@@ -31,14 +32,28 @@ export function useProfileForm() {
     return `${m.slice(0, 3)} **** ${m.slice(-4)}`
   }
 
+  function maskEmail(email?: string) {
+    const e = (email || '').trim()
+    if (!e) return '未绑定'
+    const [name, domain] = e.split('@')
+    if (!domain) return e
+    if (name.length <= 2) return `${name.slice(0, 1)}****@${domain}`
+    return `${name.slice(0, 2)}****@${domain}`
+  }
+
   async function load() {
-    loading.value = true
+    const isFirstLoad = !form.username
+    if (isFirstLoad) {
+      loading.value = true
+    }
     try {
       const [cfgRes, profileRes] = await Promise.all([getConfig(), getProfile()])
       smsEnabled.value = cfgRes.data?.login?.smsEnabled === true
       const data = profileRes.data
       form.userId = data.userId
-      form.nickname = data.nickname || ''
+      if (isFirstLoad) {
+        form.nickname = data.nickname || ''
+      }
       form.email = data.email || ''
       form.username = data.username || ''
       form.deptName = data.deptName || ''
@@ -49,9 +64,13 @@ export function useProfileForm() {
       avatarUrl.value = data.avatar ? fileDisplayUrl(data.avatar) : ''
     } catch (e) {
       logger.error(e)
-      uni.showToast({ title: '加载资料失败', icon: 'none' })
+      if (isFirstLoad) {
+        uni.showToast({ title: '加载资料失败', icon: 'none' })
+      }
     } finally {
-      loading.value = false
+      if (isFirstLoad) {
+        loading.value = false
+      }
     }
   }
 
@@ -128,6 +147,8 @@ export function useProfileForm() {
     form,
     hasBoundMobile,
     maskMobile,
+    hasBoundEmail,
+    maskEmail,
     load,
     pickAvatar,
     save,

@@ -1,6 +1,6 @@
 import { get, put, post } from '@/utils/request'
 import type { AxiosRequestConfig } from 'axios'
-import type { PayOrderRecord, SmsLogRecord } from '@/types/config'
+import type { PayOrderRecord, SmsLogRecord, EmailLogRecord } from '@/types/config'
 
 export interface ConfigGroup {
   groupCode: string
@@ -44,6 +44,10 @@ export function testSms(phone: string, templateCode?: string) {
   })
 }
 
+export function testEmail(toEmail: string) {
+  return post<boolean>('/system/config-group/test-email', { toEmail })
+}
+
 export function getRecentSmsLogs(limit = 5) {
   return get<SmsLogRecord[]>('/system/config-group/sms-logs/recent', { limit })
 }
@@ -61,4 +65,23 @@ export function getSmsLogs(params: {
   if (params.phone) query.phone = params.phone
   if (params.status != null) query.status = params.status
   return get<{ list: SmsLogRecord[]; total: number }>('/system/config-group/sms-logs', query)
+}
+
+export function getRecentEmailLogs(limit = 5) {
+  return get<EmailLogRecord[]>('/system/config-group/email-logs/recent', { limit })
+}
+
+export function getEmailLogs(params: {
+  page: number
+  size: number
+  email?: string
+  status?: number | null
+}) {
+  const query: Record<string, unknown> = {
+    page: params.page,
+    size: params.size,
+  }
+  if (params.email) query.email = params.email
+  if (params.status != null) query.status = params.status
+  return get<{ list: EmailLogRecord[]; total: number }>('/system/config-group/email-logs', query)
 }

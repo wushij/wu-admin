@@ -1,6 +1,6 @@
 package com.admin.server.modules.system.service.role.impl;
 
-import com.admin.server.common.exception.BusinessException;
+import com.admin.server.common.pojo.BusinessException;
 import com.admin.server.modules.system.api.role.vo.RoleCreateReqVO;
 import com.admin.server.modules.system.api.role.vo.RoleUpdateReqVO;
 import com.admin.server.modules.system.dal.dataobject.permission.RoleDO;

@@ -1,6 +1,6 @@
 package com.admin.server.framework.quartz.util;
 
-import com.admin.server.modules.infra.dal.dataobject.job.SysJobDO;
+import com.admin.server.modules.system.dal.dataobject.job.SysJobDO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.lang.NonNull;
 import org.springframework.util.StringUtils;

@@ -1,7 +1,7 @@
 @use './variables.scss' as *;
 @use './mixins.scss' as *;
 
-$page-tab-bar-height: 100rpx;
+$page-tab-bar-height: 140rpx;
 
 .page {
   min-height: 100vh;
@@ -121,15 +121,30 @@ $page-tab-bar-height: 100rpx;
 }
 
 .page-list {
+  display: flex;
+  flex-direction: column;
   height: 100vh;
+  /* #ifdef H5 */
+  height: calc(100vh - var(--window-top, 0px));
+  /* #endif */
   box-sizing: border-box;
+  overflow: hidden; /* 关键：固定顶部 ModuleDarkHero 卡片与筛选栏，防止整页跟随滚动 */
 }
 
 .page-list__scroll {
-  height: calc(100% - 200rpx);
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  box-sizing: border-box;
+
+  /* 底部增加 160rpx 加上安全区域的大空白避让，防止遮挡列表底部内容 */
+  :deep(.uni-scroll-view-content) {
+    padding-bottom: calc(160rpx + env(safe-area-inset-bottom));
+  }
 
   &--filter {
-    height: calc(100% - 320rpx);
+    flex: 1;
+    min-height: 0;
   }
 }
 

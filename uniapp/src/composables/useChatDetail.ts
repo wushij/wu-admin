@@ -358,6 +358,7 @@ export function useChatDetail() {
       const peer = (userRes.data || []).find((u) => u.id === id)
       peerUser.value = peer || { id, nickname: name, username: name }
       await readChat(id)
+      messageStore.markPrivateChatRead(id)
       messageStore.refreshSummary()
     } else {
       messageStore.clearGroupUnread(id)
@@ -649,6 +650,7 @@ export function useChatDetail() {
     clearTypingHint()
     if (typingSignalTimer) clearTimeout(typingSignalTimer)
     messageStore.setActiveChatTarget(null)
+    messageStore.refreshSummary()
   })
 
   return {

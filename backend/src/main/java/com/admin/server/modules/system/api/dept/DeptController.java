@@ -1,11 +1,9 @@
 package com.admin.server.modules.system.api.dept;
 
-import com.admin.server.common.core.CommonResult;
-import com.admin.server.common.core.PageParam;
-import com.admin.server.common.core.PageResult;
+import com.admin.server.common.pojo.CommonResult;
+import com.admin.server.common.pojo.PageParam;
+import com.admin.server.common.pojo.PageResult;
 import com.admin.server.framework.log.annotation.Log;
-import com.admin.server.modules.system.convert.DeptConvert;
-import com.admin.server.modules.system.api.dept.vo.DeptRespVO;
 import com.admin.server.modules.system.dal.dataobject.dept.DeptDO;
 import com.admin.server.modules.system.service.dept.DeptService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -27,27 +25,24 @@ public class DeptController {
     @GetMapping("/tree")
     @Operation(summary = "部门树")
     @PreAuthorize("@ss.hasRead('system:dept:list')")
-    public CommonResult<List<DeptRespVO>> tree(
+    public CommonResult<List<DeptDO>> tree(
             @RequestParam(required = false) String name,
             @RequestParam(required = false) Integer status) {
-        List<DeptDO> list = deptService.tree(name, status);
-        return CommonResult.success(DeptConvert.convertDeptList(list));
+        return CommonResult.success(deptService.tree(name, status));
     }
 
     @GetMapping("/list")
     @Operation(summary = "部门扁平列表（表单下拉）")
     @PreAuthorize("@ss.hasRead('system:dept:list')")
-    public CommonResult<List<DeptRespVO>> list() {
-        List<DeptDO> list = deptService.listAll();
-        return CommonResult.success(DeptConvert.convertDeptList(list));
+    public CommonResult<List<DeptDO>> list() {
+        return CommonResult.success(deptService.listAll());
     }
 
     @GetMapping("/get")
     @Operation(summary = "部门详情")
     @PreAuthorize("@ss.hasPermission('system:dept:query')")
-    public CommonResult<DeptRespVO> get(@RequestParam Long id) {
-        DeptDO dept = deptService.getById(id);
-        return CommonResult.success(DeptConvert.convertDept(dept));
+    public CommonResult<DeptDO> get(@RequestParam Long id) {
+        return CommonResult.success(deptService.getById(id));
     }
 
     @Log(title = "部门管理", businessType = Log.BusinessType.INSERT)
@@ -100,11 +95,10 @@ public class DeptController {
     @GetMapping("/recycle/page")
     @Operation(summary = "部门回收站分页")
     @PreAuthorize("@ss.hasRecycleRead()")
-    public CommonResult<PageResult<DeptRespVO>> recyclePage(PageParam pageParam,
+    public CommonResult<PageResult<DeptDO>> recyclePage(PageParam pageParam,
             @RequestParam(required = false) String name,
             @RequestParam(required = false) Integer status) {
-        PageResult<DeptDO> page = deptService.recyclePage(pageParam, name, status);
-        return CommonResult.success(PageResult.of(DeptConvert.convertDeptList(page.getList()), page.getTotal()));
+        return CommonResult.success(deptService.recyclePage(pageParam, name, status));
     }
 
     @PutMapping("/restore")

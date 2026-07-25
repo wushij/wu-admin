@@ -1,10 +1,9 @@
 package com.admin.server.modules.system.service.config.impl;
 
 import cn.hutool.core.util.StrUtil;
-import cn.hutool.json.JSONArray;
 import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
-import com.admin.server.common.exception.BusinessException;
+import com.admin.server.common.pojo.BusinessException;
 import com.admin.server.modules.system.dal.dataobject.config.SysConfigGroupDO;
 import com.admin.server.modules.system.dal.mysql.config.SysConfigGroupMapper;
 import com.admin.server.modules.system.framework.cache.SysConfigCacheService;
@@ -14,11 +13,10 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import org.springframework.stereotype.Service;
 
 import jakarta.annotation.Resource;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import com.admin.server.modules.infra.framework.operlog.OperLogContext;
+import com.admin.server.modules.system.framework.operlog.OperLogContext;
 
 @Service
 public class SysConfigGroupServiceImpl implements SysConfigGroupService {
@@ -100,7 +98,6 @@ public class SysConfigGroupServiceImpl implements SysConfigGroupService {
             case SystemConfigHelper.GROUP_THIRD_PARTY: return "第三方配置";
             case SystemConfigHelper.GROUP_PAYMENT: return "支付配置";
             case SystemConfigHelper.GROUP_SECURITY: return "安全防刷";
-            case SystemConfigHelper.GROUP_AI: return "AI助手配置";
             default: return groupCode;
         }
     }
@@ -150,9 +147,6 @@ public class SysConfigGroupServiceImpl implements SysConfigGroupService {
                 case "loginWelcome": return "登录页欢迎语";
                 case "registerTitle": return "注册页标题";
                 case "copyright": return "版权信息";
-                case "icpEnabled": return "ICP备案展示";
-                case "icpNumber": return "ICP备案号";
-                case "icpUrl": return "工信部链接";
                 default: break;
             }
         } else if (SystemConfigHelper.GROUP_REGISTER.equals(groupCode)) {
@@ -223,9 +217,6 @@ public class SysConfigGroupServiceImpl implements SysConfigGroupService {
             case SystemConfigHelper.GROUP_SMS:
                 validateSmsConfig(json);
                 break;
-            case SystemConfigHelper.GROUP_AI:
-                validateAiConfig(json);
-                break;
             default:
                 break;
         }
@@ -241,10 +232,6 @@ public class SysConfigGroupServiceImpl implements SysConfigGroupService {
         int hours = json.getInt("tokenExpireHours", 24);
         if (hours < 1 || hours > 720) {
             throw new BusinessException("Token 有效期须在 1～720 小时之间");
-        }
-        int signHours = json.getInt("sessionSignExpireHours", 24);
-        if (signHours < 1 || signHours > 120) {
-            throw new BusinessException("会话签名密钥有效期须在 1～120 小时之间");
         }
     }
 
@@ -270,39 +257,6 @@ public class SysConfigGroupServiceImpl implements SysConfigGroupService {
         }
         validateDailyLimit(json.getInt("smsPerPhoneDaily", 10), "手机号每日短信");
         validateDailyLimit(json.getInt("smsPerIpDaily", 30), "IP 每日短信");
-        validateRate(json.getInt("aiChatPerUserMinute", 8), "AI 对话每分钟");
-    }
-
-    private void validateAiConfig(JSONObject json) {
-        validateTokenQuota(json.getLong("tokensPerUserDaily", 100000L), "每用户每日 token 配额");
-        JSONArray quotas = json.getJSONArray("roleTokenQuotas");
-        if (quotas == null) {
-            return;
-        }
-        if (quotas.size() > 50) {
-            throw new BusinessException("角色配额最多配置 50 条");
-        }
-        Set<Long> seenRoleIds = new HashSet<>();
-        for (int i = 0; i < quotas.size(); i++) {
-            JSONObject item = quotas.getJSONObject(i);
-            if (item == null) {
-                throw new BusinessException("角色配额格式非法");
-            }
-            Long roleId = item.getLong("roleId");
-            if (roleId == null || roleId <= 0) {
-                throw new BusinessException("角色配额存在非法的角色");
-            }
-            if (!seenRoleIds.add(roleId)) {
-                throw new BusinessException("角色配额存在重复配置的角色");
-            }
-            validateTokenQuota(item.getLong("tokensDaily", 0L), "角色配额");
-        }
-    }
-
-    private void validateTokenQuota(long n, String label) {
-        if (n < 0 || n > 10_000_000L) {
-            throw new BusinessException(label + "须在 0～10,000,000 之间（0 表示不限制）");
-        }
     }
 
     private void validateDailyLimit(int n, String label) {

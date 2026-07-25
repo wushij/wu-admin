@@ -17,12 +17,22 @@
             账号登录
           </button>
           <button
+            v-if="smsLoginEnabled && smsEnabled"
             type="button"
             class="login-mode-switch__item"
             :class="{ 'login-mode-switch__item--active': loginMode === 'sms' }"
             @click="switchLoginMode('sms')"
           >
             短信登录
+          </button>
+          <button
+            v-if="emailLoginEnabled && emailEnabled"
+            type="button"
+            class="login-mode-switch__item"
+            :class="{ 'login-mode-switch__item--active': loginMode === 'email' }"
+            @click="switchLoginMode('email')"
+          >
+            邮箱登录
           </button>
         </div>
 
@@ -102,6 +112,44 @@
             <p v-if="!smsEnabled" class="sms-disabled-tip">短信功能未启用，请联系管理员</p>
           </template>
 
+          <template v-if="loginMode === 'email'">
+            <el-form-item prop="email" class="form-item sms-form-item">
+              <el-input
+                v-model="formData.email"
+                placeholder="请输入绑定的邮箱地址"
+                maxlength="60"
+                clearable
+                autocomplete="off"
+                class="form-input"
+              >
+                <template #prefix><el-icon class="input-icon"><Message /></el-icon></template>
+              </el-input>
+            </el-form-item>
+            <el-form-item prop="code" class="form-item sms-form-item">
+              <div class="sms-code-row">
+                <el-input
+                  v-model="formData.code"
+                  placeholder="请输入验证码"
+                  maxlength="6"
+                  autocomplete="off"
+                  class="form-input sms-code-field"
+                  @keyup.enter="handleLogin"
+                >
+                  <template #prefix><el-icon class="input-icon"><Key /></el-icon></template>
+                </el-input>
+                <el-button
+                  class="sms-send-btn"
+                  :disabled="emailCountdown > 0 || sendingEmail || !emailEnabled"
+                  :loading="sendingEmail"
+                  @click="handleSendEmailCode"
+                >
+                  {{ emailCountdown > 0 ? `${emailCountdown}s` : '获取验证码' }}
+                </el-button>
+              </div>
+            </el-form-item>
+            <p v-if="!emailEnabled" class="sms-disabled-tip">邮件功能未启用，请联系管理员</p>
+          </template>
+
           <el-form-item
             v-if="loginMode === 'account' && captchaEnabled && captchaType === 'image'"
             prop="code"
@@ -147,12 +195,16 @@
       </div>
     </div>
   </AuthSplitLayout>
-  <SliderCaptcha v-model:show="showSliderModal" @success="onSliderSuccess" />
+  <SliderCaptcha
+    v-model:show="showSliderModal"
+    :scene="sliderPurpose"
+    @success="onSliderSuccess"
+  />
   </div>
 </template>
 
 <script setup lang="ts">
-import { User, Lock, Key, Iphone } from '@element-plus/icons-vue'
+import { User, Lock, Key, Iphone, Message } from '@element-plus/icons-vue'
 import AuthSplitLayout from '@/views/auth/components/AuthSplitLayout.vue'
 import AuthCaptchaField from '@/views/auth/components/AuthCaptchaField.vue'
 import SliderCaptcha from '@/components/SliderCaptcha.vue'
@@ -173,14 +225,21 @@ const {
   captchaType,
   captchaImg,
   smsEnabled,
+  emailEnabled,
+  smsLoginEnabled,
+  emailLoginEnabled,
   rememberMeEnabled,
   registerEnabled,
   sendingSms,
+  sendingEmail,
   smsCountdown,
+  emailCountdown,
   loading,
   showSliderModal,
+  sliderPurpose,
   loadCaptcha,
   handleSendSmsCode,
+  handleSendEmailCode,
   handleLogin,
   onSliderSuccess,
   goRegister,

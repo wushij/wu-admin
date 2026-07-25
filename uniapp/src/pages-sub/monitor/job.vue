@@ -452,12 +452,15 @@ onPullDownRefresh(async () => {
 .job-metrics__item--fail .job-metrics__value { color: $color-danger; }
 .job-metrics__item--rate .job-metrics__value { color: $color-primary; }
 
-.page-list__scroll--job {
-  height: calc(100vh - 540rpx);
-}
-
+.page-list__scroll--job,
 .page-list__scroll--job-log {
-  height: calc(100vh - 660rpx);
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+
+  :deep(.uni-scroll-view-content) {
+    padding-bottom: calc(160rpx + env(safe-area-inset-bottom));
+  }
 }
 
 .job-log-bar {

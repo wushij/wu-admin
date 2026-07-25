@@ -4,7 +4,7 @@ import cn.hutool.core.util.StrUtil;
 import com.admin.server.modules.system.dal.dataobject.user.UserDO;
 import com.admin.server.modules.system.dal.mysql.user.UserMapper;
 import com.admin.server.modules.system.service.config.SystemConfigHelper;
-import com.admin.server.modules.trade.service.email.EmailCodeService;
+import com.admin.server.modules.system.service.email.EmailCodeService;
 import jakarta.annotation.Resource;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;

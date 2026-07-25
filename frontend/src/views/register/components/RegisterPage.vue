@@ -18,8 +18,8 @@
             <el-form-item prop="username" class="form-item">
               <el-input
                 v-model="formData.username"
-                placeholder="用户名（4-20位字母数字下划线）"
-                maxlength="20"
+                placeholder="用户名（4-12位字母数字下划线）"
+                maxlength="12"
                 class="form-input"
               >
                 <template #prefix><el-icon class="input-icon"><User /></el-icon></template>
@@ -107,7 +107,7 @@
         </div>
       </div>
     </AuthSplitLayout>
-    <SliderCaptcha v-model:show="showSliderModal" @success="doRegister" />
+    <SliderCaptcha v-model:show="showSliderModal" scene="register" @success="onSliderSuccess" />
   </div>
 </template>
 
@@ -133,9 +133,9 @@ const {
   agreeRowAlert,
   loading,
   showSliderModal,
+  onSliderSuccess,
   loadCaptcha,
   handleRegister,
-  doRegister,
   goLogin,
 } = useRegisterForm()
 </script>

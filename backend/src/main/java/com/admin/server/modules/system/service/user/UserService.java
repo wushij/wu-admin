@@ -1,7 +1,7 @@
 package com.admin.server.modules.system.service.user;
 
-import com.admin.server.common.core.PageParam;
-import com.admin.server.common.core.PageResult;
+import com.admin.server.common.pojo.PageParam;
+import com.admin.server.common.pojo.PageResult;
 import com.admin.server.modules.system.api.user.vo.AssignRoleReqVO;
 import com.admin.server.modules.system.api.user.vo.UserCreateReqVO;
 import com.admin.server.modules.system.api.user.vo.UserUpdateReqVO;

@@ -1,15 +1,15 @@
 package com.admin.server.testsupport;
 
-import com.admin.server.modules.ticket.dal.dataobject.approval.ApprovalFormDO;
-import com.admin.server.modules.ticket.dal.dataobject.approval.ApprovalRecordDO;
+import com.admin.server.modules.system.dal.dataobject.approval.ApprovalFormDO;
+import com.admin.server.modules.system.dal.dataobject.approval.ApprovalRecordDO;
 import com.admin.server.modules.system.dal.dataobject.dept.DeptDO;
 import com.admin.server.modules.system.dal.dataobject.dict.DictDataDO;
 import com.admin.server.modules.system.dal.dataobject.loginlog.LoginLogDO;
-import com.admin.server.modules.message.dal.dataobject.ChatGroupDO;
-import com.admin.server.modules.message.dal.dataobject.ChatGroupMemberDO;
-import com.admin.server.modules.message.dal.dataobject.ChatGroupMessageDO;
-import com.admin.server.modules.message.dal.dataobject.ChatMessageDO;
-import com.admin.server.modules.message.dal.dataobject.UserBlacklistDO;
+import com.admin.server.modules.system.dal.dataobject.message.ChatGroupDO;
+import com.admin.server.modules.system.dal.dataobject.message.ChatGroupMemberDO;
+import com.admin.server.modules.system.dal.dataobject.message.ChatGroupMessageDO;
+import com.admin.server.modules.system.dal.dataobject.message.ChatMessageDO;
+import com.admin.server.modules.system.dal.dataobject.message.UserBlacklistDO;
 import com.admin.server.modules.system.dal.dataobject.permission.MenuDO;
 import com.admin.server.modules.system.dal.dataobject.permission.RoleDO;
 import com.admin.server.modules.system.dal.dataobject.notice.NoticeDO;

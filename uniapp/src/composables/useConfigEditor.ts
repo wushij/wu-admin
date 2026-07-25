@@ -3,6 +3,7 @@ import {
   getConfigGroup,
   updateConfigGroup,
   testSms,
+  testEmail,
   testPayment,
   getPayOrderStatus,
   getRecentSmsLogs,
@@ -12,6 +13,7 @@ import { getRoleList } from '@/api/system/role'
 import { getUserList } from '@/api/system/user'
 import type {
   ConfigGroupCode,
+  EmailAdminConfig,
   FileStorageConfig,
   LoginAdminConfig,
   PaymentConfig,
@@ -28,7 +30,7 @@ import type { RoleVO } from '@/types/system'
 import type { UserVO } from '@/types/user'
 
 const GROUP_CODES: ConfigGroupCode[] = [
-  'site', 'session', 'file', 'rateLimit', 'login', 'register', 'thirdParty', 'payment', 'sms', 'security',
+  'site', 'session', 'file', 'rateLimit', 'login', 'register', 'thirdParty', 'payment', 'sms', 'email', 'security',
 ]
 
 const SITE_DEFAULTS: SiteAdminConfig = {
@@ -46,6 +48,8 @@ const LOGIN_DEFAULTS: LoginAdminConfig = {
   captchaType: 'image',
   smsLoginEnabled: false,
   smsLoginSliderCaptchaEnabled: false,
+  emailLoginEnabled: false,
+  emailLoginSliderCaptchaEnabled: false,
   rememberMe: true,
   maxRetryCount: 5,
   maxRetryCountIp: 20,
@@ -74,6 +78,26 @@ const SMS_DEFAULTS: SmsAdminConfig = {
   templateVerifyBindPhone: '100005',
   schemeName: '',
   codeExpireMinutes: 5,
+}
+const EMAIL_DEFAULTS: EmailAdminConfig = {
+  enabled: true,
+  provider: 'qq',
+  host: 'smtp.qq.com',
+  port: 465,
+  username: '',
+  password: '',
+  fromName: 'wu-admin 系统团队',
+  authEnabled: true,
+  securityType: 'SSL',
+  connectionTimeoutMs: 5000,
+  timeoutMs: 5000,
+  writeTimeoutMs: 5000,
+  encoding: 'UTF-8',
+  debug: false,
+  codeExpireMinutes: 5,
+  codeLength: 6,
+  dailyLimitPerEmail: 20,
+  sendIntervalSeconds: 60,
 }
 const FILE_DEFAULTS: FileStorageConfig = {
   maxSizeMb: 50,
@@ -232,6 +256,7 @@ export function useConfigEditor() {
   const loginDraft = reactive<LoginAdminConfig>({ ...LOGIN_DEFAULTS })
   const registerDraft = reactive<RegisterAdminConfig>({ ...REGISTER_DEFAULTS })
   const smsDraft = reactive<SmsAdminConfig>({ ...SMS_DEFAULTS })
+  const emailDraft = reactive<EmailAdminConfig>({ ...EMAIL_DEFAULTS })
   const fileDraft = reactive<FileStorageConfig>({ ...FILE_DEFAULTS })
   const rateDraft = reactive<RateLimitConfig>({ ...RATE_DEFAULTS })
   const thirdDraft = reactive<ThirdPartyConfig>(clone(THIRD_DEFAULTS))
@@ -244,6 +269,7 @@ export function useConfigEditor() {
     login: clone(LOGIN_DEFAULTS),
     register: clone(REGISTER_DEFAULTS),
     sms: clone(SMS_DEFAULTS),
+    email: clone(EMAIL_DEFAULTS),
     file: clone(FILE_DEFAULTS),
     rateLimit: clone(RATE_DEFAULTS),
     thirdParty: clone(THIRD_DEFAULTS),
@@ -257,6 +283,7 @@ export function useConfigEditor() {
     login: loginDraft,
     register: registerDraft,
     sms: smsDraft,
+    email: emailDraft,
     file: fileDraft,
     rateLimit: rateDraft,
     thirdParty: thirdDraft,
@@ -310,6 +337,7 @@ export function useConfigEditor() {
         login: LOGIN_DEFAULTS,
         register: REGISTER_DEFAULTS,
         sms: SMS_DEFAULTS,
+        email: EMAIL_DEFAULTS,
         file: FILE_DEFAULTS,
         rateLimit: RATE_DEFAULTS,
         thirdParty: THIRD_DEFAULTS,
@@ -506,6 +534,28 @@ export function useConfigEditor() {
     }
   }
 
+  const emailTesting = ref(false)
+  const testEmailTo = ref('')
+
+  async function sendTestEmailAction() {
+    if (isDirty.value) {
+      uni.showToast({ title: '请先保存邮件配置', icon: 'none' })
+      return
+    }
+    const toEmail = testEmailTo.value.trim()
+    if (!toEmail || !toEmail.includes('@')) {
+      uni.showToast({ title: '请输入正确的接收邮箱', icon: 'none' })
+      return
+    }
+    emailTesting.value = true
+    try {
+      await testEmail(toEmail)
+      uni.showToast({ title: '测试邮件已发送，请查收', icon: 'success' })
+    } finally {
+      emailTesting.value = false
+    }
+  }
+
   function closePaymentModal() {
     showPaymentModal.value = false
   }
@@ -514,6 +564,8 @@ export function useConfigEditor() {
     loading,
     saving,
     smsTesting,
+    emailTesting,
+    testEmailTo,
     paymentTesting,
     platformMaxFileMb,
     isDirty,
@@ -524,10 +576,12 @@ export function useConfigEditor() {
     loginDraft,
     registerDraft,
     smsDraft,
+    emailDraft,
     fileDraft,
     rateDraft,
     thirdDraft,
     paymentDraft,
+    savedSnapshot,
     roleOptions,
     userOptions,
     testSmsPhone,
@@ -567,6 +621,7 @@ export function useConfigEditor() {
     loadSmsLogs,
     openSmsLogs,
     sendTestSms,
+    sendTestEmailAction,
     sendTestPayment,
     pollPayOrderStatus,
     closePaymentModal,

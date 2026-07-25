@@ -37,7 +37,7 @@
             @input="onInput"
           />
           <view
-            v-if="password"
+            v-if="password && !disabled"
             class="form-cell__input-toggle"
             @tap.stop="togglePasswordVisible"
           >
@@ -56,7 +56,7 @@ import { ref, computed } from 'vue'
 import IconFont from '@/components/common/IconFont/index.vue'
 import PasswordEyeIcon from '@/components/common/PasswordEyeIcon/index.vue'
 
-const isH5 = process.env.UNI_PLATFORM === 'h5'
+const isH5 = import.meta.env.UNI_PLATFORM === 'h5'
 
 const props = withDefaults(
   defineProps<{
@@ -112,14 +112,13 @@ const useNativePassword = computed(
   () => props.password && !isH5 && !!props.modelValue && !passwordVisible.value,
 )
 
-const resolvedInputType = computed(() => {
-  if (!props.password) return props.inputType
-  if (isH5) return 'text'
-  if (!props.modelValue) return 'text'
-  return passwordVisible.value ? 'text' : 'password'
+const resolvedInputType = computed((): 'text' | 'number' | 'digit' => {
+  if (props.password) return 'text'
+  return props.inputType
 })
 
 function togglePasswordVisible() {
+  if (props.disabled) return
   passwordVisible.value = !passwordVisible.value
 }
 
@@ -189,24 +188,27 @@ function onTap() {
 .form-cell__input-wrap {
   flex: 1;
   min-width: 0;
-  position: relative;
+}
+
+.form-cell__input-wrap--password {
+  display: flex;
+  align-items: center;
 }
 
 .form-cell__input-wrap--password .form-cell__input {
-  padding-right: 72rpx;
+  flex: 1;
+  min-width: 0;
+  padding-right: 0;
 }
 
 .form-cell__input-toggle {
-  position: absolute;
-  right: 12rpx;
-  top: 50%;
-  transform: translateY(-50%);
+  flex-shrink: 0;
   width: 40rpx;
   height: 40rpx;
+  margin-left: 8rpx;
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1;
 }
 
 .form-cell__input-toggle :deep(.password-eye-icon) {
@@ -237,7 +239,6 @@ function onTap() {
 
 .form-cell__input--masked {
   -webkit-text-security: disc;
-  text-security: disc;
 }
 
 .form-cell--boxed .form-cell__input-wrap:not(.form-cell__input-wrap--password) .form-cell__input {
@@ -257,18 +258,22 @@ function onTap() {
 .form-cell--boxed .form-cell__input-wrap--boxed {
   width: 100%;
   min-height: 72rpx;
-  padding: 0 20rpx 0 24rpx;
+  padding: 0 12rpx 0 24rpx;
   border: 1px solid $color-border-light;
   border-radius: $radius-full;
   background: $color-bg-card;
   box-sizing: border-box;
+  display: flex;
+  align-items: center;
 }
 
 .form-cell--boxed .form-cell__input-wrap--boxed .form-cell__input {
-  width: 100%;
+  width: auto;
+  flex: 1;
+  min-width: 0;
   min-height: 70rpx;
   height: 70rpx;
-  padding: 0 56rpx 0 0;
+  padding: 0;
   border: none;
   background: transparent;
   text-align: left;
@@ -276,7 +281,7 @@ function onTap() {
 }
 
 .form-cell--boxed .form-cell__input-wrap--boxed .form-cell__input-toggle {
-  right: 20rpx;
+  margin-right: 4rpx;
 }
 
 .form-cell--boxed .form-cell__input::placeholder {

@@ -1,4 +1,5 @@
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
+import { storeToRefs } from 'pinia'
 import { getChatUsers, getChatGroups } from '@/api/message'
 import { useMessageStore } from '@/store/message'
 import { previewMessageText } from '@/utils/chat-message'
@@ -8,6 +9,8 @@ import type { ChatGroup, ChatUser } from '@/types/message'
 
 export function useChatSessions() {
   const messageStore = useMessageStore()
+  const { groupUnreadById, groupAtMeById, privateChatCount, privateReadTick, lastPrivateReadUserId } =
+    storeToRefs(messageStore)
   const mode = ref<'private' | 'group'>('private')
   const users = ref<ChatUser[]>([])
   const groups = ref<ChatGroup[]>([])
@@ -30,6 +33,28 @@ export function useChatSessions() {
     return groups.value.filter((g) => g.name.toLowerCase().includes(q))
   })
 
+  const privateTabDot = computed(() => {
+    const fromList = users.value.reduce((sum, u) => sum + (Number(u.unreadCount) || 0), 0)
+    return Math.max(fromList, privateChatCount.value) > 0
+  })
+
+  const groupTabDot = computed(() =>
+    Object.values(groupUnreadById.value).some((n) => Number(n) > 0),
+  )
+
+  const chatTabs = computed(() => [
+    { key: 'private', label: '私聊', dot: privateTabDot.value },
+    { key: 'group', label: '群聊', dot: groupTabDot.value },
+  ])
+
+  function groupUnread(groupId: number) {
+    return groupUnreadById.value[groupId] || 0
+  }
+
+  function groupAtMe(groupId: number) {
+    return !!groupAtMeById.value[groupId]
+  }
+
   function bumpUser(senderId: number, msg: WsPushMessage) {
     const u = users.value.find((x) => x.id === senderId)
     const preview = previewMessageText({ content: msg.content, msgType: msg.msgType })
@@ -42,7 +67,7 @@ export function useChatSessions() {
       }
       return
     }
-    refresh()
+    silentRefresh()
   }
 
   function bumpGroup(groupId: number, msg: WsPushMessage) {
@@ -54,12 +79,9 @@ export function useChatSessions() {
     if (g) {
       g.lastMessage = preview
       g.lastMessageTime = time
-      if (!isViewingChat(messageStore.activeChatTarget, msg)) {
-        g.unreadCount = (g.unreadCount || 0) + 1
-      }
       return
     }
-    refresh()
+    silentRefresh()
   }
 
   function patchGroupAnnouncement(msg: WsPushMessage) {
@@ -86,20 +108,36 @@ export function useChatSessions() {
     }
     if (msg.type === 'groupChat' && msg.groupId) {
       bumpGroup(msg.groupId, msg)
-      messageStore.refreshSummary()
+    }
+  }
+
+  async function silentRefresh() {
+    try {
+      const [userRes, groupRes] = await Promise.all([getChatUsers(), getChatGroups()])
+      users.value = userRes.data || []
+      groups.value = groupRes.data || []
+      messageStore.syncGroupNotifySettings(groups.value)
+      await messageStore.refreshSummary()
+    } catch {
+      /* ignore */
     }
   }
 
   async function refresh() {
     loading.value = true
     try {
-      const [userRes, groupRes] = await Promise.all([getChatUsers(), getChatGroups()])
-      users.value = userRes.data || []
-      groups.value = groupRes.data || []
+      await silentRefresh()
     } finally {
       loading.value = false
     }
   }
+
+  watch(privateReadTick, () => {
+    const userId = lastPrivateReadUserId.value
+    if (!userId) return
+    const u = users.value.find((x) => x.id === userId)
+    if (u) u.unreadCount = 0
+  })
 
   onMounted(() => {
     offWs = onMessageWebSocket(handleWs)
@@ -117,7 +155,11 @@ export function useChatSessions() {
     groups,
     filteredUsers,
     filteredGroups,
+    chatTabs,
+    groupUnread,
+    groupAtMe,
     loading,
     refresh,
+    silentRefresh,
   }
 }

@@ -38,7 +38,7 @@
           <RateLimitConfigTab :draft="draft.rateLimit" :can-edit="canEdit" />
         </el-tab-pane>
         <el-tab-pane label="登录认证" name="login">
-          <LoginConfigTab :draft="draft.login" :can-edit="canEdit" :sms-enabled="draft.sms.enabled" />
+          <LoginConfigTab :draft="draft.login" :can-edit="canEdit" :sms-enabled="draft.sms.enabled" :email-enabled="draft.email.enabled" />
         </el-tab-pane>
         <el-tab-pane label="注册认证" name="register">
           <RegisterConfigTab :draft="draft.register" :can-edit="canEdit" :role-options="roleOptions" :user-options="userOptions" />
@@ -63,6 +63,17 @@
             @test-sms="handleTestSms" @show-all-sms-logs="handleShowAllSmsLogs"
           />
         </el-tab-pane>
+        <el-tab-pane label="邮件配置" name="email">
+          <EmailConfigTab
+            :draft="draft.email" :saved-email="savedSnapshot.email" :can-edit="canEdit"
+            :email-testing="emailTesting"
+            :recent-email-logs="recentEmailLogs"
+            :email-status-text="emailStatusText"
+            :email-status-tag-type="emailStatusTagType"
+            @test-email="handleTestEmail"
+            @show-all-email-logs="handleShowAllEmailLogs"
+          />
+        </el-tab-pane>
         <el-tab-pane label="安全配置" name="security">
           <SecurityConfigTab :draft="draft.security" :can-edit="canEdit" v-model:forbid-concurrent-login="forbidConcurrentLogin" />
         </el-tab-pane>
@@ -81,12 +92,7 @@
           <p>支付方式：{{ paymentResult.type === 'wechat' ? '微信支付' : '支付宝' }}</p>
           <p>订单号：{{ paymentResult.orderNo }}</p>
           <p>金额：<span class="amount">¥ 0.01</span></p>
-          <p>
-            支付状态：
-            <el-tag :type="payOrderStatus === 'PAID' ? 'success' : 'warning'" size="small">
-              {{ payOrderStatus === 'PAID' ? '已支付' : '待支付' }}
-            </el-tag>
-          </p>
+          <p>支付状态：<el-tag :type="payOrderStatus === 'PAID' ? 'success' : 'warning'" size="small">{{ payOrderStatus === 'PAID' ? '已支付' : '待支付' }}</el-tag></p>
         </div>
         <div v-if="paymentResult.qrcode" class="qrcode-container">
           <img :src="paymentResult.qrcode" alt="支付二维码" class="qrcode-img" />
@@ -129,6 +135,38 @@
         />
       </div>
     </el-dialog>
+
+    <!-- 邮件记录弹窗 -->
+    <el-dialog v-model="showEmailLogsModal" title="邮件发送记录" width="880px" :lock-scroll="false" @opened="loadEmailLogs">
+      <div class="sms-logs-toolbar">
+        <el-input v-model="emailLogsSearch.email" placeholder="接收邮箱" clearable style="width: 200px" @keyup.enter="handleSearchEmailLogs" />
+        <el-select v-model="emailLogsSearch.status" placeholder="发送状态" clearable style="width: 120px">
+          <el-option label="成功" :value="1" /><el-option label="失败" :value="2" />
+        </el-select>
+        <el-button type="primary" @click="handleSearchEmailLogs">搜索</el-button>
+        <el-button @click="handleResetEmailLogsSearch">重置</el-button>
+      </div>
+      <el-table v-loading="emailLogsLoading" :data="emailLogsData" size="small" stripe max-height="420">
+        <el-table-column prop="email" label="接收邮箱" width="180" show-overflow-tooltip />
+        <el-table-column prop="subject" label="邮件主题" min-width="160" show-overflow-tooltip />
+        <el-table-column prop="content" label="验证码/摘要" width="110" show-overflow-tooltip />
+        <el-table-column label="状态" width="80">
+          <template #default="{ row }">
+            <el-tag :type="emailStatusTagType(row.status)" size="small">{{ emailStatusText(row.status) }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="resultMsg" label="结果明细" min-width="140" show-overflow-tooltip />
+        <el-table-column prop="createTime" label="发送时间" width="168" />
+      </el-table>
+      <div class="sms-logs-pagination">
+        <el-pagination
+          v-model:current-page="emailLogsPagination.page" v-model:page-size="emailLogsPagination.size"
+          :total="emailLogsPagination.total" :page-sizes="[10, 20, 50]"
+          layout="total, sizes, prev, pager, next" background
+          @current-change="loadEmailLogs" @size-change="handleEmailLogsSizeChange"
+        />
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -137,7 +175,7 @@ import { computed, watch, onMounted } from 'vue'
 import ModulePageIcon from '@/components/ModulePageIcon.vue'
 import { MODULE_PAGE_ICON } from '@/constants/module-page-icons'
 
-const configTabCount = 10
+const configTabCount = 11
 import SiteConfigTab from './components/SiteConfigTab.vue'
 import SessionConfigTab from './components/SessionConfigTab.vue'
 import FileConfigTab from './components/FileConfigTab.vue'
@@ -147,14 +185,16 @@ import RegisterConfigTab from './components/RegisterConfigTab.vue'
 import ThirdPartyConfigTab from './components/ThirdPartyConfigTab.vue'
 import PaymentConfigTab from './components/PaymentConfigTab.vue'
 import SmsConfigTab from './components/SmsConfigTab.vue'
+import EmailConfigTab from './components/EmailConfigTab.vue'
 import SecurityConfigTab from './components/SecurityConfigTab.vue'
 import { useConfigDraft } from './composables/useConfigDraft'
 import { usePaymentTest } from './composables/usePaymentTest'
 import { useSmsTest } from './composables/useSmsTest'
+import { useEmailTest } from './composables/useEmailTest'
 
 const {
   canEdit, activeTab, loading, saving, roleOptions, userOptions, platformMaxFileMb,
-  draft, isDirty, forbidConcurrentLogin,
+  draft, savedSnapshot, isDirty, forbidConcurrentLogin,
   loadAll, handleReset, handleSave,
 } = useConfigDraft()
 
@@ -177,16 +217,25 @@ const {
   syncTemplateFromConfig,
 } = useSmsTest(() => isDirty.value, () => draft.sms.provider)
 
+const {
+  emailTesting, recentEmailLogs, showEmailLogsModal, emailLogsLoading, emailLogsData, emailLogsPagination, emailLogsSearch,
+  emailStatusText, emailStatusTagType, loadRecentEmailLogs, handleTestEmail, handleShowAllEmailLogs, loadEmailLogs,
+  handleSearchEmailLogs, handleResetEmailLogsSearch, handleEmailLogsSizeChange,
+} = useEmailTest(() => isDirty.value)
+
 watch(activeTab, (tab) => {
   if (tab === 'sms') {
     loadRecentSmsLogs()
     syncTemplateFromConfig(draft.sms.templateVerifyCode)
+  } else if (tab === 'email') {
+    loadRecentEmailLogs()
   }
 })
 
 onMounted(() => {
   loadAll()
   if (activeTab.value === 'sms') loadRecentSmsLogs()
+  if (activeTab.value === 'email') loadRecentEmailLogs()
 })
 </script>
 

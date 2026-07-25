@@ -1,12 +1,12 @@
 package com.admin.server.testsupport;
 
-import com.admin.server.modules.ticket.dal.dataobject.approval.ApprovalFormDO;
+import com.admin.server.modules.system.dal.dataobject.approval.ApprovalFormDO;
 import com.admin.server.modules.system.dal.dataobject.dept.DeptDO;
 import com.admin.server.modules.system.dal.dataobject.permission.MenuDO;
 import com.admin.server.modules.system.dal.dataobject.permission.RoleDO;
 import com.admin.server.modules.system.dal.dataobject.permission.RoleMenuDO;
 import com.admin.server.modules.system.dal.dataobject.permission.UserRoleDO;
-import com.admin.server.modules.ticket.dal.dataobject.ticket.TicketDO;
+import com.admin.server.modules.system.dal.dataobject.ticket.TicketDO;
 import com.admin.server.modules.system.dal.dataobject.user.UserDO;
 
 /**
@@ -55,18 +55,6 @@ public final class ServiceTestFixtures {
         menu.setParentId(parentId);
         menu.setStatus(status);
         menu.setPermission(permission);
-        menu.setSort((int) id);
-        return menu;
-    }
-
-    /** 带名称与类型的菜单（type 1目录/2菜单/3按钮），用于菜单知识生成测试 */
-    public static MenuDO menu(long id, long parentId, int status, int type, String name) {
-        MenuDO menu = new MenuDO();
-        menu.setId(id);
-        menu.setParentId(parentId);
-        menu.setStatus(status);
-        menu.setType(type);
-        menu.setName(name);
         menu.setSort((int) id);
         return menu;
     }

@@ -1,8 +1,8 @@
 package com.admin.server.modules.system.api.loginlog;
 
 import com.admin.server.framework.log.annotation.Log;
-import com.admin.server.common.core.CommonResult;
-import com.admin.server.common.core.PageResult;
+import com.admin.server.common.pojo.CommonResult;
+import com.admin.server.common.pojo.PageResult;
 import com.admin.server.modules.system.dal.dataobject.loginlog.LoginLogDO;
 import com.admin.server.modules.system.service.loginlog.LoginLogService;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;

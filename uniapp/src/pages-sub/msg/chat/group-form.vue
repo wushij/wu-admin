@@ -5,7 +5,7 @@
       <view class="form card">
         <view class="field">
           <text class="field__label">群名称</text>
-          <input v-model="form.name" class="field__input" placeholder="请输入群名称" maxlength="30" />
+          <input v-model="form.name" class="field__input" placeholder="请输入群名称" :maxlength="30" />
         </view>
         <view v-if="mode === 'edit'" class="field field--column field--last">
           <text class="field__label">群公告</text>

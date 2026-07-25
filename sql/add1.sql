@@ -1,53 +1,34 @@
-﻿-- =============================================================================
--- add1.sql  增量补丁 #1（可重复执行，无 DROP）
 -- =============================================================================
--- 仅含本版本新增项，不是全量升级脚本。
---
--- 用法:
---   mysql -u root -p wu-admin < sql/add1.sql
---
--- 说明:
---   · 极旧库缺表/缺菜单 → 先执行 admin_platform.sql 文末「附录」（约 910 行起）
---   · 日常发版增量 → 依次执行 add1.sql、add2.sql …
---   · 空库安装 → 直接执行 admin_platform.sql 全文
+-- add1 · 在线用户查询权限（本地库 wu-admin）
+-- =============================================================================
+-- 说明: 补齐 monitor:online:query 按钮，与定时任务、缓存监控等模块一致
+-- 用法: mysql -u root -p wu-admin < sql/add1.sql
+-- 可重复执行（INSERT IGNORE / UPDATE 幂等）
+-- 执行后请重新登录以刷新权限缓存
 -- =============================================================================
 
 USE `wu-admin`;
 
--- [add1] 清理旧版附录曾建的冗余单列索引（已存在复合索引替代）
-DROP PROCEDURE IF EXISTS sp_drop_index_if_exists;
+-- 在线用户查询按钮 190；强退 104 排序后移
+INSERT IGNORE INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, component, status) VALUES
+(190, '在线用户查询', 'monitor:online:query', 3, 1, 103, '', '', '', 1);
 
-DELIMITER $$
+UPDATE sys_menu
+SET name = '在线用户查询',
+    permission = 'monitor:online:query',
+    type = 3,
+    sort = 1,
+    parent_id = 103,
+    status = 1
+WHERE id = 190
+  AND (permission IS NULL OR permission = '' OR permission <> 'monitor:online:query');
 
-CREATE PROCEDURE sp_drop_index_if_exists(
-    IN p_table VARCHAR(64),
-    IN p_index VARCHAR(64)
-)
-BEGIN
-    DECLARE v_cnt INT DEFAULT 0;
+UPDATE sys_menu SET sort = 2 WHERE id = 104 AND parent_id = 103 AND sort = 1;
 
-    SELECT COUNT(*) INTO v_cnt
-    FROM information_schema.statistics
-    WHERE table_schema = DATABASE()
-      AND table_name = p_table
-      AND index_name = p_index;
+-- 超管默认拥有；已有「在线用户」菜单的角色同步勾选查询
+INSERT IGNORE INTO sys_role_menu (role_id, menu_id) VALUES (1, 190);
 
-    IF v_cnt > 0 THEN
-        SET @ddl_sql = CONCAT('ALTER TABLE `', p_table, '` DROP INDEX `', p_index, '`');
-        PREPARE stmt FROM @ddl_sql;
-        EXECUTE stmt;
-        DEALLOCATE PREPARE stmt;
-        SELECT CONCAT('[DROP] ', p_table, '.', p_index) AS result;
-    ELSE
-        SELECT CONCAT('[SKIP] ', p_table, '.', p_index) AS result;
-    END IF;
-END$$
-
-DELIMITER ;
-
-CALL sp_drop_index_if_exists('sys_notice', 'idx_user_read_status');
-CALL sp_drop_index_if_exists('sys_sms_log', 'idx_phone');
-
-DROP PROCEDURE IF EXISTS sp_drop_index_if_exists;
-
-SELECT '[OK] add1.sql finished' AS result;
+INSERT IGNORE INTO sys_role_menu (role_id, menu_id)
+SELECT rm.role_id, 190
+FROM sys_role_menu rm
+WHERE rm.menu_id = 103;

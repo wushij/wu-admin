@@ -1,7 +1,7 @@
 package com.admin.server.modules.system.service.menu;
 
-import com.admin.server.common.core.PageParam;
-import com.admin.server.common.core.PageResult;
+import com.admin.server.common.pojo.PageParam;
+import com.admin.server.common.pojo.PageResult;
 import com.admin.server.modules.system.api.menu.vo.MenuCreateReqVO;
 import com.admin.server.modules.system.api.menu.vo.MenuUpdateReqVO;
 import com.admin.server.modules.system.dal.dataobject.permission.MenuDO;

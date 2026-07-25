@@ -80,20 +80,21 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watchEffect, computed } from 'vue'
+import { ref, watchEffect, computed, defineAsyncComponent } from 'vue'
 import ModulePageIcon from '@/components/ModulePageIcon.vue'
 import { MODULE_PAGE_ICON } from '@/constants/module-page-icons'
 import type { DeptVO } from '@/api/system/dept'
 import type { PostVO } from '@/api/system/post'
 import OrgTreePanel from './OrgTreePanel.vue'
 import OrgMemberPanel from './OrgMemberPanel.vue'
-import DeptFormDialog from './DeptFormDialog.vue'
-import PostFormDialog from './PostFormDialog.vue'
 import { useOrgPage } from '../composables/useOrgPage'
 
+const DeptFormDialog = defineAsyncComponent(() => import('./DeptFormDialog.vue'))
+const PostFormDialog = defineAsyncComponent(() => import('./PostFormDialog.vue'))
+
 const treePanelRef = ref<InstanceType<typeof OrgTreePanel> | null>(null)
-const deptDialogRef = ref<InstanceType<typeof DeptFormDialog> | null>(null)
-const postDialogRef = ref<InstanceType<typeof PostFormDialog> | null>(null)
+const deptDialogRef = ref<any>(null)
+const postDialogRef = ref<any>(null)
 
 const {
   activeTab,

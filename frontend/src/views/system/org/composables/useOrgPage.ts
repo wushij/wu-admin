@@ -57,12 +57,17 @@ export function useOrgPage() {
     loadUsers()
   })
 
+  let orgSearchTimer: ReturnType<typeof setTimeout> | null = null
+
   watch(treeSearch, (val) => {
-    if (activeTab.value === 'dept') {
-      deptTreeRef.value?.filter(val)
-    } else {
-      postTreeRef.value?.filter(val)
-    }
+    if (orgSearchTimer) clearTimeout(orgSearchTimer)
+    orgSearchTimer = setTimeout(() => {
+      if (activeTab.value === 'dept') {
+        deptTreeRef.value?.filter(val)
+      } else {
+        postTreeRef.value?.filter(val)
+      }
+    }, 250)
   })
 
   function filterTreeNode(value: string, data: unknown) {

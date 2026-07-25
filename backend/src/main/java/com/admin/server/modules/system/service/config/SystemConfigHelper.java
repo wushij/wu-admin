@@ -30,7 +30,6 @@ public class SystemConfigHelper {
     public static final String GROUP_PAYMENT = "payment";
     public static final String GROUP_SMS = "sms";
     public static final String GROUP_EMAIL = "email";
-    public static final String GROUP_AI = "ai";
     public static final String CAPTCHA_TYPE_IMAGE = "image";
     public static final String CAPTCHA_TYPE_SLIDER = "slider";
     public static final String CAPTCHA_TYPE_SMS = "sms";
@@ -89,18 +88,6 @@ public class SystemConfigHelper {
         return getGroupJson(GROUP_SITE).getStr("copyright", "");
     }
 
-    public boolean isIcpEnabled() {
-        return getGroupJson(GROUP_SITE).getBool("icpEnabled", true);
-    }
-
-    public String getIcpNumber() {
-        return getGroupJson(GROUP_SITE).getStr("icpNumber", "粤ICP备XXXXXXXX号-1");
-    }
-
-    public String getIcpUrl() {
-        return getGroupJson(GROUP_SITE).getStr("icpUrl", "https://beian.miit.gov.cn");
-    }
-
     // ---------- 会话 ----------
     public int getTokenExpireHours() {
         int hours = getGroupJson(GROUP_SESSION).getInt("tokenExpireHours", 24);
@@ -109,23 +96,6 @@ public class SystemConfigHelper {
 
     public long getTokenExpirationMs() {
         return getTokenExpireHours() * 3600_000L;
-    }
-
-    /**
-     * 会话签名密钥（SM3 签名 / SM4 加密）在 Redis 中的有效期，单位：小时。
-     * 默认 24 小时，与会话 Token 有效期（tokenExpireHours）保持完全一致的单位与设计。
-     * 范围 1～120 小时（即 1 小时 ～ 5 天）。
-     */
-    public int getSessionSignExpireHours() {
-        int hours = getGroupJson(GROUP_SESSION).getInt("sessionSignExpireHours", 24);
-        return Math.max(1, Math.min(hours, 120));
-    }
-
-    /**
-     * 会话签名密钥在 Redis 中的实际 TTL（分钟），由小时换算而来，供底层存储使用。
-     */
-    public long getSessionSignTtlMinutes() {
-        return (long) getSessionSignExpireHours() * 60;
     }
 
     // ---------- 文件 ----------
@@ -174,11 +144,6 @@ public class SystemConfigHelper {
     /** 短信发送：同一 IP 每日上限（0 表示不限制） */
     public int getSmsPerIpDaily() {
         return clampDaily(getGroupJson(GROUP_RATE_LIMIT).getInt("smsPerIpDaily", 30));
-    }
-
-    /** AI 对话：单用户每分钟请求次数上限（0 表示不限制），归属限流分组 */
-    public int getAiChatPerUserMinute() {
-        return clampRate(getGroupJson(GROUP_RATE_LIMIT).getInt("aiChatPerUserMinute", 8));
     }
 
     private int clampRate(int n) {
@@ -325,7 +290,7 @@ public class SystemConfigHelper {
 
     // ---------- 前端与 API 安全 ----------
     public boolean isDisableDevtool() {
-        return getGroupJson(GROUP_SECURITY).getBool("disableDevtool", true);
+        return getGroupJson(GROUP_SECURITY).getBool("disableDevtool", false);
     }
 
     /** Sa-Token is-concurrent，默认 false（禁止多端同时在线） */
@@ -338,37 +303,9 @@ public class SystemConfigHelper {
         return getGroupJson(GROUP_SECURITY).getBool("sm4EncryptEnabled", false);
     }
 
-    /**
-     * SM4 数据加密是否生效。
-     *
-     * 注意：自从引入 session-sign-init 会话随机密钥机制后，SM4 密钥由后端随机生成并存入 Redis，
-     * 不再依赖 DB 中配置的静态 sm4SecretKey。只要管理员将加密开关打开即生效。
-     */
-    public boolean isSm4EncryptEffective() {
-        return isSm4EncryptEnabled();
-    }
-
     /** SM2 数字签名开启状态 */
     public boolean isSm2SignEnabled() {
         return getGroupJson(GROUP_SECURITY).getBool("sm2SignEnabled", false);
-    }
-
-    /** 国密 HMAC-SM3 签名 Key (未配置时优先回退使用 SM4 对称密钥) */
-    public String getSm3SignKey() {
-        String key = getGroupJson(GROUP_SECURITY).getStr("sm3SignKey", "");
-        if (StrUtil.isNotBlank(key)) return key.trim();
-        return getSm4SecretKey();
-    }
-
-    /**
-     * SM2/HMAC-SM3 数字签名是否生效。
-     *
-     * 注意：自从引入 session-sign-init 会话随机密钥机制后，签名密钥由后端随机生成并存入 Redis，
-     * 不再依赖 DB 中配置的静态 sm3SignKey / sm4SecretKey。
-     * 因此，只要管理员在后台将签名开关打开，签名功能即生效，无需额外配置静态密钥字段。
-     */
-    public boolean isSm2SignEffective() {
-        return isSm2SignEnabled() || getGroupJson(GROUP_SECURITY).getBool("sm3SignEnabled", false);
     }
 
     /** 时间戳校验开启状态（默认开启） */
@@ -381,10 +318,20 @@ public class SystemConfigHelper {
         return getGroupJson(GROUP_SECURITY).getBool("nonceEnabled", true);
     }
 
-    /** SM4 对称秘钥（16 字节密钥），未配置时返回空串（不提供硬编码兜底密钥） */
+    /** SM4 对称秘钥（16 字节密钥） */
     public String getSm4SecretKey() {
-        String key = getGroupJson(GROUP_SECURITY).getStr("sm4SecretKey", "");
-        return StrUtil.isBlank(key) ? "" : key.trim();
+        String key = getGroupJson(GROUP_SECURITY).getStr("sm4SecretKey", "WuAdmin16BytesKey");
+        return StrUtil.isBlank(key) ? "WuAdmin16BytesKey" : key.trim();
+    }
+
+    /** SM2 数字签名公钥 */
+    public String getSm2PublicKey() {
+        return getGroupJson(GROUP_SECURITY).getStr("sm2PublicKey", "");
+    }
+
+    /** SM2 数字签名私钥 */
+    public String getSm2PrivateKey() {
+        return getGroupJson(GROUP_SECURITY).getStr("sm2PrivateKey", "");
     }
 
     // ---------- 短信配置 ----------
@@ -617,9 +564,6 @@ public class SystemConfigHelper {
         site.put("loginWelcome", getLoginWelcome());
         site.put("registerTitle", getRegisterTitle());
         site.put("copyright", getCopyright());
-        site.put("icpEnabled", isIcpEnabled());
-        site.put("icpNumber", getIcpNumber());
-        site.put("icpUrl", getIcpUrl());
         result.put("site", site);
 
         JSONObject loginJson = getGroupJson(GROUP_LOGIN);
@@ -649,82 +593,8 @@ public class SystemConfigHelper {
 
         Map<String, Object> security = new HashMap<>();
         security.put("disableDevtool", isDisableDevtool());
-
-        // 【安全加固 P0】接口签名/加密密钥不再通过公开接口明文下发给客户端。
-        // 客户端须调用 POST /auth/session-sign-init（携带 clientId）换取一次性会话临时密钥。
-        // 此处仅告知客户端「服务端是否已启用签名/加密」，不暴露任何密钥材料。
-        boolean sm3SignActive = isSm2SignEffective();
-        boolean sm4Active = isSm4EncryptEffective();
-        security.put("sm3SignEnabled", sm3SignActive);
-        security.put("sm2SignEnabled", sm3SignActive);
-        security.put("sm4EncryptEnabled", sm4Active);
-        // 严禁输出：sm4Key / sm3SignKey 等任何密钥材料
-
         result.put("security", security);
 
-        Map<String, Object> ai = new HashMap<>();
-        ai.put("assistantEnabled", isAiAssistantEnabled());
-        result.put("ai", ai);
-
         return result;
-    }
-
-    // ---------- AI 助手 ----------
-
-    /** AI 助手悬浮小窗/全局 AI 功能开关（true 开启，false 关闭） */
-    public boolean isAiAssistantEnabled() {
-        return getGroupJson(GROUP_AI).getBool("assistantEnabled", true);
-    }
-
-    /** AI 助手全局项目知识块（Markdown，注入 system 提示词），未配置时返回空串 */
-    public String getAiGlobalKnowledge() {
-        return getGroupJson(GROUP_AI).getStr("globalKnowledge", "");
-    }
-
-    /** AI 助手回答边界策略：focus(聚焦本系统，默认) / open(开放问答) */
-    public String getAiAnswerScope() {
-        String scope = getGroupJson(GROUP_AI).getStr("answerScope", "focus");
-        return "open".equalsIgnoreCase(scope) ? "open" : "focus";
-    }
-
-    /** AI 对话：单用户每日 token 兜底配额（0 表示不限制），未命中角色规则时生效 */
-    public long getAiTokensPerUserDaily() {
-        return clampTokenQuota(getGroupJson(GROUP_AI).getLong("tokensPerUserDaily", 100000L));
-    }
-
-    /**
-     * AI 对话：角色级每日 token 配额映射 roleId -&gt; tokensDaily（已 clamp）。
-     * 配置缺失或解析异常时返回空映射，由调用方回退兜底配额。
-     */
-    public Map<Long, Long> getAiRoleTokenQuotas() {
-        Map<Long, Long> result = new HashMap<>();
-        try {
-            JSONArray arr = getGroupJson(GROUP_AI).getJSONArray("roleTokenQuotas");
-            if (arr == null) {
-                return result;
-            }
-            for (int i = 0; i < arr.size(); i++) {
-                JSONObject item = arr.getJSONObject(i);
-                if (item == null) {
-                    continue;
-                }
-                Long roleId = item.getLong("roleId");
-                if (roleId == null || roleId <= 0) {
-                    continue;
-                }
-                result.put(roleId, clampTokenQuota(item.getLong("tokensDaily", 0L)));
-            }
-        } catch (Exception e) {
-            return new HashMap<>();
-        }
-        return result;
-    }
-
-    /** token 配额收敛：非正数归零（表示不限制），上限 1000 万 */
-    private long clampTokenQuota(long n) {
-        if (n <= 0) {
-            return 0L;
-        }
-        return Math.min(n, 10_000_000L);
     }
 }

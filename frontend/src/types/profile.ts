@@ -33,7 +33,7 @@ export interface ProfileUpdateDTO {
 
 export interface ProfileMobileBindSmsCodeDTO {
   mobile: string
-  /** 滑块通过后传 slider_verified */
+  uuid: string
   code: string
 }
 

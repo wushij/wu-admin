@@ -46,7 +46,7 @@
             </el-form-item>
 
             <el-form-item label="发件人邮箱账号">
-              <el-input v-model="draft.username" name="email-username" type="password" show-password autocomplete="new-password" placeholder="如 wu@gmail.com" :disabled="!canEdit" />
+              <el-input v-model="draft.username" name="email-username" autocomplete="off" placeholder="如 wu@gmail.com" :disabled="!canEdit" />
             </el-form-item>
 
             <el-form-item label="SMTP 授权码/密码">
@@ -168,15 +168,6 @@
               </template>
             </el-table-column>
             <el-table-column prop="createTime" label="时间" width="140" show-overflow-tooltip />
-            <el-table-column label="操作" width="60" fixed="right">
-              <template #default="{ row }">
-                <el-popconfirm title="确定删除该条记录吗？" @confirm="$emit('deleteEmailLog', row.id)">
-                  <template #reference>
-                    <el-button link type="danger" size="small" :disabled="!canEdit">删除</el-button>
-                  </template>
-                </el-popconfirm>
-              </template>
-            </el-table-column>
           </el-table>
           <el-empty v-else description="暂无发送记录" :image-size="64" />
         </el-card>
@@ -231,7 +222,6 @@ const props = defineProps<{
 defineEmits<{
   testEmail: [toEmail: string]
   showAllEmailLogs: []
-  deleteEmailLog: [id: number | string]
 }>()
 
 const testEmail = ref('')

@@ -1,6 +1,6 @@
 package com.admin.server.modules.system.service.dept.impl;
 
-import com.admin.server.common.exception.BusinessException;
+import com.admin.server.common.pojo.BusinessException;
 import com.admin.server.modules.system.dal.dataobject.dept.DeptDO;
 import com.admin.server.modules.system.dal.mysql.dept.DeptMapper;
 import com.admin.server.modules.system.dal.mysql.user.UserMapper;

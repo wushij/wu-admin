@@ -1,5 +1,5 @@
 <template>
-  <view class="emoji-picker">
+  <view class="emoji-picker" :style="pickerStyle">
     <scroll-view scroll-x class="emoji-picker__tabs" :show-scrollbar="false">
       <view
         v-for="cat in tabs"
@@ -31,6 +31,12 @@
 import { computed, ref, watch } from 'vue'
 import { CHAT_EMOJI_CATEGORIES } from '@/constants/chat-emojis'
 import { getRecentEmojis, recordRecentEmoji } from '@/utils/recent-emojis'
+import { getSafeAreaBottom } from '@/utils/safe-area'
+
+const isH5 = import.meta.env.UNI_PLATFORM === 'h5'
+const safeAreaBottom = isH5 ? 0 : getSafeAreaBottom()
+
+const pickerStyle = computed(() => (isH5 ? {} : { paddingBottom: `${safeAreaBottom}px` }))
 
 const RECENT_KEY = 'recent'
 
@@ -74,7 +80,10 @@ watch(
 .emoji-picker {
   flex-shrink: 0;
   background: #ededed;
+
+  /* #ifdef H5 */
   padding-bottom: env(safe-area-inset-bottom);
+  /* #endif */
 }
 
 .emoji-picker__tabs {

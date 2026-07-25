@@ -69,18 +69,19 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watchEffect } from 'vue'
+import { ref, watchEffect, defineAsyncComponent } from 'vue'
 import ModulePageIcon from '@/components/ModulePageIcon.vue'
 import { MODULE_PAGE_ICON } from '@/constants/module-page-icons'
 import DictSearchCard from './DictSearchCard.vue'
 import DictTypePanel from './DictTypePanel.vue'
 import DictDataPanel from './DictDataPanel.vue'
-import DictTypeFormDialog from './DictTypeFormDialog.vue'
-import DictDataFormDialog from './DictDataFormDialog.vue'
 import { useDictPage } from '../composables/useDictPage'
 
-const typeDialogRef = ref<InstanceType<typeof DictTypeFormDialog> | null>(null)
-const dataDialogRef = ref<InstanceType<typeof DictDataFormDialog> | null>(null)
+const DictTypeFormDialog = defineAsyncComponent(() => import('./DictTypeFormDialog.vue'))
+const DictDataFormDialog = defineAsyncComponent(() => import('./DictDataFormDialog.vue'))
+
+const typeDialogRef = ref<any>(null)
+const dataDialogRef = ref<any>(null)
 
 const {
   loading,

@@ -22,11 +22,12 @@
       :maxlength="maxlength"
       autocomplete="new-password"
       @input="onInput"
+      @blur="onBlur"
     />
     <view
       v-if="password && showToggle"
       class="auth-input-field__toggle"
-      @click.stop="toggleVisible"
+      @tap.stop="toggleVisible"
     >
       <PasswordEyeIcon :slashed="visible" />
     </view>
@@ -41,7 +42,7 @@ import type { IconName } from '@/constants/iconfont'
 
 export type AuthInputIcon = IconName | 'key'
 
-const isH5 = process.env.UNI_PLATFORM === 'h5'
+const isH5 = import.meta.env.UNI_PLATFORM === 'h5'
 
 const props = withDefaults(
   defineProps<{
@@ -77,21 +78,38 @@ const emit = defineEmits<{
 
 const visible = ref(false)
 
-const useMask = computed(() => props.password && isH5)
-const useNativePassword = computed(() => props.password && !isH5)
+const useMask = computed(() => props.password && isH5 && !visible.value && !!props.modelValue)
+const useNativePassword = computed(
+  () => props.password && !isH5 && !!props.modelValue && !visible.value,
+)
 
 const resolvedInputType = computed(() => {
   if (!props.password) return props.type
   if (isH5) return 'text'
-  return visible.value ? 'text' : 'password'
+  // 小程序/App：始终 type=text，仅用 password 属性掩码，避免预填/输入不同步
+  return 'text'
 })
 
 function toggleVisible() {
   visible.value = !visible.value
 }
 
+function readInputValue(e: { detail?: { value?: string } }): string {
+  return e.detail?.value ?? ''
+}
+
 function onInput(e: { detail: { value: string } }) {
-  emit('update:modelValue', e.detail.value)
+  emit('update:modelValue', readInputValue(e))
+}
+
+function onBlur(e: { detail: { value: string } }) {
+  if (isH5 || !props.password) return
+  const value = readInputValue(e)
+  // 预填密码时 native 可能返回空，勿覆盖已有 modelValue
+  if (!value && props.modelValue) return
+  if (value !== props.modelValue) {
+    emit('update:modelValue', value)
+  }
 }
 </script>
 
@@ -137,21 +155,15 @@ function onInput(e: { detail: { value: string } }) {
   padding-left: 0;
 }
 
-.auth-input-field--password .auth-input-field__control {
-  padding-right: 72rpx;
-}
-
 .auth-input-field__control--masked {
   -webkit-text-security: disc;
   text-security: disc;
 }
 
 .auth-input-field__toggle {
-  position: absolute;
-  right: 0;
-  top: 0;
-  bottom: 0;
+  flex-shrink: 0;
   width: 72rpx;
+  height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;

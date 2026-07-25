@@ -80,6 +80,10 @@
             <artifactId>spring-boot-starter-websocket</artifactId>
         </dependency>
         <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-mail</artifactId>
+        </dependency>
+        <dependency>
             <groupId>com.baomidou</groupId>
             <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
             <version>${mybatis-plus.version}</version>
@@ -236,6 +240,12 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <profiles>
+                        <profile>dev</profile>
+                    </profiles>
+                    <jvmArguments>-XX:TieredStopAtLevel=1</jvmArguments>
+                </configuration>
             </plugin>
         </plugins>
     </build>

@@ -4,9 +4,16 @@ import { isApiSuccessCode } from '@/utils/api-response'
 import { getToken, removeToken } from '@/utils/auth'
 import { isWhiteRoute } from '@/config/route'
 import { REQUEST_TIMEOUT } from '@/config/request'
-import { extractApiErrorMessage, markErrorToastShown, showGlobalErrorToast } from '@/plugins/global-error-handler'
+import {
+  extractApiErrorMessage,
+  isBenignRequestError,
+  markErrorToastShown,
+  showGlobalErrorToast,
+} from '@/plugins/global-error-handler'
+import { resolveApiBaseUrl } from '@/utils/api-base'
+import { generateNonce, getTimestamp, encryptSm4, decryptSm4, signSm2 } from '@/utils/crypto'
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api'
+const BASE_URL = resolveApiBaseUrl()
 
 const AUTH_PUBLIC_SUFFIXES = [
   '/auth/login',
@@ -52,12 +59,19 @@ const http = new Request({
 http.interceptors.request.use(
   (config) => {
     const token = getToken()
-    if (token) {
-      config.header = {
-        ...config.header,
-        Authorization: token,
-      }
+    const timestamp = getTimestamp()
+    const nonce = generateNonce()
+
+    config.header = {
+      ...config.header,
+      'X-Timestamp': timestamp,
+      'X-Nonce': nonce,
     }
+
+    if (token) {
+      config.header.Authorization = token
+    }
+
     return config
   },
   (error) => Promise.reject(error),
@@ -105,6 +119,9 @@ http.interceptors.response.use(
     return Promise.reject(err)
   }) as unknown as Parameters<typeof http.interceptors.response.use>[0],
   (error: { data?: ApiResult; statusCode?: number; errMsg?: string }) => {
+    if (isBenignRequestError(error)) {
+      return Promise.reject(error)
+    }
     const msg = extractApiErrorMessage(error, '网络异常')
     showGlobalErrorToast(msg)
     const err = new Error(msg)

@@ -1,9 +1,7 @@
 <template>
   <view class="page-tab" :class="{ 'page-tab--bare': bare }">
     <slot />
-    <!-- #ifndef MP-WEIXIN -->
     <custom-tab-bar />
-    <!-- #endif -->
   </view>
 </template>
 

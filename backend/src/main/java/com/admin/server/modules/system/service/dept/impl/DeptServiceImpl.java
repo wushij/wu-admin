@@ -1,9 +1,8 @@
 package com.admin.server.modules.system.service.dept.impl;
 
-import com.admin.server.common.exception.BusinessException;
-import com.admin.server.common.core.PageParam;
-import com.admin.server.common.core.PageResult;
-import com.admin.server.modules.system.enums.ErrorCodeConstants;
+import com.admin.server.common.pojo.BusinessException;
+import com.admin.server.common.pojo.PageParam;
+import com.admin.server.common.pojo.PageResult;
 import com.admin.server.modules.system.dal.dataobject.dept.DeptDO;
 import com.admin.server.modules.system.dal.dataobject.user.UserDO;
 import com.admin.server.modules.system.dal.mysql.dept.DeptMapper;
@@ -16,8 +15,6 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
-import com.admin.server.modules.infra.framework.operlog.OperLogDiffUtils;
-import com.admin.server.modules.infra.framework.operlog.OperLogContext;
 
 import jakarta.annotation.Resource;
 import java.util.ArrayDeque;
@@ -90,14 +87,6 @@ public class DeptServiceImpl extends ServiceImpl<DeptMapper, DeptDO> implements 
         if (exist == null) {
             throw new BusinessException(404, "部门不存在");
         }
-        
-        // 计算变更明细并记录操作日志
-        List<String> diffItems = OperLogDiffUtils.diff(exist, dept);
-        if (!diffItems.isEmpty()) {
-            OperLogContext.setDiffItems(diffItems);
-            OperLogContext.setAction("修改部门「" + exist.getName() + "」: " + String.join("；", diffItems));
-        }
-
         Long parentId = dept.getParentId() == null ? exist.getParentId() : dept.getParentId();
         if (parentId == null) {
             parentId = 0L;
@@ -132,7 +121,7 @@ public class DeptServiceImpl extends ServiceImpl<DeptMapper, DeptDO> implements 
     public void delete(Long id) {
         long childCount = count(new LambdaQueryWrapper<DeptDO>().eq(DeptDO::getParentId, id));
         if (childCount > 0) {
-            throw new BusinessException(ErrorCodeConstants.DEPT_HAS_CHILDREN);
+            throw new BusinessException("存在子部门，无法删除");
         }
         long userCount = userMapper.selectCount(new LambdaQueryWrapper<UserDO>().eq(UserDO::getDeptId, id));
         if (userCount > 0) {

@@ -62,15 +62,17 @@
         {{ hasBoundMobile ? '确认更换' : '确认绑定' }}
       </button>
     </PageFooter>
+
+    <SliderCaptcha v-model:show="showSlider" scene="profile" @success="onSliderSuccess" />
   </view>
 </template>
 
 <script setup lang="ts">
 import { watch, onMounted } from 'vue'
-import { onShow } from '@dcloudio/uni-app'
 import ModuleIcon from '@/components/common/ModuleIcon/index.vue'
 import ListLoading from '@/components/common/ListLoading/index.vue'
 import PageFooter from '@/components/common/PageFooter/index.vue'
+import SliderCaptcha from '@/components/business/SliderCaptcha/index.vue'
 import { maskBoundMobile, useMobileBindForm } from '@/composables/useMobileBindForm'
 import { useShallowStackBackFallback } from '@/composables/useShallowStackBackFallback'
 
@@ -86,8 +88,10 @@ const {
   form,
   hasBoundMobile,
   pageTitle,
+  showSlider,
   load,
   sendBindSmsCode,
+  onSliderSuccess,
   submit,
 } = useMobileBindForm()
 
@@ -98,7 +102,6 @@ watch(pageTitle, (title) => {
 }, { immediate: true })
 
 onMounted(load)
-onShow(load)
 </script>
 
 <style lang="scss" scoped>
@@ -149,24 +152,27 @@ onShow(load)
 }
 
 .bind-disabled {
-  padding: 32rpx;
+  padding: 32rpx 28rpx;
+  background: #ffffff;
+  border-radius: 24rpx;
+  text-align: center;
 }
 
 .bind-disabled__text {
   font-size: $font-size-sm;
   color: $color-text-secondary;
-  line-height: 1.6;
+  line-height: 1.5;
 }
 
 .bind-form {
-  padding: 12rpx 0 8rpx;
+  padding: 16rpx 28rpx;
+  background: #ffffff;
+  border-radius: 24rpx;
+  box-shadow: 0 4rpx 20rpx rgba(15, 23, 42, 0.05);
 }
 
 .bind-field {
-  display: flex;
-  align-items: center;
-  gap: 20rpx;
-  padding: 28rpx 32rpx;
+  padding: 24rpx 0;
   border-bottom: 1px solid $color-border-light;
 
   &--last {
@@ -175,34 +181,35 @@ onShow(load)
 }
 
 .bind-field__label {
-  flex-shrink: 0;
-  width: 140rpx;
-  font-size: $font-size-sm;
+  display: block;
+  margin-bottom: 14rpx;
+  font-size: $font-size-xs;
   font-weight: $font-weight-semibold;
   color: $color-text-secondary;
+  letter-spacing: 0.02em;
 }
 
 .bind-field__input {
-  flex: 1;
-  min-width: 0;
-  height: 80rpx;
+  width: 100%;
+  min-height: 84rpx;
   padding: 0 24rpx;
-  border-radius: $radius-md;
-  background: $color-bg-muted;
-  font-size: $font-size-base;
-  color: $color-text-primary;
-  text-align: left;
+  border: 1px solid #e2e8f0;
+  border-radius: 16rpx;
+  background: #f8fafc;
+  font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif !important;
+  font-size: 28rpx;
+  color: #0f172a;
   box-sizing: border-box;
-}
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 
-.bind-field__input::placeholder {
-  font-size: $font-size-sm;
-  color: $color-text-placeholder;
+  &:focus {
+    border-color: #010710;
+    background: #ffffff;
+    box-shadow: 0 0 0 4rpx rgba(1, 7, 16, 0.06);
+  }
 }
 
 .bind-field__sms {
-  flex: 1;
-  min-width: 0;
   display: flex;
   align-items: center;
   gap: 16rpx;
@@ -221,17 +228,20 @@ onShow(load)
   margin: 0;
   padding: 0 16rpx;
   border-radius: $radius-lg;
-  background: $color-primary-muted;
-  color: $color-primary;
+  background: #6366f1;
+  color: #ffffff;
   font-size: $font-size-sm;
-  font-weight: $font-weight-semibold;
+  font-weight: 600;
 
   &::after {
     border: none;
   }
 
   &[disabled] {
-    opacity: 0.55;
+    background: #f1f5f9;
+    color: #334155;
+    font-weight: 700;
+    opacity: 1;
   }
 }
 </style>

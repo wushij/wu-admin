@@ -68,18 +68,19 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watchEffect } from 'vue'
+import { ref, watchEffect, defineAsyncComponent } from 'vue'
 import ModulePageIcon from '@/components/ModulePageIcon.vue'
 import { MODULE_PAGE_ICON } from '@/constants/module-page-icons'
 import UserDeptTree from './UserDeptTree.vue'
 import UserMainPanel from './UserMainPanel.vue'
-import UserFormDialog from './UserFormDialog.vue'
-import UserRoleDialog from './UserRoleDialog.vue'
-import UserResetPwdDialog from './UserResetPwdDialog.vue'
 import { useUserPage } from '../composables/useUserPage'
 
+const UserFormDialog = defineAsyncComponent(() => import('./UserFormDialog.vue'))
+const UserRoleDialog = defineAsyncComponent(() => import('./UserRoleDialog.vue'))
+const UserResetPwdDialog = defineAsyncComponent(() => import('./UserResetPwdDialog.vue'))
+
 const deptTreeComponentRef = ref<InstanceType<typeof UserDeptTree> | null>(null)
-const formDialogRef = ref<InstanceType<typeof UserFormDialog> | null>(null)
+const formDialogRef = ref<any>(null)
 
 const {
   loading,

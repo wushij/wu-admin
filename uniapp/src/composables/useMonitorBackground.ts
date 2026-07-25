@@ -12,16 +12,30 @@ import {
   stopServerMonitorBackground,
 } from '@/composables/monitor/serverMonitorChart'
 
+export function isMonitorAdmin(): boolean {
+  const userStore = useUserStore()
+  const roles = userStore.userInfo.roles || []
+  return roles.includes('admin') || roles.includes('super_admin')
+}
+
 function syncMonitorBackground() {
   const userStore = useUserStore()
+  const roles = userStore.userInfo.roles || []
 
-  if (userStore.hasPermission('monitor:cache:list')) {
+  // 仅超级管理员登录后自动启动全局后台轮询，普通用户进入监控页才按需采样
+  if (!roles.includes('admin') && !roles.includes('super_admin')) {
+    stopCacheMonitorBackground()
+    stopServerMonitorBackground()
+    return
+  }
+
+  if (userStore.hasPermission('monitor:cache:query')) {
     startCacheMonitorBackground()
   } else {
     stopCacheMonitorBackground()
   }
 
-  if (userStore.hasPermission('monitor:server:list')) {
+  if (userStore.hasPermission('monitor:server:query')) {
     startServerMonitorBackground()
   } else {
     stopServerMonitorBackground()

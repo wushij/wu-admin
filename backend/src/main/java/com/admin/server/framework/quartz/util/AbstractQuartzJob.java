@@ -1,8 +1,8 @@
 package com.admin.server.framework.quartz.util;
 
-import com.admin.server.modules.infra.dal.dataobject.job.SysJobDO;
-import com.admin.server.modules.infra.dal.dataobject.job.SysJobLogDO;
-import com.admin.server.modules.infra.service.job.SysJobLogService;
+import com.admin.server.modules.system.dal.dataobject.job.SysJobDO;
+import com.admin.server.modules.system.dal.dataobject.job.SysJobLogDO;
+import com.admin.server.modules.system.service.job.SysJobLogService;
 import lombok.extern.slf4j.Slf4j;
 import org.quartz.Job;
 import org.quartz.JobExecutionContext;

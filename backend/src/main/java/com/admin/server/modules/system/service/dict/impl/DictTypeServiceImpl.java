@@ -1,8 +1,8 @@
 package com.admin.server.modules.system.service.dict.impl;
 
-import com.admin.server.common.exception.BusinessException;
-import com.admin.server.common.core.PageParam;
-import com.admin.server.common.core.PageResult;
+import com.admin.server.common.pojo.BusinessException;
+import com.admin.server.common.pojo.PageParam;
+import com.admin.server.common.pojo.PageResult;
 import com.admin.server.modules.system.dal.dataobject.dict.DictDataDO;
 import com.admin.server.modules.system.dal.dataobject.dict.DictTypeDO;
 import com.admin.server.modules.system.dal.mysql.dict.DictDataMapper;
@@ -16,8 +16,6 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
-import com.admin.server.modules.infra.framework.operlog.OperLogDiffUtils;
-import com.admin.server.modules.infra.framework.operlog.OperLogContext;
 
 import jakarta.annotation.Resource;
 import java.time.LocalDateTime;
@@ -81,14 +79,6 @@ public class DictTypeServiceImpl extends ServiceImpl<DictTypeMapper, DictTypeDO>
         if (!exist.getDictType().equals(dictType.getDictType())) {
             throw new BusinessException("字典类型编码不允许修改");
         }
-        
-        // 计算变更明细并记录操作日志
-        List<String> diffItems = OperLogDiffUtils.diff(exist, dictType);
-        if (!diffItems.isEmpty()) {
-            OperLogContext.setDiffItems(diffItems);
-            OperLogContext.setAction("修改字典类型「" + exist.getDictName() + "」: " + String.join("；", diffItems));
-        }
-
         assertDictTypeUnique(dictType.getDictType(), dictType.getId());
         updateById(dictType);
         dictCacheService.refreshAll();

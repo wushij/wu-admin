@@ -13,14 +13,21 @@ export function useProfileInfo() {
   const pageLoading = ref(false)
   const savingInfo = ref(false)
   const avatarInputRef = ref<HTMLInputElement>()
-  const infoFormRef = ref<FormInstance>()
+  const basicInfoFormRef = ref<{ formRef?: FormInstance }>()
   const mobileBindEditing = ref(false)
+  const emailBindEditing = ref(false)
+
+  function getInfoFormRef() {
+    return basicInfoFormRef.value?.formRef
+  }
 
   const infoForm = reactive({
     nickname: '',
     email: '',
     bindMobile: '',
     bindSmsCode: '',
+    bindEmail: '',
+    bindEmailCode: '',
   })
 
   const avatarSrc = computed(() => {
@@ -63,6 +70,17 @@ export function useProfileInfo() {
 
   const hasBoundMobile = computed(() => /^1[3-9]\d{9}$/.test((profile.value.mobile || '').trim()))
 
+  const maskedEmail = computed(() => {
+    const e = (profile.value.email || '').trim()
+    if (!e) return '未绑定邮箱'
+    const [name, domain] = e.split('@')
+    if (!domain) return e
+    if (name.length <= 2) return `${name.slice(0, 1)}****@${domain}`
+    return `${name.slice(0, 2)}****@${domain}`
+  })
+
+  const hasBoundEmail = computed(() => /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test((profile.value.email || '').trim()))
+
   function formatTime(time?: string, short = false) {
     if (!time) return '—'
     if (short) return time.replace('T', ' ').slice(0, 16)
@@ -74,7 +92,10 @@ export function useProfileInfo() {
     infoForm.email = profile.value.email || ''
     infoForm.bindMobile = ''
     infoForm.bindSmsCode = ''
-    if (!hasBoundMobile.value) mobileBindEditing.value = true
+    infoForm.bindEmail = ''
+    infoForm.bindEmailCode = ''
+    mobileBindEditing.value = !hasBoundMobile.value
+    emailBindEditing.value = false
   }
 
   async function loadProfile() {
@@ -90,13 +111,13 @@ export function useProfileInfo() {
 
   function resetInfoForm() {
     syncInfoForm()
-    infoFormRef.value?.clearValidate()
+    getInfoFormRef()?.clearValidate()
   }
 
   async function handleSaveInfo() {
     try {
-      await infoFormRef.value?.validateField('nickname')
-      await infoFormRef.value?.validateField('email')
+      await getInfoFormRef()?.validateField('nickname')
+      await getInfoFormRef()?.validateField('email')
     } catch { return }
     savingInfo.value = true
     try {
@@ -131,23 +152,39 @@ export function useProfileInfo() {
     mobileBindEditing.value = true
     infoForm.bindMobile = ''
     infoForm.bindSmsCode = ''
-    infoFormRef.value?.clearValidate(['bindMobile', 'bindSmsCode'])
+    getInfoFormRef()?.clearValidate(['bindMobile', 'bindSmsCode'])
   }
 
   function cancelMobileBindEditing() {
     mobileBindEditing.value = false
     infoForm.bindMobile = ''
     infoForm.bindSmsCode = ''
-    infoFormRef.value?.clearValidate(['bindMobile', 'bindSmsCode'])
+    getInfoFormRef()?.clearValidate(['bindMobile', 'bindSmsCode'])
+  }
+
+  function openEmailBindEditing() {
+    emailBindEditing.value = true
+    infoForm.bindEmail = ''
+    infoForm.bindEmailCode = ''
+    getInfoFormRef()?.clearValidate(['bindEmail', 'bindEmailCode'])
+  }
+
+  function cancelEmailBindEditing() {
+    emailBindEditing.value = false
+    infoForm.bindEmail = ''
+    infoForm.bindEmailCode = ''
+    getInfoFormRef()?.clearValidate(['bindEmail', 'bindEmailCode'])
   }
 
   return {
-    profile, pageLoading, savingInfo, avatarInputRef, infoFormRef,
-    mobileBindEditing, infoForm,
+    profile, pageLoading, savingInfo, avatarInputRef, basicInfoFormRef, getInfoFormRef,
+    mobileBindEditing, emailBindEditing, infoForm,
     avatarSrc, avatarFallback, statusLabel, statusTagType,
     postDisplay, lastLoginDisplay, maskedMobile, hasBoundMobile,
+    maskedEmail, hasBoundEmail,
     formatTime, loadProfile, resetInfoForm, handleSaveInfo,
     triggerAvatarUpload, handleAvatarChange,
     openMobileBindEditing, cancelMobileBindEditing,
+    openEmailBindEditing, cancelEmailBindEditing,
   }
 }

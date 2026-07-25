@@ -3,6 +3,7 @@ import { uploadFile as uniUpload } from '@/utils/upload'
 import { getToken } from '@/utils/auth'
 import type { PageResult } from '@/types/api'
 import type { FilePageQuery } from '@/types/system'
+import { resolveApiBaseUrl } from '@/utils/api-base'
 
 export interface FileRecord {
   id?: number
@@ -25,15 +26,54 @@ export function withTokenQuery(url: string): string {
   return `${url}${sep}Authorization=${encodeURIComponent(token)}`
 }
 
+const isH5 = import.meta.env.UNI_PLATFORM === 'h5'
+
+function resolveApiOrigin(): string {
+  const base = resolveApiBaseUrl()
+  if (base.startsWith('http://') || base.startsWith('https://')) {
+    return base.replace(/\/api\/?$/, '')
+  }
+  // #ifdef H5
+  if (typeof window !== 'undefined') {
+    return window.location.origin
+  }
+  // #endif
+  return ''
+}
+
+/** 小程序/App 的 image/video 须完整 URL；H5 同域可继续用 /api 相对路径 */
+function toAbsoluteApiUrl(path: string): string {
+  const trimmed = path.trim()
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) return trimmed
+
+  let apiPath = trimmed.startsWith('/') ? trimmed : `/${trimmed}`
+  if (apiPath.startsWith('/files/')) apiPath = `/api${apiPath}`
+
+  const base = resolveApiBaseUrl()
+  if (isH5 && !base.startsWith('http')) {
+    return apiPath
+  }
+
+  const origin = resolveApiOrigin()
+  if (!origin) return apiPath
+  return `${origin}${apiPath}`
+}
+
 function normalizeFileApiUrl(url: string): string {
   if (!url) return ''
   const trimmed = url.trim()
   if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) return trimmed
-  if (trimmed.startsWith('/api')) return trimmed
-  if (trimmed.startsWith('/files/')) return `/api${trimmed}`
-  if (trimmed.startsWith('files/')) return `/api/${trimmed}`
-  const base = import.meta.env.VITE_API_BASE_URL || '/api'
-  return trimmed.startsWith('/') ? `${base}${trimmed}` : `${base}/${trimmed}`
+  // 后端存的路径通常已是 /api/files/...，不可再拼 VITE_API_BASE_URL，否则会 /api/api/...
+  if (trimmed.startsWith('/api/') || trimmed === '/api') return toAbsoluteApiUrl(trimmed)
+  if (trimmed.startsWith('api/')) return toAbsoluteApiUrl(`/${trimmed}`)
+  if (trimmed.startsWith('files/')) return toAbsoluteApiUrl(`/api/${trimmed}`)
+  if (trimmed.startsWith('/files/')) return toAbsoluteApiUrl(`/api${trimmed}`)
+  const base = resolveApiBaseUrl()
+  const merged = trimmed.startsWith('/') ? `${base}${trimmed}` : `${base}/${trimmed}`
+  if (merged.startsWith('http://') || merged.startsWith('https://')) {
+    return merged.replace(/\/api\/api\//, '/api/')
+  }
+  return toAbsoluteApiUrl(merged)
 }
 
 export function fileDisplayUrl(url?: string): string {
@@ -42,11 +82,11 @@ export function fileDisplayUrl(url?: string): string {
 }
 
 export function getPreviewApiUrl(id: number) {
-  return withTokenQuery(`/api/system/file/preview/${id}`)
+  return withTokenQuery(toAbsoluteApiUrl(`/api/system/file/preview/${id}`))
 }
 
 export function getDownloadApiUrl(id: number) {
-  return withTokenQuery(`/api/system/file/download/${id}`)
+  return withTokenQuery(toAbsoluteApiUrl(`/api/system/file/download/${id}`))
 }
 
 /** 流式预览 URL（对齐 PC getStreamPreviewUrl） */

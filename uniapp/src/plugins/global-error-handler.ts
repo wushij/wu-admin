@@ -23,7 +23,11 @@ export function extractApiErrorMessage(source: unknown, fallback = '操作失败
 
   if (err.message) return err.message
   if (err.msg) return err.msg
-  if (err.errMsg) return err.errMsg
+  if (err.errMsg) {
+    const raw = err.errMsg.trim()
+    if (/^request:fail/i.test(raw)) return '网络连接失败，请稍后重试'
+    return raw
+  }
 
   if (err.statusCode === 500) return '服务器内部错误，请稍后重试'
   if (err.statusCode === 502 || err.statusCode === 503) return '服务暂时不可用，请稍后重试'
@@ -32,8 +36,21 @@ export function extractApiErrorMessage(source: unknown, fallback = '操作失败
   return fallback
 }
 
+/** H5/小程序切后台时，进行中的请求常被 abort，不应弹全局错误 */
+export function isBenignRequestError(source: unknown): boolean {
+  const err = source as { errMsg?: string; message?: string }
+  const raw = (err?.errMsg || err?.message || '').toLowerCase()
+  if (!raw) return false
+  return (
+    raw.includes('request:fail') &&
+    (raw.includes('abort') || raw.includes('cancel') || raw.includes('interrupted'))
+  )
+}
+
 function isBenignUniRuntimeError(source: unknown): boolean {
+  if (isBenignRequestError(source)) return true
   const msg = extractApiErrorMessage(source, '')
+  if (/closeSocket:fail/i.test(msg) && /not connected/i.test(msg)) return true
   if (msg.includes('scrollTop') && msg.toLowerCase().includes('null')) return true
   if (msg.includes('navigateBack:fail') && msg.includes('onBackPress')) return true
   if (msg.includes('Maximum call stack size exceeded')) return true

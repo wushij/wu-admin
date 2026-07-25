@@ -8,7 +8,7 @@ import { MESSAGE_CHANNELS } from '@/constants/messageChannels'
 export function useMessageHub() {
   const messageStore = useMessageStore()
   const { inboxCount, announceCount, chatCount } = storeToRefs(messageStore)
-  const { hasPerm } = usePermission()
+  const { hasMenuPerm } = usePermission()
 
   function badgeOf(key: (typeof MESSAGE_CHANNELS)[number]['countKey']) {
     if (key === 'announceCount') return announceCount.value
@@ -17,7 +17,7 @@ export function useMessageHub() {
   }
 
   const channels = computed(() =>
-    MESSAGE_CHANNELS.filter((ch) => !ch.permission || hasPerm(ch.permission)).map((ch) => ({
+    MESSAGE_CHANNELS.filter((ch) => !ch.permission || hasMenuPerm(ch.permission)).map((ch) => ({
       ...ch,
       badge: badgeOf(ch.countKey),
     })),

@@ -23,12 +23,20 @@ export function changePassword(data: ChangePasswordDTO) {
   return put<unknown>('/auth/profile/password', data)
 }
 
-export function sendProfilePasswordSmsCode(sliderCode: string) {
-  return post<boolean>('/auth/profile/password/sms-code', { code: sliderCode })
+export function sendProfilePasswordSmsCode(slider: { uuid: string; code: string }) {
+  return post<boolean>('/auth/profile/password/sms-code', slider)
 }
 
 export function resetPasswordBySms(data: ProfilePasswordSmsResetDTO) {
   return put<unknown>('/auth/profile/password/sms-reset', data)
+}
+
+export function sendProfilePasswordEmailCode() {
+  return post<boolean>('/auth/profile/password/email-code')
+}
+
+export function resetPasswordByEmail(data: { emailCode: string; newPassword: string; confirmPassword?: string }) {
+  return put<unknown>('/auth/profile/password/email-reset', data)
 }
 
 export function sendProfileMobileBindSmsCode(data: ProfileMobileBindSmsCodeDTO) {
@@ -37,6 +45,14 @@ export function sendProfileMobileBindSmsCode(data: ProfileMobileBindSmsCodeDTO) 
 
 export function bindProfileMobile(data: ProfileMobileBindDTO) {
   return put<unknown>('/auth/profile/mobile', data)
+}
+
+export function sendProfileEmailBindCode(data: { email: string }) {
+  return post<boolean>('/auth/profile/email/code', data)
+}
+
+export function bindProfileEmail(data: { email: string; code: string }) {
+  return put<unknown>('/auth/profile/email', data)
 }
 
 export function uploadAvatar(filePath: string) {

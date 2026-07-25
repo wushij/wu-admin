@@ -1,21 +1,21 @@
 package com.admin.server.modules.system.service.auth.impl;
 
-import com.admin.server.common.exception.BusinessException;
+import com.admin.server.common.pojo.BusinessException;
 import com.admin.server.modules.system.api.auth.vo.LoginReqVO;
 import com.admin.server.modules.system.api.auth.vo.RegisterReqVO;
 import com.admin.server.modules.system.api.auth.vo.SmsCodeReqVO;
 import com.admin.server.modules.system.dal.dataobject.user.UserDO;
 import com.admin.server.modules.system.dal.mysql.permission.RoleMapper;
 import com.admin.server.modules.system.dal.mysql.user.UserMapper;
-import com.admin.server.modules.ticket.service.approval.RegisterApprovalService;
+import com.admin.server.modules.system.service.approval.RegisterApprovalService;
 import com.admin.server.modules.system.service.auth.LoginLockService;
 import com.admin.server.modules.system.service.auth.SliderCaptchaService;
 import com.admin.server.modules.system.service.config.SystemConfigHelper;
 import com.admin.server.modules.system.service.loginlog.LoginLogService;
-import com.admin.server.modules.infra.service.monitor.OnlineUserService;
+import com.admin.server.modules.system.service.monitor.OnlineUserService;
 import com.admin.server.modules.system.service.permission.PermissionService;
-import com.admin.server.modules.trade.framework.sms.AliyunDypnsSmsVerifyService;
-import com.admin.server.modules.trade.framework.sms.SmsServiceFactory;
+import com.admin.server.modules.system.sms.AliyunDypnsSmsVerifyService;
+import com.admin.server.modules.system.sms.SmsServiceFactory;
 import cn.dev33.satoken.session.SaSession;
 import cn.dev33.satoken.stp.StpUtil;
 import com.admin.server.framework.security.core.service.TokenService;
@@ -161,7 +161,7 @@ class AuthServiceImplTest extends MybatisLambdaTestBase {
             assertEquals("alice", result.get("username"));
             verify(tokenService).createToken(1L, "alice");
             verify(onlineUserService).recordLoginSession(eq(1L), eq("alice"), any(), eq("127.0.0.1"), eq("JUnit"));
-            verify(loginLogService).record(any());
+            verify(loginLogService).recordAsync(any());
         }
     }
 

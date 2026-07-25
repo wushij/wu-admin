@@ -1,11 +1,9 @@
 package com.admin.server.modules.system.api.post;
 
-import com.admin.server.common.core.CommonResult;
-import com.admin.server.common.core.PageParam;
-import com.admin.server.common.core.PageResult;
+import com.admin.server.common.pojo.CommonResult;
+import com.admin.server.common.pojo.PageParam;
+import com.admin.server.common.pojo.PageResult;
 import com.admin.server.framework.log.annotation.Log;
-import com.admin.server.modules.system.api.post.vo.PostRespVO;
-import com.admin.server.modules.system.convert.PostConvert;
 import com.admin.server.modules.system.dal.dataobject.post.PostDO;
 import com.admin.server.modules.system.service.post.PostService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -27,25 +25,22 @@ public class PostController {
     @GetMapping("/tree")
     @Operation(summary = "岗位树")
     @PreAuthorize("@ss.hasRead('system:post:list')")
-    public CommonResult<List<PostRespVO>> tree() {
-        List<PostDO> list = postService.tree();
-        return CommonResult.success(PostConvert.convertPostList(list));
+    public CommonResult<List<PostDO>> tree() {
+        return CommonResult.success(postService.tree());
     }
 
     @GetMapping("/list")
     @Operation(summary = "启用岗位扁平列表")
     @PreAuthorize("@ss.hasRead('system:post:list')")
-    public CommonResult<List<PostRespVO>> list() {
-        List<PostDO> list = postService.listEnabled();
-        return CommonResult.success(PostConvert.convertPostList(list));
+    public CommonResult<List<PostDO>> list() {
+        return CommonResult.success(postService.listEnabled());
     }
 
     @GetMapping("/{id}")
     @Operation(summary = "岗位详情")
     @PreAuthorize("@ss.hasRead('system:post:list')")
-    public CommonResult<PostRespVO> detail(@PathVariable Long id) {
-        PostDO post = postService.getById(id);
-        return CommonResult.success(PostConvert.convertPost(post));
+    public CommonResult<PostDO> detail(@PathVariable Long id) {
+        return CommonResult.success(postService.getById(id));
     }
 
     @PostMapping
@@ -87,11 +82,10 @@ public class PostController {
     @GetMapping("/recycle/page")
     @Operation(summary = "岗位回收站分页")
     @PreAuthorize("@ss.hasRecycleRead()")
-    public CommonResult<PageResult<PostRespVO>> recyclePage(PageParam pageParam,
+    public CommonResult<PageResult<PostDO>> recyclePage(PageParam pageParam,
                                                         @RequestParam(required = false) String postName,
                                                         @RequestParam(required = false) Integer status) {
-        PageResult<PostDO> page = postService.recyclePage(pageParam, postName, status);
-        return CommonResult.success(PageResult.of(PostConvert.convertPostList(page.getList()), page.getTotal()));
+        return CommonResult.success(postService.recyclePage(pageParam, postName, status));
     }
 
     @PutMapping("/restore")

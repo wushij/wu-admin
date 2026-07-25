@@ -9,7 +9,7 @@
         <text class="auth-form__platform">{{ appStore.platformName }}</text>
       </view>
 
-      <AuthInput v-model="form.username" icon="user" placeholder="用户名（4-20位字母数字下划线）" :maxlength="20" />
+      <AuthInput v-model="form.username" icon="user" placeholder="用户名（4-12位字母数字下划线）" :maxlength="12" />
       <AuthPasswordInput v-model="form.password" placeholder="请输入密码（6-20位）" :maxlength="20" />
       <AuthInput v-model="form.nickname" icon="user-o" placeholder="昵称（可选）" :maxlength="20" />
       <AuthInput
@@ -44,7 +44,7 @@
     </AuthGlassForm>
     </view>
 
-    <SliderCaptcha v-model:show="showSlider" @success="onSliderSuccess" />
+    <SliderCaptcha v-model:show="showSlider" scene="register" @success="onSliderSuccess" />
   </view>
 </template>
 
@@ -52,7 +52,8 @@
 import { reactive, ref, onMounted } from 'vue'
 import { register, getCaptcha, getConfig } from '@/api/system/auth'
 import { useAppStore } from '@/store/app'
-import { SLIDER_VERIFIED_CODE } from '@/constants'
+import { sliderVerifyToRequest } from '@/utils/slider-captcha'
+import type { SliderVerifyPayload } from '@/utils/slider-captcha'
 import SliderCaptcha from '@/components/business/SliderCaptcha/index.vue'
 import AuthParticleBackground from '@/components/business/AuthParticleBackground/index.vue'
 import AuthGlassForm from '@/components/business/AuthGlassForm/index.vue'
@@ -111,30 +112,41 @@ async function refreshCaptcha() {
   }
 }
 
-async function doRegister(sliderCode?: string) {
+async function doRegister(sliderCaptcha?: { uuid: string; code: string }) {
   if (!agreeTerms.value) {
     agreeAlert.value = true
     uni.showToast({ title: '请先同意用户协议', icon: 'none' })
     return
   }
   agreeAlert.value = false
-  if (!form.username.trim() || !form.password) {
+  const username = form.username.trim()
+  if (!username || !form.password) {
     uni.showToast({ title: '请填写用户名和密码', icon: 'none' })
+    return
+  }
+  if (!/^[a-zA-Z0-9_]{4,12}$/.test(username)) {
+    uni.showToast({ title: '用户名只能包含字母、数字、下划线，长度4-12位', icon: 'none' })
     return
   }
   loading.value = true
   try {
-    const res = await register({
-      username: form.username.trim(),
+    const payload: Parameters<typeof register>[0] = {
+      username,
       password: form.password,
       nickname: form.nickname.trim() || undefined,
       mobile: form.mobile.trim() || undefined,
-      uuid: captchaType.value === 'image' ? captchaUuid.value : undefined,
-      code:
-        captchaEnabled.value && captchaType.value === 'slider'
-          ? sliderCode || SLIDER_VERIFIED_CODE
-          : form.code || undefined,
-    })
+    }
+    if (captchaEnabled.value) {
+      if (captchaType.value === 'slider') {
+        if (!sliderCaptcha) return
+        payload.uuid = sliderCaptcha.uuid
+        payload.code = sliderCaptcha.code
+      } else {
+        payload.uuid = captchaUuid.value
+        payload.code = form.code || undefined
+      }
+    }
+    const res = await register(payload)
     const msg = res.message || res.msg || '注册成功，请登录'
     uni.showToast({ title: msg, icon: 'success' })
     setTimeout(() => goLogin(), 500)
@@ -154,8 +166,8 @@ function handleSubmit() {
   doRegister()
 }
 
-function onSliderSuccess() {
-  doRegister(SLIDER_VERIFIED_CODE)
+function onSliderSuccess(payload: SliderVerifyPayload) {
+  doRegister(sliderVerifyToRequest(payload))
 }
 
 function goLogin() {

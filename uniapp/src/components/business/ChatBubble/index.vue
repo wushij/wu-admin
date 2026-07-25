@@ -98,9 +98,9 @@ watch(
   },
 )
 
-function onImageLoad(e: { detail?: { width?: number; height?: number } }) {
-  const width = e.detail?.width || 0
-  const height = e.detail?.height || 0
+function onImageLoad(e: { detail?: { width?: string | number; height?: string | number } }) {
+  const width = Number(e.detail?.width) || 0
+  const height = Number(e.detail?.height) || 0
   if (!width || !height) {
     emit('media-loaded')
     return

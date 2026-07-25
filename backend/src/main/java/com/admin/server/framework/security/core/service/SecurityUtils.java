@@ -76,26 +76,4 @@ public class SecurityUtils {
         }
         return name;
     }
-
-    /**
-     * 获取当前登录用户展示名（优先昵称，无昵称时回退用户名）
-     */
-    public static String getLoginUserDisplayName() {
-        try {
-            if (StpUtil.isLogin()) {
-                Object nicknameObj = StpUtil.getSession().get(TokenService.SESSION_NICKNAME);
-                if (nicknameObj != null && StringUtils.hasText(nicknameObj.toString())) {
-                    return nicknameObj.toString().trim();
-                }
-                Object usernameObj = StpUtil.getSession().get(TokenService.SESSION_USERNAME);
-                if (usernameObj != null && StringUtils.hasText(usernameObj.toString())) {
-                    return usernameObj.toString().trim();
-                }
-            }
-        } catch (Exception e) {
-            log.debug("getLoginUserDisplayName via Sa-Token failed: {}", e.getMessage());
-        }
-        String name = getLoginUsername();
-        return name;
-    }
 }

@@ -1,4 +1,4 @@
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { getCacheInfo } from '@/api/monitor/cache'
 import type { CacheInfo, CacheStats } from '@/types/system'
 import {
@@ -7,7 +7,9 @@ import {
   fetchCacheStatsPoint,
   setCacheAutoRefresh,
   startCacheMonitorBackground,
+  stopCacheMonitorBackground,
 } from '@/composables/monitor/cacheMonitorChart'
+import { isMonitorAdmin } from '@/composables/useMonitorBackground'
 
 export const CACHE_MAX_CHART_POINTS = 20
 
@@ -101,6 +103,12 @@ export function useCacheMonitor() {
 
   onMounted(() => {
     startCacheMonitorBackground()
+  })
+
+  onUnmounted(() => {
+    if (!isMonitorAdmin()) {
+      stopCacheMonitorBackground()
+    }
   })
 
   return {

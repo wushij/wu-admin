@@ -1,6 +1,6 @@
 package com.admin.server.modules.system.api.dashboard;
 
-import com.admin.server.common.core.CommonResult;
+import com.admin.server.common.pojo.CommonResult;
 import com.admin.server.modules.system.service.dashboard.vo.RecentLoginVO;
 import com.admin.server.modules.system.service.dashboard.DashboardService;
 import cn.dev33.satoken.stp.StpUtil;

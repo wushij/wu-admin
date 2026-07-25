@@ -6,14 +6,14 @@
 -- 【使用方式】
 --   全新安装（空库）  直接执行全文即可（自动检测空库放行 Part A/B）
 --                     示例: mysql -u root -p < sql/admin_platform.sql
---   已有库（有表）    勿跑全文 Part A/B；执行文末「附录」或 sql/add1.sql 等增量
+--   已有库（有表）    勿跑全文 Part A/B；仅执行文末「附录」
 --   强制重装         SET @WU_ADMIN_ALLOW_DROP=1; 后再执行全文（会 DROP 清库）
 --
 -- 【正文结构】
 --   Part A  建表      §1 用户 ~ §17 代码生成（gen_table 含 uk_gen_table_name_deleted 唯一索引）
 --   Part B  初始数据  组织/用户/字典/配置/菜单（含代码生成 164-169,179）/定时任务/角色权限
 --
--- 【附录】旧库补丁（含代码生成表/菜单/唯一索引迁移）；发版增量见 sql/add1.sql 等
+-- 【附录】旧库补丁（含代码生成表/菜单/唯一索引迁移及历次发版变更）
 -- =============================================================================
 
 -- 建库并切换
@@ -38,7 +38,7 @@ BEGIN
                   '[OK] @WU_ADMIN_ALLOW_DROP=1, forced reinstall') AS result;
     ELSE
         SIGNAL SQLSTATE '45000'
-            SET MESSAGE_TEXT = 'Part A/B 已拦截：wu-admin 已有表。旧库请执行文末附录或 sql/add1.sql；重装请 SET @WU_ADMIN_ALLOW_DROP=1;';
+            SET MESSAGE_TEXT = 'Part A/B 已拦截：wu-admin 已有表。旧库请执行文末附录；重装请 SET @WU_ADMIN_ALLOW_DROP=1;';
     END IF;
 END$$
 DELIMITER ;
@@ -805,7 +805,7 @@ INSERT INTO sys_dict_data (dict_type, sort, dict_label, dict_value, list_class, 
 ('sys_approval_status', 3, '已驳回', 'REJECTED', 'danger', 0, 1),
 ('sys_approval_status', 4, '已归档', 'ARCHIVED', 'info', 0, 1);
 
--- 系统配置（10 分组：site / session / file / rateLimit / login / register / thirdParty / payment / sms / security）
+-- 系统配置（11 分组：site / session / file / rateLimit / login / register / thirdParty / payment / sms / email / security）
 INSERT INTO sys_config_group (group_code, group_name, config_value, remark) VALUES
 ('site', '基础信息', '{"platformName":"Admin Platform","platformSubtitle":"统一运维 · 高效管控","loginWelcome":"Welcome","registerTitle":"Sign Up","copyright":""}', '平台展示名称与登录页文案'),
 ('session', '会话配置', '{"tokenExpireHours":24}', 'JWT 与 Redis 会话有效期（小时）'),
@@ -816,7 +816,8 @@ INSERT INTO sys_config_group (group_code, group_name, config_value, remark) VALU
 ('thirdParty', '第三方配置', '{"wechat":{"enabled":false,"appId":"","appSecret":""},"alipay":{"enabled":false,"appId":"","privateKey":"","publicKey":""},"github":{"enabled":false,"clientId":"","clientSecret":""},"google":{"enabled":false,"clientId":"","clientSecret":"","redirectUri":""}}', '微信/支付宝/GitHub/Google 第三方登录'),
 ('payment', '支付配置', '{"wechatPay":{"enabled":false,"mchId":"","appId":"","apiV3Key":"","privateKey":"","certSerialNo":"","notifyUrl":""},"alipay":{"enabled":false,"appId":"","privateKey":"","publicKey":"","signType":"RSA2","gatewayUrl":"https://openapi.alipay.com/gateway.do","notifyUrl":"","returnUrl":""}}', '微信/支付宝支付与测试下单'),
 ('sms', '短信配置', '{"enabled":false,"provider":"aliyunAuth","accessKeyId":"","accessKeySecret":"","signName":"","tencentAppId":"","templateVerifyCode":"100001","templateModifyPhone":"100002","templateResetPassword":"100003","templateBindPhone":"100004","templateVerifyBindPhone":"100005","schemeName":"","codeExpireMinutes":5}', '阿里云短信认证/腾讯云'),
-('security', '安全配置', '{"disableDevtool":false,"isConcurrent":false}', '前端安全与会话：禁止调试、禁止多端同时在线');
+('email', '邮件配置', '{"enabled":true,"provider":"qq","host":"smtp.qq.com","port":465,"username":"","password":"","fromName":"wu-admin 系统团队","authEnabled":true,"securityType":"SSL","connectionTimeoutMs":5000,"timeoutMs":5000,"writeTimeoutMs":5000,"encoding":"UTF-8","debug":false,"codeExpireMinutes":5,"codeLength":6,"dailyLimitPerEmail":20,"sendIntervalSeconds":60}', '企业级 SMTP 邮件服务配置：发件人、SSL端口、超时限额与验证码防刷规则'),
+('security', '安全配置', '{"disableDevtool":false,"isConcurrent":false,"sm4EncryptEnabled":false,"sm2SignEnabled":false,"timestampEnabled":true,"nonceEnabled":true,"sm4SecretKey":"WuAdmin16BytesKey"}', '安全防线与会话：SM4加密、SM2数字签名、时间戳与Nonce防重放');
 
 -- 菜单与按钮（一级目录 sort：系统管理 1 / 监控 3 / 日志 4 / 文件 5 / 消息 6 / 流程 7 / 工具 8）
 INSERT INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, component, status) VALUES
@@ -834,6 +835,9 @@ INSERT INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, c
 (130, '字典管理', 'system:dict:list', 2, 5, 1, '/system/dict', 'Collection', 'system/dict/index', 1),
 (160, '系统配置', 'system:config:list', 2, 6, 1, '/system/config', 'Tools', 'system/config/index', 1),
 (163, '回收中心', 'system:recycle:list', 2, 7, 1, '/system/recycle', 'Delete', 'system/recycle/index', 1),
+(191, '回收中心查询', 'system:recycle:query', 3, 1, 163, '', '', '', 1),
+(192, '回收中心恢复', 'system:recycle:restore', 3, 2, 163, '', '', '', 1),
+(193, '回收中心删除', 'system:recycle:delete', 3, 3, 163, '', '', '', 1),
 -- 流程中心目录（审批 + 工单）
 (8, '流程中心', '', 1, 7, 0, '/workflow', 'Operation', '', 1),
 -- 审批单中心
@@ -903,7 +907,8 @@ INSERT INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, c
 (102, '访问统计查询', 'monitor:apiAccess:query', 3, 1, 101, '', '', '', 1),
 -- 在线用户
 (103, '在线用户', 'monitor:online:list', 2, 2, 100, '/monitor/online', 'User', 'monitor/online/index', 1),
-(104, '在线用户强退', 'monitor:online:forceLogout', 3, 1, 103, '', '', '', 1),
+(190, '在线用户查询', 'monitor:online:query', 3, 1, 103, '', '', '', 1),
+(104, '在线用户强退', 'monitor:online:forceLogout', 3, 2, 103, '', '', '', 1),
 -- 定时任务
 (180, '定时任务', 'monitor:job:list', 2, 3, 100, '/monitor/job', 'Timer', 'monitor/job/index', 1),
 (181, '任务查询', 'monitor:job:query', 3, 1, 180, '', '', '', 1),
@@ -912,9 +917,11 @@ INSERT INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, c
 (184, '任务删除', 'monitor:job:delete', 3, 4, 180, '', '', '', 1),
 -- 缓存监控
 (185, '缓存监控', 'monitor:cache:list', 2, 4, 100, '/monitor/cache', 'Coin', 'monitor/cache/index', 1),
-(186, '缓存删除', 'monitor:cache:delete', 3, 1, 185, '', '', '', 1),
+(188, '缓存查询', 'monitor:cache:query', 3, 1, 185, '', '', '', 1),
+(186, '缓存删除', 'monitor:cache:delete', 3, 2, 185, '', '', '', 1),
 -- 服务监控
 (187, '服务监控', 'monitor:server:list', 2, 5, 100, '/monitor/server', 'Cpu', 'monitor/server/index', 1),
+(189, '服务监控查询', 'monitor:server:query', 3, 1, 187, '', '', '', 1),
 -- 系统日志目录
 (120, '系统日志', '', 1, 4, 0, '/log', 'Notebook', '', 1),
 (121, '操作日志', 'system:operLog:list', 2, 1, 120, '/system/oper-log', 'EditPen', 'system/oper-log/index', 1),
@@ -960,7 +967,7 @@ INSERT INTO sys_user_role (user_id, role_id) VALUES
 
 -- 超级管理员 ↔ 全部菜单
 INSERT INTO sys_role_menu (role_id, menu_id) VALUES
-(1, 1), (1, 2), (1, 3), (1, 4), (1, 5), (1, 130), (1, 160), (1, 163), (1, 7), (1, 8), (1, 9),
+(1, 1), (1, 2), (1, 3), (1, 4), (1, 5), (1, 130), (1, 160), (1, 163), (1, 191), (1, 192), (1, 193), (1, 7), (1, 8), (1, 9),
 (1, 6), (1, 120), (1, 121), (1, 126), (1, 127), (1, 128),
 (1, 10), (1, 11), (1, 12), (1, 13),
 (1, 20), (1, 21), (1, 22), (1, 23),
@@ -970,7 +977,7 @@ INSERT INTO sys_role_menu (role_id, menu_id) VALUES
 (1, 50), (1, 51), (1, 52),
 (1, 60), (1, 61), (1, 62), (1, 63), (1, 64), (1, 65),
 (1, 70), (1, 71), (1, 72), (1, 73), (1, 74),
-(1, 100), (1, 101), (1, 102), (1, 103), (1, 104), (1, 180), (1, 181), (1, 182), (1, 183), (1, 184), (1, 185), (1, 186), (1, 187),
+(1, 100), (1, 101), (1, 102), (1, 103), (1, 190), (1, 104), (1, 180), (1, 181), (1, 182), (1, 183), (1, 184), (1, 185), (1, 186), (1, 187), (1, 188), (1, 189),
 (1, 105), (1, 110), (1, 111), (1, 112), (1, 113),
 (1, 150), (1, 151), (1, 164), (1, 165), (1, 166), (1, 167), (1, 168), (1, 169), (1, 179),
 (1, 170), (1, 171), (1, 172), (1, 173), (1, 174), (1, 175), (1, 176), (1, 177), (1, 178);
@@ -996,7 +1003,7 @@ INSERT INTO sys_role_menu (role_id, menu_id) VALUES
 -- =============================================================================
 -- 附录：已有库升级（极旧库首次补丁；可重复执行，无 DROP）
 -- 执行: 在客户端选中本节至文件末尾，或 mysql ... wu-admin < admin_platform.sql 仅当已跳过 Part A/B
--- 发版增量（非全量）见 sql/add1.sql；菜单默认 INSERT IGNORE，不覆盖 name/path/icon
+-- 菜单默认 INSERT IGNORE，不覆盖 name/path/icon
 -- =============================================================================
 
 SET @WU_ADMIN_SYNC_MENU := IFNULL(@WU_ADMIN_SYNC_MENU, 0);
@@ -1074,11 +1081,14 @@ WHERE group_code = 'thirdParty'
 INSERT IGNORE INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, component, status) VALUES
 (160, '系统配置', 'system:config:list', 2, 6, 1, '/system/config', 'Tools', 'system/config/index', 1),
 (163, '回收中心', 'system:recycle:list', 2, 7, 1, '/system/recycle', 'Delete', 'system/recycle/index', 1),
+(191, '回收中心查询', 'system:recycle:query', 3, 1, 163, '', '', '', 1),
+(192, '回收中心恢复', 'system:recycle:restore', 3, 2, 163, '', '', '', 1),
+(193, '回收中心删除', 'system:recycle:delete', 3, 3, 163, '', '', '', 1),
 (161, '配置查询', 'system:config:query', 3, 1, 160, '', '', '', 1),
 (162, '配置修改', 'system:config:update', 3, 2, 160, '', '', '', 1);
 
 INSERT IGNORE INTO sys_role_menu (role_id, menu_id) VALUES
-(1, 160), (1, 161), (1, 162), (1, 163);
+(1, 160), (1, 161), (1, 162), (1, 163), (1, 191), (1, 192), (1, 193);
 
 -- [附录·菜单] 代码生成 164-169,179（开发工具下；179 避开消息中心 170）
 INSERT IGNORE INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, component, status) VALUES
@@ -1275,7 +1285,7 @@ CALL sp_add_unique_index_if_not_exists('gen_table', 'uk_gen_table_name_deleted',
 DROP PROCEDURE IF EXISTS sp_drop_index_if_exists;
 DROP PROCEDURE IF EXISTS sp_add_unique_index_if_not_exists;
 
--- [附录·菜单] 图标修正（增量见 add19.sql；生产见 add19_wuadmin.sql）
+-- [附录·菜单] 图标修正
 UPDATE sys_menu SET icon = 'UserFilled' WHERE id = 3 AND icon IN ('Key', 'key');
 UPDATE sys_menu SET icon = 'DocumentCopy' WHERE id = 110;
 UPDATE sys_menu SET icon = 'Tickets' WHERE id = 7;
@@ -1730,11 +1740,13 @@ INSERT IGNORE INTO sys_menu (id, name, permission, type, sort, parent_id, path, 
 (183, '任务编辑', 'monitor:job:edit', 3, 3, 180, '', '', '', 1),
 (184, '任务删除', 'monitor:job:delete', 3, 4, 180, '', '', '', 1),
 (185, '缓存监控', 'monitor:cache:list', 2, 4, 100, '/monitor/cache', 'Coin', 'monitor/cache/index', 1),
-(186, '缓存删除', 'monitor:cache:delete', 3, 1, 185, '', '', '', 1),
-(187, '服务监控', 'monitor:server:list', 2, 5, 100, '/monitor/server', 'Cpu', 'monitor/server/index', 1);
+(188, '缓存查询', 'monitor:cache:query', 3, 1, 185, '', '', '', 1),
+(186, '缓存删除', 'monitor:cache:delete', 3, 2, 185, '', '', '', 1),
+(187, '服务监控', 'monitor:server:list', 2, 5, 100, '/monitor/server', 'Cpu', 'monitor/server/index', 1),
+(189, '服务监控查询', 'monitor:server:query', 3, 1, 187, '', '', '', 1);
 
 INSERT IGNORE INTO sys_role_menu (role_id, menu_id) VALUES
-(1, 180), (1, 181), (1, 182), (1, 183), (1, 184), (1, 185), (1, 186), (1, 187);
+(1, 180), (1, 181), (1, 182), (1, 183), (1, 184), (1, 185), (1, 186), (1, 187), (1, 188), (1, 189);
 
 -- 移除已废弃的内置任务；迁移旧版字典/配置缓存任务为聊天清理
 DELETE FROM sys_job WHERE invoke_target IN (
@@ -1917,13 +1929,13 @@ SET config_value = JSON_SET(config_value, '$.smsLoginEnabled', CAST(false AS JSO
 WHERE group_code = 'login'
   AND JSON_EXTRACT(config_value, '$.smsLoginEnabled') IS NULL;
 
--- [附录·登录] 短信发送前滑块验证 smsLoginSliderCaptchaEnabled（增量见 add2.sql）
+-- [附录·登录] 短信发送前滑块验证 smsLoginSliderCaptchaEnabled
 UPDATE sys_config_group
 SET config_value = JSON_SET(config_value, '$.smsLoginSliderCaptchaEnabled', CAST(false AS JSON))
 WHERE group_code = 'login'
   AND JSON_EXTRACT(config_value, '$.smsLoginSliderCaptchaEnabled') IS NULL;
 
--- [附录·登录] IP 锁定阈值 maxRetryCountIp（增量见 add18.sql；生产见 add15_wuadmin.sql）
+-- [附录·登录] IP 锁定阈值 maxRetryCountIp
 UPDATE sys_config_group
 SET config_value = JSON_SET(config_value, '$.maxRetryCountIp', CAST(20 AS JSON)),
     remark = '验证码 image/slider；smsLoginEnabled 短信登录；smsLoginSliderCaptchaEnabled 短信发送前滑块；maxRetryCount 账号锁定阈值；maxRetryCountIp IP 锁定阈值'
@@ -2097,3 +2109,52 @@ CALL sp_drop_index_if_exists('sys_notice', 'idx_user_read_status');
 CALL sp_drop_index_if_exists('sys_sms_log', 'idx_phone');
 
 DROP PROCEDURE IF EXISTS sp_drop_index_if_exists;
+
+-- [附录·菜单] add1：在线用户查询按钮 190（可重复执行）
+INSERT IGNORE INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, component, status) VALUES
+(190, '在线用户查询', 'monitor:online:query', 3, 1, 103, '', '', '', 1);
+
+UPDATE sys_menu
+SET name = '在线用户查询',
+    permission = 'monitor:online:query',
+    type = 3,
+    sort = 1,
+    parent_id = 103,
+    status = 1
+WHERE id = 190
+  AND (permission IS NULL OR permission = '' OR permission <> 'monitor:online:query');
+
+UPDATE sys_menu SET sort = 2 WHERE id = 104 AND parent_id = 103 AND sort = 1;
+
+INSERT IGNORE INTO sys_role_menu (role_id, menu_id) VALUES (1, 190);
+
+INSERT IGNORE INTO sys_role_menu (role_id, menu_id)
+SELECT rm.role_id, 190
+FROM sys_role_menu rm
+WHERE rm.menu_id = 103;
+
+-- [附录·菜单] add2：回收中心 query/restore/delete 191-193（可重复执行）
+INSERT IGNORE INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, component, status) VALUES
+(191, '回收中心查询', 'system:recycle:query', 3, 1, 163, '', '', '', 1),
+(192, '回收中心恢复', 'system:recycle:restore', 3, 2, 163, '', '', '', 1),
+(193, '回收中心删除', 'system:recycle:delete', 3, 3, 163, '', '', '', 1);
+
+UPDATE sys_menu
+SET name = '回收中心查询', permission = 'system:recycle:query', type = 3, sort = 1, parent_id = 163, status = 1
+WHERE id = 191 AND (permission IS NULL OR permission = '' OR permission <> 'system:recycle:query');
+
+UPDATE sys_menu
+SET name = '回收中心恢复', permission = 'system:recycle:restore', type = 3, sort = 2, parent_id = 163, status = 1
+WHERE id = 192 AND (permission IS NULL OR permission = '' OR permission <> 'system:recycle:restore');
+
+UPDATE sys_menu
+SET name = '回收中心删除', permission = 'system:recycle:delete', type = 3, sort = 3, parent_id = 163, status = 1
+WHERE id = 193 AND (permission IS NULL OR permission = '' OR permission <> 'system:recycle:delete');
+
+INSERT IGNORE INTO sys_role_menu (role_id, menu_id) VALUES (1, 191), (1, 192), (1, 193);
+
+INSERT IGNORE INTO sys_role_menu (role_id, menu_id)
+SELECT rm.role_id, 191
+FROM sys_role_menu rm
+WHERE rm.menu_id = 163;
+

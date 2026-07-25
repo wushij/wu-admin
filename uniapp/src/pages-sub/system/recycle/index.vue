@@ -118,9 +118,9 @@
               </view>
               <text v-if="rowMeta(item)" class="recycle-row__time">{{ rowMeta(item) }}</text>
             </view>
-            <view v-if="canDelete" class="recycle-row__actions">
-              <button class="outline-btn outline-btn--primary" @click.stop="onRestore(item)">恢复</button>
-              <button class="outline-btn outline-btn--danger" @click.stop="onDelete(item)">清除</button>
+            <view v-if="canRestore || canDeletePermanent" class="recycle-row__actions">
+              <button v-if="canRestore" class="outline-btn outline-btn--primary" @click.stop="onRestore(item)">恢复</button>
+              <button v-if="canDeletePermanent" class="outline-btn outline-btn--danger" @click.stop="onDelete(item)">清除</button>
             </view>
           </view>
         </ListCard>
@@ -157,7 +157,8 @@ const {
   currentModule,
   visiblePendingTotal,
   activePendingCount,
-  canDelete,
+  canRestore,
+  canDeletePermanent,
   searchFields,
   list,
   loading,

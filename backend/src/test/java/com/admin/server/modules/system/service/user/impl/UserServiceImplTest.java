@@ -1,7 +1,6 @@
 package com.admin.server.modules.system.service.user.impl;
 
-import com.admin.server.common.exception.BusinessException;
-import com.admin.server.modules.system.enums.ErrorCodeConstants;
+import com.admin.server.common.pojo.BusinessException;
 import com.admin.server.framework.security.core.service.TokenService;
 import com.admin.server.modules.system.api.user.vo.UserCreateReqVO;
 import com.admin.server.modules.system.api.user.vo.UserUpdateReqVO;
@@ -22,7 +21,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.List;
@@ -54,8 +52,6 @@ class UserServiceImplTest extends MybatisLambdaTestBase {
     private LoginLockService loginLockService;
     @Mock
     private LoginLogMapper loginLogMapper;
-    @Mock
-    private ApplicationEventPublisher eventPublisher;
 
     @InjectMocks
     private UserServiceImpl userService;
@@ -93,7 +89,7 @@ class UserServiceImplTest extends MybatisLambdaTestBase {
 
         BusinessException ex = assertThrows(BusinessException.class, () -> userService.updateUser(req));
 
-        assertEquals(ErrorCodeConstants.USER_NOT_EXISTS.code(), ex.getCode());
+        assertEquals(404, ex.getCode());
         verify(userMapper, never()).updateById(any(UserDO.class));
     }
 
@@ -105,7 +101,7 @@ class UserServiceImplTest extends MybatisLambdaTestBase {
         BusinessException ex = assertThrows(BusinessException.class,
                 () -> userService.updateStatus(1L, 0));
 
-        assertEquals(ErrorCodeConstants.USER_NOT_EXISTS.code(), ex.getCode());
+        assertEquals(404, ex.getCode());
     }
 
     @Test
@@ -142,7 +138,7 @@ class UserServiceImplTest extends MybatisLambdaTestBase {
     void unlockLogin_notFound() {
         when(userMapper.selectById(99L)).thenReturn(null);
         BusinessException ex = assertThrows(BusinessException.class, () -> userService.unlockLogin(99L));
-        assertEquals(ErrorCodeConstants.USER_NOT_EXISTS.code(), ex.getCode());
+        assertEquals(404, ex.getCode());
     }
 
     @Test

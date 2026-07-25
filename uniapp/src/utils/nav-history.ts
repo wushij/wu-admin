@@ -16,11 +16,33 @@ const DEFAULT_FALLBACK = '/pages/work/index'
 
 const EXPLICIT_PARENT: Record<string, string> = {
   'pages-sub/system/user/detail': '/pages-sub/system/user/index',
+  'pages-sub/system/user/edit': '/pages-sub/system/user/index',
   'pages-sub/system/user/index': '/pages/work/index',
+  'pages-sub/system/role/edit': '/pages-sub/system/role/index',
+  'pages-sub/system/role/index': '/pages/work/index',
   'pages-sub/system/org/edit': '/pages-sub/system/org/index',
   'pages-sub/system/org/index': '/pages/work/index',
+  'pages-sub/system/menu/edit': '/pages-sub/system/menu/index',
+  'pages-sub/system/menu/index': '/pages/work/index',
+  'pages-sub/system/dict/type-form': '/pages-sub/system/dict/index',
+  'pages-sub/system/dict/data-form': '/pages-sub/system/dict/index',
+  'pages-sub/system/dict/index': '/pages/work/index',
+  'pages-sub/system/file/index': '/pages/work/index',
+  'pages-sub/system/config/index': '/pages/work/index',
   'pages-sub/mine/mobile-bind': '/pages-sub/mine/profile',
+  'pages-sub/mine/email-bind': '/pages-sub/mine/profile',
   'pages-sub/mine/profile': '/pages/mine/index',
+  'pages-sub/mine/password': '/pages/mine/index',
+  'pages-sub/mine/login-logs': '/pages/mine/index',
+  'pages-sub/mine/account': '/pages/mine/index',
+  'pages-sub/mine/about': '/pages/mine/index',
+  'pages-sub/log/oper-log': '/pages/work/index',
+  'pages-sub/log/login-log': '/pages/work/index',
+  'pages-sub/monitor/online': '/pages/work/index',
+  'pages-sub/monitor/server': '/pages/work/index',
+  'pages-sub/monitor/job': '/pages/work/index',
+  'pages-sub/monitor/cache': '/pages/work/index',
+  'pages-sub/monitor/api-access': '/pages/work/index',
 }
 
 function normalizeRoute(route: string): string {

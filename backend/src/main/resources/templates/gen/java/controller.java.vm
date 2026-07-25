@@ -1,10 +1,10 @@
-package cn.rbac.server.modules.system.api.${businessName};
+package com.admin.server.modules.system.api.${businessName};
 
-import cn.rbac.server.common.pojo.CommonResult;
-import cn.rbac.server.common.pojo.PageResult;
-import cn.rbac.server.framework.log.annotation.Log;
-import cn.rbac.server.modules.system.dal.dataobject.${businessName}.${className}DO;
-import cn.rbac.server.modules.system.service.${businessName}.${className}Service;
+import com.admin.server.common.pojo.CommonResult;
+import com.admin.server.common.pojo.PageResult;
+import com.admin.server.framework.log.annotation.Log;
+import com.admin.server.modules.system.dal.dataobject.${businessName}.${className}DO;
+import com.admin.server.modules.system.service.${businessName}.${className}Service;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;

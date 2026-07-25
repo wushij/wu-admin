@@ -1,42 +1,15 @@
-import { sm3, sm4 } from 'sm-crypto'
+import { sm2, sm4 } from 'sm-crypto'
 
 /**
- * 生成 32 位随机 Nonce 字符串 (使用密码学强随机数生成器)
+ * 生成 32 位随机 Nonce 字符串
  */
 export function generateNonce(): string {
   const chars = 'abcdef0123456789'
-  const bytes = new Uint8Array(32)
-  if (typeof window !== 'undefined' && window.crypto && window.crypto.getRandomValues) {
-    window.crypto.getRandomValues(bytes)
-  } else {
-    for (let i = 0; i < 32; i++) {
-      bytes[i] = Math.floor(Math.random() * 256)
-    }
-  }
   let nonce = ''
   for (let i = 0; i < 32; i++) {
-    nonce += chars.charAt(bytes[i] % chars.length)
+    nonce += chars.charAt(Math.floor(Math.random() * chars.length))
   }
   return nonce
-}
-
-/**
- * 生成 16 字节 (32 位 Hex) 随机 IV 向量
- */
-function generateRandomIvHex(): string {
-  const bytes = new Uint8Array(16)
-  if (typeof window !== 'undefined' && window.crypto && window.crypto.getRandomValues) {
-    window.crypto.getRandomValues(bytes)
-  } else {
-    for (let i = 0; i < 16; i++) {
-      bytes[i] = Math.floor(Math.random() * 256)
-    }
-  }
-  let hex = ''
-  for (let i = 0; i < 16; i++) {
-    hex += bytes[i].toString(16).padStart(2, '0')
-  }
-  return hex
 }
 
 /**
@@ -47,76 +20,30 @@ export function getTimestamp(): string {
 }
 
 /**
- * sm-crypto 的 sm4 要求 key 为 32 字符 hex 串（16 字节），而后端 hutool
- * SmUtil.sm4(keyBytes) 直接对 key 字符串做 UTF-8 编码得到 16 字节。
- * 这里把原始 key 转为等价 hex，确保前后端使用相同的 16 字节密钥。
- */
-function ensureSm4HexKey(rawKey: string): string {
-  if (rawKey.length === 32 && /^[0-9a-fA-F]{32}$/.test(rawKey)) return rawKey
-  let hex = ''
-  for (let i = 0; i < rawKey.length; i++) {
-    hex += rawKey.charCodeAt(i).toString(16).padStart(2, '0')
-  }
-  return hex
-}
-
-/**
- * SM4 加密（CBC 模式 + 16 字节随机 IV + PKCS7Padding）
- * 输出格式：IV (32位Hex) + SM4_CBC_Cipher (Hex)
+ * SM4 加密（CBC 模式 / PKCS7Padding）
  * @param plainText 明文字符串
  * @param secretKey 16 字节密钥字符串
  */
-export function encryptSm4(plainText: string, secretKey: string): string {
+export function encryptSm4(plainText: string, secretKey = 'WuAdmin16BytesKey'): string {
   if (!plainText) return ''
-  if (!secretKey) {
-    throw new Error('SM4 加密失败：密钥未下发')
+  try {
+    // sm4.encrypt 接收字符串或 byte 数组，返回 hex 或 base64
+    return sm4.encrypt(plainText, secretKey)
+  } catch (err) {
+    console.error('SM4 加密失败:', err)
+    return plainText
   }
-  const hexKey = ensureSm4HexKey(secretKey)
-  const hexIv = generateRandomIvHex()
-  const cipherHex = sm4.encrypt(plainText, hexKey, {
-    mode: 'cbc',
-    iv: hexIv,
-    padding: 'pkcs#7',
-  } as any)
-  // 前 32 位放置随机 IV，后面接密文
-  return hexIv + cipherHex
 }
 
 /**
- * SM4 解密（支持 CBC 模式提取 16 字节 IV 向量及旧版 ECB 兜底）
- * @param cipherText 密文字符串 (Hex 格式)
+ * SM4 解密
+ * @param cipherText 密文字符串
  * @param secretKey 16 字节密钥字符串
  */
-export function decryptSm4(cipherText: string, secretKey: string): string {
+export function decryptSm4(cipherText: string, secretKey = 'WuAdmin16BytesKey'): string {
   if (!cipherText) return ''
-  if (!secretKey) {
-    console.warn('SM4 密钥缺失，跳过解密')
-    return cipherText
-  }
   try {
-    const hexKey = ensureSm4HexKey(secretKey)
-    const text = cipherText.trim()
-    // 优先尝试 CBC 模式提取前 32 位 Hex 作为 IV
-    if (text.length > 32 && /^[0-9a-fA-F]+$/.test(text)) {
-      const hexIv = text.substring(0, 32)
-      const rawCipher = text.substring(32)
-      try {
-        const decrypted = sm4.decrypt(rawCipher, hexKey, {
-          mode: 'cbc',
-          iv: hexIv,
-          padding: 'pkcs#7',
-        } as any)
-        if (decrypted) return decrypted
-      } catch {
-        /* CBC 模式失败则尝试 ECB 降级 */
-      }
-    }
-    // ECB 兜底解密逻辑
-    const bytes = base64ToBytes(text)
-    return sm4.decrypt(bytes, hexKey, {
-      mode: 'ecb',
-      padding: 'pkcs#7',
-    } as any)
+    return sm4.decrypt(cipherText, secretKey)
   } catch (err) {
     console.error('SM4 解密失败:', err)
     return cipherText
@@ -124,55 +51,32 @@ export function decryptSm4(cipherText: string, secretKey: string): string {
 }
 
 /**
- * 国密 HMAC-SM3 签名计算 (高性能、无私钥泄露风险)
+ * SM2 签名计算
  * @param content 待签名明文内容
- * @param signKey HMAC 密钥字符串
+ * @param privateKeyHex SM2 私钥 Hex 字符串
  */
-export function signHmacSm3(content: string, signKey: string): string {
-  if (!content || !signKey) return ''
+export function signSm2(content: string, privateKeyHex: string): string {
+  if (!content || !privateKeyHex) return ''
   try {
-    const hexKey = ensureSm4HexKey(signKey)
-    return sm3(content, { key: hexKey })
+    return sm2.doSignature(content, privateKeyHex)
   } catch (err) {
-    console.error('HMAC-SM3 签名失败:', err)
+    console.error('SM2 签名失败:', err)
     return ''
   }
 }
 
 /**
- * 将 Base64 字符串转换为字节数组，兼容浏览器与小程序环境
+ * SM2 验签
+ * @param content 签名明文内容
+ * @param signature 签名 Hex 字符串
+ * @param publicKeyHex SM2 公钥 Hex 字符串
  */
-function base64ToBytes(base64: string): number[] {
-  if (typeof atob === 'function') {
-    const binary = atob(base64)
-    const bytes = new Array(binary.length)
-    for (let i = 0; i < binary.length; i++) {
-      bytes[i] = binary.charCodeAt(i)
-    }
-    return bytes
+export function verifySm2(content: string, signature: string, publicKeyHex: string): boolean {
+  if (!content || !signature || !publicKeyHex) return false
+  try {
+    return sm2.doVerifySignature(content, signature, publicKeyHex)
+  } catch (err) {
+    console.error('SM2 验签失败:', err)
+    return false
   }
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
-  const lookup = new Uint8Array(256)
-  for (let i = 0; i < chars.length; i++) {
-    lookup[chars.charCodeAt(i)] = i
-  }
-  let bufferLength = base64.length * 0.75
-  if (base64[base64.length - 1] === '=') {
-    bufferLength--
-    if (base64[base64.length - 2] === '=') {
-      bufferLength--
-    }
-  }
-  const bytes = new Array(bufferLength)
-  let p = 0
-  for (let i = 0; i < base64.length; i += 4) {
-    const b1 = lookup[base64.charCodeAt(i)]
-    const b2 = lookup[base64.charCodeAt(i + 1)]
-    const b3 = lookup[base64.charCodeAt(i + 2)]
-    const b4 = lookup[base64.charCodeAt(i + 3)]
-    bytes[p++] = (b1 << 2) | (b2 >> 4)
-    if (p < bufferLength) bytes[p++] = ((b2 & 15) << 4) | (b3 >> 2)
-    if (p < bufferLength) bytes[p++] = ((b3 & 3) << 6) | b4
-  }
-  return bytes
 }

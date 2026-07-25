@@ -48,5 +48,8 @@ export default defineConfig({
     outDir: 'dist',
     sourcemap: false,
     chunkSizeWarningLimit: 1500
+  },
+  esbuild: {
+    drop: ['console', 'debugger']
   }
 })

@@ -1,8 +1,8 @@
 package com.admin.server.modules.system.service.auth.impl;
 
-import com.admin.server.common.exception.BusinessException;
-import com.admin.server.common.core.PageParam;
-import com.admin.server.common.core.PageResult;
+import com.admin.server.common.pojo.BusinessException;
+import com.admin.server.common.pojo.PageParam;
+import com.admin.server.common.pojo.PageResult;
 import com.admin.server.framework.storage.LocalFileStorage;
 import com.admin.server.modules.system.api.auth.vo.*;
 import com.admin.server.modules.system.dal.dataobject.dept.DeptDO;
@@ -16,7 +16,7 @@ import com.admin.server.modules.system.dal.mysql.permission.RoleMapper;
 import com.admin.server.modules.system.dal.mysql.post.PostMapper;
 import com.admin.server.modules.system.dal.mysql.user.UserMapper;
 import com.admin.server.modules.system.dal.mysql.user.UserPostMapper;
-import com.admin.server.modules.trade.service.email.EmailCodeService;
+import com.admin.server.modules.system.service.email.EmailCodeService;
 import com.admin.server.modules.system.service.auth.ProfileEmailPasswordService;
 import com.admin.server.modules.system.service.auth.ProfileService;
 import com.admin.server.modules.system.service.auth.ProfileSmsMobileBindService;
@@ -80,16 +80,9 @@ public class ProfileServiceImpl implements ProfileService {
         return buildProfileMap(user);
     }
 
-    private void checkDemoUser(UserDO user) {
-        if (user != null && "zhangsan".equalsIgnoreCase(user.getUsername())) {
-            throw new BusinessException(403, "演示体验账号禁止修改密码与绑定资料");
-        }
-    }
-
     @Override
     public void updateProfile(Long userId, ProfileUpdateReqVO reqVO) {
         UserDO user = requireUser(userId);
-        checkDemoUser(user);
         String previousNickname = user.getNickname();
         if (StringUtils.hasText(reqVO.getNickname())) {
             user.setNickname(reqVO.getNickname().trim());
@@ -112,21 +105,12 @@ public class ProfileServiceImpl implements ProfileService {
         }
         userMapper.updateById(user);
         if (StringUtils.hasText(reqVO.getNickname())) {
-            try {
-                if (cn.dev33.satoken.stp.StpUtil.isLogin()) {
-                    cn.dev33.satoken.stp.StpUtil.getSession().set(
-                            com.admin.server.framework.security.core.service.TokenService.SESSION_NICKNAME,
-                            user.getNickname());
-                }
-            } catch (Exception ignored) {
-            }
             deptService.syncLeaderByUserId(userId, previousNickname, user.getNickname());
         }
     }
 
     @Override
     public String sendMobileBindSmsCode(Long userId, ProfileMobileBindSmsCodeReqVO reqVO, String clientIp) {
-        checkDemoUser(requireUser(userId));
         return profileSmsMobileBindService.sendBindCode(
                 userId, reqVO.getMobile(), clientIp, reqVO.getUuid(), reqVO.getCode());
     }
@@ -134,7 +118,6 @@ public class ProfileServiceImpl implements ProfileService {
     @Override
     public void bindMobile(Long userId, ProfileMobileBindReqVO reqVO) {
         UserDO user = requireUser(userId);
-        checkDemoUser(user);
         String err = profileSmsMobileBindService.bindMobile(userId, user, reqVO.getMobile(), reqVO.getSmsCode());
         if (err != null) {
             throw new BusinessException(400, err);
@@ -144,7 +127,6 @@ public class ProfileServiceImpl implements ProfileService {
 
     @Override
     public String sendEmailBindCode(Long userId, ProfileEmailCodeReqVO reqVO) {
-        checkDemoUser(requireUser(userId));
         if (reqVO == null || !StringUtils.hasText(reqVO.getEmail())) {
             return "新邮箱不能为空";
         }
@@ -161,8 +143,6 @@ public class ProfileServiceImpl implements ProfileService {
 
     @Override
     public void bindEmail(Long userId, ProfileEmailBindReqVO reqVO) {
-        UserDO user = requireUser(userId);
-        checkDemoUser(user);
         if (reqVO == null || !StringUtils.hasText(reqVO.getEmail()) || !StringUtils.hasText(reqVO.getCode())) {
             throw new BusinessException(400, "邮箱和验证码不能为空");
         }
@@ -182,14 +162,13 @@ public class ProfileServiceImpl implements ProfileService {
             throw new BusinessException(400, err);
         }
 
+        UserDO user = requireUser(userId);
         user.setEmail(newEmail);
         userMapper.updateById(user);
     }
 
     @Override
     public void changePassword(Long userId, ChangePasswordReqVO reqVO) {
-        UserDO user = requireUser(userId);
-        checkDemoUser(user);
         if (!StringUtils.hasText(reqVO.getOldPassword()) || !StringUtils.hasText(reqVO.getNewPassword())) {
             throw new BusinessException(400, "请填写原密码和新密码");
         }
@@ -204,6 +183,7 @@ public class ProfileServiceImpl implements ProfileService {
                 && !Objects.equals(reqVO.getNewPassword(), reqVO.getConfirmPassword())) {
             throw new BusinessException(400, "两次输入的新密码不一致");
         }
+        UserDO user = requireUser(userId);
         if (!passwordEncoder.matches(reqVO.getOldPassword(), user.getPassword())) {
             throw new BusinessException(400, "原密码不正确");
         }
@@ -214,14 +194,12 @@ public class ProfileServiceImpl implements ProfileService {
     @Override
     public String sendPasswordResetSmsCode(Long userId, ProfilePasswordSmsCodeReqVO reqVO, String clientIp) {
         UserDO user = requireUser(userId);
-        checkDemoUser(user);
         return profileSmsPasswordService.sendResetCode(user, clientIp, reqVO.getUuid(), reqVO.getCode());
     }
 
     @Override
     public void resetPasswordBySms(Long userId, ProfilePasswordSmsResetReqVO reqVO) {
         UserDO user = requireUser(userId);
-        checkDemoUser(user);
         String err = profileSmsPasswordService.resetPasswordBySms(
                 user, reqVO.getSmsCode(), reqVO.getNewPassword(), reqVO.getConfirmPassword());
         if (err != null) {
@@ -233,14 +211,12 @@ public class ProfileServiceImpl implements ProfileService {
     @Override
     public String sendPasswordResetEmailCode(Long userId) {
         UserDO user = requireUser(userId);
-        checkDemoUser(user);
         return profileEmailPasswordService.sendResetCode(user);
     }
 
     @Override
     public void resetPasswordByEmail(Long userId, ProfilePasswordEmailResetReqVO reqVO) {
         UserDO user = requireUser(userId);
-        checkDemoUser(user);
         String err = profileEmailPasswordService.resetPasswordByEmail(
                 user, reqVO.getEmailCode(), reqVO.getNewPassword(), reqVO.getConfirmPassword());
         if (err != null) {
@@ -250,8 +226,6 @@ public class ProfileServiceImpl implements ProfileService {
 
     @Override
     public String uploadAvatar(Long userId, MultipartFile file) {
-        UserDO user = requireUser(userId);
-        checkDemoUser(user);
         if (file == null || file.isEmpty()) {
             throw new BusinessException(400, "请选择图片文件");
         }
@@ -270,8 +244,11 @@ public class ProfileServiceImpl implements ProfileService {
         String storagePath = AVATAR_PATH_PREFIX + LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy/MM/dd"));
         try {
             String url = localFileStorage.upload(file.getInputStream(), storagePath, fileName);
-            user.setAvatar(url);
-            userMapper.updateById(user);
+            UserDO user = userMapper.selectById(userId);
+            if (user != null) {
+                user.setAvatar(url);
+                userMapper.updateById(user);
+            }
             return url;
         } catch (IOException e) {
             throw new BusinessException(500, "头像上传失败");

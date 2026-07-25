@@ -64,7 +64,10 @@ const {
 
 const { currentTime, greetingMessage } = useDashboardClock()
 
-onMounted(() => {
+onMounted(async () => {
+  if (userStore.isLoggedIn) {
+    await userStore.refreshUserStore().catch(() => {})
+  }
   initDashboard()
 })
 </script>

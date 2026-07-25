@@ -1,7 +1,6 @@
 <template>
   <PermissionBlock v-if="!allowed" />
   <view v-else class="page-padded page-list">
-    <SubPageBackBar />
     <ModuleDarkHero
       title="用户管理"
       subtitle="账号、状态与权限"
@@ -71,7 +70,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { onPullDownRefresh, onShow } from '@dcloudio/uni-app'
-import SubPageBackBar from '@/components/common/SubPageBackBar/index.vue'
 import ModuleDarkHero from '@/components/common/ModuleDarkHero/index.vue'
 import SearchBar from '@/components/common/SearchBar/index.vue'
 import ListFooter from '@/components/common/ListFooter/index.vue'

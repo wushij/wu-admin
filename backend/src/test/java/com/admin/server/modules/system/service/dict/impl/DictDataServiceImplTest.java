@@ -1,6 +1,6 @@
 package com.admin.server.modules.system.service.dict.impl;
 
-import com.admin.server.common.exception.BusinessException;
+import com.admin.server.common.pojo.BusinessException;
 import com.admin.server.modules.system.dal.dataobject.dict.DictDataDO;
 import com.admin.server.modules.system.dal.mysql.dict.DictDataMapper;
 import com.admin.server.modules.system.framework.cache.DictCacheService;

@@ -19,6 +19,7 @@ export const mobileStatCards: StatCardConfig[] = [
     valueKey: 'userCount',
     icon: 'friends-o',
     theme: 'user',
+    permission: 'system:user:list',
     path: '/pages-sub/system/user/index',
     footer: (s) => {
       const trend = s.userTrend ?? 0

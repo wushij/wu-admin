@@ -60,6 +60,19 @@ spring:
   security:
     user:
       password: disabled
+  mail:
+    host: ${SPRING_MAIL_HOST:smtp.qq.com}
+    port: ${SPRING_MAIL_PORT:465}
+    username: ${SPRING_MAIL_USERNAME:}
+    password: ${SPRING_MAIL_PASSWORD:}
+    protocol: smtp
+    default-encoding: UTF-8
+    properties:
+      mail:
+        smtp:
+          auth: true
+          ssl:
+            enable: true
   servlet:
     multipart:
       # 平台物理上限（MB），实际上传限制由系统配置-文件存储中的 maxSizeMb 控制（保存后立即生效）
@@ -74,7 +87,7 @@ mybatis-plus:
       id-type: AUTO
       logic-delete-value: 1
       logic-not-delete-value: 0
-  type-aliases-package: cn.rbac.server.modules.**.dal.dataobject
+  type-aliases-package: com.admin.server.modules.**.dal.dataobject
 
 springdoc:
   api-docs:

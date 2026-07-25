@@ -63,7 +63,12 @@
         :cell-style="tableCellStyle"
       >
         <el-table-column prop="id" label="ID" width="80" align="center" header-align="center" />
-        <el-table-column prop="title" label="模块" min-width="120" align="center" header-align="center" show-overflow-tooltip />
+        <el-table-column prop="title" label="模块" min-width="140" align="center" header-align="center" show-overflow-tooltip />
+        <el-table-column label="操作摘要" min-width="240" align="left" header-align="center" show-overflow-tooltip>
+          <template #default="{ row }">
+            <span>{{ getActionSummary(row) }}</span>
+          </template>
+        </el-table-column>
         <el-table-column label="业务类型" width="90" align="center" header-align="center">
           <template #default="{ row }">{{ businessTypeLabel(row.businessType) }}</template>
         </el-table-column>
@@ -126,6 +131,16 @@
           </el-tag>
         </el-descriptions-item>
         <el-descriptions-item label="操作时间">{{ detail.operTime }}</el-descriptions-item>
+        <el-descriptions-item v-if="parsedAction" label="操作内容" :span="2">
+          <el-alert type="info" :closable="false" show-icon :title="parsedAction" />
+        </el-descriptions-item>
+        <el-descriptions-item v-if="parsedDiffItems.length" label="变更明细" :span="2">
+          <div class="diff-tags-wrapper">
+            <el-tag v-for="(item, idx) in parsedDiffItems" :key="idx" type="warning" class="diff-tag">
+              {{ item }}
+            </el-tag>
+          </div>
+        </el-descriptions-item>
         <el-descriptions-item v-if="detail.errorMsg" label="错误信息" :span="2">
           <span class="error-text">{{ detail.errorMsg }}</span>
         </el-descriptions-item>
@@ -141,7 +156,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { Search, Refresh } from '@element-plus/icons-vue'
 import ModulePageIcon from '@/components/ModulePageIcon.vue'
 import { MODULE_PAGE_ICON } from '@/constants/module-page-icons'
@@ -155,6 +170,8 @@ const tableCellStyle = { textAlign: 'center' as const }
 const loading = ref(false)
 const total = ref(0)
 const tableData = ref<OperLogVO[]>([])
+const detailVisible = ref(false)
+const detail = ref<Partial<OperLogVO>>({})
 
 const queryParams = reactive<OperLogPageQuery>({
   pageNo: 1,
@@ -179,13 +196,47 @@ function businessTypeLabel(type: number | undefined) {
   return businessTypeMap[type] ?? '其他'
 }
 
-const detailVisible = ref(false)
-const detail = ref<Partial<import('@/api/system/oper-log').OperLogVO>>({})
+function getActionSummary(row: OperLogVO): string {
+  if (!row.operParam) return '—'
+  try {
+    const obj = JSON.parse(row.operParam)
+    if (obj && typeof obj === 'object' && obj.action) {
+      return String(obj.action)
+    }
+  } catch {}
+  return '—'
+}
+
+const parsedAction = computed(() => {
+  if (!detail.value.operParam) return ''
+  try {
+    const obj = JSON.parse(detail.value.operParam)
+    if (obj && typeof obj === 'object' && obj.action) {
+      return String(obj.action)
+    }
+  } catch {}
+  return ''
+})
+
+const parsedDiffItems = computed<string[]>(() => {
+  if (!detail.value.operParam) return []
+  try {
+    const obj = JSON.parse(detail.value.operParam)
+    if (obj && typeof obj === 'object' && Array.isArray(obj.diffItems)) {
+      return obj.diffItems.map(String)
+    }
+  } catch {}
+  return []
+})
 
 function formatJson(str: string | undefined) {
   if (!str) return ''
   try {
-    return JSON.stringify(JSON.parse(str), null, 2)
+    const obj = JSON.parse(str)
+    if (obj && typeof obj === 'object' && 'params' in obj) {
+      return JSON.stringify(obj.params, null, 2)
+    }
+    return JSON.stringify(obj, null, 2)
   } catch {
     return str
   }
@@ -243,6 +294,16 @@ onMounted(() => loadData())
 </script>
 
 <style scoped lang="scss">
+.diff-tags-wrapper {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.diff-tag {
+  white-space: normal;
+  height: auto;
+  padding: 4px 8px;
+}
 .code-block {
   margin: 0;
   max-height: 200px;

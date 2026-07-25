@@ -12,7 +12,7 @@
       </view>
     </view>
 
-    <view v-if="canUseSmsReset" class="mode-tabs">
+    <view v-if="canUseSmsReset || canUseEmailReset" class="mode-tabs">
       <view
         class="mode-tabs__item"
         :class="{ 'mode-tabs__item--active': mode === 'password' }"
@@ -22,12 +22,22 @@
         <text>原密码修改</text>
       </view>
       <view
+        v-if="canUseSmsReset"
         class="mode-tabs__item"
         :class="{ 'mode-tabs__item--active': mode === 'sms' }"
         @click="openSmsMode"
       >
         <IconFont name="phone-o" :size="28" :color="mode === 'sms' ? '#ffffff' : '#64748b'" />
         <text>短信重置</text>
+      </view>
+      <view
+        v-if="canUseEmailReset"
+        class="mode-tabs__item"
+        :class="{ 'mode-tabs__item--active': mode === 'email' }"
+        @click="openEmailMode"
+      >
+        <IconFont name="envelop-o" :size="28" :color="mode === 'email' ? '#ffffff' : '#64748b'" />
+        <text>邮箱重置</text>
       </view>
     </view>
 
@@ -39,10 +49,18 @@
       </view>
     </view>
 
+    <view v-if="canUseEmailReset && mode === 'email'" class="sms-banner card--elevated">
+      <ModuleIcon icon="envelop-o" theme="violet" size="sm" />
+      <view class="sms-banner__text">
+        <text class="sms-banner__title">已绑定 {{ maskedEmail }}</text>
+        <text class="sms-banner__sub">验证码将发送至该邮箱</text>
+      </view>
+    </view>
+
     <view class="password-section card--elevated">
       <view class="password-section__head">
-        <ModuleIcon :icon="mode === 'password' ? 'lock' : 'chat-o'" :theme="mode === 'password' ? 'violet' : 'cyan'" size="sm" />
-        <text class="password-section__title">{{ mode === 'password' ? '修改密码' : '短信验证' }}</text>
+        <ModuleIcon :icon="mode === 'password' ? 'lock' : (mode === 'sms' ? 'chat-o' : 'envelop-o')" :theme="mode === 'password' ? 'violet' : (mode === 'sms' ? 'cyan' : 'violet')" size="sm" />
+        <text class="password-section__title">{{ mode === 'password' ? '修改密码' : (mode === 'sms' ? '短信验证重置' : '邮箱验证重置') }}</text>
       </view>
 
       <view class="password-fields">
@@ -56,7 +74,7 @@
                 :password="!showOldPassword"
                 placeholder="请输入原密码"
               />
-              <view class="password-field__toggle" @click="showOldPassword = !showOldPassword">
+              <view class="password-field__toggle" @tap.stop="showOldPassword = !showOldPassword">
                 <PasswordEyeIcon :slashed="showOldPassword" />
               </view>
             </view>
@@ -71,7 +89,7 @@
                 :password="!showNewPassword"
                 :placeholder="`至少 ${minPwdLen} 位`"
               />
-              <view class="password-field__toggle" @click="showNewPassword = !showNewPassword">
+              <view class="password-field__toggle" @tap.stop="showNewPassword = !showNewPassword">
                 <PasswordEyeIcon :slashed="showNewPassword" />
               </view>
             </view>
@@ -86,23 +104,25 @@
                 :password="!showConfirmPassword"
                 placeholder="再次输入新密码"
               />
-              <view class="password-field__toggle" @click="showConfirmPassword = !showConfirmPassword">
+              <view class="password-field__toggle" @tap.stop="showConfirmPassword = !showConfirmPassword">
                 <PasswordEyeIcon :slashed="showConfirmPassword" />
               </view>
             </view>
           </view>
         </template>
 
-        <template v-else>
+        <template v-else-if="mode === 'sms'">
           <view class="password-field">
             <text class="password-field__label">验证码</text>
             <view class="password-field__sms-row">
-              <input
-                v-model="smsForm.smsCode"
-                class="password-field__input password-field__input--grow"
-                :maxlength="6"
-                placeholder="请输入验证码"
-              />
+              <view class="password-field__input-wrap password-field__input-wrap--sms">
+                <input
+                  v-model="smsForm.smsCode"
+                  class="password-field__input"
+                  :maxlength="6"
+                  placeholder="请输入验证码"
+                />
+              </view>
               <button
                 class="password-field__sms-btn"
                 :disabled="smsCountdown > 0 || sendingSms"
@@ -123,7 +143,7 @@
                 :password="!showSmsNewPassword"
                 :placeholder="`至少 ${minPwdLen} 位`"
               />
-              <view class="password-field__toggle" @click="showSmsNewPassword = !showSmsNewPassword">
+              <view class="password-field__toggle" @tap.stop="showSmsNewPassword = !showSmsNewPassword">
                 <PasswordEyeIcon :slashed="showSmsNewPassword" />
               </view>
             </view>
@@ -138,8 +158,62 @@
                 :password="!showSmsConfirmPassword"
                 placeholder="再次输入新密码"
               />
-              <view class="password-field__toggle" @click="showSmsConfirmPassword = !showSmsConfirmPassword">
+              <view class="password-field__toggle" @tap.stop="showSmsConfirmPassword = !showSmsConfirmPassword">
                 <PasswordEyeIcon :slashed="showSmsConfirmPassword" />
+              </view>
+            </view>
+          </view>
+        </template>
+
+        <template v-else-if="mode === 'email'">
+          <view class="password-field">
+            <text class="password-field__label">邮箱验证码</text>
+            <view class="password-field__sms-row">
+              <view class="password-field__input-wrap password-field__input-wrap--sms">
+                <input
+                  v-model="emailForm.emailCode"
+                  class="password-field__input"
+                  :maxlength="6"
+                  placeholder="请输入 6 位验证码"
+                />
+              </view>
+              <button
+                class="password-field__sms-btn"
+                :disabled="emailCountdown > 0 || sendingEmail"
+                :loading="sendingEmail"
+                @click="sendEmailCode"
+              >
+                {{ emailCountdown > 0 ? `${emailCountdown}s` : '获取验证码' }}
+              </button>
+            </view>
+          </view>
+
+          <view class="password-field">
+            <text class="password-field__label">新密码</text>
+            <view class="password-field__input-wrap">
+              <input
+                v-model="emailForm.newPassword"
+                class="password-field__input"
+                :password="!showEmailNewPassword"
+                :placeholder="`至少 ${minPwdLen} 位`"
+              />
+              <view class="password-field__toggle" @tap.stop="showEmailNewPassword = !showEmailNewPassword">
+                <PasswordEyeIcon :slashed="showEmailNewPassword" />
+              </view>
+            </view>
+          </view>
+
+          <view class="password-field password-field--last">
+            <text class="password-field__label">确认密码</text>
+            <view class="password-field__input-wrap">
+              <input
+                v-model="emailForm.confirmPassword"
+                class="password-field__input"
+                :password="!showEmailConfirmPassword"
+                placeholder="再次输入新密码"
+              />
+              <view class="password-field__toggle" @tap.stop="showEmailConfirmPassword = !showEmailConfirmPassword">
+                <PasswordEyeIcon :slashed="showEmailConfirmPassword" />
               </view>
             </view>
           </view>
@@ -164,6 +238,8 @@
         {{ mode === 'password' ? '确认修改' : '确认重置' }}
       </button>
     </PageFooter>
+
+    <SliderCaptcha v-model:show="showSlider" scene="profile" @success="onSliderSuccess" />
   </view>
 </template>
 
@@ -174,6 +250,7 @@ import IconFont from '@/components/common/IconFont/index.vue'
 import ModuleIcon from '@/components/common/ModuleIcon/index.vue'
 import PasswordEyeIcon from '@/components/common/PasswordEyeIcon/index.vue'
 import PageFooter from '@/components/common/PageFooter/index.vue'
+import SliderCaptcha from '@/components/business/SliderCaptcha/index.vue'
 import { usePasswordForm } from '@/composables/usePasswordForm'
 
 const showOldPassword = ref(false)
@@ -181,23 +258,36 @@ const showNewPassword = ref(false)
 const showConfirmPassword = ref(false)
 const showSmsNewPassword = ref(false)
 const showSmsConfirmPassword = ref(false)
+const showEmailNewPassword = ref(false)
+const showEmailConfirmPassword = ref(false)
 
 const {
   saving,
   sendingSms,
+  sendingEmail,
   smsCountdown,
+  emailCountdown,
   mode,
   form,
   smsForm,
+  emailForm,
   canUseSmsReset,
+  canUseEmailReset,
   maskedMobile,
+  maskedEmail,
   minPwdLen,
+  showSlider,
   submit,
   sendSmsCode,
+  sendEmailCode,
+  onSliderSuccess,
   submitSmsReset,
+  submitEmailReset,
   openSmsMode,
+  openEmailMode,
   openSmsModeFromQuery,
   closeSmsMode,
+  closeEmailMode,
 } = usePasswordForm()
 
 function onSubmit() {
@@ -205,7 +295,11 @@ function onSubmit() {
     submit()
     return
   }
-  submitSmsReset()
+  if (mode.value === 'sms') {
+    submitSmsReset()
+    return
+  }
+  submitEmailReset()
 }
 
 onLoad((options) => {
@@ -346,42 +440,64 @@ onLoad((options) => {
 }
 
 .password-field__input-wrap {
-  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 84rpx;
+  padding: 0 12rpx 0 24rpx;
+  border: 1px solid #e2e8f0;
+  border-radius: 16rpx;
+  background: #f8fafc;
+  box-sizing: border-box;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+
+  &:focus-within {
+    border-color: #010710;
+    background: #ffffff;
+    box-shadow: 0 0 0 4rpx rgba(1, 7, 16, 0.06);
+  }
+
+  &--sms {
+    flex: 1;
+    min-width: 0;
+    padding: 0 24rpx;
+  }
 }
 
 .password-field__input {
-  width: 100%;
-  min-height: 80rpx;
-  padding: 0 72rpx 0 24rpx;
-  border: 1px solid $color-border-light;
-  border-radius: $radius-md;
-  background: linear-gradient(135deg, rgba(79, 70, 229, 0.03) 0%, $color-bg-muted 100%);
-  font-size: $font-size-md;
-  color: $color-text-primary;
+  flex: 1;
+  min-width: 0;
+  height: 84rpx;
+  line-height: 84rpx;
+  padding: 0;
+  border: none;
+  background: transparent;
+  font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif !important;
+  font-size: 28rpx;
+  color: #0f172a;
   box-sizing: border-box;
 }
 
 .password-field__input--grow {
   flex: 1;
   min-width: 0;
-  padding-right: 24rpx;
 }
 
 .password-field__input::placeholder {
-  color: $color-text-placeholder;
+  font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif !important;
+  color: #94a3b8 !important;
+  font-size: 27rpx !important;
+  font-weight: 400 !important;
 }
 
 .password-field__toggle {
-  position: absolute;
-  right: 16rpx;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 48rpx;
-  height: 48rpx;
+  flex-shrink: 0;
+  width: 52rpx;
+  height: 52rpx;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: $color-text-placeholder;
+  color: #94a3b8;
 }
 
 .password-field__toggle :deep(.password-eye-icon) {

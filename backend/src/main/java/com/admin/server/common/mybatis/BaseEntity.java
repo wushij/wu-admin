@@ -1,13 +1,27 @@
 package com.admin.server.common.mybatis;
 
-import com.admin.server.framework.mybatis.core.dataobject.BaseDO;
+import com.baomidou.mybatisplus.annotation.*;
 import lombok.Data;
-import lombok.EqualsAndHashCode;
+import java.io.Serializable;
+import java.time.LocalDateTime;
 
-/**
- * 继承框架层 BaseDO 基类，保持向下兼容
- */
 @Data
-@EqualsAndHashCode(callSuper = true)
-public class BaseEntity extends BaseDO {
+public class BaseEntity implements Serializable {
+    @TableId(type = IdType.AUTO)
+    private Long id;
+    
+    @TableField(fill = FieldFill.INSERT)
+    private LocalDateTime createTime;
+    
+    @TableField(fill = FieldFill.INSERT_UPDATE)
+    private LocalDateTime updateTime;
+    
+    @TableField(fill = FieldFill.INSERT)
+    private String creator;
+    
+    @TableField(fill = FieldFill.INSERT_UPDATE)
+    private String updater;
+    
+    @TableLogic
+    private Integer deleted;
 }

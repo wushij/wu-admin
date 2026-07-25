@@ -4,12 +4,10 @@ import cn.dev33.satoken.stp.StpUtil;
 import cn.hutool.captcha.CaptchaUtil;
 import cn.hutool.captcha.LineCaptcha;
 import cn.hutool.core.util.IdUtil;
-import cn.hutool.core.util.StrUtil;
-import com.admin.server.common.exception.BusinessException;
+import com.admin.server.common.pojo.BusinessException;
 import com.admin.server.common.util.IpLocationUtils;
 import com.admin.server.common.util.UserAgentUtils;
 import com.admin.server.framework.security.core.service.TokenService;
-import com.admin.server.modules.system.enums.ErrorCodeConstants;
 import com.admin.server.modules.system.api.auth.vo.EmailCodeReqVO;
 import com.admin.server.modules.system.api.auth.vo.LoginReqVO;
 import com.admin.server.modules.system.api.auth.vo.RegisterReqVO;
@@ -20,17 +18,17 @@ import com.admin.server.modules.system.dal.dataobject.permission.RoleDO;
 import com.admin.server.modules.system.dal.dataobject.user.UserDO;
 import com.admin.server.modules.system.dal.mysql.permission.RoleMapper;
 import com.admin.server.modules.system.dal.mysql.user.UserMapper;
-import com.admin.server.modules.ticket.service.approval.RegisterApprovalService;
+import com.admin.server.modules.system.service.approval.RegisterApprovalService;
 import com.admin.server.modules.system.service.auth.AuthService;
 import com.admin.server.modules.system.service.auth.LoginLockService;
 import com.admin.server.modules.system.service.auth.SliderCaptchaService;
 import com.admin.server.modules.system.service.config.SystemConfigHelper;
-import com.admin.server.modules.trade.service.email.EmailCodeService;
+import com.admin.server.modules.system.service.email.EmailCodeService;
 import com.admin.server.modules.system.service.loginlog.LoginLogService;
-import com.admin.server.modules.infra.service.monitor.OnlineUserService;
+import com.admin.server.modules.system.service.monitor.OnlineUserService;
 import com.admin.server.modules.system.service.permission.PermissionService;
-import com.admin.server.modules.trade.framework.sms.AliyunDypnsSmsVerifyService;
-import com.admin.server.modules.trade.framework.sms.SmsServiceFactory;
+import com.admin.server.modules.system.sms.AliyunDypnsSmsVerifyService;
+import com.admin.server.modules.system.sms.SmsServiceFactory;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
@@ -322,14 +320,14 @@ public class AuthServiceImpl implements AuthService {
         if (systemConfigHelper.isAliyunAuthSmsProvider()) {
             boolean pass = aliyunDypnsSmsVerifyService.verifyCode(phone, code);
             if (!pass) {
-                throw new BusinessException(ErrorCodeConstants.CAPTCHA_CODE_ERROR);
+                throw new BusinessException(400, "验证码错误或已过期");
             }
             redissonClient.getBucket(SMS_CODE_KEY + phone).delete();
             return true;
         }
         String cached = redissonClient.<String>getBucket(SMS_CODE_KEY + phone).get();
         if (cached == null || !cached.equalsIgnoreCase(code)) {
-            throw new BusinessException(ErrorCodeConstants.CAPTCHA_CODE_ERROR);
+            throw new BusinessException(400, "验证码错误或已过期");
         }
         redissonClient.getBucket(SMS_CODE_KEY + phone).delete();
         return true;
@@ -348,7 +346,9 @@ public class AuthServiceImpl implements AuthService {
         String username = reqVO.getUsername().trim();
         int minPwdLen = systemConfigHelper.getRegisterMinPasswordLength();
         String password = reqVO.getPassword();
-        validatePasswordComplexity(password, minPwdLen);
+        if (password.length() < minPwdLen) {
+            throw new BusinessException(400, "密码长度不能少于 " + minPwdLen + " 位");
+        }
         String regCaptchaErr = validateRegisterCaptcha(reqVO.getUuid(), reqVO.getCode());
         if (regCaptchaErr != null) {
             throw new BusinessException(400, regCaptchaErr);
@@ -433,12 +433,7 @@ public class AuthServiceImpl implements AuthService {
         logEntry.setLoginLocation(IpLocationUtils.resolve(ip));
         logEntry.setBrowser(UserAgentUtils.parseBrowser(userAgent));
         logEntry.setOs(UserAgentUtils.parseOsFromUserAgent(userAgent));
-        // 成功日志同步写入，保证进入工作台时「今日登录成功」已包含本次登录
-        if (status != null && status == 0) {
-            loginLogService.record(logEntry);
-        } else {
-            loginLogService.recordAsync(logEntry);
-        }
+        loginLogService.recordAsync(logEntry);
     }
 
     private String validateLoginCaptcha(LoginReqVO reqVO) {
@@ -609,11 +604,5 @@ public class AuthServiceImpl implements AuthService {
             return userMapper.selectOne(new LambdaQueryWrapper<UserDO>().eq(UserDO::getEmail, email.trim()));
         }
         return null;
-    }
-
-    private void validatePasswordComplexity(String password, int minPwdLen) {
-        if (StrUtil.isBlank(password) || password.length() < minPwdLen) {
-            throw new BusinessException(400, "密码长度不能少于 " + minPwdLen + " 位");
-        }
     }
 }

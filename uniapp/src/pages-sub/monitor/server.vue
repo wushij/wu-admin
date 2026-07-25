@@ -187,7 +187,7 @@ import { useMonitorToolbarRefresh } from '@/composables/useMonitorToolbarRefresh
 import { diskProgressTone, useServerMonitor } from '@/composables/useServerMonitor'
 import { formatPercent } from '@/utils/format'
 
-const { allowed } = useModulePermission('monitor:server:list')
+const { allowed } = useModulePermission('monitor:server:query')
 
 const {
   info,
@@ -287,13 +287,20 @@ onPullDownRefresh(async () => {
   display: flex;
   flex-direction: column;
   height: 100vh;
+  /* #ifdef H5 */
+  height: calc(100vh - var(--window-top, 0px));
+  /* #endif */
   box-sizing: border-box;
+  overflow: hidden;
 }
 
 .page-list__scroll {
   flex: 1;
   min-height: 0;
-  padding-bottom: 32rpx;
+
+  :deep(.uni-scroll-view-content) {
+    padding-bottom: calc(160rpx + env(safe-area-inset-bottom));
+  }
 }
 
 .server-tabs {

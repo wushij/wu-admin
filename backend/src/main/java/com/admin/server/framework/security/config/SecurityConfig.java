@@ -60,8 +60,6 @@ public class SecurityConfig {
     @Bean
     public WebSecurityCustomizer knife4jWebSecurityCustomizer() {
         return web -> web.ignoring().requestMatchers(
-                "/auth/**",
-                "/api/auth/**",
                 "/ws/**",
                 "/doc.html",
                 "/webjars/**",
@@ -80,8 +78,7 @@ public class SecurityConfig {
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(
-                    antMatcher("/auth/**"),
-                    antMatcher("/api/auth/**")
+                    antMatcher("/auth/**")
                 ).permitAll()
                 .requestMatchers(
                     antMatcher("/doc.html"),
@@ -115,7 +112,6 @@ public class SecurityConfig {
         configuration.setAllowedOriginPatterns(origins);
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
-        configuration.setExposedHeaders(Arrays.asList("X-Encrypted", "X-Signature", "X-Timestamp", "X-Nonce", "x-encrypted", "x-signature", "x-timestamp", "x-nonce"));
         configuration.setAllowCredentials(true);
         configuration.setMaxAge(3600L);
 

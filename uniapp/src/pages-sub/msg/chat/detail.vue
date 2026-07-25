@@ -100,9 +100,12 @@ import AppDialogHost from '@/components/common/AppDialogHost/index.vue'
 import { useChatDetail } from '@/composables/useChatDetail'
 import { useChatKeyboardInset } from '@/composables/useChatKeyboardInset'
 import { useChatScroll } from '@/composables/useChatScroll'
+import { getSafeAreaBottom } from '@/utils/safe-area'
 
-const COMPOSER_H = uni.upx2px(104)
-const EMOJI_PANEL_H = uni.upx2px(540)
+const isH5 = import.meta.env.UNI_PLATFORM === 'h5'
+const safeAreaBottom = isH5 ? 0 : getSafeAreaBottom()
+const COMPOSER_BASE = uni.upx2px(104)
+const EMOJI_PANEL_BASE = uni.upx2px(540)
 
 const composerRef = ref<{ focusInput?: () => Promise<void> | void } | null>(null)
 const { keyboardHeight } = useChatKeyboardInset()
@@ -148,8 +151,10 @@ const {
 const footerBottom = computed(() => (emojiVisible.value ? 0 : keyboardHeight.value))
 
 const messagesPadBottom = computed(() => {
-  if (emojiVisible.value) return COMPOSER_H + EMOJI_PANEL_H
-  return COMPOSER_H + keyboardHeight.value
+  if (emojiVisible.value) {
+    return COMPOSER_BASE + EMOJI_PANEL_BASE + safeAreaBottom
+  }
+  return COMPOSER_BASE + safeAreaBottom + keyboardHeight.value
 })
 
 const { scrollTop, scrollAnimated, scrollToBottom, scrollToBottomSettle, onMediaLoaded, preserveScrollAfterPrepend } =

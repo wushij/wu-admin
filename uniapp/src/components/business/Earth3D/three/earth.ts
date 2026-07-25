@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 import type { EarthGroupResult } from './types'
 
-const TEXTURE_BASE = 'https://threejs.org/examples/textures/planets/'
+const TEXTURE_BASE = '/static/earth/'
 
 export interface EarthCreateOptions {
   vivid?: boolean

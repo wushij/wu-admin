@@ -1,18 +1,61 @@
-page {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB',
-    'Microsoft YaHei', sans-serif;
-  font-size: 28rpx;
-  color: #1e293b;
-  background: #f3f5f8;
-}
-
+page,
 view,
 text,
 input,
-button {
+textarea,
+button,
+select,
+option {
+  font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Helvetica Neue', Helvetica, Arial, sans-serif !important;
   box-sizing: border-box;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+page {
+  font-size: 28rpx;
+  color: #0f172a;
+  background: #f8f9fd;
 }
 
 button::after {
   border: none;
 }
+
+/* 统一所有输入框及占位符 (Placeholder) 字体与颜色，消除 H5 默认底层杂乱字体 */
+input,
+textarea,
+.uni-input-input,
+.uni-textarea-textarea {
+  font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif !important;
+  color: #0f172a !important;
+  font-size: 28rpx !important;
+}
+
+input::placeholder,
+textarea::placeholder,
+.uni-input-placeholder,
+.uni-textarea-placeholder,
+.input-placeholder {
+  font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif !important;
+  color: #94a3b8 !important;
+  font-size: 27rpx !important;
+  font-weight: 400 !important;
+  letter-spacing: 0 !important;
+}
+
+input::-webkit-input-placeholder,
+textarea::-webkit-input-placeholder {
+  font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif !important;
+  color: #94a3b8 !important;
+  font-size: 27rpx !important;
+  font-weight: 400 !important;
+}
+
+/* 隐藏 H5 框架自带的原生 uni-tabbar 节点，消除底部白色背景遮挡 */
+/* #ifdef H5 */
+uni-tabbar {
+  display: none !important;
+}
+/* #endif */
+

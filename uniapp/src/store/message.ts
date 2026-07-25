@@ -4,6 +4,7 @@ import { getMessageSummary, getChatGroups } from '@/api/message'
 import {
   connectMessageWebSocket,
   disconnectMessageWebSocket,
+  ensureMessageWebSocketConnected,
   onMessageWebSocket,
   type WsPushMessage,
 } from '@/utils/webSocket'
@@ -36,6 +37,7 @@ export const useMessageStore = defineStore('message', () => {
   const announceCount = ref(0)
   const privateChatCount = ref(0)
   const groupUnreadById = ref<Record<number, number>>({})
+  const groupAtMeById = ref<Record<number, boolean>>({})
   const groupNotifyMutedById = ref<Record<number, boolean>>({})
   const activeChatTarget = ref<ActiveChatTarget | null>(null)
   const showNotification = ref(false)
@@ -48,6 +50,9 @@ export const useMessageStore = defineStore('message', () => {
 
   let offWs: (() => void) | null = null
   let notifyTimer: ReturnType<typeof setTimeout> | null = null
+  /** 私聊已读后通知会话列表清除本地未读 */
+  const privateReadTick = ref(0)
+  const lastPrivateReadUserId = ref<number | null>(null)
 
   const groupChatUnread = computed(() =>
     Object.values(groupUnreadById.value).reduce((sum, n) => sum + (Number(n) || 0), 0),
@@ -85,21 +90,45 @@ export const useMessageStore = defineStore('message', () => {
     groupNotifyMutedById.value = next
   }
 
-  function incrementGroupUnread(groupId: number) {
+  function incrementGroupUnread(groupId: number, atMe = false) {
     if (!groupId) return
     const prev = groupUnreadById.value[groupId] || 0
     groupUnreadById.value = { ...groupUnreadById.value, [groupId]: prev + 1 }
+    if (atMe) {
+      groupAtMeById.value = { ...groupAtMeById.value, [groupId]: true }
+    }
   }
 
   function clearGroupUnread(groupId: number) {
-    if (!groupId || !groupUnreadById.value[groupId]) return
-    const next = { ...groupUnreadById.value }
-    delete next[groupId]
-    groupUnreadById.value = next
+    if (!groupId) return
+    const nextUnread = { ...groupUnreadById.value }
+    const nextAtMe = { ...groupAtMeById.value }
+    let changed = false
+    if (nextUnread[groupId]) {
+      delete nextUnread[groupId]
+      changed = true
+    }
+    if (nextAtMe[groupId]) {
+      delete nextAtMe[groupId]
+      changed = true
+    }
+    if (!changed) return
+    groupUnreadById.value = nextUnread
+    groupAtMeById.value = nextAtMe
   }
 
   function getGroupUnread(groupId: number) {
     return groupUnreadById.value[groupId] || 0
+  }
+
+  function getGroupAtMe(groupId: number) {
+    return !!groupAtMeById.value[groupId]
+  }
+
+  function markPrivateChatRead(userId: number) {
+    if (!userId) return
+    lastPrivateReadUserId.value = userId
+    privateReadTick.value++
   }
 
   async function refreshSummary() {
@@ -172,7 +201,7 @@ export const useMessageStore = defineStore('message', () => {
       const isSelf = selfId != null && Number(msg.senderId) === Number(selfId)
       if (shouldNotifyChat(activeChatTarget.value, msg) && !isSelf) {
         if (shouldCountGroupUnread(msg, groupNotifyMutedById.value)) {
-          incrementGroupUnread(msg.groupId)
+          incrementGroupUnread(msg.groupId, !!msg.atMe)
         }
         if (shouldNotifyGroupChat(msg, groupNotifyMutedById.value)) {
           showPushNotification(msg)
@@ -184,7 +213,7 @@ export const useMessageStore = defineStore('message', () => {
     if (msg.type === 'groupChat' && msg.groupId != null) {
       if (shouldNotifyChat(activeChatTarget.value, msg)) {
         if (shouldCountGroupUnread(msg, groupNotifyMutedById.value)) {
-          incrementGroupUnread(msg.groupId)
+          incrementGroupUnread(msg.groupId, !!msg.atMe)
         }
         if (shouldNotifyGroupChat(msg, groupNotifyMutedById.value)) {
           showPushNotification(msg)
@@ -204,6 +233,10 @@ export const useMessageStore = defineStore('message', () => {
     refreshSummary()
   }
 
+  function reconnectWebSocket() {
+    ensureMessageWebSocketConnected()
+  }
+
   function destroyWebSocket() {
     offWs?.()
     offWs = null
@@ -217,6 +250,7 @@ export const useMessageStore = defineStore('message', () => {
     announceCount.value = 0
     privateChatCount.value = 0
     groupUnreadById.value = {}
+    groupAtMeById.value = {}
     groupNotifyMutedById.value = {}
     closeNotification()
   }
@@ -226,6 +260,7 @@ export const useMessageStore = defineStore('message', () => {
     announceCount,
     privateChatCount,
     groupUnreadById,
+    groupAtMeById,
     groupNotifyMutedById,
     groupChatUnread,
     activeChatTarget,
@@ -236,6 +271,8 @@ export const useMessageStore = defineStore('message', () => {
     lastRecall,
     groupAnnouncementTick,
     lastGroupAnnouncement,
+    privateReadTick,
+    lastPrivateReadUserId,
     chatCount,
     noticeCount,
     totalUnread,
@@ -247,7 +284,10 @@ export const useMessageStore = defineStore('message', () => {
     incrementGroupUnread,
     clearGroupUnread,
     getGroupUnread,
+    getGroupAtMe,
+    markPrivateChatRead,
     initWebSocket,
+    reconnectWebSocket,
     destroyWebSocket,
     closeNotification,
     showPushNotification,

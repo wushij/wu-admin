@@ -1,6 +1,6 @@
 package com.admin.server.modules.system.service.auth.impl;
 
-import com.admin.server.common.exception.BusinessException;
+import com.admin.server.common.pojo.BusinessException;
 import com.admin.server.modules.system.api.auth.vo.ChangePasswordReqVO;
 import com.admin.server.modules.system.api.auth.vo.ProfileMobileBindReqVO;
 import com.admin.server.modules.system.api.auth.vo.ProfileUpdateReqVO;

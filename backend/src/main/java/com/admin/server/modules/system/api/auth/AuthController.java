@@ -1,12 +1,10 @@
 package com.admin.server.modules.system.api.auth;
 
 import cn.dev33.satoken.stp.StpUtil;
-import cn.hutool.core.util.RandomUtil;
-import cn.hutool.core.util.StrUtil;
-import com.admin.server.common.core.CommonResult;
+import com.admin.server.common.pojo.CommonResult;
 import com.admin.server.common.util.ClientIpUtils;
 import com.admin.server.framework.log.annotation.Log;
-import com.admin.server.common.exception.BusinessException;
+import com.admin.server.common.pojo.BusinessException;
 import com.admin.server.modules.system.api.auth.vo.EmailCodeReqVO;
 import com.admin.server.modules.system.api.auth.vo.ForgotPasswordCheckReqVO;
 import com.admin.server.modules.system.api.auth.vo.ForgotPasswordResetReqVO;
@@ -23,25 +21,15 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
-import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 
 @Tag(name = "认证管理")
 @RestController
 @RequestMapping("/auth")
 public class AuthController {
-
-    /** 会话签名密钥 Redis 前缀，TTL 默认 24 小时，以系统配置 sessionSignExpireHours 为准 */
-    private static final String SESSION_SIGN_KEY_PREFIX = "security:session-sign:";
-    /** 会话 SM4 加密密钥 Redis 前缀，TTL 与签名密钥相同 */
-    private static final String SESSION_SM4_KEY_PREFIX = "security:session-sm4:";
-    /** clientId 合法字符校验（32~64位十六进制或 UUID 格式） */
-    private static final int CLIENT_ID_MIN_LEN = 8;
-    private static final int CLIENT_ID_MAX_LEN = 128;
 
     @Resource
     private AuthService authService;
@@ -49,8 +37,6 @@ public class AuthController {
     private AuthForgotPasswordService authForgotPasswordService;
     @Resource
     private SystemConfigHelper systemConfigHelper;
-    @Resource
-    private StringRedisTemplate stringRedisTemplate;
 
     @Operation(summary = "获取验证码")
     @GetMapping("/captcha")
@@ -74,86 +60,6 @@ public class AuthController {
     @GetMapping("/config")
     public CommonResult<Map<String, Object>> config() {
         return CommonResult.success(authService.getPublicConfig());
-    }
-
-    @Resource
-    private com.admin.server.modules.system.service.auth.SliderCaptchaService sliderCaptchaService;
-
-    /**
-     * 【安全加固 P0-1 深度修复】会话签名密钥初始化接口。
-     *
-     * <p>严禁匿名脚本免认证批量获取密钥！
-     * 获取签名密钥必须满足以下条件之一：
-     * 1. 处于已登录状态（StpUtil.isLogin() == true）；
-     * 2. 未登录状态下，必须提供人机交互验证凭证（uuid + code），并通过服务端滑块/人机挑战校验。
-     *
-     * @param clientId 前端随机生成的设备标识（8~128 字符），每次应用启动重新生成
-     * @param uuid 人机挑战/验证码 UUID（未登录时必填）
-     * @param code 人机挑战/验证码 校验代码（未登录时必填）
-     */
-    @Operation(summary = "初始化会话签名密钥（安全加固）")
-    @PostMapping("/session-sign-init")
-    public CommonResult<Map<String, Object>> sessionSignInit(
-            @RequestParam(value = "clientId") String clientId,
-            @RequestParam(value = "uuid", required = false) String uuid,
-            @RequestParam(value = "code", required = false) String code,
-            HttpServletRequest request) {
-        // 校验 clientId 格式，防止 Redis key 注入
-        if (StrUtil.isBlank(clientId)
-                || clientId.length() < CLIENT_ID_MIN_LEN
-                || clientId.length() > CLIENT_ID_MAX_LEN
-                || !clientId.matches("[A-Za-z0-9\\-_]+")) {
-            throw new BusinessException(400, "clientId 格式非法");
-        }
-        // 签名与 SM4 加密均未开启时，无需下发任何密钥
-        boolean signActive = systemConfigHelper.isSm2SignEffective();
-        boolean sm4Active = systemConfigHelper.isSm4EncryptEffective();
-        if (!signActive && !sm4Active) {
-            return CommonResult.success(Map.of("enabled", false));
-        }
-
-        // 人机与身份防刷检查：未登录且未提供有效人机校验时，严禁下发密钥
-        boolean isLoggedIn = StpUtil.isLogin();
-        if (!isLoggedIn) {
-            String token = com.admin.server.framework.security.core.AuthTokenResolver.resolve(request);
-            if (StrUtil.isNotBlank(token)) {
-                // 客户端携带有 Token 凭据发起初始化，但服务端会话已过期/被踢，直接返回 401 触发客户端自动登出
-                throw new BusinessException(401, "登录已过期，请重新登录");
-            }
-            if (StrUtil.isBlank(uuid) || StrUtil.isBlank(code)) {
-                throw new BusinessException(400, "获取签名密钥须提供人机校验凭证或具备登录态");
-            }
-            String sliderErr = sliderCaptchaService.verifyAndConsume(uuid, code);
-            if (sliderErr != null) {
-                throw new BusinessException(400, sliderErr);
-            }
-        }
-
-        long signTtlMinutes = systemConfigHelper.getSessionSignTtlMinutes();
-        int signTtlHours = systemConfigHelper.getSessionSignExpireHours();
-
-        Map<String, Object> result = new java.util.HashMap<>();
-        result.put("enabled", true);
-        result.put("ttlMinutes", signTtlMinutes);
-        result.put("ttlHours", signTtlHours);
-
-        // 签名密钥：32 字节（64 位 Hex）密码学安全随机临时密钥
-        if (signActive) {
-            String signKey = RandomUtil.randomString("0123456789abcdef", 64);
-            stringRedisTemplate.opsForValue().set(
-                    SESSION_SIGN_KEY_PREFIX + clientId, signKey, signTtlMinutes, TimeUnit.MINUTES);
-            result.put("sm3SignKey", signKey);
-        }
-
-        // SM4 加密密钥：16 字节（32 位 Hex），SM4 要求 128 位密钥
-        if (sm4Active) {
-            String sm4Key = RandomUtil.randomString("0123456789abcdef", 32);
-            stringRedisTemplate.opsForValue().set(
-                    SESSION_SM4_KEY_PREFIX + clientId, sm4Key, signTtlMinutes, TimeUnit.MINUTES);
-            result.put("sm4Key", sm4Key);
-        }
-
-        return CommonResult.success(result);
     }
 
     @Log(title = "用户登录", businessType = Log.BusinessType.OTHER, isSaveRequestData = false)

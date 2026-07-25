@@ -35,7 +35,7 @@ describe('hasMenuPerm', () => {
 
 describe('hasMonitorPerm', () => {
   it('returns true when permission array contains perm', () => {
-    expect(hasMonitorPerm(['monitor:cache:list'], [], 'monitor:cache:list')).toBe(true)
+    expect(hasMonitorPerm(['monitor:cache:query'], [], 'monitor:cache:query')).toBe(true)
   })
 
   it('falls back to menu tree when not in permission array', () => {
@@ -43,6 +43,6 @@ describe('hasMonitorPerm', () => {
   })
 
   it('returns false when neither source has perm', () => {
-    expect(hasMonitorPerm([], menus, 'monitor:server:list')).toBe(false)
+    expect(hasMonitorPerm([], menus, 'monitor:server:query')).toBe(false)
   })
 })

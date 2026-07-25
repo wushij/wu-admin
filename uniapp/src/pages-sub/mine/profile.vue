@@ -44,18 +44,20 @@
               v-model="form.nickname"
               class="profile-field__input"
               placeholder="请输入昵称"
-              maxlength="30"
+              :maxlength="30"
             />
           </view>
 
           <view class="profile-field">
             <text class="profile-field__label">邮箱</text>
-            <input
-              v-model="form.email"
-              class="profile-field__input"
-              placeholder="选填"
-              maxlength="64"
-            />
+            <view class="profile-field__mobile">
+              <text class="profile-field__value">
+                {{ hasBoundEmail ? maskEmail(form.email) : '未绑定' }}
+              </text>
+              <text class="profile-field__link" @click.stop="goEmailBind">
+                {{ hasBoundEmail ? '更换邮箱' : '绑定邮箱' }}
+              </text>
+            </view>
           </view>
 
           <view class="profile-field profile-field--last">
@@ -100,7 +102,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted } from 'vue'
+import { computed, ref, onMounted, watch } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import IconFont from '@/components/common/IconFont/index.vue'
 import ModuleIcon from '@/components/common/ModuleIcon/index.vue'
@@ -120,6 +122,8 @@ const {
   form,
   hasBoundMobile,
   maskMobile,
+  hasBoundEmail,
+  maskEmail,
   load,
   pickAvatar,
   save,
@@ -143,8 +147,16 @@ function goMobileBind() {
   uni.navigateTo({ url: appendNavFromParam('/pages-sub/mine/mobile-bind') })
 }
 
+function goEmailBind() {
+  uni.navigateTo({ url: appendNavFromParam('/pages-sub/mine/email-bind') })
+}
+
 onMounted(load)
 onShow(load)
+
+watch(avatarUrl, () => {
+  avatarBroken.value = false
+})
 </script>
 
 <style lang="scss" scoped>

@@ -1,23 +1,36 @@
 -- =============================================================================
--- add2.sql  增量补丁 #2（可重复执行，无 DROP）
+-- add2 · 回收中心 query/restore/delete 权限（本地库 wu-admin）
 -- =============================================================================
--- 仅含本版本新增项，不是全量升级脚本。
---
--- 用法:
---   mysql -u root -p wu-admin < sql/add2.sql
---
--- 说明:
---   · 极旧库缺表/缺菜单 → 先执行 admin_platform.sql 文末「附录」（约 910 行起）
---   · 日常发版增量 → 依次执行 add1.sql、add2.sql …
---   · 空库安装 → 直接执行 admin_platform.sql 全文（已含 smsLoginSliderCaptchaEnabled 默认值）
+-- 说明: 补齐回收中心按钮权限，并配合后端 hasRecycleRead/Restore/Delete 鉴权
+-- 用法: mysql -u root -p wu-admin < sql/add2.sql
+-- 前置: 若未执行 add1，请先跑 add1.sql
+-- 可重复执行（INSERT IGNORE / UPDATE 幂等）
+-- 执行后请重新登录并重启后端
 -- =============================================================================
 
 USE `wu-admin`;
 
--- [add2] 登录配置：短信发送前滑块验证 smsLoginSliderCaptchaEnabled
-UPDATE sys_config_group
-SET config_value = JSON_SET(config_value, '$.smsLoginSliderCaptchaEnabled', CAST(false AS JSON))
-WHERE group_code = 'login'
-  AND JSON_EXTRACT(config_value, '$.smsLoginSliderCaptchaEnabled') IS NULL;
+INSERT IGNORE INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, component, status) VALUES
+(191, '回收中心查询', 'system:recycle:query', 3, 1, 163, '', '', '', 1),
+(192, '回收中心恢复', 'system:recycle:restore', 3, 2, 163, '', '', '', 1),
+(193, '回收中心删除', 'system:recycle:delete', 3, 3, 163, '', '', '', 1);
 
-SELECT '[OK] add2.sql finished' AS result;
+UPDATE sys_menu
+SET name = '回收中心查询', permission = 'system:recycle:query', type = 3, sort = 1, parent_id = 163, status = 1
+WHERE id = 191 AND (permission IS NULL OR permission = '' OR permission <> 'system:recycle:query');
+
+UPDATE sys_menu
+SET name = '回收中心恢复', permission = 'system:recycle:restore', type = 3, sort = 2, parent_id = 163, status = 1
+WHERE id = 192 AND (permission IS NULL OR permission = '' OR permission <> 'system:recycle:restore');
+
+UPDATE sys_menu
+SET name = '回收中心删除', permission = 'system:recycle:delete', type = 3, sort = 3, parent_id = 163, status = 1
+WHERE id = 193 AND (permission IS NULL OR permission = '' OR permission <> 'system:recycle:delete');
+
+INSERT IGNORE INTO sys_role_menu (role_id, menu_id) VALUES (1, 191), (1, 192), (1, 193);
+
+-- 已有「回收中心」菜单的角色自动勾选查询
+INSERT IGNORE INTO sys_role_menu (role_id, menu_id)
+SELECT rm.role_id, 191
+FROM sys_role_menu rm
+WHERE rm.menu_id = 163;

@@ -12,8 +12,11 @@ export interface LoginConfig {
   captchaType?: string
   smsLoginEnabled?: boolean
   smsLoginSliderCaptchaEnabled?: boolean
+  emailLoginEnabled?: boolean
+  emailLoginSliderCaptchaEnabled?: boolean
   rememberMe?: boolean
   smsEnabled?: boolean
+  emailEnabled?: boolean
 }
 
 export interface RegisterConfig {
@@ -28,6 +31,8 @@ export interface LoginAdminConfig {
   captchaType: string
   smsLoginEnabled: boolean
   smsLoginSliderCaptchaEnabled: boolean
+  emailLoginEnabled?: boolean
+  emailLoginSliderCaptchaEnabled?: boolean
   rememberMe: boolean
   maxRetryCount: number
   maxRetryCountIp: number
@@ -59,6 +64,11 @@ export interface SessionAdminConfig {
 export interface SecurityAdminConfig {
   disableDevtool: boolean
   isConcurrent: boolean
+  sm4EncryptEnabled?: boolean
+  sm2SignEnabled?: boolean
+  timestampEnabled?: boolean
+  nonceEnabled?: boolean
+  sm4SecretKey?: string
 }
 
 export interface SmsAdminConfig {
@@ -158,6 +168,27 @@ export interface PayOrderRecord {
   amount?: number
 }
 
+export interface EmailAdminConfig {
+  enabled: boolean
+  provider: 'qq' | '163' | 'gmail' | 'custom'
+  host: string
+  port: number
+  username: string
+  password: string
+  fromName: string
+  authEnabled: boolean
+  securityType: 'SSL' | 'TLS' | 'STARTTLS' | 'NONE'
+  connectionTimeoutMs: number
+  timeoutMs: number
+  writeTimeoutMs: number
+  encoding: string
+  debug: boolean
+  codeExpireMinutes: number
+  codeLength: number
+  dailyLimitPerEmail: number
+  sendIntervalSeconds: number
+}
+
 export type ConfigGroupCode =
   | 'site'
   | 'session'
@@ -168,4 +199,5 @@ export type ConfigGroupCode =
   | 'thirdParty'
   | 'payment'
   | 'sms'
+  | 'email'
   | 'security'

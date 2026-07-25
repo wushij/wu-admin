@@ -2,10 +2,8 @@ package com.admin.server.modules.system.service.permission;
 
 import com.admin.server.modules.system.dal.dataobject.permission.*;
 import com.admin.server.modules.system.dal.mysql.permission.*;
-import com.admin.server.modules.system.service.permission.event.UserPermissionChangedEvent;
 import cn.hutool.core.collection.CollUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -24,8 +22,6 @@ public class PermissionServiceImpl implements PermissionService {
     private RoleMapper roleMapper;
     @Resource
     private MenuMapper menuMapper;
-    @Resource
-    private ApplicationEventPublisher eventPublisher;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -43,8 +39,6 @@ public class PermissionServiceImpl implements PermissionService {
             }
             userRoleMapper.insertBatch(list);
         }
-        // 通知下游模块失效该用户的权限上下文缓存（如 AI 助手用户上下文）
-        eventPublisher.publishEvent(new UserPermissionChangedEvent(userId));
     }
 
     @Override
@@ -69,8 +63,6 @@ public class PermissionServiceImpl implements PermissionService {
     public void assignRoleMenu(Long roleId, Set<Long> menuIds) {
         roleMenuMapper.deleteByRoleId(roleId);
         if (CollUtil.isNotEmpty(menuIds)) {
-            // 勾选按钮时同步补齐父级页面/目录，与 getUserMenuList 一致，避免侧栏能进但接口 403
-            menuIds = expandMenuClosure(menuIds);
             List<RoleMenuDO> list = new ArrayList<>(menuIds.size());
             for (Long menuId : menuIds) {
                 RoleMenuDO roleMenu = new RoleMenuDO();
@@ -80,8 +72,6 @@ public class PermissionServiceImpl implements PermissionService {
             }
             roleMenuMapper.insertBatch(list);
         }
-        // 角色菜单变更影响该角色下所有用户，广播全量失效
-        eventPublisher.publishEvent(new UserPermissionChangedEvent(null));
     }
 
     @Override
@@ -138,11 +128,19 @@ public class PermissionServiceImpl implements PermissionService {
     }
 
     private boolean matchPermissionDirect(Long userId, String permission) {
-        Set<Long> menuIds = collectExpandedMenuIdsForUser(userId);
-        if (CollUtil.isEmpty(menuIds)) {
+        Set<Long> roleIds = getUserRoleIdListByUserId(userId);
+        if (CollUtil.isEmpty(roleIds)) {
             return false;
         }
-        List<MenuDO> menus = listMenusByIds(menuIds);
+        // 批量收集所有角色关联的菜单ID，一次查询代替 N*M 次逐条查询
+        Set<Long> allMenuIds = new HashSet<>();
+        for (Long roleId : roleIds) {
+            allMenuIds.addAll(getRoleMenuListByRoleId(roleId));
+        }
+        if (CollUtil.isEmpty(allMenuIds)) {
+            return false;
+        }
+        List<MenuDO> menus = listMenusByIds(allMenuIds);
         return menus.stream().anyMatch(menu -> permission.equals(menu.getPermission()));
     }
 
@@ -169,21 +167,6 @@ public class PermissionServiceImpl implements PermissionService {
     }
 
     private Set<String> loadUserPermissionCodes(Long userId) {
-        Set<Long> menuIds = collectExpandedMenuIdsForUser(userId);
-        if (CollUtil.isEmpty(menuIds)) {
-            return Collections.emptySet();
-        }
-        Set<String> codes = new HashSet<>();
-        for (MenuDO menu : listMenusByIds(menuIds)) {
-            if (StringUtils.hasText(menu.getPermission())) {
-                codes.add(menu.getPermission());
-            }
-        }
-        return codes;
-    }
-
-    /** 汇总用户各角色菜单 ID，并补齐父级（与侧栏菜单树逻辑一致） */
-    private Set<Long> collectExpandedMenuIdsForUser(Long userId) {
         Set<Long> roleIds = getUserRoleIdListByUserId(userId);
         if (CollUtil.isEmpty(roleIds)) {
             return Collections.emptySet();
@@ -195,7 +178,13 @@ public class PermissionServiceImpl implements PermissionService {
         if (CollUtil.isEmpty(menuIds)) {
             return Collections.emptySet();
         }
-        return expandMenuClosure(menuIds);
+        Set<String> codes = new HashSet<>();
+        for (MenuDO menu : listMenusByIds(menuIds)) {
+            if (StringUtils.hasText(menu.getPermission())) {
+                codes.add(menu.getPermission());
+            }
+        }
+        return codes;
     }
 
     private List<MenuDO> listMenusByIds(Collection<Long> ids) {

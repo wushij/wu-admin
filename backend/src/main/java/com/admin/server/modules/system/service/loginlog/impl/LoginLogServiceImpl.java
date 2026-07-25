@@ -40,15 +40,10 @@ public class LoginLogServiceImpl implements LoginLogService {
     }
 
     @Override
-    public void record(LoginLogDO loginLog) {
-        loginLogMapper.insert(loginLog);
-    }
-
-    @Override
     @Async
     public void recordAsync(LoginLogDO loginLog) {
         try {
-            record(loginLog);
+            loginLogMapper.insert(loginLog);
         } catch (Exception e) {
             log.error("异步写入登录日志失败 username={}", loginLog != null ? loginLog.getUsername() : null, e);
         }

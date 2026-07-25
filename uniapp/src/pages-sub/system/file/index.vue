@@ -180,9 +180,15 @@ onPullDownRefresh(async () => {
 @use '@/styles/common.scss' as *;
 
 .file-page {
-  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  /* #ifdef H5 */
+  height: calc(100vh - var(--window-top, 0px));
+  /* #endif */
   box-sizing: border-box;
-  padding: $page-padding-y $page-padding-x;
+  overflow: hidden;
+  padding: $page-padding-y $page-padding-x 0;
   background: $color-bg-page;
 }
 
@@ -191,7 +197,12 @@ onPullDownRefresh(async () => {
 }
 
 .file-page__scroll {
-  height: calc(100vh - 320rpx);
+  flex: 1;
+  min-height: 0;
+
+  :deep(.uni-scroll-view-content) {
+    padding-bottom: calc(160rpx + env(safe-area-inset-bottom));
+  }
 }
 
 .file-list {

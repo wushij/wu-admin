@@ -1,5 +1,5 @@
 <template>
-  <view class="recycle-detail-page" :class="{ 'has-page-footer': canDelete && item }">
+  <view class="recycle-detail-page" :class="{ 'has-page-footer': (canRestore || canDeletePermanent) && item }">
     <ListLoading v-if="loading" />
 
     <template v-else-if="item && moduleConfig">
@@ -60,9 +60,9 @@
 
     <EmptyState v-else-if="!loading" title="记录不存在或已失效" icon="notes-o" />
 
-    <PageFooter v-if="canDelete && item">
-      <button class="page-footer__btn page-footer__btn--primary-outline" @click="onRestore">恢复</button>
-      <button class="page-footer__btn page-footer__btn--danger" @click="onDelete">清除</button>
+    <PageFooter v-if="(canRestore || canDeletePermanent) && item">
+      <button v-if="canRestore" class="page-footer__btn page-footer__btn--primary-outline" @click="onRestore">恢复</button>
+      <button v-if="canDeletePermanent" class="page-footer__btn page-footer__btn--danger" @click="onDelete">清除</button>
     </PageFooter>
 
     <AppDialogHost />
@@ -94,9 +94,14 @@ const loading = ref(true)
 
 const moduleConfig = computed(() => RECYCLE_MODULES.find((m) => m.key === recycleType.value))
 
-const canDelete = computed(() => {
+const canRestore = computed(() => {
   const mod = moduleConfig.value
-  return mod ? hasPerm(mod.deletePerm) : false
+  return mod ? hasPerm('system:recycle:restore') || hasPerm(mod.deletePerm) : false
+})
+
+const canDeletePermanent = computed(() => {
+  const mod = moduleConfig.value
+  return mod ? hasPerm('system:recycle:delete') || hasPerm(mod.deletePerm) : false
 })
 
 const heroTitle = computed(() => {

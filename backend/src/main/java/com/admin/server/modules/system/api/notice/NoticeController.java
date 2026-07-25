@@ -1,6 +1,6 @@
 package com.admin.server.modules.system.api.notice;
 
-import com.admin.server.common.core.CommonResult;
+import com.admin.server.common.pojo.CommonResult;
 import com.admin.server.framework.security.core.service.SecurityUtils;
 import com.admin.server.modules.system.dal.dataobject.notice.NoticeDO;
 import com.admin.server.modules.system.service.notice.NoticeService;
@@ -43,13 +43,6 @@ public class NoticeController {
     @PutMapping("/read-all")
     public CommonResult<Boolean> readAll() {
         noticeService.markAllRead(SecurityUtils.getLoginUserIdOrZero());
-        return CommonResult.success(true);
-    }
-
-    @Operation(summary = "删除单条消息")
-    @DeleteMapping("/{id}")
-    public CommonResult<Boolean> deleteNotice(@PathVariable("id") Long id) {
-        noticeService.deleteNotice(SecurityUtils.getLoginUserIdOrZero(), id);
         return CommonResult.success(true);
     }
 

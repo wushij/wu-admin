@@ -1,40 +1,27 @@
 <template>
   <div class="stats-grid">
-    <template v-for="card in topStatCards" :key="card.key">
-      <div v-if="card.permission" v-permission="card.permission" class="stats-grid-cell">
-        <StatCard
-          compact
-          variant="core"
-          clickable
-          :title="card.title"
-          :value="statNumber(stats, card.valueKey)"
-          :trend="card.trendKey !== undefined ? trends[card.trendKey] : undefined"
-          :icon="card.icon"
-          :icon-theme="card.iconTheme"
-          :footer="resolveFooter(card)"
-          :to="card.to"
-        />
-      </div>
-      <div v-else class="stats-grid-cell">
-        <StatCard
-          compact
-          variant="core"
-          :clickable="!!card.to"
-          :title="card.title"
-          :value="statNumber(stats, card.valueKey)"
-          :trend="card.trendKey !== undefined ? trends[card.trendKey] : undefined"
-          :icon="card.icon"
-          :icon-theme="card.iconTheme"
-          :footer="resolveFooter(card)"
-          :to="card.to"
-        />
-      </div>
-    </template>
+    <div v-for="card in visibleCards" :key="card.key" class="stats-grid-cell">
+      <StatCard
+        compact
+        variant="core"
+        clickable
+        :title="card.title"
+        :value="statNumber(stats, card.valueKey)"
+        :trend="card.trendKey !== undefined ? trends[card.trendKey] : undefined"
+        :icon="card.icon"
+        :icon-theme="card.iconTheme"
+        :footer="resolveFooter(card)"
+        :to="card.to"
+      />
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import type { DashboardStats } from '@/api/dashboard'
+import { useUserStore } from '@/store/user'
+import { hasMenuPerm } from '@/utils/hasMenuPerm'
 import {
   topStatCards,
   statNumber,
@@ -47,6 +34,13 @@ const props = defineProps<{
   stats: DashboardStats
   trends: DashboardTrends
 }>()
+
+const userStore = useUserStore()
+
+/** 仅以启用菜单树为准，停用菜单对应指标卡不展示 */
+const visibleCards = computed(() =>
+  topStatCards.filter((card) => !card.permission || hasMenuPerm(userStore.menus, card.permission)),
+)
 
 function resolveFooter(card: TopStatCardConfig) {
   return card.footer?.(props.stats, props.trends) ?? ''
