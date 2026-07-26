@@ -68,9 +68,9 @@ public class LogAspect {
                 operLog.setRequestMethod(request.getMethod());
             }
 
-            String username = SecurityUtils.getLoginUsername();
-            if (username != null) {
-                operLog.setOperName(username);
+            String operName = SecurityUtils.getLoginUserDisplayName();
+            if (operName != null) {
+                operLog.setOperName(operName);
             }
 
             String className = joinPoint.getTarget().getClass().getName();

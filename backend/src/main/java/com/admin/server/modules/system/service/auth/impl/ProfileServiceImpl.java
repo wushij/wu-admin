@@ -105,6 +105,14 @@ public class ProfileServiceImpl implements ProfileService {
         }
         userMapper.updateById(user);
         if (StringUtils.hasText(reqVO.getNickname())) {
+            try {
+                if (cn.dev33.satoken.stp.StpUtil.isLogin()) {
+                    cn.dev33.satoken.stp.StpUtil.getSession().set(
+                            com.admin.server.framework.security.core.service.TokenService.SESSION_NICKNAME,
+                            user.getNickname());
+                }
+            } catch (Exception ignored) {
+            }
             deptService.syncLeaderByUserId(userId, previousNickname, user.getNickname());
         }
     }
