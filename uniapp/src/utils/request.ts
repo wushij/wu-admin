@@ -89,9 +89,12 @@ http.interceptors.request.use(
 // luch-request 响应拦截器返回 ApiResult 而非 HttpResponse
 http.interceptors.response.use(
   ((response: { data: any; config?: { url?: string; silent403?: boolean }; header?: any }) => {
-    // 若响应标明 SM4 加密，且密钥已下发，自动解密
-    if ((response?.header?.['x-encrypted'] === '1' || response?.header?.['X-Encrypted'] === '1') && typeof response.data === 'string') {
-      const { sm4Key } = getSecurityConfig()
+    const secConfig = getSecurityConfig()
+    // 若响应标明 SM4 加密，且密钥已下发，自动解密 (兼容 CORS 限制：如果启用加密且返回的是非 JSON 字符串，也尝试解密)
+    const isEncrypted = response?.header?.['x-encrypted'] === '1' || response?.header?.['X-Encrypted'] === '1' || 
+      (secConfig.sm4EncryptEnabled && typeof response.data === 'string' && !response.data.trim().startsWith('{') && !response.data.trim().startsWith('['));
+    if (isEncrypted && typeof response.data === 'string') {
+      const { sm4Key } = secConfig
       if (sm4Key) {
         const plainJson = decryptSm4(response.data, sm4Key)
         try {
@@ -140,7 +143,23 @@ http.interceptors.response.use(
     markErrorToastShown(err)
     return Promise.reject(err)
   }) as unknown as Parameters<typeof http.interceptors.response.use>[0],
-  (error: { data?: ApiResult; statusCode?: number; errMsg?: string }) => {
+  (error: { data?: any; statusCode?: number; errMsg?: string; header?: any }) => {
+    const secConfig = getSecurityConfig()
+    // 若错误响应标明 SM4 加密，且密钥已下发，自动解密 (CORS 容错)
+    const isEncrypted = error && (error.header?.['x-encrypted'] === '1' || error.header?.['X-Encrypted'] === '1' || 
+      (secConfig.sm4EncryptEnabled && typeof error.data === 'string' && !error.data.trim().startsWith('{') && !error.data.trim().startsWith('[')));
+    if (isEncrypted && typeof error.data === 'string') {
+      const { sm4Key } = secConfig
+      if (sm4Key) {
+        const plainJson = decryptSm4(error.data, sm4Key)
+        try {
+          error.data = JSON.parse(plainJson)
+        } catch {
+          error.data = plainJson
+        }
+      }
+    }
+
     if (isBenignRequestError(error)) {
       return Promise.reject(error)
     }

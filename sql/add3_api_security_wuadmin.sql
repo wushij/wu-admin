@@ -11,15 +11,15 @@ USE `wuadmin`;
 -- 1. 更新安全配置 sys_config_group (若已存在 security 记录，安全合并新选项)
 UPDATE sys_config_group
 SET config_value = CASE 
-    WHEN config_value LIKE '%sm4EncryptEnabled%' THEN config_value
-    ELSE REPLACE(config_value, '}', ',"sm4EncryptEnabled":false,"sm2SignEnabled":false,"timestampEnabled":true,"nonceEnabled":true,"sm4SecretKey":"WuAdmin16BytesKey"}')
+    WHEN config_value LIKE '%sm4EncryptEnabled%' THEN REPLACE(config_value, 'WuAdmin16BytesKey', 'WuAdmin16ByteKey')
+    ELSE REPLACE(config_value, '}', ',"sm4EncryptEnabled":false,"sm2SignEnabled":false,"timestampEnabled":true,"nonceEnabled":true,"sm4SecretKey":"WuAdmin16ByteKey"}')
 END,
 remark = '安全防线与会话：SM4加密、SM2数字签名、时间戳与Nonce防重放'
 WHERE group_code = 'security';
 
 -- 2. 若不存在 security 配置项则初始化插入
 INSERT INTO sys_config_group (group_code, group_name, config_value, remark)
-SELECT 'security', '安全配置', '{"disableDevtool":false,"isConcurrent":false,"sm4EncryptEnabled":false,"sm2SignEnabled":false,"timestampEnabled":true,"nonceEnabled":true,"sm4SecretKey":"WuAdmin16BytesKey"}', '安全防线与会话：SM4加密、SM2数字签名、时间戳与Nonce防重放'
+SELECT 'security', '安全配置', '{"disableDevtool":false,"isConcurrent":false,"sm4EncryptEnabled":false,"sm2SignEnabled":false,"timestampEnabled":true,"nonceEnabled":true,"sm4SecretKey":"WuAdmin16ByteKey"}', '安全防线与会话：SM4加密、SM2数字签名、时间戳与Nonce防重放'
 FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM sys_config_group WHERE group_code = 'security');
 

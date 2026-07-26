@@ -122,9 +122,14 @@ public class ApiSecurityFilter extends OncePerRequestFilter {
                 return;
             }
             try {
+                String cipherText = bodyString.trim();
+                // 兼容某些前端框架/Axios 自动将 String 序列化为带双引号的 JSON 字符串
+                if (cipherText.startsWith("\"") && cipherText.endsWith("\"") && cipherText.length() > 2) {
+                    cipherText = cipherText.substring(1, cipherText.length() - 1);
+                }
                 byte[] keyBytes = sm4Key.getBytes(StandardCharsets.UTF_8);
                 SM4 sm4 = SmUtil.sm4(keyBytes);
-                bodyString = sm4.decryptStr(bodyString.trim());
+                bodyString = sm4.decryptStr(cipherText);
                 bodyBytes = bodyString.getBytes(StandardCharsets.UTF_8);
             } catch (Exception e) {
                 log.error("SM4 请求体解密失败: {}", e.getMessage());

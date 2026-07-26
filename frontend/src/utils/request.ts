@@ -102,9 +102,12 @@ service.interceptors.request.use(
 
 service.interceptors.response.use(
   (response: AxiosResponse) => {
-    // 若响应标明 SM4 加密，且密钥已下发，自动解密
-    if (response?.headers?.['x-encrypted'] === '1' && typeof response.data === 'string') {
-      const { sm4Key } = getSecurityConfig()
+    const secConfig = getSecurityConfig()
+    // 若响应标明 SM4 加密，且密钥已下发，自动解密 (兼容 CORS 限制：如果启用加密且返回的是非 JSON 字符串，也尝试解密)
+    const isEncrypted = response?.headers?.['x-encrypted'] === '1' || 
+      (secConfig.sm4EncryptEnabled && typeof response.data === 'string' && !response.data.trim().startsWith('{') && !response.data.trim().startsWith('['));
+    if (isEncrypted && typeof response.data === 'string') {
+      const { sm4Key } = secConfig
       if (sm4Key) {
         const plainJson = decryptSm4(response.data, sm4Key)
         try {
@@ -154,6 +157,22 @@ service.interceptors.response.use(
     console.error('响应错误:', error)
 
     if (error.response) {
+      const secConfig = getSecurityConfig()
+      // 若错误响应标明 SM4 加密，且密钥已下发，自动解密 (CORS 容错)
+      const isEncrypted = error.response.headers?.['x-encrypted'] === '1' || 
+        (secConfig.sm4EncryptEnabled && typeof error.response.data === 'string' && !error.response.data.trim().startsWith('{') && !error.response.data.trim().startsWith('['));
+      if (isEncrypted && typeof error.response.data === 'string') {
+        const { sm4Key } = secConfig
+        if (sm4Key) {
+          const plainJson = decryptSm4(error.response.data, sm4Key)
+          try {
+            error.response.data = JSON.parse(plainJson)
+          } catch {
+            error.response.data = plainJson
+          }
+        }
+      }
+
       const { status } = error.response
       const cfg = error.config as InternalAxiosRequestConfig & { silent403?: boolean }
       const text = getErrorMessage(error) || error.message || '请求失败'

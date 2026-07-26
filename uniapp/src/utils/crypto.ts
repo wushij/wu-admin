@@ -20,24 +20,42 @@ export function getTimestamp(): string {
 }
 
 /**
- * SM4 加密（国密对称加密）
+ * sm-crypto 的 sm4 要求 key 为 32 字符 hex 串（16 字节），而后端 hutool
+ * SmUtil.sm4(keyBytes) 直接对 key 字符串做 UTF-8 编码得到 16 字节。
+ * 这里把原始 key 转为等价 hex，确保前后端使用相同的 16 字节密钥。
+ */
+function ensureSm4HexKey(rawKey: string): string {
+  // 已经是标准 32 字符 hex 则直接使用
+  if (rawKey.length === 32 && /^[0-9a-fA-F]{32}$/.test(rawKey)) return rawKey
+  let hex = ''
+  for (let i = 0; i < rawKey.length; i++) {
+    hex += rawKey.charCodeAt(i).toString(16).padStart(2, '0')
+  }
+  return hex
+}
+
+/**
+ * SM4 加密（国密对称加密，ECB + PKCS7Padding）
+ * 与后端 hutool SmUtil.sm4(keyBytes) 默认行为一致。
+ * sm-crypto 的 sm4.encrypt 默认是 CBC 模式（需要 16 字节 IV），不传 options
+ * 会报 `key is invalid`，因此必须显式指定 mode: 'ecb'。
+ *
+ * 注意：加密失败时**直接抛错**，不再静默回退到明文——避免「开关打开但实际裸数据」导致
+ * 后端误以为密文而解密失败的 403 死循环。调用方（request.ts）需在已确认下发密钥的前提下调用。
  */
 export function encryptSm4(plainText: string, secretKey: string): string {
   if (!plainText) return ''
   if (!secretKey) {
-    console.warn('移动端 SM4 密钥缺失，跳过加密')
-    return plainText
+    throw new Error('SM4 加密失败：密钥未下发')
   }
-  try {
-    return sm4.encrypt(plainText, secretKey)
-  } catch (err) {
-    console.error('移动端 SM4 加密失败:', err)
-    return plainText
-  }
+  const hexKey = ensureSm4HexKey(secretKey)
+  // 后端 ApiSecurityFilter 用 sm4.decryptStr(...) 解析请求体，期望 hex 字符串
+  return sm4.encrypt(plainText, hexKey, { mode: 'ecb', padding: 'pkcs#7' } as any)
 }
 
 /**
- * SM4 解密
+ * SM4 解密（ECB + PKCS7Padding）
+ * 与后端 hutool SmUtil.sm4(keyBytes).encryptBase64(plainResp) 输出对齐。
  */
 export function decryptSm4(cipherText: string, secretKey: string): string {
   if (!cipherText) return ''
@@ -46,7 +64,12 @@ export function decryptSm4(cipherText: string, secretKey: string): string {
     return cipherText
   }
   try {
-    return sm4.decrypt(cipherText, secretKey)
+    const hexKey = ensureSm4HexKey(secretKey)
+    const bytes = base64ToBytes(cipherText)
+    return sm4.decrypt(bytes, hexKey, {
+      mode: 'ecb',
+      padding: 'pkcs#7',
+    } as any)
   } catch (err) {
     console.error('移动端 SM4 解密失败:', err)
     return cipherText
@@ -64,4 +87,47 @@ export function signSm2(content: string, privateKeyHex: string): string {
     console.error('移动端 SM2 签名失败:', err)
     return ''
   }
+}
+
+/**
+ * 将 Base64 字符串转换为字节数组，优先使用 uni API，其次 atob，最后纯 JS 备用
+ */
+function base64ToBytes(base64: string): number[] {
+  if (typeof uni !== 'undefined' && typeof (uni as any).base64ToArrayBuffer === 'function') {
+    const ab = (uni as any).base64ToArrayBuffer(base64)
+    return Array.from(new Uint8Array(ab))
+  }
+  if (typeof atob === 'function') {
+    const binary = atob(base64)
+    const bytes = new Array(binary.length)
+    for (let i = 0; i < binary.length; i++) {
+      bytes[i] = binary.charCodeAt(i)
+    }
+    return bytes
+  }
+  // 备用纯 JS 实现
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
+  const lookup = new Uint8Array(256)
+  for (let i = 0; i < chars.length; i++) {
+    lookup[chars.charCodeAt(i)] = i
+  }
+  let bufferLength = base64.length * 0.75
+  if (base64[base64.length - 1] === '=') {
+    bufferLength--
+    if (base64[base64.length - 2] === '=') {
+      bufferLength--
+    }
+  }
+  const bytes = new Array(bufferLength)
+  let p = 0
+  for (let i = 0; i < base64.length; i += 4) {
+    const b1 = lookup[base64.charCodeAt(i)]
+    const b2 = lookup[base64.charCodeAt(i + 1)]
+    const b3 = lookup[base64.charCodeAt(i + 2)]
+    const b4 = lookup[base64.charCodeAt(i + 3)]
+    bytes[p++] = (b1 << 2) | (b2 >> 4)
+    if (p < bufferLength) bytes[p++] = ((b2 & 15) << 4) | (b3 >> 2)
+    if (p < bufferLength) bytes[p++] = ((b3 & 3) << 6) | b4
+  }
+  return bytes
 }
