@@ -1,7 +1,7 @@
 package com.admin.server.framework.web.filter;
 
 import cn.dev33.satoken.stp.StpUtil;
-import com.admin.server.modules.system.service.monitor.OnlineUserService;
+import com.admin.server.modules.infra.service.monitor.OnlineUserService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;

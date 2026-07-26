@@ -318,10 +318,10 @@ public class SystemConfigHelper {
         return getGroupJson(GROUP_SECURITY).getBool("nonceEnabled", true);
     }
 
-    /** SM4 对称秘钥（16 字节密钥） */
+    /** SM4 对称秘钥（16 字节密钥），未配置时返回空串（不提供硬编码兜底密钥） */
     public String getSm4SecretKey() {
-        String key = getGroupJson(GROUP_SECURITY).getStr("sm4SecretKey", "WuAdmin16BytesKey");
-        return StrUtil.isBlank(key) ? "WuAdmin16BytesKey" : key.trim();
+        String key = getGroupJson(GROUP_SECURITY).getStr("sm4SecretKey", "");
+        return StrUtil.isBlank(key) ? "" : key.trim();
     }
 
     /** SM2 数字签名公钥 */
@@ -593,6 +593,14 @@ public class SystemConfigHelper {
 
         Map<String, Object> security = new HashMap<>();
         security.put("disableDevtool", isDisableDevtool());
+        // 接口 SM4 加密策略：密钥由运行时下发，前后端均不硬编码；未配置密钥时不告知开启
+        boolean sm4Enabled = isSm4EncryptEnabled();
+        String sm4Key = getSm4SecretKey();
+        boolean sm4Effective = sm4Enabled && StrUtil.isNotBlank(sm4Key);
+        security.put("sm4EncryptEnabled", sm4Effective);
+        if (sm4Effective) {
+            security.put("sm4Key", sm4Key);
+        }
         result.put("security", security);
 
         return result;

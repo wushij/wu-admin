@@ -146,10 +146,19 @@ export interface PaymentConfig {
   alipay: AlipayPayConfig
 }
 
+export interface SecurityPublicConfig {
+  disableDevtool?: boolean
+  /** 是否启用接口 SM4 加密 */
+  sm4EncryptEnabled?: boolean
+  /** SM4 对称密钥（16 字节） */
+  sm4Key?: string
+}
+
 export interface AuthPublicConfig {
   site?: SiteConfig
   login?: LoginConfig
   register?: RegisterConfig
+  security?: SecurityPublicConfig
 }
 
 export interface SmsLogRecord {

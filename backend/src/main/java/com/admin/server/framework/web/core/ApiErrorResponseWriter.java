@@ -1,6 +1,6 @@
 package com.admin.server.framework.web.core;
 
-import com.admin.server.common.pojo.CommonResult;
+import com.admin.server.common.core.CommonResult;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.MediaType;

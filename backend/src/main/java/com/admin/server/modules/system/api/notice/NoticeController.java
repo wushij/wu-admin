@@ -1,6 +1,6 @@
 package com.admin.server.modules.system.api.notice;
 
-import com.admin.server.common.pojo.CommonResult;
+import com.admin.server.common.core.CommonResult;
 import com.admin.server.framework.security.core.service.SecurityUtils;
 import com.admin.server.modules.system.dal.dataobject.notice.NoticeDO;
 import com.admin.server.modules.system.service.notice.NoticeService;

@@ -1,6 +1,7 @@
 package com.admin.server.modules.system.service.user.impl;
 
-import com.admin.server.common.pojo.BusinessException;
+import com.admin.server.common.exception.BusinessException;
+import com.admin.server.modules.system.enums.ErrorCodeConstants;
 import com.admin.server.framework.security.core.service.TokenService;
 import com.admin.server.modules.system.api.user.vo.UserCreateReqVO;
 import com.admin.server.modules.system.api.user.vo.UserUpdateReqVO;
@@ -89,7 +90,7 @@ class UserServiceImplTest extends MybatisLambdaTestBase {
 
         BusinessException ex = assertThrows(BusinessException.class, () -> userService.updateUser(req));
 
-        assertEquals(404, ex.getCode());
+        assertEquals(ErrorCodeConstants.USER_NOT_EXISTS.code(), ex.getCode());
         verify(userMapper, never()).updateById(any(UserDO.class));
     }
 
@@ -101,7 +102,7 @@ class UserServiceImplTest extends MybatisLambdaTestBase {
         BusinessException ex = assertThrows(BusinessException.class,
                 () -> userService.updateStatus(1L, 0));
 
-        assertEquals(404, ex.getCode());
+        assertEquals(ErrorCodeConstants.USER_NOT_EXISTS.code(), ex.getCode());
     }
 
     @Test
@@ -138,7 +139,7 @@ class UserServiceImplTest extends MybatisLambdaTestBase {
     void unlockLogin_notFound() {
         when(userMapper.selectById(99L)).thenReturn(null);
         BusinessException ex = assertThrows(BusinessException.class, () -> userService.unlockLogin(99L));
-        assertEquals(404, ex.getCode());
+        assertEquals(ErrorCodeConstants.USER_NOT_EXISTS.code(), ex.getCode());
     }
 
     @Test

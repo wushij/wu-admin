@@ -22,10 +22,14 @@ export function getTimestamp(): string {
 /**
  * SM4 加密（CBC 模式 / PKCS7Padding）
  * @param plainText 明文字符串
- * @param secretKey 16 字节密钥字符串
+ * @param secretKey 16 字节密钥字符串，缺失时不加密直接返回明文
  */
-export function encryptSm4(plainText: string, secretKey = 'WuAdmin16BytesKey'): string {
+export function encryptSm4(plainText: string, secretKey: string): string {
   if (!plainText) return ''
+  if (!secretKey) {
+    console.warn('SM4 密钥缺失，跳过加密')
+    return plainText
+  }
   try {
     // sm4.encrypt 接收字符串或 byte 数组，返回 hex 或 base64
     return sm4.encrypt(plainText, secretKey)
@@ -38,10 +42,14 @@ export function encryptSm4(plainText: string, secretKey = 'WuAdmin16BytesKey'): 
 /**
  * SM4 解密
  * @param cipherText 密文字符串
- * @param secretKey 16 字节密钥字符串
+ * @param secretKey 16 字节密钥字符串，缺失时不解密直接返回原文
  */
-export function decryptSm4(cipherText: string, secretKey = 'WuAdmin16BytesKey'): string {
+export function decryptSm4(cipherText: string, secretKey: string): string {
   if (!cipherText) return ''
+  if (!secretKey) {
+    console.warn('SM4 密钥缺失，跳过解密')
+    return cipherText
+  }
   try {
     return sm4.decrypt(cipherText, secretKey)
   } catch (err) {

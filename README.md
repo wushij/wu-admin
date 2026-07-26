@@ -5,7 +5,7 @@
 > 🔗 **在线演示**
 > - PC 端：<https://wushij.online>
 > - 移动端 H5：<https://app.wushij.online>
-> - 体验账号：`lisi` / `admin123`
+> - 体验账号：`lisi` / `lisi123`
 >
 > 📦 GitHub：<https://github.com/wushij/wu-admin>
 
@@ -285,14 +285,12 @@ wu-admin/
 │       │   ├── RbacServerApplication.java
 │       │   ├── common/            # 通用层：CommonResult、BusinessException、工具类
 │       │   ├── framework/         # 框架层：安全、MyBatis、Redis、Filter、WebSocket
-│       │   └── modules/system/    # 业务模块：api / service / dal / pay / sms / email / task
-│       │       ├── api/           # Controller + VO（参数校验，委托 Service）
-│       │       ├── service/       # Service 接口与实现（业务逻辑）
-│       │       ├── dal/           # DO 实体 + Mapper
-│       │       ├── pay/           # 微信/支付宝支付
-│       │       ├── sms/           # 阿里云/腾讯云短信（策略模式）
-│       │       ├── email/         # 邮件服务（SMTP + 发信日志）
-│       │       └── task/          # 系统定时任务
+│       │   └── modules/           # 业务模块（系统、基础设施、支付、工单审批、即时通讯等）
+│       │       ├── system/        # 系统管理与核心认证
+│       │       ├── infra/         # 基础设施（文件、生成、任务监控、日志、回收站、导出）
+│       │       ├── trade/         # 支付、短信、邮件三方集成
+│       │       ├── ticket/        # 工单与审批流管理
+│       │       └── message/       # 站内消息与即时聊天 IM
 │       ├── main/resources/
 │       │   ├── application.yml / application-dev.yml / application-prod.yml
 │       │   ├── ip2region/         # IP 归属地 xdb 库（git 忽略）
@@ -356,36 +354,28 @@ wu-admin/
 
 ```
 com.admin.server/
-├── common/           # 通用层
-│   ├── pojo/         # CommonResult、PageParam、PageResult、BusinessException
-│   ├── util/         # ClientIpUtils、IpLocationUtils、UserAgentUtils、UserDisplayNames
-│   └── mybatis/      # BaseEntity（审计字段 + 逻辑删除基类）
+├── common/           # 通用层（0 业务依赖）
+│   ├── core/         # CommonResult、PageParam、PageResult
+│   ├── exception/    # BusinessException、ErrorCode
+│   └── util/         # ClientIpUtils、IpLocationUtils、UserAgentUtils、BeanMappingUtils 等
 ├── framework/        # 技术基础设施（可抽公共 starter）
 │   ├── security/     # SecurityConfig、TokenService、SaTokenAuthenticationFilter、JsonEntryPoint
 │   ├── web/          # GlobalExceptionHandler（17 类异常）、AuthorizationQueryFilter
 │   ├── config/       # AsyncConfig、SaTokenCookieConfig（httpOnly）、DevRedissonConfig
 │   ├── storage/      # 本地文件存储（含路径穿越校验）
 │   ├── quartz/       # Quartz 任务调度
-│   ├── mybatis/      # MyBatisPlusConfig、MyMetaObjectHandler（审计字段自动填充）
+│   ├── mybatis/      # MyBatisPlusConfig、MyMetaObjectHandler、BaseDO 实体基类
 │   ├── redis/        # RedisTemplate 序列化配置
 │   ├── websocket/    # WebSocket 消息推送
 │   ├── log/          # @Log 操作日志注解
 │   ├── openapi/      # Knife4j/Springdoc OpenAPI 配置
 │   └── export/       # Excel/CSV 导出工具
-└── modules/system/
-    ├── api/          # 瘦 Controller：只做校验（@Validated）与委派（Service）
-    ├── service/      # 业务逻辑：auth/user/role/ticket/message/chat/email 等
-    ├── dal/          # DO 实体 + Mapper（约 30 张表）
-    ├── framework/    # SPI 实现 + 模块级框架
-    │   ├── security/     # SystemPermissionService（bean 名 ss）
-    │   ├── cache/        # DictCacheService、SysConfigCacheService、CacheWarmupRunner
-    │   ├── operlog/      # LogAspect + OperLogRecorder + OperLogContext（@Log AOP）
-    │   ├── monitor/      # API 访问采集拦截器 + WebConfig
-    │   └── config/       # SystemConfigProvider
-    ├── pay/          # 微信支付 APIv3 + 支付宝 SDK（工厂模式）
-    ├── sms/          # 阿里云/腾讯云短信（策略模式）
-    ├── email/        # SMTP 邮件服务 + sys_email_log 发信日志（EmailCodeService / EmailLogService）
-    └── task/         # 系统定时任务（日志清理/消息回收/文件清盘/缓存刷新）
+└── modules/          # 业务模块（高内聚低耦合拆分）
+    ├── system/       # 用户、角色、菜单、部门、岗位、字典、系统配置、通知、权限、登录日志、仪表盘
+    ├── infra/        # 文件存储、代码生成、定时任务、监控运维、操作日志、回收站、通用导出、系统任务调度
+    ├── trade/        # 微信/支付宝支付接入、短信平台通道、发信通道、三方渠道对接
+    ├── ticket/       # 工单与审批流（工单管理、流程审批表单、用户注册审核流）
+    └── message/      # 消息触达（站内公告推送、IM 聊天、消息撤回、@提及提醒、群聊管理）
 ```
 
 ---

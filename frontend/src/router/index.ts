@@ -1,6 +1,5 @@
 import { createRouter, createWebHistory, RouteRecordRaw } from 'vue-router'
 import { useUserStore } from '@/store/user'
-import { ElMessage } from 'element-plus'
 import { hasMenuPermission } from '@/directives/permission'
 
 const routes: RouteRecordRaw[] = [
@@ -15,6 +14,18 @@ const routes: RouteRecordRaw[] = [
     name: 'Register',
     component: () => import('@/views/register/index.vue'),
     meta: { title: '注册', requiresAuth: false }
+  },
+  {
+    path: '/403',
+    name: 'Forbidden',
+    component: () => import('@/views/error/403.vue'),
+    meta: { title: '无权限访问', requiresAuth: false }
+  },
+  {
+    path: '/404',
+    name: 'NotFound',
+    component: () => import('@/views/error/404.vue'),
+    meta: { title: '页面不存在', requiresAuth: false }
   },
   {
     path: '/',
@@ -164,6 +175,11 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '企业IM', icon: 'ChatDotRound', permission: 'system:chat:list' }
       }
     ]
+  },
+  // 兜底：未匹配的路径统一进入 404
+  {
+    path: '/:pathMatch(.*)*',
+    redirect: '/404'
   }
 ]
 
@@ -215,8 +231,7 @@ router.beforeEach(async (to, _from, next) => {
     .find((record) => record.meta.permission)?.meta.permission
 
   if (required && !hasRoutePermission(userStore, required)) {
-    ElMessage.error('无权限访问该页面')
-    next('/dashboard')
+    next('/403')
     return
   }
 

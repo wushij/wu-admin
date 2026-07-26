@@ -6,6 +6,7 @@ import { isApiSuccessCode } from '@/utils/api-response'
 import { getErrorMessage, markErrorToastShown } from '@/utils/axiosError'
 import { useUserStore } from '@/store/user'
 import { generateNonce, getTimestamp, encryptSm4, decryptSm4, signSm2 } from '@/utils/crypto'
+import { getSecurityConfig } from '@/utils/security-config'
 
 export type { ApiResult } from '@/types/api'
 export { getErrorMessage, isErrorToastShown } from '@/utils/axiosError'
@@ -73,17 +74,12 @@ service.interceptors.request.use(
     config.headers['X-Timestamp'] = timestamp
     config.headers['X-Nonce'] = nonce
 
-    // 读取客户端配置或 SessionStorage 中的安全策略（如从安全配置中读出的配置）
-    const secConfig = (window as unknown as { __WU_ADMIN_SECURITY__?: {
-      sm4EncryptEnabled?: boolean
-      sm2SignEnabled?: boolean
-      sm4Key?: string
-      sm2PrivateKey?: string
-    } }).__WU_ADMIN_SECURITY__ || {}
+    // 读取运行时下发的安全策略（闭包保存，不挂 window，密钥未下发时不启用加密/签名）
+    const secConfig = getSecurityConfig()
 
-    if (secConfig.sm4EncryptEnabled && config.data) {
+    if (secConfig.sm4EncryptEnabled && secConfig.sm4Key && config.data) {
       const plainStr = typeof config.data === 'string' ? config.data : JSON.stringify(config.data)
-      config.data = encryptSm4(plainStr, secConfig.sm4Key || 'WuAdmin16BytesKey')
+      config.data = encryptSm4(plainStr, secConfig.sm4Key)
       config.headers['X-Encrypted'] = '1'
     }
 
@@ -106,14 +102,16 @@ service.interceptors.request.use(
 
 service.interceptors.response.use(
   (response: AxiosResponse) => {
-    // 若响应标明 SM4 加密，自动解密
+    // 若响应标明 SM4 加密，且密钥已下发，自动解密
     if (response?.headers?.['x-encrypted'] === '1' && typeof response.data === 'string') {
-      const secConfig = (window as unknown as { __WU_ADMIN_SECURITY__?: { sm4Key?: string } }).__WU_ADMIN_SECURITY__ || {}
-      const plainJson = decryptSm4(response.data, secConfig.sm4Key || 'WuAdmin16BytesKey')
-      try {
-        response.data = JSON.parse(plainJson)
-      } catch {
-        response.data = plainJson
+      const { sm4Key } = getSecurityConfig()
+      if (sm4Key) {
+        const plainJson = decryptSm4(response.data, sm4Key)
+        try {
+          response.data = JSON.parse(plainJson)
+        } catch {
+          response.data = plainJson
+        }
       }
     }
 

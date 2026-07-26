@@ -1,8 +1,8 @@
 package com.admin.server.modules.system.service.dict.impl;
 
-import com.admin.server.common.pojo.BusinessException;
-import com.admin.server.common.pojo.PageParam;
-import com.admin.server.common.pojo.PageResult;
+import com.admin.server.common.exception.BusinessException;
+import com.admin.server.common.core.PageParam;
+import com.admin.server.common.core.PageResult;
 import com.admin.server.modules.system.dal.dataobject.dict.DictDataDO;
 import com.admin.server.modules.system.dal.dataobject.dict.DictTypeDO;
 import com.admin.server.modules.system.dal.mysql.dict.DictDataMapper;

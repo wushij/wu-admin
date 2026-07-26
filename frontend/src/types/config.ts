@@ -28,6 +28,10 @@ export interface RegisterConfig {
 
 export interface SecurityPublicConfig {
   disableDevtool?: boolean
+  /** 是否启用接口 SM4 加密（密钥由后端运行时下发，前端不硬编码） */
+  sm4EncryptEnabled?: boolean
+  /** SM4 对称密钥（16 字节），仅在启用加密时下发 */
+  sm4Key?: string
 }
 
 export interface AuthPublicConfig {

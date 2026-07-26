@@ -3,4 +3,5 @@ export type {
   LoginConfig,
   RegisterConfig,
   AuthPublicConfig,
+  SecurityPublicConfig,
 } from './config-types'

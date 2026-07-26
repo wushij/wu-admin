@@ -3,7 +3,7 @@ package com.admin.server.modules.system.service.config.impl;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
-import com.admin.server.common.pojo.BusinessException;
+import com.admin.server.common.exception.BusinessException;
 import com.admin.server.modules.system.dal.dataobject.config.SysConfigGroupDO;
 import com.admin.server.modules.system.dal.mysql.config.SysConfigGroupMapper;
 import com.admin.server.modules.system.framework.cache.SysConfigCacheService;
@@ -16,7 +16,7 @@ import jakarta.annotation.Resource;
 import java.util.List;
 import java.util.Set;
 
-import com.admin.server.modules.system.framework.operlog.OperLogContext;
+import com.admin.server.modules.infra.framework.operlog.OperLogContext;
 
 @Service
 public class SysConfigGroupServiceImpl implements SysConfigGroupService {

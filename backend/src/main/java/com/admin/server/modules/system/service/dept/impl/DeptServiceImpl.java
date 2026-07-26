@@ -1,8 +1,9 @@
 package com.admin.server.modules.system.service.dept.impl;
 
-import com.admin.server.common.pojo.BusinessException;
-import com.admin.server.common.pojo.PageParam;
-import com.admin.server.common.pojo.PageResult;
+import com.admin.server.common.exception.BusinessException;
+import com.admin.server.common.core.PageParam;
+import com.admin.server.common.core.PageResult;
+import com.admin.server.modules.system.enums.ErrorCodeConstants;
 import com.admin.server.modules.system.dal.dataobject.dept.DeptDO;
 import com.admin.server.modules.system.dal.dataobject.user.UserDO;
 import com.admin.server.modules.system.dal.mysql.dept.DeptMapper;
@@ -121,7 +122,7 @@ public class DeptServiceImpl extends ServiceImpl<DeptMapper, DeptDO> implements 
     public void delete(Long id) {
         long childCount = count(new LambdaQueryWrapper<DeptDO>().eq(DeptDO::getParentId, id));
         if (childCount > 0) {
-            throw new BusinessException("存在子部门，无法删除");
+            throw new BusinessException(ErrorCodeConstants.DEPT_HAS_CHILDREN);
         }
         long userCount = userMapper.selectCount(new LambdaQueryWrapper<UserDO>().eq(UserDO::getDeptId, id));
         if (userCount > 0) {

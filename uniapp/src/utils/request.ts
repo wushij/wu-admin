@@ -11,7 +11,8 @@ import {
   showGlobalErrorToast,
 } from '@/plugins/global-error-handler'
 import { resolveApiBaseUrl } from '@/utils/api-base'
-import { generateNonce, getTimestamp, encryptSm4, decryptSm4, signSm2 } from '@/utils/crypto'
+import { generateNonce, getTimestamp, encryptSm4, decryptSm4 } from '@/utils/crypto'
+import { getSecurityConfig } from '@/utils/security-config'
 
 const BASE_URL = resolveApiBaseUrl()
 
@@ -72,6 +73,14 @@ http.interceptors.request.use(
       config.header.Authorization = token
     }
 
+    // 自动植入接口请求 SM4 加密
+    const secConfig = getSecurityConfig()
+    if (secConfig.sm4EncryptEnabled && secConfig.sm4Key && config.data) {
+      const plainStr = typeof config.data === 'string' ? config.data : JSON.stringify(config.data)
+      config.data = encryptSm4(plainStr, secConfig.sm4Key) as any
+      config.header['X-Encrypted'] = '1'
+    }
+
     return config
   },
   (error) => Promise.reject(error),
@@ -79,8 +88,21 @@ http.interceptors.request.use(
 
 // luch-request 响应拦截器返回 ApiResult 而非 HttpResponse
 http.interceptors.response.use(
-  ((response: { data: ApiResult; config?: { url?: string; silent403?: boolean } }) => {
-    const res = response.data
+  ((response: { data: any; config?: { url?: string; silent403?: boolean }; header?: any }) => {
+    // 若响应标明 SM4 加密，且密钥已下发，自动解密
+    if ((response?.header?.['x-encrypted'] === '1' || response?.header?.['X-Encrypted'] === '1') && typeof response.data === 'string') {
+      const { sm4Key } = getSecurityConfig()
+      if (sm4Key) {
+        const plainJson = decryptSm4(response.data, sm4Key)
+        try {
+          response.data = JSON.parse(plainJson)
+        } catch {
+          response.data = plainJson
+        }
+      }
+    }
+
+    const res = response.data as ApiResult
     const code = res?.code
     const message = res.message || res.msg
 

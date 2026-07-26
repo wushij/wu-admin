@@ -1,6 +1,6 @@
 package com.admin.server.modules.system.service.menu.impl;
 
-import com.admin.server.common.pojo.BusinessException;
+import com.admin.server.common.exception.BusinessException;
 import com.admin.server.modules.system.api.menu.vo.MenuCreateReqVO;
 import com.admin.server.modules.system.api.menu.vo.MenuUpdateReqVO;
 import com.admin.server.modules.system.dal.dataobject.permission.MenuDO;

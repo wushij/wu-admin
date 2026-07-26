@@ -1,7 +1,7 @@
 package com.admin.server.modules.system.service.auth;
 
 import cn.hutool.core.util.IdUtil;
-import com.admin.server.common.pojo.BusinessException;
+import com.admin.server.common.exception.BusinessException;
 import com.admin.server.modules.system.service.config.SystemConfigHelper;
 import jakarta.annotation.Resource;
 import org.redisson.api.RAtomicLong;

@@ -22,8 +22,12 @@ export function getTimestamp(): string {
 /**
  * SM4 加密（国密对称加密）
  */
-export function encryptSm4(plainText: string, secretKey = 'WuAdmin16BytesKey'): string {
+export function encryptSm4(plainText: string, secretKey: string): string {
   if (!plainText) return ''
+  if (!secretKey) {
+    console.warn('移动端 SM4 密钥缺失，跳过加密')
+    return plainText
+  }
   try {
     return sm4.encrypt(plainText, secretKey)
   } catch (err) {
@@ -35,8 +39,12 @@ export function encryptSm4(plainText: string, secretKey = 'WuAdmin16BytesKey'): 
 /**
  * SM4 解密
  */
-export function decryptSm4(cipherText: string, secretKey = 'WuAdmin16BytesKey'): string {
+export function decryptSm4(cipherText: string, secretKey: string): string {
   if (!cipherText) return ''
+  if (!secretKey) {
+    console.warn('移动端 SM4 密钥缺失，跳过解密')
+    return cipherText
+  }
   try {
     return sm4.decrypt(cipherText, secretKey)
   } catch (err) {

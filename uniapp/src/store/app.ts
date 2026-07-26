@@ -2,6 +2,8 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { getConfig } from '@/api/system/auth'
 
+import { setSecurityConfig } from '@/utils/security-config'
+
 export const useAppStore = defineStore('app', () => {
   const platformName = ref('Wu-Admin')
   const platformSubtitle = ref('')
@@ -16,6 +18,13 @@ export const useAppStore = defineStore('app', () => {
     if (site?.platformSubtitle) platformSubtitle.value = site.platformSubtitle
     if (site?.loginWelcome) loginWelcome.value = site.loginWelcome
     if (site?.registerTitle) registerTitle.value = site.registerTitle
+    
+    // 注入运行时加密/签名安全配置
+    setSecurityConfig({
+      sm4EncryptEnabled: res.data?.security?.sm4EncryptEnabled === true,
+      sm4Key: res.data?.security?.sm4Key,
+    })
+
     configLoaded.value = true
     return res
   }

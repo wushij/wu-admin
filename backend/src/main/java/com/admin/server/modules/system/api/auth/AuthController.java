@@ -1,10 +1,10 @@
 package com.admin.server.modules.system.api.auth;
 
 import cn.dev33.satoken.stp.StpUtil;
-import com.admin.server.common.pojo.CommonResult;
+import com.admin.server.common.core.CommonResult;
 import com.admin.server.common.util.ClientIpUtils;
 import com.admin.server.framework.log.annotation.Log;
-import com.admin.server.common.pojo.BusinessException;
+import com.admin.server.common.exception.BusinessException;
 import com.admin.server.modules.system.api.auth.vo.EmailCodeReqVO;
 import com.admin.server.modules.system.api.auth.vo.ForgotPasswordCheckReqVO;
 import com.admin.server.modules.system.api.auth.vo.ForgotPasswordResetReqVO;

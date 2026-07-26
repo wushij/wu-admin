@@ -1,13 +1,12 @@
 package com.admin.server.framework.security.core.filter;
 
-import cn.hutool.core.io.IoUtil;
 import cn.hutool.core.util.HexUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.crypto.SmUtil;
 import cn.hutool.crypto.asymmetric.SM2;
 import cn.hutool.crypto.symmetric.SM4;
 import cn.hutool.json.JSONUtil;
-import com.admin.server.common.pojo.CommonResult;
+import com.admin.server.common.core.CommonResult;
 import com.admin.server.modules.system.service.config.SystemConfigHelper;
 import jakarta.annotation.Resource;
 import jakarta.servlet.FilterChain;
@@ -116,8 +115,13 @@ public class ApiSecurityFilter extends OncePerRequestFilter {
         String isEncryptedHeader = request.getHeader(HEADER_ENCRYPTED);
         boolean isRequestEncrypted = "1".equals(isEncryptedHeader) || "true".equalsIgnoreCase(isEncryptedHeader);
         if (sm4EncryptEnabled && isRequestEncrypted && StrUtil.isNotBlank(bodyString)) {
+            String sm4Key = systemConfigHelper.getSm4SecretKey();
+            if (StrUtil.isBlank(sm4Key)) {
+                log.error("SM4 加密已开启但未配置密钥，无法解密请求体");
+                writeError(response, 403, "请求已被拒绝：服务端加密密钥未配置");
+                return;
+            }
             try {
-                String sm4Key = systemConfigHelper.getSm4SecretKey();
                 byte[] keyBytes = sm4Key.getBytes(StandardCharsets.UTF_8);
                 SM4 sm4 = SmUtil.sm4(keyBytes);
                 bodyString = sm4.decryptStr(bodyString.trim());
@@ -180,10 +184,10 @@ public class ApiSecurityFilter extends OncePerRequestFilter {
             filterChain.doFilter(wrappedRequest, wrappedResponse);
 
             byte[] respContent = wrappedResponse.getContentAsByteArray();
-            if (respContent.length > 0) {
+            String sm4Key = systemConfigHelper.getSm4SecretKey();
+            if (respContent.length > 0 && StrUtil.isNotBlank(sm4Key)) {
                 try {
                     String plainResp = new String(respContent, StandardCharsets.UTF_8);
-                    String sm4Key = systemConfigHelper.getSm4SecretKey();
                     byte[] keyBytes = sm4Key.getBytes(StandardCharsets.UTF_8);
                     SM4 sm4 = SmUtil.sm4(keyBytes);
                     String encryptedResp = sm4.encryptBase64(plainResp);
