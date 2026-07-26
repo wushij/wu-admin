@@ -77,7 +77,7 @@ public class SysFileServiceImpl extends ServiceImpl<SysFileMapper, SysFileDO> im
     }
 
     private void applyFileCategory(LambdaQueryWrapper<SysFileDO> wrapper, String fileCategory) {
-        if (!StringUtils.hasText(fileCategory)) {
+        if (!StringUtils.hasText(fileCategory) || "all".equalsIgnoreCase(fileCategory)) {
             return;
         }
         if ("image".equals(fileCategory)) {

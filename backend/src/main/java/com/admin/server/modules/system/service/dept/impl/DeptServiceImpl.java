@@ -16,6 +16,8 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+import com.admin.server.modules.infra.framework.operlog.OperLogDiffUtils;
+import com.admin.server.modules.infra.framework.operlog.OperLogContext;
 
 import jakarta.annotation.Resource;
 import java.util.ArrayDeque;
@@ -88,6 +90,14 @@ public class DeptServiceImpl extends ServiceImpl<DeptMapper, DeptDO> implements 
         if (exist == null) {
             throw new BusinessException(404, "部门不存在");
         }
+        
+        // 计算变更明细并记录操作日志
+        List<String> diffItems = OperLogDiffUtils.diff(exist, dept);
+        if (!diffItems.isEmpty()) {
+            OperLogContext.setDiffItems(diffItems);
+            OperLogContext.setAction("修改部门「" + exist.getName() + "」: " + String.join("；", diffItems));
+        }
+
         Long parentId = dept.getParentId() == null ? exist.getParentId() : dept.getParentId();
         if (parentId == null) {
             parentId = 0L;

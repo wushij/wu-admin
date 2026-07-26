@@ -28,6 +28,8 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import jakarta.annotation.Resource;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import com.admin.server.modules.infra.framework.operlog.OperLogDiffUtils;
+import com.admin.server.modules.infra.framework.operlog.OperLogContext;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Collections;
@@ -157,6 +159,14 @@ public class UserServiceImpl implements UserService {
         if (user == null) {
             throw new BusinessException(ErrorCodeConstants.USER_NOT_EXISTS);
         }
+        
+        // 计算变更明细并记录操作日志
+        List<String> diffItems = OperLogDiffUtils.diff(user, reqVO);
+        if (!diffItems.isEmpty()) {
+            OperLogContext.setDiffItems(diffItems);
+            OperLogContext.setAction("修改用户「" + user.getUsername() + "」: " + String.join("；", diffItems));
+        }
+
         String previousNickname = user.getNickname();
         user.setNickname(reqVO.getNickname());
         user.setMobile(reqVO.getMobile());

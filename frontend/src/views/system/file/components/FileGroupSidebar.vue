@@ -104,15 +104,18 @@ defineEmits<{
 
 .type-tabs {
   display: flex;
-  padding: 8px 12px;
-  gap: 8px;
+  padding: 8px;
+  gap: 4px;
   border-bottom: 1px solid var(--el-border-color-lighter);
 }
 
 .type-tab {
-  padding: 4px 12px;
+  flex: 1;
+  padding: 4px 0;
+  text-align: center;
   cursor: pointer;
-  font-size: 13px;
+  font-size: 12px;
+  white-space: nowrap;
   color: var(--el-text-color-secondary);
   border-radius: var(--admin-radius-md, 8px);
   transition: all 0.2s;

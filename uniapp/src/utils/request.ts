@@ -75,7 +75,8 @@ http.interceptors.request.use(
 
     // 自动植入接口请求 SM4 加密
     const secConfig = getSecurityConfig()
-    if (secConfig.sm4EncryptEnabled && secConfig.sm4Key && config.data) {
+    const isFormData = typeof FormData !== 'undefined' && config.data instanceof FormData
+    if (secConfig.sm4EncryptEnabled && secConfig.sm4Key && config.data && !isFormData) {
       const plainStr = typeof config.data === 'string' ? config.data : JSON.stringify(config.data)
       config.data = encryptSm4(plainStr, secConfig.sm4Key) as any
       config.header['X-Encrypted'] = '1'

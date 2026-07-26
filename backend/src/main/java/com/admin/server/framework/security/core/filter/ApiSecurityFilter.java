@@ -72,7 +72,14 @@ public class ApiSecurityFilter extends OncePerRequestFilter {
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
-            throws ServletException, IOException {
+        throws ServletException, IOException {
+
+        // 0. 如果是文件上传请求 (multipart/form-data)，直接放行，不做安全校验与 Body 缓存
+        String contentType = request.getContentType();
+        if (contentType != null && contentType.startsWith("multipart/form-data")) {
+            filterChain.doFilter(request, response);
+            return;
+        }
 
         // 1. 读取系统安全开关
         boolean timestampEnabled = systemConfigHelper.isTimestampEnabled();
@@ -114,7 +121,7 @@ public class ApiSecurityFilter extends OncePerRequestFilter {
         // 4. SM4 解密处理 (若请求体加密)
         String isEncryptedHeader = request.getHeader(HEADER_ENCRYPTED);
         boolean isRequestEncrypted = "1".equals(isEncryptedHeader) || "true".equalsIgnoreCase(isEncryptedHeader);
-        if (sm4EncryptEnabled && isRequestEncrypted && StrUtil.isNotBlank(bodyString)) {
+        if (isRequestEncrypted && StrUtil.isNotBlank(bodyString)) {
             String sm4Key = systemConfigHelper.getSm4SecretKey();
             if (StrUtil.isBlank(sm4Key)) {
                 log.error("SM4 加密已开启但未配置密钥，无法解密请求体");

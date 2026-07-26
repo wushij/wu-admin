@@ -32,6 +32,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 import com.admin.server.modules.message.service.vo.AnnounceMyVO;
+import com.admin.server.modules.infra.framework.operlog.OperLogDiffUtils;
+import com.admin.server.modules.infra.framework.operlog.OperLogContext;
 
 @Service
 public class AnnounceService {
@@ -120,6 +122,18 @@ public class AnnounceService {
 
     @Transactional(rollbackFor = Exception.class)
     public void update(AnnounceDO entity) {
+        AnnounceDO oldAnnounce = announceMapper.selectById(entity.getId());
+        if (oldAnnounce == null) {
+            throw new BusinessException(404, "通知不存在");
+        }
+        
+        // 计算变更明细并记录操作日志
+        List<String> diffItems = OperLogDiffUtils.diff(oldAnnounce, entity);
+        if (!diffItems.isEmpty()) {
+            OperLogContext.setDiffItems(diffItems);
+            OperLogContext.setAction("修改通知「" + oldAnnounce.getTitle() + "」: " + String.join("；", diffItems));
+        }
+
         announceMapper.updateById(entity);
         if (entity.getStatus() != null && entity.getStatus() == 1) {
             publish(entity.getId());

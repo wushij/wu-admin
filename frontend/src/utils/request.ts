@@ -76,15 +76,19 @@ service.interceptors.request.use(
 
     // 读取运行时下发的安全策略（闭包保存，不挂 window，密钥未下发时不启用加密/签名）
     const secConfig = getSecurityConfig()
+    const isFormData = config.data instanceof FormData
 
-    if (secConfig.sm4EncryptEnabled && secConfig.sm4Key && config.data) {
+    if (secConfig.sm4EncryptEnabled && secConfig.sm4Key && config.data && !isFormData) {
       const plainStr = typeof config.data === 'string' ? config.data : JSON.stringify(config.data)
       config.data = encryptSm4(plainStr, secConfig.sm4Key)
       config.headers['X-Encrypted'] = '1'
     }
 
     if (secConfig.sm2SignEnabled && secConfig.sm2PrivateKey) {
-      const bodyStr = typeof config.data === 'string' ? config.data : (config.data ? JSON.stringify(config.data) : '')
+      let bodyStr = ''
+      if (config.data && !isFormData) {
+        bodyStr = typeof config.data === 'string' ? config.data : JSON.stringify(config.data)
+      }
       const signContent = `${config.method?.toUpperCase()}\n${config.url || ''}\n${timestamp}\n${nonce}\n${bodyStr}`
       const signature = signSm2(signContent, secConfig.sm2PrivateKey)
       if (signature) {

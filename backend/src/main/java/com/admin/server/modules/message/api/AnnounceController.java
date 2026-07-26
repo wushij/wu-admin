@@ -20,6 +20,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
+import com.admin.server.framework.log.annotation.Log;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -72,6 +73,7 @@ public class AnnounceController {
     @PostMapping
     @PreAuthorize("@ss.hasPermission('system:announce:create')")
     @Operation(summary = "新增通知")
+    @Log(title = "通知公告", businessType = Log.BusinessType.INSERT)
     public CommonResult<Boolean> create(@RequestBody AnnounceRequest req) {
         announceService.create(req.toEntity(objectMapper));
         return CommonResult.success(true);
@@ -80,6 +82,7 @@ public class AnnounceController {
     @PutMapping
     @PreAuthorize("@ss.hasPermission('system:announce:update')")
     @Operation(summary = "修改通知")
+    @Log(title = "通知公告", businessType = Log.BusinessType.UPDATE)
     public CommonResult<Boolean> update(@RequestBody AnnounceRequest req) {
         announceService.update(req.toEntity(objectMapper));
         return CommonResult.success(true);
@@ -88,6 +91,7 @@ public class AnnounceController {
     @DeleteMapping("/{id}")
     @PreAuthorize("@ss.hasPermission('system:announce:delete')")
     @Operation(summary = "删除通知")
+    @Log(title = "通知公告", businessType = Log.BusinessType.DELETE)
     public CommonResult<Boolean> delete(@PathVariable Long id) {
         announceService.delete(id);
         return CommonResult.success(true);
@@ -96,6 +100,7 @@ public class AnnounceController {
     @PostMapping("/{id}/publish")
     @PreAuthorize("@ss.hasPermission('system:announce:publish')")
     @Operation(summary = "发布通知")
+    @Log(title = "通知公告", businessType = Log.BusinessType.OTHER)
     public CommonResult<Boolean> publish(@PathVariable Long id) {
         announceService.publish(id);
         return CommonResult.success(true);
@@ -139,6 +144,7 @@ public class AnnounceController {
     @PutMapping("/restore")
     @PreAuthorize("@ss.hasRecycleRestore('system:announce:delete')")
     @Operation(summary = "恢复通知")
+    @Log(title = "通知公告", businessType = Log.BusinessType.OTHER)
     public CommonResult<Boolean> restore(@RequestParam Long id) {
         announceService.restore(id);
         return CommonResult.success(true);
@@ -147,6 +153,7 @@ public class AnnounceController {
     @DeleteMapping("/delete-permanent")
     @PreAuthorize("@ss.hasRecycleDelete('system:announce:delete')")
     @Operation(summary = "彻底删除")
+    @Log(title = "通知公告", businessType = Log.BusinessType.DELETE)
     public CommonResult<Boolean> deletePermanent(@RequestParam Long id) {
         announceService.deletePermanent(id);
         return CommonResult.success(true);
