@@ -19,7 +19,6 @@ frontend/BOOT-INF/
 # IDE
 .idea/
 *.iml
-.vscode/
 *.swp
 *.swo
 
@@ -40,12 +39,8 @@ Desktop.ini
 backend/data/
 
 # IDE / editor
-.cursor/
 
 # 本地/部署专用（不上传 GitHub）
-配置文件.txt
-GitHub上传与推送全流程.md
-部署与本地开发说明.md
 sql/admin_platform_mysql56.sql
 
 # 本地设计/方案文档（不上传 GitHub）

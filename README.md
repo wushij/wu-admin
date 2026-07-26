@@ -336,18 +336,8 @@ wu-admin/
 ├── sql/
 │   ├── admin_platform.sql         # 本地全量脚本（wu-admin，MySQL 8）+ 附录
 │   ├── admin_platform_mysql56.sql # 生产空库全量（wuadmin，MySQL 5.6）
-│   ├── add1.sql / add2.sql …     # 发版增量补丁（本地）
-│   ├── add1_wuadmin.sql / add2_wuadmin.sql … # 发版增量补丁（生产）
-│   └── disable_devtool_off.sql    # 临时关闭前端反调试
-├── data/                          # 本地上传目录（git 忽略）
-└── docs/                          # 部署配置与项目文档（git 忽略）
-    ├── 根域名配置文件.txt
-    ├── 移动端子域名配置文件.txt
-    ├── nginx配置文件.txt
-    ├── 项目分析.txt
-    ├── 项目审查报告.md
-    ├── 安全防护与限流专项审计.txt
-    └── 简历模板.md
+│   └── migration/                 # 版本增量与迁移 SQL 脚本（addN.sql等）
+└── data/                          # 本地上传目录（git 忽略）
 ```
 
 ### 后端包分层约定
