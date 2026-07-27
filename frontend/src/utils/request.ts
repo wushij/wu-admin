@@ -222,7 +222,7 @@ service.interceptors.response.use(
         if (isAuthPublicUrl(cfg?.url)) {
           ElMessage.error(text || '认证失败')
         } else {
-          ElMessage.error('登录已过期，请重新登录')
+          // 未认证或 Token 过期时，静默清理 Token 并平滑跳转至登录页，不在页面上弹出多余的红色吐司
           clearSessionAndRedirectLogin()
         }
       } else if (status === 403) {

@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory, RouteRecordRaw } from 'vue-router'
 import { useUserStore } from '@/store/user'
+import { useSiteStore } from '@/store/site'
 import { hasMenuPermission } from '@/directives/permission'
 
 const routes: RouteRecordRaw[] = [
@@ -197,6 +198,9 @@ function hasRoutePermission(userStore: ReturnType<typeof useUserStore>, required
 }
 
 router.beforeEach(async (to, _from, next) => {
+  const siteStore = useSiteStore()
+  await siteStore.ensureConfigLoaded()
+
   const userStore = useUserStore()
 
   document.title = to.meta.title ? `${to.meta.title} - Admin Platform` : 'Admin Platform'
