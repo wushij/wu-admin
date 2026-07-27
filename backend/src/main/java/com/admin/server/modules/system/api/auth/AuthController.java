@@ -1,6 +1,8 @@
 package com.admin.server.modules.system.api.auth;
 
 import cn.dev33.satoken.stp.StpUtil;
+import cn.hutool.core.util.RandomUtil;
+import cn.hutool.core.util.StrUtil;
 import com.admin.server.common.core.CommonResult;
 import com.admin.server.common.util.ClientIpUtils;
 import com.admin.server.framework.log.annotation.Log;
@@ -21,15 +23,24 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 @Tag(name = "认证管理")
 @RestController
 @RequestMapping("/auth")
 public class AuthController {
+
+    /** 会话签名密钥 Redis 前缀，TTL = 30 分钟 */
+    private static final String SESSION_SIGN_KEY_PREFIX = "security:session-sign:";
+    private static final long SESSION_SIGN_TTL_MINUTES = 30L;
+    /** clientId 合法字符校验（32~64位十六进制或 UUID 格式） */
+    private static final int CLIENT_ID_MIN_LEN = 8;
+    private static final int CLIENT_ID_MAX_LEN = 128;
 
     @Resource
     private AuthService authService;
@@ -37,6 +48,8 @@ public class AuthController {
     private AuthForgotPasswordService authForgotPasswordService;
     @Resource
     private SystemConfigHelper systemConfigHelper;
+    @Resource
+    private StringRedisTemplate stringRedisTemplate;
 
     @Operation(summary = "获取验证码")
     @GetMapping("/captcha")
@@ -60,6 +73,51 @@ public class AuthController {
     @GetMapping("/config")
     public CommonResult<Map<String, Object>> config() {
         return CommonResult.success(authService.getPublicConfig());
+    }
+
+    /**
+     * 【安全加固 P0】会话签名密钥初始化接口。
+     *
+     * <p>替代原「公开接口明文下发固定密钥」方案。
+     * 客户端在应用启动时生成一个随机 clientId（内存保存，不持久化），
+     * 携带 clientId 调用此接口，服务端为其生成一个随机 32 字节（64 位 Hex）临时签名密钥，
+     * 以 {@code security:session-sign:{clientId}} 为 key 存入 Redis，TTL=30 分钟。
+     * 后续请求的 X-Signature 均使用此临时密钥计算，Filter 也用 clientId 从 Redis 取密钥验签。
+     *
+     * <p>安全收益：
+     * <ul>
+     *   <li>密钥不再全局固定（不再是 WuAdmin16ByteKey 这类硬编码值）</li>
+     *   <li>密钥每 30 分钟自动过期，不同客户端拿到不同密钥</li>
+     *   <li>即使某次下发的临时密钥被截获，有效窗口仅 30 分钟</li>
+     * </ul>
+     *
+     * @param clientId 前端随机生成的设备标识（8~128 字符），要求每次应用启动重新生成，不持久化
+     */
+    @Operation(summary = "初始化会话签名密钥（安全加固）")
+    @PostMapping("/session-sign-init")
+    public CommonResult<Map<String, Object>> sessionSignInit(
+            @RequestParam(value = "clientId") String clientId) {
+        // 校验 clientId 格式，防止 Redis key 注入
+        if (StrUtil.isBlank(clientId)
+                || clientId.length() < CLIENT_ID_MIN_LEN
+                || clientId.length() > CLIENT_ID_MAX_LEN
+                || !clientId.matches("[A-Za-z0-9\\-_]+")) {
+            throw new BusinessException(400, "clientId 格式非法");
+        }
+        // 仅在服务端签名功能开启时才生成并返回密钥
+        if (!systemConfigHelper.isSm2SignEffective()) {
+            return CommonResult.success(Map.of("enabled", false));
+        }
+        // 生成 32 字节（64 位 Hex）密码学安全随机临时密钥
+        String tempKey = RandomUtil.randomString("0123456789abcdef", 64);
+        String redisKey = SESSION_SIGN_KEY_PREFIX + clientId;
+        stringRedisTemplate.opsForValue().set(redisKey, tempKey, SESSION_SIGN_TTL_MINUTES, TimeUnit.MINUTES);
+        return CommonResult.success(Map.of(
+                "enabled", true,
+                "sm3SignKey", tempKey,
+                "sm2PrivateKey", tempKey,
+                "ttlMinutes", SESSION_SIGN_TTL_MINUTES
+        ));
     }
 
     @Log(title = "用户登录", businessType = Log.BusinessType.OTHER, isSaveRequestData = false)

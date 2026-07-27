@@ -611,24 +611,16 @@ public class SystemConfigHelper {
 
         Map<String, Object> security = new HashMap<>();
         security.put("disableDevtool", isDisableDevtool());
-        // 接口 SM4 加密策略：密钥由运行时下发，前后端均不硬编码；未配置密钥时不告知开启
-        boolean sm4Enabled = isSm4EncryptEnabled();
-        String sm4Key = getSm4SecretKey();
-        boolean sm4Effective = sm4Enabled && StrUtil.isNotBlank(sm4Key);
-        security.put("sm4EncryptEnabled", sm4Effective);
-        if (sm4Effective) {
-            security.put("sm4Key", sm4Key);
-        }
 
-        // 接口 HMAC-SM3 / SM2 数字签名策略：密钥由运行时下发给客户端，未配置密钥时不告知开启
-        boolean sm2Enabled = isSm2SignEffective();
-        String sm3SignKey = getSm3SignKey();
-        security.put("sm2SignEnabled", sm2Enabled);
-        security.put("sm3SignEnabled", sm2Enabled);
-        if (sm2Enabled) {
-            security.put("sm2PrivateKey", sm3SignKey);
-            security.put("sm3SignKey", sm3SignKey);
-        }
+        // 【安全加固 P0】接口签名/加密密钥不再通过公开接口明文下发给客户端。
+        // 客户端须调用 POST /auth/session-sign-init（携带 clientId）换取一次性会话临时密钥。
+        // 此处仅告知客户端「服务端是否已启用签名/加密」，不暴露任何密钥材料。
+        boolean sm3SignActive = isSm2SignEffective();
+        boolean sm4Active = isSm4EncryptEffective();
+        security.put("sm3SignEnabled", sm3SignActive);
+        security.put("sm2SignEnabled", sm3SignActive);
+        security.put("sm4EncryptEnabled", sm4Active);
+        // 严禁输出：sm4Key / sm3SignKey / sm2PrivateKey
 
         result.put("security", security);
 

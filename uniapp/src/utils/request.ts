@@ -12,7 +12,7 @@ import {
 } from '@/plugins/global-error-handler'
 import { resolveApiBaseUrl } from '@/utils/api-base'
 import { generateNonce, getTimestamp, encryptSm4, decryptSm4, signSm2, signHmacSm3 } from '@/utils/crypto'
-import { getSecurityConfig } from '@/utils/security-config'
+import { getSecurityConfig, getClientId } from '@/utils/security-config'
 
 const BASE_URL = resolveApiBaseUrl()
 
@@ -67,6 +67,8 @@ http.interceptors.request.use(
       ...config.header,
       'X-Timestamp': timestamp,
       'X-Nonce': nonce,
+      // 【安全加固 P0】携带会话 clientId，服务端据此从 Redis 查找临时签名密钥
+      'X-Client-Id': getClientId(),
     }
 
     if (token) {

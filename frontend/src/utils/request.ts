@@ -6,7 +6,7 @@ import { isApiSuccessCode } from '@/utils/api-response'
 import { getErrorMessage, markErrorToastShown } from '@/utils/axiosError'
 import { useUserStore } from '@/store/user'
 import { generateNonce, getTimestamp, encryptSm4, decryptSm4, signSm2, signHmacSm3 } from '@/utils/crypto'
-import { getSecurityConfig } from '@/utils/security-config'
+import { getSecurityConfig, getClientId } from '@/utils/security-config'
 
 export type { ApiResult } from '@/types/api'
 export { getErrorMessage, isErrorToastShown } from '@/utils/axiosError'
@@ -67,12 +67,14 @@ const service: AxiosInstance = axios.create({
 
 service.interceptors.request.use(
   (config) => {
-    // 自动植入时间戳与 Nonce 防重放 Request Headers
+    // 自动植入时间戳、Nonce、ClientId 防重放 Request Headers
     const timestamp = getTimestamp()
     const nonce = generateNonce()
 
     config.headers['X-Timestamp'] = timestamp
     config.headers['X-Nonce'] = nonce
+    // 【安全加固 P0】携带会话 clientId，服务端据此从 Redis 查找临时签名密钥
+    config.headers['X-Client-Id'] = getClientId()
 
     // 读取运行时下发的安全策略（闭包保存，不挂 window，密钥未下发时不启用加密/签名）
     const secConfig = getSecurityConfig()
@@ -89,11 +91,6 @@ service.interceptors.request.use(
 
     const isSignEnabled = (secConfig.sm3SignEnabled || secConfig.sm2SignEnabled) && (secConfig.sm3SignKey || secConfig.sm2PrivateKey)
     if (isSignEnabled) {
-      const timestamp = getTimestamp()
-      const nonce = generateNonce()
-      config.headers['X-Timestamp'] = timestamp
-      config.headers['X-Nonce'] = nonce
-
       let bodyStr = ''
       if (config.data && !isFormData) {
         bodyStr = typeof config.data === 'string' ? config.data : JSON.stringify(config.data)
@@ -140,6 +137,7 @@ service.interceptors.request.use(
     return Promise.reject(error)
   },
 )
+
 
 service.interceptors.response.use(
   (response: AxiosResponse) => {

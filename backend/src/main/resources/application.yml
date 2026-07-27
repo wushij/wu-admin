@@ -7,6 +7,7 @@ server:
 # Knife4j 调试默认基址（写入 OpenAPI servers，与前端 Vite 代理一致）
 app:
   security:
+    # 生产环境（https）设为 true；本地开发（http）保持 false
     cookie-secure: false
   api-docs:
     server-url: http://localhost:3000/api
@@ -118,6 +119,8 @@ sa-token:
   is-read-cookie: true
   is-read-header: true
   is-write-cookie: true
+  # SameSite=Lax 防 CSRF；Secure 由 app.security.cookie-secure 动态控制
+  cookie-same-site: Lax
   is-read-body: false
 
 # 登录防爬：图形验证码开关与按 IP 分钟限流（0 表示不限制）
@@ -133,3 +136,5 @@ auth:
     captcha-per-ip-minute: 40
     login-per-ip-minute: 30
     register-per-ip-minute: 10
+    # 注意：注册最小密码长度由系统配置-安全设置中的 minPasswordLength 控制
+    # 建议在管理后台将其设置为 8 以上，默认值为 6（兼容存量配置）
