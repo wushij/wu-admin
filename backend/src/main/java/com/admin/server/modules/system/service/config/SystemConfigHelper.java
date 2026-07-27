@@ -303,9 +303,27 @@ public class SystemConfigHelper {
         return getGroupJson(GROUP_SECURITY).getBool("sm4EncryptEnabled", false);
     }
 
+    /** SM4 数据加密是否生效（开关开启且已配置 16 字节密钥） */
+    public boolean isSm4EncryptEffective() {
+        return isSm4EncryptEnabled() && StrUtil.isNotBlank(getSm4SecretKey());
+    }
+
     /** SM2 数字签名开启状态 */
     public boolean isSm2SignEnabled() {
         return getGroupJson(GROUP_SECURITY).getBool("sm2SignEnabled", false);
+    }
+
+    /** 国密 HMAC-SM3 签名 Key (未配置时优先回退使用 SM4 对称密钥) */
+    public String getSm3SignKey() {
+        String key = getGroupJson(GROUP_SECURITY).getStr("sm3SignKey", "");
+        if (StrUtil.isNotBlank(key)) return key.trim();
+        return getSm4SecretKey();
+    }
+
+    /** SM2/HMAC-SM3 数字签名是否生效（开关开启且已配置签名 Key） */
+    public boolean isSm2SignEffective() {
+        boolean enabled = isSm2SignEnabled() || getGroupJson(GROUP_SECURITY).getBool("sm3SignEnabled", false);
+        return enabled && StrUtil.isNotBlank(getSm3SignKey());
     }
 
     /** 时间戳校验开启状态（默认开启） */
@@ -601,6 +619,17 @@ public class SystemConfigHelper {
         if (sm4Effective) {
             security.put("sm4Key", sm4Key);
         }
+
+        // 接口 HMAC-SM3 / SM2 数字签名策略：密钥由运行时下发给客户端，未配置密钥时不告知开启
+        boolean sm2Enabled = isSm2SignEffective();
+        String sm3SignKey = getSm3SignKey();
+        security.put("sm2SignEnabled", sm2Enabled);
+        security.put("sm3SignEnabled", sm2Enabled);
+        if (sm2Enabled) {
+            security.put("sm2PrivateKey", sm3SignKey);
+            security.put("sm3SignKey", sm3SignKey);
+        }
+
         result.put("security", security);
 
         return result;

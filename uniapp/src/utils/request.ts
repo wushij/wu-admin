@@ -11,7 +11,7 @@ import {
   showGlobalErrorToast,
 } from '@/plugins/global-error-handler'
 import { resolveApiBaseUrl } from '@/utils/api-base'
-import { generateNonce, getTimestamp, encryptSm4, decryptSm4 } from '@/utils/crypto'
+import { generateNonce, getTimestamp, encryptSm4, decryptSm4, signSm2, signHmacSm3 } from '@/utils/crypto'
 import { getSecurityConfig } from '@/utils/security-config'
 
 const BASE_URL = resolveApiBaseUrl()
@@ -73,13 +73,57 @@ http.interceptors.request.use(
       config.header.Authorization = token
     }
 
-    // 自动植入接口请求 SM4 加密
+    // 自动植入接口请求 SM4 加密 / SM2 数字签名
     const secConfig = getSecurityConfig()
     const isFormData = typeof FormData !== 'undefined' && config.data instanceof FormData
-    if (secConfig.sm4EncryptEnabled && secConfig.sm4Key && config.data && !isFormData) {
-      const plainStr = typeof config.data === 'string' ? config.data : JSON.stringify(config.data)
-      config.data = encryptSm4(plainStr, secConfig.sm4Key) as any
-      config.header['X-Encrypted'] = '1'
+
+    if (secConfig.sm4EncryptEnabled && secConfig.sm4Key) {
+      config.header['X-Accept-Encrypted'] = '1'
+      if (config.data && !isFormData) {
+        const plainStr = typeof config.data === 'string' ? config.data : JSON.stringify(config.data)
+        config.data = encryptSm4(plainStr, secConfig.sm4Key) as any
+        config.header['X-Encrypted'] = '1'
+      }
+    }
+
+    const isSignEnabled = (secConfig.sm3SignEnabled || secConfig.sm2SignEnabled) && (secConfig.sm3SignKey || secConfig.sm2PrivateKey)
+    if (isSignEnabled) {
+      let bodyStr = ''
+      if (config.data && !isFormData) {
+        bodyStr = typeof config.data === 'string' ? config.data : JSON.stringify(config.data)
+        bodyStr = bodyStr.trim()
+        if (bodyStr.startsWith('"') && bodyStr.endsWith('"') && bodyStr.length > 2) {
+          bodyStr = bodyStr.substring(1, bodyStr.length - 1)
+        }
+      }
+      let fullPath = config.url || ''
+      if (fullPath.startsWith('/api/')) {
+        fullPath = fullPath.substring(4)
+      } else if (!fullPath.startsWith('/')) {
+        fullPath = '/' + fullPath
+      }
+      if (config.params && typeof config.params === 'object') {
+        const queryParts: string[] = []
+        Object.entries(config.params).forEach(([key, val]) => {
+          if (val !== undefined && val !== null) {
+            queryParts.push(`${encodeURIComponent(key)}=${encodeURIComponent(String(val))}`)
+          }
+        })
+        const qs = queryParts.join('&')
+        if (qs) {
+          fullPath += (fullPath.includes('?') ? '&' : '?') + qs
+        }
+      }
+      try {
+        fullPath = decodeURIComponent(fullPath)
+      } catch {}
+
+      const signContent = `${(config.method || 'GET').toUpperCase()}\n${fullPath}\n${timestamp}\n${nonce}\n${bodyStr}`
+      const signKey = secConfig.sm3SignKey || secConfig.sm2PrivateKey || ''
+      const signature = signHmacSm3(signContent, signKey) || signSm2(signContent, signKey)
+      if (signature) {
+        config.header['X-Signature'] = signature
+      }
     }
 
     return config

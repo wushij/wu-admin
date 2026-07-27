@@ -1,9 +1,13 @@
 package com.admin.server.framework.security.core.filter;
 
 import cn.hutool.core.util.HexUtil;
+import cn.hutool.core.util.RandomUtil;
 import cn.hutool.core.util.StrUtil;
+import cn.hutool.crypto.Mode;
+import cn.hutool.crypto.Padding;
 import cn.hutool.crypto.SmUtil;
 import cn.hutool.crypto.asymmetric.SM2;
+import cn.hutool.crypto.digest.HMac;
 import cn.hutool.crypto.symmetric.SM4;
 import cn.hutool.json.JSONUtil;
 import com.admin.server.common.core.CommonResult;
@@ -25,13 +29,14 @@ import org.springframework.web.util.ContentCachingResponseWrapper;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 /**
  * 全链路 API 安全防护过滤器
- * 支持：时间戳校验(5分钟窗口)、Nonce随机数防重放(Redis查重)、SM2数字签名与SM4接口加解密
+ * 支持：时间戳校验(5分钟窗口)、Nonce随机数防重放(Redis查重)、HMAC-SM3数字签名与SM4-CBC接口加解密
  */
 @Component
 public class ApiSecurityFilter extends OncePerRequestFilter {
@@ -42,6 +47,7 @@ public class ApiSecurityFilter extends OncePerRequestFilter {
     public static final String HEADER_NONCE = "X-Nonce";
     public static final String HEADER_SIGNATURE = "X-Signature";
     public static final String HEADER_ENCRYPTED = "X-Encrypted";
+    public static final String HEADER_ACCEPT_ENCRYPTED = "X-Accept-Encrypted";
 
     private static final long MAX_TIMESTAMP_DIFF_MS = 5 * 60 * 1000L; // 5 分钟窗口
 
@@ -50,7 +56,10 @@ public class ApiSecurityFilter extends OncePerRequestFilter {
             "/v3/api-docs",
             "/swagger-ui",
             "/webjars",
-            "/favicon.ico"
+            "/favicon.ico",
+            "/files",
+            "/ws",
+            "/pay/notify"
     );
 
     @Resource
@@ -59,11 +68,30 @@ public class ApiSecurityFilter extends OncePerRequestFilter {
     @Resource
     private StringRedisTemplate stringRedisTemplate;
 
+    private static final Set<String> PUBLIC_AUTH_URIS = Set.of(
+            "/auth/config",
+            "/auth/login",
+            "/auth/register",
+            "/auth/captcha",
+            "/auth/sms-code",
+            "/auth/slider-challenge"
+    );
+
+    private boolean isPublicAuthUri(String uri) {
+        if (uri == null) return false;
+        for (String publicUri : PUBLIC_AUTH_URIS) {
+            if (uri.equals(publicUri) || uri.endsWith(publicUri)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String uri = request.getRequestURI();
         for (String prefix : EXCLUDE_PATH_PREFIXES) {
-            if (uri.startsWith(prefix)) {
+            if (uri.startsWith(prefix) || uri.startsWith("/api" + prefix) || uri.contains(prefix + "/")) {
                 return true;
             }
         }
@@ -74,22 +102,31 @@ public class ApiSecurityFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
         throws ServletException, IOException {
 
-        // 0. 如果是文件上传请求 (multipart/form-data)，直接放行，不做安全校验与 Body 缓存
+        // 0. 如果是 OPTIONS 预检请求或文件上传请求，直接放行，不做安全头与签名校验
+        if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
         String contentType = request.getContentType();
         if (contentType != null && contentType.startsWith("multipart/form-data")) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        // 1. 读取系统安全开关
+        // 1. 读取系统安全开关 (需同时配置了有效密钥才视为生效)
         boolean timestampEnabled = systemConfigHelper.isTimestampEnabled();
         boolean nonceEnabled = systemConfigHelper.isNonceEnabled();
-        boolean sm2SignEnabled = systemConfigHelper.isSm2SignEnabled();
-        boolean sm4EncryptEnabled = systemConfigHelper.isSm4EncryptEnabled();
+        boolean sm2SignEnabled = systemConfigHelper.isSm2SignEffective();
+        boolean sm4EncryptEnabled = systemConfigHelper.isSm4EncryptEffective();
 
         // 2. 时间戳校验
         String timestampStr = request.getHeader(HEADER_TIMESTAMP);
-        if (timestampEnabled && StrUtil.isNotBlank(timestampStr)) {
+        if (timestampEnabled) {
+            if (StrUtil.isBlank(timestampStr)) {
+                writeError(response, 403, "请求已被拒绝：缺失 X-Timestamp 请求头");
+                return;
+            }
             try {
                 long timestamp = Long.parseLong(timestampStr);
                 long diff = Math.abs(System.currentTimeMillis() - timestamp);
@@ -105,7 +142,11 @@ public class ApiSecurityFilter extends OncePerRequestFilter {
 
         // 3. Nonce 防重放校验
         String nonce = request.getHeader(HEADER_NONCE);
-        if (nonceEnabled && StrUtil.isNotBlank(nonce)) {
+        if (nonceEnabled) {
+            if (StrUtil.isBlank(nonce)) {
+                writeError(response, 403, "请求已被拒绝：缺失 X-Nonce 请求头");
+                return;
+            }
             String redisKey = "security:nonce:" + nonce;
             Boolean success = stringRedisTemplate.opsForValue().setIfAbsent(redisKey, "1", 5, TimeUnit.MINUTES);
             if (Boolean.FALSE.equals(success)) {
@@ -114,14 +155,80 @@ public class ApiSecurityFilter extends OncePerRequestFilter {
             }
         }
 
-        // 读取 Body 内容供解密与签名比对
-        byte[] bodyBytes = request.getInputStream().readAllBytes();
-        String bodyString = new String(bodyBytes, StandardCharsets.UTF_8);
+        // 读取原始 Body 内容 (可能是明文，也可能是 SM4 密文) 供签名校验
+        byte[] rawBodyBytes = request.getInputStream().readAllBytes();
+        String rawBodyString = new String(rawBodyBytes, StandardCharsets.UTF_8);
+        String effectiveBodyStr = rawBodyString.trim();
+        if (effectiveBodyStr.startsWith("\"") && effectiveBodyStr.endsWith("\"") && effectiveBodyStr.length() > 2) {
+            effectiveBodyStr = effectiveBodyStr.substring(1, effectiveBodyStr.length() - 1);
+        }
 
-        // 4. SM4 解密处理 (若请求体加密)
+        // 4. 国密 HMAC-SM3 / SM2 数字签名校验 (使用客户端提交的原始 Body，遵循 Encrypt-then-Sign 规范)
+        String signature = request.getHeader(HEADER_SIGNATURE);
+        if (sm2SignEnabled) {
+            String servletPath = request.getServletPath();
+            if (servletPath != null && servletPath.startsWith("/api/")) {
+                servletPath = servletPath.substring(4);
+            }
+            boolean isPublicAuth = isPublicAuthUri(servletPath);
+            if (StrUtil.isBlank(signature)) {
+                // 如果客户端未携带签名 Header，且不是公开引导接口（如 /auth/config），则拒绝请求
+                if (!isPublicAuth) {
+                    writeError(response, 403, "请求已被拒绝：缺失 X-Signature 签名头");
+                    return;
+                }
+            } else {
+                String signKey = systemConfigHelper.getSm3SignKey();
+                if (StrUtil.isNotBlank(signKey)) {
+                    try {
+                        // 构造统一的 URI (包含解码后的 QueryString，彻底解决 URL 编码差异)
+                        String queryString = request.getQueryString();
+                        String fullPath = servletPath + (StrUtil.isNotBlank(queryString) ? "?" + queryString : "");
+                        try {
+                            fullPath = URLDecoder.decode(fullPath, StandardCharsets.UTF_8);
+                        } catch (Exception ignored) {}
+
+                        String signContent = request.getMethod() + "\n"
+                                + fullPath + "\n"
+                                + StrUtil.nullToEmpty(timestampStr) + "\n"
+                                + StrUtil.nullToEmpty(nonce) + "\n"
+                                + effectiveBodyStr;
+
+                        // 优先使用高性能 HMAC-SM3 校验
+                        byte[] keyBytes = signKey.getBytes(StandardCharsets.UTF_8);
+                        HMac hmac = SmUtil.hmacSm3(keyBytes);
+                        String expectedSignature = hmac.digestHex(signContent);
+
+                        boolean valid = expectedSignature.equalsIgnoreCase(signature);
+                        if (!valid) {
+                            // 降级支持 SM2 验签 (兼容旧版)
+                            String publicKeyHex = systemConfigHelper.getSm2PublicKey();
+                            if (StrUtil.isNotBlank(publicKeyHex)) {
+                                try {
+                                    SM2 sm2 = SmUtil.sm2(null, publicKeyHex);
+                                    valid = sm2.verify(signContent.getBytes(StandardCharsets.UTF_8), HexUtil.decodeHex(signature));
+                                } catch (Exception ignored) {}
+                            }
+                        }
+
+                        if (!valid) {
+                            writeError(response, 403, "请求已被拒绝：数字签名验证失败");
+                            return;
+                        }
+                    } catch (Exception e) {
+                        log.error("签名验证异常: {}", e.getMessage());
+                        writeError(response, 403, "请求已被拒绝：数字签名校验异常");
+                        return;
+                    }
+                }
+            }
+        }
+
+        // 5. SM4 解密处理 (支持 CBC 模式提取前 32 位 Hex 作为 IV 向量，及旧版 ECB 降级)
+        byte[] dispatchBodyBytes = rawBodyBytes;
         String isEncryptedHeader = request.getHeader(HEADER_ENCRYPTED);
         boolean isRequestEncrypted = "1".equals(isEncryptedHeader) || "true".equalsIgnoreCase(isEncryptedHeader);
-        if (isRequestEncrypted && StrUtil.isNotBlank(bodyString)) {
+        if (isRequestEncrypted && StrUtil.isNotBlank(rawBodyString)) {
             String sm4Key = systemConfigHelper.getSm4SecretKey();
             if (StrUtil.isBlank(sm4Key)) {
                 log.error("SM4 加密已开启但未配置密钥，无法解密请求体");
@@ -129,15 +236,33 @@ public class ApiSecurityFilter extends OncePerRequestFilter {
                 return;
             }
             try {
-                String cipherText = bodyString.trim();
-                // 兼容某些前端框架/Axios 自动将 String 序列化为带双引号的 JSON 字符串
+                String cipherText = rawBodyString.trim();
                 if (cipherText.startsWith("\"") && cipherText.endsWith("\"") && cipherText.length() > 2) {
                     cipherText = cipherText.substring(1, cipherText.length() - 1);
                 }
                 byte[] keyBytes = sm4Key.getBytes(StandardCharsets.UTF_8);
-                SM4 sm4 = SmUtil.sm4(keyBytes);
-                bodyString = sm4.decryptStr(cipherText);
-                bodyBytes = bodyString.getBytes(StandardCharsets.UTF_8);
+                String decryptedBody = null;
+
+                // 尝试 SM4-CBC 模式解密 (提取前 32 字符 Hex 作为 16 字节 IV 向量)
+                if (cipherText.length() > 32 && HexUtil.isHexNumber(cipherText.substring(0, 32))) {
+                    try {
+                        String hexIv = cipherText.substring(0, 32);
+                        String rawCipher = cipherText.substring(32);
+                        byte[] ivBytes = HexUtil.decodeHex(hexIv);
+                        SM4 cbcSm4 = new SM4(Mode.CBC, Padding.PKCS5Padding, keyBytes, ivBytes);
+                        decryptedBody = cbcSm4.decryptStr(rawCipher);
+                    } catch (Exception e) {
+                        log.warn("SM4-CBC 解密过程异常，尝试 ECB 降级解密: {}", e.getMessage());
+                    }
+                }
+
+                // 降级使用 ECB 模式解密
+                if (decryptedBody == null) {
+                    SM4 ecbSm4 = SmUtil.sm4(keyBytes);
+                    decryptedBody = ecbSm4.decryptStr(cipherText);
+                }
+
+                dispatchBodyBytes = decryptedBody.getBytes(StandardCharsets.UTF_8);
             } catch (Exception e) {
                 log.error("SM4 请求体解密失败: {}", e.getMessage());
                 writeError(response, 403, "请求已被拒绝：SM4 请求解密失败");
@@ -145,34 +270,8 @@ public class ApiSecurityFilter extends OncePerRequestFilter {
             }
         }
 
-        // 5. SM2 数字签名校验
-        String signature = request.getHeader(HEADER_SIGNATURE);
-        if (sm2SignEnabled && StrUtil.isNotBlank(signature)) {
-            String publicKeyHex = systemConfigHelper.getSm2PublicKey();
-            if (StrUtil.isNotBlank(publicKeyHex)) {
-                try {
-                    String signContent = request.getMethod() + "\n"
-                            + request.getRequestURI() + "\n"
-                            + StrUtil.nullToEmpty(timestampStr) + "\n"
-                            + StrUtil.nullToEmpty(nonce) + "\n"
-                            + bodyString;
-
-                    SM2 sm2 = SmUtil.sm2(null, publicKeyHex);
-                    boolean valid = sm2.verify(signContent.getBytes(StandardCharsets.UTF_8), HexUtil.decodeHex(signature));
-                    if (!valid) {
-                        writeError(response, 403, "请求已被拒绝：SM2 数字签名验证失败");
-                        return;
-                    }
-                } catch (Exception e) {
-                    log.error("SM2 签名验证异常: {}", e.getMessage());
-                    writeError(response, 403, "请求已被拒绝：数字签名校验异常");
-                    return;
-                }
-            }
-        }
-
         // 6. 重构 HttpServletRequest 传入 Filter 链
-        byte[] finalBodyBytes = bodyBytes;
+        byte[] finalBodyBytes = dispatchBodyBytes;
         HttpServletRequest wrappedRequest = new HttpServletRequestWrapper(request) {
             @Override
             public ServletInputStream getInputStream() {
@@ -190,8 +289,12 @@ public class ApiSecurityFilter extends OncePerRequestFilter {
             }
         };
 
-        // 7. 响应处理 (若开启 SM4 加密且客户端请求标记了加密)
-        if (sm4EncryptEnabled && isRequestEncrypted) {
+        // 7. 响应处理 (使用 SM4-CBC 模式 + 16 字节随机 IV 向量加密响应体)
+        String acceptEncryptedHeader = request.getHeader(HEADER_ACCEPT_ENCRYPTED);
+        boolean wantsEncryptedResp = "1".equals(acceptEncryptedHeader) || "true".equalsIgnoreCase(acceptEncryptedHeader);
+        boolean shouldEncryptResponse = sm4EncryptEnabled && (isRequestEncrypted || wantsEncryptedResp);
+
+        if (shouldEncryptResponse) {
             ContentCachingResponseWrapper wrappedResponse = new ContentCachingResponseWrapper(response);
             filterChain.doFilter(wrappedRequest, wrappedResponse);
 
@@ -201,8 +304,14 @@ public class ApiSecurityFilter extends OncePerRequestFilter {
                 try {
                     String plainResp = new String(respContent, StandardCharsets.UTF_8);
                     byte[] keyBytes = sm4Key.getBytes(StandardCharsets.UTF_8);
-                    SM4 sm4 = SmUtil.sm4(keyBytes);
-                    String encryptedResp = sm4.encryptBase64(plainResp);
+
+                    // 动态生成 16 字节 (128位) 密码学随机 IV 向量
+                    byte[] ivBytes = RandomUtil.randomBytes(16);
+                    SM4 sm4Cbc = new SM4(Mode.CBC, Padding.PKCS5Padding, keyBytes, ivBytes);
+
+                    // 拼接 IV (32位Hex) + SM4_CBC_Cipher (Hex)
+                    String cipherHex = sm4Cbc.encryptHex(plainResp);
+                    String encryptedResp = HexUtil.encodeHexStr(ivBytes) + cipherHex;
 
                     response.setHeader(HEADER_ENCRYPTED, "1");
                     response.setContentType("application/json;charset=UTF-8");

@@ -23,6 +23,10 @@ export const useAppStore = defineStore('app', () => {
     setSecurityConfig({
       sm4EncryptEnabled: res.data?.security?.sm4EncryptEnabled === true,
       sm4Key: res.data?.security?.sm4Key,
+      sm2SignEnabled: res.data?.security?.sm2SignEnabled === true,
+      sm2PrivateKey: res.data?.security?.sm2PrivateKey,
+      sm3SignEnabled: res.data?.security?.sm3SignEnabled === true,
+      sm3SignKey: res.data?.security?.sm3SignKey,
     })
 
     configLoaded.value = true

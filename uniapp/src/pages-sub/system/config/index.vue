@@ -387,6 +387,22 @@
             <text class="config-hint config-hint--inline">发送测试报文到该邮箱，验证 SMTP 配置与安全端口连通性</text>
           </view>
         </ConfigSectionCard>
+
+        <ConfigSectionCard title="发送记录">
+          <template #extra>
+            <text class="sms-logs__more" @click="openEmailLogs">查看全部</text>
+          </template>
+          <view class="sms-logs-list">
+            <ListCard v-for="log in recentEmailLogs" :key="log.id || `${log.email}-${log.createTime}`">
+              <view class="list-card__top">
+                <text class="list-card__title">{{ log.email }}</text>
+                <DictTag :label="emailStatusText(log.status)" :effect="log.status === 1 ? 'success' : log.status === 2 ? 'danger' : 'warning'" />
+              </view>
+              <text class="list-card__sub">{{ log.subject || '系统邮件' }} · {{ log.createTime || '—' }}</text>
+            </ListCard>
+            <EmptyState v-if="!recentEmailLogs.length" title="暂无发送记录" icon="contact-o" />
+          </view>
+        </ConfigSectionCard>
       </view>
 
       <!-- 安全 -->
@@ -419,14 +435,14 @@
           <view class="form-panel form-panel--flat">
             <FormCell
               label="SM4 数据加密"
-              hint="是否启用接口请求/响应数据加密（国密 SM4）"
+              hint="是否启用接口请求/响应数据加密（国密 SM4-CBC 模式 + 16 字节随机 IV 向量）"
               switch-cell
             >
               <switch :checked="securityDraft.sm4EncryptEnabled" :disabled="!canEdit" @change="onSecuritySwitch('sm4EncryptEnabled', $event)" />
             </FormCell>
             <FormCell
-              label="SM2 数字签名"
-              hint="是否启用接口签名验签（国密 SM2）"
+              label="数字签名验签"
+              hint="是否启用接口签名验签（国密 HMAC-SM3 高性能签名防篡改）"
               switch-cell
             >
               <switch :checked="securityDraft.sm2SignEnabled" :disabled="!canEdit" @change="onSecuritySwitch('sm2SignEnabled', $event)" />
@@ -529,10 +545,10 @@ const {
   loading, saving, smsTesting, emailTesting, testEmailTo, paymentTesting, platformMaxFileMb, isDirty, forbidConcurrentLogin,
   siteDraft, sessionDraft, securityDraft, loginDraft, registerDraft, smsDraft, emailDraft,
   fileDraft, rateDraft, thirdDraft, paymentDraft, savedSnapshot,
-  roleOptions, userOptions, testSmsPhone, testSmsTemplate, recentSmsLogs,
+  roleOptions, userOptions, testSmsPhone, testSmsTemplate, recentSmsLogs, recentEmailLogs,
   showPaymentModal, payOrderStatus, payStatusRefreshing, paymentResult,
   captchaTypeOptions, providerOptions, smsTemplateOptions, alipaySignOptions, alipayGatewayOptions,
-  smsStatusText, load, saveAll, resetAll, loadRecentSmsLogs, openSmsLogs,
+  smsStatusText, emailStatusText, load, saveAll, resetAll, loadRecentSmsLogs, openSmsLogs, loadRecentEmailLogs, openEmailLogs,
   sendTestSms, sendTestEmailAction, sendTestPayment, pollPayOrderStatus, closePaymentModal,
 } = useConfigEditor()
 
@@ -540,6 +556,7 @@ useUnsavedLeaveGuard()
 
 watch(tab, (t) => {
   if (t === 'sms') loadRecentSmsLogs()
+  if (t === 'email') loadRecentEmailLogs()
 })
 
 const defaultRoleLabel = computed(() => {

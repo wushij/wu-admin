@@ -17,24 +17,18 @@ function isDevOnlyApiUrl(url: string): boolean {
   }
 }
 
-/** 解析 API 根路径：H5 线上访问时忽略误打包的局域网地址，改走同域 /api */
+/** 解析 API 根路径：H5 环境优先使用相对路径 /api (结合 Vite / Nginx 反向代理) */
 export function resolveApiBaseUrl(): string {
+  // #ifdef H5
+  return '/api'
+  // #endif
+
   const configured = import.meta.env.VITE_API_BASE_URL || '/api'
 
   // #ifdef MP-WEIXIN
   if (import.meta.env.PROD && configured.startsWith('/')) {
     const origin = (import.meta.env.VITE_API_PRODUCTION_ORIGIN || '').replace(/\/$/, '')
     if (origin) return `${origin}${configured}`
-  }
-  // #endif
-
-  // #ifdef H5
-  if (typeof window !== 'undefined') {
-    const { hostname } = window.location
-    const isLocalHost = hostname === 'localhost' || hostname === '127.0.0.1'
-    if (!isLocalHost && isDevOnlyApiUrl(configured)) {
-      return '/api'
-    }
   }
   // #endif
 

@@ -1,15 +1,42 @@
-import { sm2, sm4 } from 'sm-crypto'
+import { sm2, sm3, sm4 } from 'sm-crypto'
 
 /**
- * 生成 32 位随机 Nonce 字符串
+ * 生成 32 位随机 Nonce 字符串 (使用密码学强随机数生成器)
  */
 export function generateNonce(): string {
   const chars = 'abcdef0123456789'
+  const bytes = new Uint8Array(32)
+  if (typeof window !== 'undefined' && window.crypto && window.crypto.getRandomValues) {
+    window.crypto.getRandomValues(bytes)
+  } else {
+    for (let i = 0; i < 32; i++) {
+      bytes[i] = Math.floor(Math.random() * 256)
+    }
+  }
   let nonce = ''
   for (let i = 0; i < 32; i++) {
-    nonce += chars.charAt(Math.floor(Math.random() * chars.length))
+    nonce += chars.charAt(bytes[i] % chars.length)
   }
   return nonce
+}
+
+/**
+ * 生成 16 字节 (32 位 Hex) 随机 IV 向量
+ */
+function generateRandomIvHex(): string {
+  const bytes = new Uint8Array(16)
+  if (typeof window !== 'undefined' && window.crypto && window.crypto.getRandomValues) {
+    window.crypto.getRandomValues(bytes)
+  } else {
+    for (let i = 0; i < 16; i++) {
+      bytes[i] = Math.floor(Math.random() * 256)
+    }
+  }
+  let hex = ''
+  for (let i = 0; i < 16; i++) {
+    hex += bytes[i].toString(16).padStart(2, '0')
+  }
+  return hex
 }
 
 /**
@@ -20,12 +47,9 @@ export function getTimestamp(): string {
 }
 
 /**
- * sm-crypto 的 sm4 要求 key 为 32 字符 hex 串（16 字节），而后端 hutool
- * SmUtil.sm4(keyBytes) 直接对 key 字符串做 UTF-8 编码得到 16 字节。
- * 这里把原始 key 转为等价 hex，确保前后端使用相同的 16 字节密钥。
+ * 格式化密钥Hex
  */
 function ensureSm4HexKey(rawKey: string): string {
-  // 已经是标准 32 字符 hex 则直接使用
   if (rawKey.length === 32 && /^[0-9a-fA-F]{32}$/.test(rawKey)) return rawKey
   let hex = ''
   for (let i = 0; i < rawKey.length; i++) {
@@ -35,13 +59,8 @@ function ensureSm4HexKey(rawKey: string): string {
 }
 
 /**
- * SM4 加密（国密对称加密，ECB + PKCS7Padding）
- * 与后端 hutool SmUtil.sm4(keyBytes) 默认行为一致。
- * sm-crypto 的 sm4.encrypt 默认是 CBC 模式（需要 16 字节 IV），不传 options
- * 会报 `key is invalid`，因此必须显式指定 mode: 'ecb'。
- *
- * 注意：加密失败时**直接抛错**，不再静默回退到明文——避免「开关打开但实际裸数据」导致
- * 后端误以为密文而解密失败的 403 死循环。调用方（request.ts）需在已确认下发密钥的前提下调用。
+ * SM4 加密（CBC 模式 + 16 字节随机 IV + PKCS7Padding）
+ * 输出格式：IV (32位Hex) + SM4_CBC_Cipher (Hex)
  */
 export function encryptSm4(plainText: string, secretKey: string): string {
   if (!plainText) return ''
@@ -49,13 +68,17 @@ export function encryptSm4(plainText: string, secretKey: string): string {
     throw new Error('SM4 加密失败：密钥未下发')
   }
   const hexKey = ensureSm4HexKey(secretKey)
-  // 后端 ApiSecurityFilter 用 sm4.decryptStr(...) 解析请求体，期望 hex 字符串
-  return sm4.encrypt(plainText, hexKey, { mode: 'ecb', padding: 'pkcs#7' } as any)
+  const hexIv = generateRandomIvHex()
+  const cipherHex = sm4.encrypt(plainText, hexKey, {
+    mode: 'cbc',
+    iv: hexIv,
+    padding: 'pkcs#7',
+  } as any)
+  return hexIv + cipherHex
 }
 
 /**
- * SM4 解密（ECB + PKCS7Padding）
- * 与后端 hutool SmUtil.sm4(keyBytes).encryptBase64(plainResp) 输出对齐。
+ * SM4 解密（支持 CBC 模式提取 16 字节 IV 向量及旧版 ECB 降级）
  */
 export function decryptSm4(cipherText: string, secretKey: string): string {
   if (!cipherText) return ''
@@ -65,7 +88,22 @@ export function decryptSm4(cipherText: string, secretKey: string): string {
   }
   try {
     const hexKey = ensureSm4HexKey(secretKey)
-    const bytes = base64ToBytes(cipherText)
+    const text = cipherText.trim()
+    if (text.length > 32 && /^[0-9a-fA-F]+$/.test(text)) {
+      const hexIv = text.substring(0, 32)
+      const rawCipher = text.substring(32)
+      try {
+        const decrypted = sm4.decrypt(rawCipher, hexKey, {
+          mode: 'cbc',
+          iv: hexIv,
+          padding: 'pkcs#7',
+        } as any)
+        if (decrypted) return decrypted
+      } catch {
+        /* CBC 降级 */
+      }
+    }
+    const bytes = base64ToBytes(text)
     return sm4.decrypt(bytes, hexKey, {
       mode: 'ecb',
       padding: 'pkcs#7',
@@ -77,26 +115,49 @@ export function decryptSm4(cipherText: string, secretKey: string): string {
 }
 
 /**
- * SM2 数字签名
+ * 国密 HMAC-SM3 签名计算
+ */
+export function signHmacSm3(content: string, signKey: string): string {
+  if (!content || !signKey) return ''
+  try {
+    const hexKey = ensureSm4HexKey(signKey)
+    return sm3(content, { key: hexKey })
+  } catch (err) {
+    console.error('HMAC-SM3 签名失败:', err)
+    return ''
+  }
+}
+
+/**
+ * SM2 签名计算
  */
 export function signSm2(content: string, privateKeyHex: string): string {
   if (!content || !privateKeyHex) return ''
   try {
     return sm2.doSignature(content, privateKeyHex)
   } catch (err) {
-    console.error('移动端 SM2 签名失败:', err)
+    console.error('SM2 签名失败:', err)
     return ''
   }
 }
 
 /**
- * 将 Base64 字符串转换为字节数组，优先使用 uni API，其次 atob，最后纯 JS 备用
+ * SM2 验签
+ */
+export function verifySm2(content: string, signature: string, publicKeyHex: string): boolean {
+  if (!content || !signature || !publicKeyHex) return false
+  try {
+    return sm2.doVerifySignature(content, signature, publicKeyHex)
+  } catch (err) {
+    console.error('SM2 验签失败:', err)
+    return false
+  }
+}
+
+/**
+ * 将 Base64 字符串转换为字节数组
  */
 function base64ToBytes(base64: string): number[] {
-  if (typeof uni !== 'undefined' && typeof (uni as any).base64ToArrayBuffer === 'function') {
-    const ab = (uni as any).base64ToArrayBuffer(base64)
-    return Array.from(new Uint8Array(ab))
-  }
   if (typeof atob === 'function') {
     const binary = atob(base64)
     const bytes = new Array(binary.length)
@@ -105,7 +166,6 @@ function base64ToBytes(base64: string): number[] {
     }
     return bytes
   }
-  // 备用纯 JS 实现
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
   const lookup = new Uint8Array(256)
   for (let i = 0; i < chars.length; i++) {

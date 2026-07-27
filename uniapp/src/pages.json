@@ -460,6 +460,13 @@
           }
         },
         {
+          "path": "config/email-logs",
+          "style": {
+            "navigationBarTitleText": "邮件发送记录",
+            "navigationStyle": "custom"
+          }
+        },
+        {
           "path": "file/index",
           "style": {
             "navigationBarTitleText": "文件列表",

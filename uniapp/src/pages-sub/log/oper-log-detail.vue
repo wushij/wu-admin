@@ -67,7 +67,7 @@ const actionText = computed(() => {
   const t = cleanTitle(detail.value?.title)
   if (!detail.value?.operParam) {
     if (t) {
-      const typeLabel = detail.value.businessType === 0 ? '' : businessTypeLabel(detail.value.businessType)
+      const typeLabel = detail.value?.businessType === 0 ? '' : businessTypeLabel(detail.value?.businessType)
       return `${typeLabel}${t}`
     }
     return ''

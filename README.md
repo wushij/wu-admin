@@ -33,6 +33,7 @@
 - **BCrypt 密码加密** + httpOnly Cookie 传 Token（防 XSS 窃取）
 - **滑块验证码**：服务端生成 challenge + Redis 存储缺口位置，校验后一次性消费 token
 - **登录锁定**：账号级 + IP 级失败计数，阈值可配置，管理员远程解锁
+- **国密 API 安全防线**：全链路支持国密 SM4 接口传输加解密（CBC 模式 + 16 字节随机 IV 向量）与数字签名防篡改（HMAC-SM3 / SM2），整合 5 分钟滑动时间戳（`X-Timestamp`）、Redis 随机数防重放（`X-Nonce`）及 `Encrypt-then-Sign` 签名校验；前端与移动端具备 `sessionStorage` / `uni.setStorageSync` 会话密钥恢复能力，保证 F5 刷新及跨端无缝衔接。
 - **安全防刷与防调试**：前端反调试禁用 Devtools（系统配置可一键开关）、Sa-Token 多端同时在线控制（`isConcurrent`），Nginx 层按路径分级限流（认证 5r/s、API 20r/s、文件 100r/s）+ 应用层注册/短信/邮箱防刷
 - **邮件服务与防垃圾投递**：支持 SMTP 多服务商（QQ/163/Gmail/自定义）、RFC 2046 规范 `multipart/alternative` 双格式（Plain Text + HTML 卡片）、跨客户端兼容内联矢量 Header，实时持久化发信日志与投递回执（`sys_email_log`）
 - **操作审计**：`@Log` 注解 + AOP 全接口记录（操作人/IP/归属地/参数/耗时），`@Async` 异步写入
@@ -57,7 +58,7 @@
 | `payment` | 支付配置 | 微信 Native/支付宝当面付，支持**测试订单**与回调验签 |
 | `sms` | 短信配置 | 阿里云/腾讯云双通道（策略模式），模板管理、测试发送与发送日志回执 (`sys_sms_log`) |
 | `email` | 邮件配置 | QQ/163/Gmail/自定义 SMTP，发件人名称、SSL/TLS/STARTTLS、测试发送与投递日志回执 (`sys_email_log`) |
-| `security` | 安全配置 | 前端反调试（禁用 Devtools）、Sa-Token 多端同时在线/互踢控制（`isConcurrent`） |
+| `security` | 安全配置 | 前端反调试（禁用 Devtools）、Sa-Token 多端控制（`isConcurrent`）、国密 SM4 接口加密与 SM2/HMAC-SM3 签名防重放 |
 
 - **字典管理**：字典类型 + 字典数据两级维护，Redis 缓存，前端封装 `DictSelect` / `DictTag` 全局组件
 

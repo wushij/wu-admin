@@ -60,6 +60,8 @@ public class SecurityConfig {
     @Bean
     public WebSecurityCustomizer knife4jWebSecurityCustomizer() {
         return web -> web.ignoring().requestMatchers(
+                "/auth/**",
+                "/api/auth/**",
                 "/ws/**",
                 "/doc.html",
                 "/webjars/**",
@@ -78,7 +80,8 @@ public class SecurityConfig {
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(
-                    antMatcher("/auth/**")
+                    antMatcher("/auth/**"),
+                    antMatcher("/api/auth/**")
                 ).permitAll()
                 .requestMatchers(
                     antMatcher("/doc.html"),
