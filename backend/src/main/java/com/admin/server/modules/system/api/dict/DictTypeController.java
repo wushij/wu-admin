@@ -1,9 +1,11 @@
 package com.admin.server.modules.system.api.dict;
 
-import com.admin.server.common.pojo.CommonResult;
-import com.admin.server.common.pojo.PageParam;
-import com.admin.server.common.pojo.PageResult;
+import com.admin.server.common.core.CommonResult;
+import com.admin.server.common.core.PageParam;
+import com.admin.server.common.core.PageResult;
 import com.admin.server.framework.log.annotation.Log;
+import com.admin.server.common.util.BeanMappingUtils;
+import com.admin.server.modules.system.api.dict.vo.DictTypeRespVO;
 import com.admin.server.modules.system.dal.dataobject.dict.DictDataDO;
 import com.admin.server.modules.system.dal.dataobject.dict.DictTypeDO;
 import com.admin.server.modules.system.service.dict.DictDataService;
@@ -31,27 +33,30 @@ public class DictTypeController {
     @GetMapping("/page")
     @Operation(summary = "字典类型分页")
     @PreAuthorize("@ss.hasRead('system:dict:list')")
-    public CommonResult<PageResult<DictTypeDO>> page(
+    public CommonResult<PageResult<DictTypeRespVO>> page(
             @RequestParam(defaultValue = "1") Integer pageNo,
             @RequestParam(defaultValue = "10") Integer pageSize,
             @RequestParam(required = false) String dictName,
             @RequestParam(required = false) String dictType,
             @RequestParam(required = false) Integer status) {
-        return CommonResult.success(dictTypeService.page(pageNo, pageSize, dictName, dictType, status));
+        PageResult<DictTypeDO> page = dictTypeService.page(pageNo, pageSize, dictName, dictType, status);
+        return CommonResult.success(BeanMappingUtils.copyPageProperties(page, DictTypeRespVO.class));
     }
 
     @GetMapping("/list")
     @Operation(summary = "启用字典类型列表")
     @PreAuthorize("@ss.hasRead('system:dict:list')")
-    public CommonResult<List<DictTypeDO>> list() {
-        return CommonResult.success(dictTypeService.listEnabled());
+    public CommonResult<List<DictTypeRespVO>> list() {
+        List<DictTypeDO> list = dictTypeService.listEnabled();
+        return CommonResult.success(BeanMappingUtils.copyListProperties(list, DictTypeRespVO.class));
     }
 
     @GetMapping("/{id}")
     @Operation(summary = "字典类型详情")
     @PreAuthorize("@ss.hasRead('system:dict:list')")
-    public CommonResult<DictTypeDO> detail(@PathVariable Long id) {
-        return CommonResult.success(dictTypeService.getById(id));
+    public CommonResult<DictTypeRespVO> detail(@PathVariable Long id) {
+        DictTypeDO type = dictTypeService.getById(id);
+        return CommonResult.success(BeanMappingUtils.copyProperties(type, DictTypeRespVO.class));
     }
 
     @GetMapping("/{id}/export")
@@ -105,10 +110,11 @@ public class DictTypeController {
     @GetMapping("/recycle/page")
     @Operation(summary = "字典类型回收站分页")
     @PreAuthorize("@ss.hasRecycleRead()")
-    public CommonResult<PageResult<DictTypeDO>> recyclePage(PageParam pageParam,
+    public CommonResult<PageResult<DictTypeRespVO>> recyclePage(PageParam pageParam,
                                                             @RequestParam(required = false) String dictName,
                                                             @RequestParam(required = false) String dictType) {
-        return CommonResult.success(dictTypeService.recyclePage(pageParam, dictName, dictType));
+        PageResult<DictTypeDO> page = dictTypeService.recyclePage(pageParam, dictName, dictType);
+        return CommonResult.success(BeanMappingUtils.copyPageProperties(page, DictTypeRespVO.class));
     }
 
     @PutMapping("/restore")

@@ -1,7 +1,7 @@
 package com.admin.server.framework.web.core;
 
-import com.admin.server.common.pojo.BusinessException;
-import com.admin.server.common.pojo.CommonResult;
+import com.admin.server.common.exception.BusinessException;
+import com.admin.server.common.core.CommonResult;
 import com.admin.server.framework.config.DynamicConfigProvider;
 import cn.dev33.satoken.exception.NotLoginException;
 import jakarta.servlet.http.HttpServletRequest;

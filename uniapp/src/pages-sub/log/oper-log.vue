@@ -148,13 +148,45 @@ const canDelete = computed(() => hasPerm('system:operLog:delete'))
 const canClear = computed(() => hasPerm('system:operLog:clear'))
 
 function getActionSummary(item: OperLogVO): string {
-  if (!item.operParam) return ''
+  const cleanTitle = (t: string | undefined) => t ? (t.endsWith('管理') ? t.slice(0, -2) : t) : ''
+  const t = cleanTitle(item.title)
+  if (!item.operParam) {
+    if (t) {
+      const typeLabel = item.businessType === 0 ? '' : businessTypeLabel(item.businessType)
+      return `${typeLabel}${t}`
+    }
+    return ''
+  }
   try {
     const obj = JSON.parse(item.operParam)
-    if (obj && typeof obj === 'object' && obj.action) {
-      return String(obj.action)
+    let name = ''
+    if (obj && typeof obj === 'object') {
+      if (obj.action) {
+        return String(obj.action)
+      }
+      const params = obj.params || obj
+      if (Array.isArray(params)) {
+        name = 'ID: ' + params.join(', ')
+      } else if (params && typeof params === 'object') {
+        name = params.username || params.nickname || params.name || params.label || params.title || params.groupName || params.dictType || params.id || ''
+        if (typeof name === 'object') {
+          name = ''
+        }
+      } else if (params != null && typeof params !== 'function') {
+        name = String(params)
+      }
+    } else if (obj != null && typeof obj !== 'function') {
+      name = String(obj)
+    }
+    const typeLabel = item.businessType === 0 ? '' : businessTypeLabel(item.businessType)
+    if (t) {
+      return `${typeLabel}${t}${name ? `「${name}」` : ''}`
     }
   } catch {}
+  if (t) {
+    const typeLabel = item.businessType === 0 ? '' : businessTypeLabel(item.businessType)
+    return `${typeLabel}${t}`
+  }
   return ''
 }
 

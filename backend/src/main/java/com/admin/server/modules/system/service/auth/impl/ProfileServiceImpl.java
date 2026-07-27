@@ -1,8 +1,8 @@
 package com.admin.server.modules.system.service.auth.impl;
 
-import com.admin.server.common.pojo.BusinessException;
-import com.admin.server.common.pojo.PageParam;
-import com.admin.server.common.pojo.PageResult;
+import com.admin.server.common.exception.BusinessException;
+import com.admin.server.common.core.PageParam;
+import com.admin.server.common.core.PageResult;
 import com.admin.server.framework.storage.LocalFileStorage;
 import com.admin.server.modules.system.api.auth.vo.*;
 import com.admin.server.modules.system.dal.dataobject.dept.DeptDO;
@@ -16,7 +16,7 @@ import com.admin.server.modules.system.dal.mysql.permission.RoleMapper;
 import com.admin.server.modules.system.dal.mysql.post.PostMapper;
 import com.admin.server.modules.system.dal.mysql.user.UserMapper;
 import com.admin.server.modules.system.dal.mysql.user.UserPostMapper;
-import com.admin.server.modules.system.service.email.EmailCodeService;
+import com.admin.server.modules.trade.service.email.EmailCodeService;
 import com.admin.server.modules.system.service.auth.ProfileEmailPasswordService;
 import com.admin.server.modules.system.service.auth.ProfileService;
 import com.admin.server.modules.system.service.auth.ProfileSmsMobileBindService;
@@ -105,6 +105,14 @@ public class ProfileServiceImpl implements ProfileService {
         }
         userMapper.updateById(user);
         if (StringUtils.hasText(reqVO.getNickname())) {
+            try {
+                if (cn.dev33.satoken.stp.StpUtil.isLogin()) {
+                    cn.dev33.satoken.stp.StpUtil.getSession().set(
+                            com.admin.server.framework.security.core.service.TokenService.SESSION_NICKNAME,
+                            user.getNickname());
+                }
+            } catch (Exception ignored) {
+            }
             deptService.syncLeaderByUserId(userId, previousNickname, user.getNickname());
         }
     }

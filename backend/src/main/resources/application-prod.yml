@@ -18,6 +18,11 @@ app:
   cors:
     allowed-origins: "https://wushij.online,https://www.wushij.online,https://app.wushij.online"
 
+# 生产环境上传目录：固定绝对路径，与 nginx 的 alias C:/wu-admin/data/uploads/ 保持一致，不受启动目录影响
+file:
+  storage:
+    local-path: C:/wu-admin/data/uploads
+
 # 生产环境关闭接口文档（避免暴露 API 结构；开发环境 dev 仍继承主配置的 enabled: true）
 springdoc:
   api-docs:

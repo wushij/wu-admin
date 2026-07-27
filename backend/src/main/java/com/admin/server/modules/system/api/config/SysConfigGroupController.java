@@ -1,15 +1,15 @@
 package com.admin.server.modules.system.api.config;
 
-import com.admin.server.common.pojo.BusinessException;
-import com.admin.server.common.pojo.CommonResult;
-import com.admin.server.common.pojo.PageResult;
+import com.admin.server.common.exception.BusinessException;
+import com.admin.server.common.core.CommonResult;
+import com.admin.server.common.core.PageResult;
 import com.admin.server.framework.log.annotation.Log;
 import com.admin.server.modules.system.dal.dataobject.config.SysConfigGroupDO;
-import com.admin.server.modules.system.dal.dataobject.sms.SmsLogDO;
-import com.admin.server.modules.system.pay.PayServiceFactory;
+import com.admin.server.modules.trade.dal.dataobject.sms.SmsLogDO;
+import com.admin.server.modules.trade.framework.pay.PayServiceFactory;
 import com.admin.server.modules.system.service.config.SysConfigGroupService;
-import com.admin.server.modules.system.service.sms.SmsLogService;
-import com.admin.server.modules.system.sms.SmsServiceFactory;
+import com.admin.server.modules.trade.service.sms.SmsLogService;
+import com.admin.server.modules.trade.framework.sms.SmsServiceFactory;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import io.swagger.v3.oas.annotations.Operation;
@@ -40,7 +40,7 @@ public class SysConfigGroupController {
     private SmsLogService smsLogService;
 
     @Resource
-    private com.admin.server.modules.system.service.email.EmailCodeService emailCodeService;
+    private com.admin.server.modules.trade.service.email.EmailCodeService emailCodeService;
 
     @GetMapping("/list")
     @Operation(summary = "配置分组列表")
@@ -176,38 +176,38 @@ public class SysConfigGroupController {
     }
 
     @Resource
-    private com.admin.server.modules.system.service.email.EmailLogService emailLogService;
+    private com.admin.server.modules.trade.service.email.EmailLogService emailLogService;
 
     @Operation(summary = "最近邮件发送记录")
     @GetMapping("/email-logs/recent")
     @PreAuthorize("@ss.hasRead('system:config:list')")
-    public CommonResult<List<com.admin.server.modules.system.dal.dataobject.email.EmailLogDO>> getRecentEmailLogs(
+    public CommonResult<List<com.admin.server.modules.trade.dal.dataobject.email.EmailLogDO>> getRecentEmailLogs(
             @RequestParam(defaultValue = "5") Integer limit) {
         int size = limit == null || limit < 1 ? 5 : Math.min(limit, 50);
-        LambdaQueryWrapper<com.admin.server.modules.system.dal.dataobject.email.EmailLogDO> wrapper = new LambdaQueryWrapper<>();
-        wrapper.orderByDesc(com.admin.server.modules.system.dal.dataobject.email.EmailLogDO::getCreateTime).last("LIMIT " + size);
+        LambdaQueryWrapper<com.admin.server.modules.trade.dal.dataobject.email.EmailLogDO> wrapper = new LambdaQueryWrapper<>();
+        wrapper.orderByDesc(com.admin.server.modules.trade.dal.dataobject.email.EmailLogDO::getCreateTime).last("LIMIT " + size);
         return CommonResult.success(emailLogService.list(wrapper));
     }
 
     @Operation(summary = "分页查询邮件发送记录")
     @GetMapping("/email-logs")
     @PreAuthorize("@ss.hasRead('system:config:list')")
-    public CommonResult<PageResult<com.admin.server.modules.system.dal.dataobject.email.EmailLogDO>> getEmailLogs(
+    public CommonResult<PageResult<com.admin.server.modules.trade.dal.dataobject.email.EmailLogDO>> getEmailLogs(
             @RequestParam(defaultValue = "1") Integer page,
             @RequestParam(defaultValue = "10") Integer size,
             @RequestParam(required = false) String email,
             @RequestParam(required = false) Integer status) {
         int pageNo = page == null || page < 1 ? 1 : page;
         int pageSize = size == null || size < 1 ? 10 : Math.min(size, 100);
-        LambdaQueryWrapper<com.admin.server.modules.system.dal.dataobject.email.EmailLogDO> wrapper = new LambdaQueryWrapper<>();
+        LambdaQueryWrapper<com.admin.server.modules.trade.dal.dataobject.email.EmailLogDO> wrapper = new LambdaQueryWrapper<>();
         if (email != null && !email.isBlank()) {
-            wrapper.like(com.admin.server.modules.system.dal.dataobject.email.EmailLogDO::getEmail, email.trim());
+            wrapper.like(com.admin.server.modules.trade.dal.dataobject.email.EmailLogDO::getEmail, email.trim());
         }
         if (status != null) {
-            wrapper.eq(com.admin.server.modules.system.dal.dataobject.email.EmailLogDO::getStatus, status);
+            wrapper.eq(com.admin.server.modules.trade.dal.dataobject.email.EmailLogDO::getStatus, status);
         }
-        wrapper.orderByDesc(com.admin.server.modules.system.dal.dataobject.email.EmailLogDO::getCreateTime);
-        Page<com.admin.server.modules.system.dal.dataobject.email.EmailLogDO> result = emailLogService.page(new Page<>(pageNo, pageSize), wrapper);
+        wrapper.orderByDesc(com.admin.server.modules.trade.dal.dataobject.email.EmailLogDO::getCreateTime);
+        Page<com.admin.server.modules.trade.dal.dataobject.email.EmailLogDO> result = emailLogService.page(new Page<>(pageNo, pageSize), wrapper);
         return CommonResult.success(PageResult.of(result.getRecords(), result.getTotal()));
     }
 }

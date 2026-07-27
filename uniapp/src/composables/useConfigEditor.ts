@@ -8,6 +8,7 @@ import {
   getPayOrderStatus,
   getRecentSmsLogs,
   getSmsLogs,
+  getRecentEmailLogs,
 } from '@/api/system/config'
 import { getRoleList } from '@/api/system/role'
 import { getUserList } from '@/api/system/user'
@@ -24,6 +25,7 @@ import type {
   SiteAdminConfig,
   SmsAdminConfig,
   SmsLogRecord,
+  EmailLogRecord,
   ThirdPartyConfig,
 } from '@/types/config-types'
 import type { RoleVO } from '@/types/system'
@@ -229,6 +231,7 @@ export function useConfigEditor() {
   const testSmsPhone = ref('')
   const testSmsTemplate = ref('100001')
   const recentSmsLogs = ref<SmsLogRecord[]>([])
+  const recentEmailLogs = ref<EmailLogRecord[]>([])
   const smsLogsExpanded = ref(false)
   const smsLogsLoading = ref(false)
   const smsLogsList = ref<SmsLogRecord[]>([])
@@ -537,6 +540,25 @@ export function useConfigEditor() {
   const emailTesting = ref(false)
   const testEmailTo = ref('')
 
+  function emailStatusText(status?: number) {
+    if (status === 1) return '成功'
+    if (status === 2) return '失败'
+    return '发送中'
+  }
+
+  async function loadRecentEmailLogs() {
+    try {
+      const res = await getRecentEmailLogs(5)
+      recentEmailLogs.value = res.data || []
+    } catch {
+      recentEmailLogs.value = []
+    }
+  }
+
+  async function openEmailLogs() {
+    uni.navigateTo({ url: '/pages-sub/system/config/email-logs' })
+  }
+
   async function sendTestEmailAction() {
     if (isDirty.value) {
       uni.showToast({ title: '请先保存邮件配置', icon: 'none' })
@@ -551,6 +573,7 @@ export function useConfigEditor() {
     try {
       await testEmail(toEmail)
       uni.showToast({ title: '测试邮件已发送，请查收', icon: 'success' })
+      await loadRecentEmailLogs()
     } finally {
       emailTesting.value = false
     }
@@ -587,6 +610,7 @@ export function useConfigEditor() {
     testSmsPhone,
     testSmsTemplate,
     recentSmsLogs,
+    recentEmailLogs,
     smsLogsExpanded,
     smsLogsLoading,
     smsLogsList,
@@ -604,6 +628,7 @@ export function useConfigEditor() {
     alipaySignOptions,
     alipayGatewayOptions,
     smsStatusText,
+    emailStatusText,
     load,
     saveAll,
     resetAll,
@@ -620,6 +645,8 @@ export function useConfigEditor() {
     loadRecentSmsLogs,
     loadSmsLogs,
     openSmsLogs,
+    loadRecentEmailLogs,
+    openEmailLogs,
     sendTestSms,
     sendTestEmailAction,
     sendTestPayment,

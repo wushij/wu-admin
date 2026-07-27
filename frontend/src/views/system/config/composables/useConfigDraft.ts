@@ -300,6 +300,7 @@ export function useConfigDraft() {
       }
       checkDirty()
       siteStore.setDisableDevtool(draft.security.disableDevtool)
+      await siteStore.loadConfig()
       ElMessage.success(
         devtoolChanged
           ? '保存成功，配置已生效；「禁止前端调试」已变更，请刷新页面后生效'

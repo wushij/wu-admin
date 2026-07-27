@@ -1,8 +1,8 @@
 package com.admin.server.modules.system.service.role.impl;
 
-import com.admin.server.common.pojo.BusinessException;
-import com.admin.server.common.pojo.PageParam;
-import com.admin.server.common.pojo.PageResult;
+import com.admin.server.common.exception.BusinessException;
+import com.admin.server.common.core.PageParam;
+import com.admin.server.common.core.PageResult;
 import com.admin.server.modules.system.api.role.vo.RoleCreateReqVO;
 import com.admin.server.modules.system.api.role.vo.RoleUpdateReqVO;
 import com.admin.server.modules.system.dal.dataobject.permission.RoleDO;
@@ -13,6 +13,8 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
+import com.admin.server.modules.infra.framework.operlog.OperLogDiffUtils;
+import com.admin.server.modules.infra.framework.operlog.OperLogContext;
 
 import java.util.List;
 import java.util.Set;
@@ -68,6 +70,14 @@ public class RoleServiceImpl implements RoleService {
         if (role == null) {
             throw new BusinessException(404, "角色不存在");
         }
+        
+        // 计算变更明细并记录操作日志
+        List<String> diffItems = OperLogDiffUtils.diff(role, reqVO);
+        if (!diffItems.isEmpty()) {
+            OperLogContext.setDiffItems(diffItems);
+            OperLogContext.setAction("修改角色「" + role.getName() + "」: " + String.join("；", diffItems));
+        }
+
         role.setName(reqVO.getName());
         role.setCode(reqVO.getCode());
         role.setSort(reqVO.getSort());

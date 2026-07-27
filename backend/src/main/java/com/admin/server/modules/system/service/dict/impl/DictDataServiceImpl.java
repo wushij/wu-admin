@@ -1,8 +1,8 @@
 package com.admin.server.modules.system.service.dict.impl;
 
-import com.admin.server.common.pojo.BusinessException;
-import com.admin.server.common.pojo.PageParam;
-import com.admin.server.common.pojo.PageResult;
+import com.admin.server.common.exception.BusinessException;
+import com.admin.server.common.core.PageParam;
+import com.admin.server.common.core.PageResult;
 import com.admin.server.modules.system.dal.dataobject.dict.DictDataDO;
 import com.admin.server.modules.system.dal.mysql.dict.DictDataMapper;
 import com.admin.server.modules.system.framework.cache.DictCacheService;
@@ -14,6 +14,8 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+import com.admin.server.modules.infra.framework.operlog.OperLogDiffUtils;
+import com.admin.server.modules.infra.framework.operlog.OperLogContext;
 
 import java.util.List;
 import java.util.Map;
@@ -71,9 +73,18 @@ public class DictDataServiceImpl extends ServiceImpl<DictDataMapper, DictDataDO>
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void update(DictDataDO dictData) {
-        if (super.getById(dictData.getId()) == null) {
+        DictDataDO oldData = super.getById(dictData.getId());
+        if (oldData == null) {
             throw new BusinessException(404, "字典数据不存在");
         }
+        
+        // 计算变更明细并记录操作日志
+        List<String> diffItems = OperLogDiffUtils.diff(oldData, dictData);
+        if (!diffItems.isEmpty()) {
+            OperLogContext.setDiffItems(diffItems);
+            OperLogContext.setAction("修改字典数据「" + oldData.getDictLabel() + "」: " + String.join("；", diffItems));
+        }
+
         assertDictValueUnique(dictData.getDictType(), dictData.getDictValue(), dictData.getId());
         updateById(dictData);
         applyDefaultUnique(dictData);

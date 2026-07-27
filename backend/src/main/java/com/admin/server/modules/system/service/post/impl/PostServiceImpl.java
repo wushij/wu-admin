@@ -1,8 +1,8 @@
 package com.admin.server.modules.system.service.post.impl;
 
-import com.admin.server.common.pojo.BusinessException;
-import com.admin.server.common.pojo.PageParam;
-import com.admin.server.common.pojo.PageResult;
+import com.admin.server.common.exception.BusinessException;
+import com.admin.server.common.core.PageParam;
+import com.admin.server.common.core.PageResult;
 import com.admin.server.modules.system.dal.dataobject.post.PostDO;
 import com.admin.server.modules.system.dal.dataobject.user.PostUserCountVO;
 import com.admin.server.modules.system.dal.dataobject.user.UserPostDO;
@@ -14,6 +14,8 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.admin.server.modules.infra.framework.operlog.OperLogDiffUtils;
+import com.admin.server.modules.infra.framework.operlog.OperLogContext;
 
 import jakarta.annotation.Resource;
 import java.util.ArrayList;
@@ -64,9 +66,18 @@ public class PostServiceImpl extends ServiceImpl<PostMapper, PostDO> implements 
 
     @Override
     public void update(PostDO post) {
-        if (super.getById(post.getId()) == null) {
+        PostDO oldPost = super.getById(post.getId());
+        if (oldPost == null) {
             throw new BusinessException(404, "岗位不存在");
         }
+        
+        // 计算变更明细并记录操作日志
+        List<String> diffItems = OperLogDiffUtils.diff(oldPost, post);
+        if (!diffItems.isEmpty()) {
+            OperLogContext.setDiffItems(diffItems);
+            OperLogContext.setAction("修改岗位「" + oldPost.getPostName() + "」: " + String.join("；", diffItems));
+        }
+
         assertPostCodeUnique(post.getPostCode(), post.getId());
         Long parentId = post.getParentId();
         if (parentId != null && parentId.equals(post.getId())) {

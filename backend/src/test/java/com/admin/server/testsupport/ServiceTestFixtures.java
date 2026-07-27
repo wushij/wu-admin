@@ -1,12 +1,12 @@
 package com.admin.server.testsupport;
 
-import com.admin.server.modules.system.dal.dataobject.approval.ApprovalFormDO;
+import com.admin.server.modules.ticket.dal.dataobject.approval.ApprovalFormDO;
 import com.admin.server.modules.system.dal.dataobject.dept.DeptDO;
 import com.admin.server.modules.system.dal.dataobject.permission.MenuDO;
 import com.admin.server.modules.system.dal.dataobject.permission.RoleDO;
 import com.admin.server.modules.system.dal.dataobject.permission.RoleMenuDO;
 import com.admin.server.modules.system.dal.dataobject.permission.UserRoleDO;
-import com.admin.server.modules.system.dal.dataobject.ticket.TicketDO;
+import com.admin.server.modules.ticket.dal.dataobject.ticket.TicketDO;
 import com.admin.server.modules.system.dal.dataobject.user.UserDO;
 
 /**

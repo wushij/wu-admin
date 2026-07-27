@@ -1,11 +1,13 @@
 package com.admin.server.modules.system.api.role;
 
 import com.admin.server.framework.log.annotation.Log;
-import com.admin.server.common.pojo.CommonResult;
-import com.admin.server.common.pojo.PageParam;
-import com.admin.server.common.pojo.PageResult;
+import com.admin.server.common.core.CommonResult;
+import com.admin.server.common.core.PageParam;
+import com.admin.server.common.core.PageResult;
+import com.admin.server.common.util.BeanMappingUtils;
 import com.admin.server.modules.system.api.role.vo.AssignMenuReqVO;
 import com.admin.server.modules.system.api.role.vo.RoleCreateReqVO;
+import com.admin.server.modules.system.api.role.vo.RoleRespVO;
 import com.admin.server.modules.system.api.role.vo.RoleUpdateReqVO;
 import com.admin.server.modules.system.dal.dataobject.permission.RoleDO;
 import com.admin.server.modules.system.service.role.RoleService;
@@ -30,24 +32,27 @@ public class RoleController {
     @Operation(summary = "获取角色列表")
     @GetMapping("/list")
     @PreAuthorize("@ss.hasRead('system:role:list')")
-    public CommonResult<List<RoleDO>> list(
+    public CommonResult<List<RoleRespVO>> list(
             @RequestParam(required = false) String name,
             @RequestParam(required = false) Integer status) {
-        return CommonResult.success(roleService.list(name, status));
+        List<RoleDO> list = roleService.list(name, status);
+        return CommonResult.success(BeanMappingUtils.copyListProperties(list, RoleRespVO.class));
     }
 
     @Operation(summary = "获取角色分页")
     @GetMapping("/page")
     @PreAuthorize("@ss.hasRead('system:role:list')")
-    public CommonResult<PageResult<RoleDO>> page(PageParam pageParam) {
-        return CommonResult.success(roleService.page(pageParam));
+    public CommonResult<PageResult<RoleRespVO>> page(PageParam pageParam) {
+        PageResult<RoleDO> page = roleService.page(pageParam);
+        return CommonResult.success(BeanMappingUtils.copyPageProperties(page, RoleRespVO.class));
     }
 
     @Operation(summary = "获取角色详情")
     @GetMapping("/get")
     @PreAuthorize("@ss.hasPermission('system:role:query')")
-    public CommonResult<RoleDO> get(@RequestParam Long id) {
-        return CommonResult.success(roleService.getById(id));
+    public CommonResult<RoleRespVO> get(@RequestParam Long id) {
+        RoleDO role = roleService.getById(id);
+        return CommonResult.success(BeanMappingUtils.copyProperties(role, RoleRespVO.class));
     }
 
     @Log(title = "角色管理", businessType = Log.BusinessType.INSERT)
@@ -79,10 +84,11 @@ public class RoleController {
     @Operation(summary = "角色回收站分页")
     @GetMapping("/recycle/page")
     @PreAuthorize("@ss.hasRecycleRead()")
-    public CommonResult<PageResult<RoleDO>> recyclePage(PageParam pageParam,
+    public CommonResult<PageResult<RoleRespVO>> recyclePage(PageParam pageParam,
             @RequestParam(required = false) String name,
             @RequestParam(required = false) Integer status) {
-        return CommonResult.success(roleService.recyclePage(pageParam, name, status));
+        PageResult<RoleDO> page = roleService.recyclePage(pageParam, name, status);
+        return CommonResult.success(BeanMappingUtils.copyPageProperties(page, RoleRespVO.class));
     }
 
     @Operation(summary = "恢复角色")

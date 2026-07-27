@@ -5,7 +5,8 @@ import type { ApiResult } from '@/types/api'
 import { isApiSuccessCode } from '@/utils/api-response'
 import { getErrorMessage, markErrorToastShown } from '@/utils/axiosError'
 import { useUserStore } from '@/store/user'
-import { generateNonce, getTimestamp, encryptSm4, decryptSm4, signSm2 } from '@/utils/crypto'
+import { generateNonce, getTimestamp, encryptSm4, decryptSm4, signSm2, signHmacSm3 } from '@/utils/crypto'
+import { getSecurityConfig } from '@/utils/security-config'
 
 export type { ApiResult } from '@/types/api'
 export { getErrorMessage, isErrorToastShown } from '@/utils/axiosError'
@@ -73,24 +74,60 @@ service.interceptors.request.use(
     config.headers['X-Timestamp'] = timestamp
     config.headers['X-Nonce'] = nonce
 
-    // 读取客户端配置或 SessionStorage 中的安全策略（如从安全配置中读出的配置）
-    const secConfig = (window as unknown as { __WU_ADMIN_SECURITY__?: {
-      sm4EncryptEnabled?: boolean
-      sm2SignEnabled?: boolean
-      sm4Key?: string
-      sm2PrivateKey?: string
-    } }).__WU_ADMIN_SECURITY__ || {}
+    // 读取运行时下发的安全策略（闭包保存，不挂 window，密钥未下发时不启用加密/签名）
+    const secConfig = getSecurityConfig()
+    const isFormData = config.data instanceof FormData
 
-    if (secConfig.sm4EncryptEnabled && config.data) {
-      const plainStr = typeof config.data === 'string' ? config.data : JSON.stringify(config.data)
-      config.data = encryptSm4(plainStr, secConfig.sm4Key || 'WuAdmin16BytesKey')
-      config.headers['X-Encrypted'] = '1'
+    if (secConfig.sm4EncryptEnabled && secConfig.sm4Key) {
+      config.headers['X-Accept-Encrypted'] = '1'
+      if (config.data && !isFormData) {
+        const plainStr = typeof config.data === 'string' ? config.data : JSON.stringify(config.data)
+        config.data = encryptSm4(plainStr, secConfig.sm4Key)
+        config.headers['X-Encrypted'] = '1'
+      }
     }
 
-    if (secConfig.sm2SignEnabled && secConfig.sm2PrivateKey) {
-      const bodyStr = typeof config.data === 'string' ? config.data : (config.data ? JSON.stringify(config.data) : '')
-      const signContent = `${config.method?.toUpperCase()}\n${config.url || ''}\n${timestamp}\n${nonce}\n${bodyStr}`
-      const signature = signSm2(signContent, secConfig.sm2PrivateKey)
+    const isSignEnabled = (secConfig.sm3SignEnabled || secConfig.sm2SignEnabled) && (secConfig.sm3SignKey || secConfig.sm2PrivateKey)
+    if (isSignEnabled) {
+      const timestamp = getTimestamp()
+      const nonce = generateNonce()
+      config.headers['X-Timestamp'] = timestamp
+      config.headers['X-Nonce'] = nonce
+
+      let bodyStr = ''
+      if (config.data && !isFormData) {
+        bodyStr = typeof config.data === 'string' ? config.data : JSON.stringify(config.data)
+        bodyStr = bodyStr.trim()
+        if (bodyStr.startsWith('"') && bodyStr.endsWith('"') && bodyStr.length > 2) {
+          bodyStr = bodyStr.substring(1, bodyStr.length - 1)
+        }
+      }
+      // 提取完整的 URI (包含经过 Axios 序列化后的 params QueryString)
+      let fullPath = config.url || ''
+      if (fullPath.startsWith('/api/')) {
+        fullPath = fullPath.substring(4)
+      } else if (!fullPath.startsWith('/')) {
+        fullPath = '/' + fullPath
+      }
+      if (config.params && typeof config.params === 'object') {
+        const queryParams = new URLSearchParams()
+        Object.entries(config.params).forEach(([key, val]) => {
+          if (val !== undefined && val !== null) {
+            queryParams.append(key, String(val))
+          }
+        })
+        const qs = queryParams.toString()
+        if (qs) {
+          fullPath += (fullPath.includes('?') ? '&' : '?') + qs
+        }
+      }
+      try {
+        fullPath = decodeURIComponent(fullPath)
+      } catch {}
+
+      const signContent = `${config.method?.toUpperCase()}\n${fullPath}\n${timestamp}\n${nonce}\n${bodyStr}`
+      const signKey = secConfig.sm3SignKey || secConfig.sm2PrivateKey || ''
+      const signature = signHmacSm3(signContent, signKey) || signSm2(signContent, signKey)
       if (signature) {
         config.headers['X-Signature'] = signature
       }
@@ -106,14 +143,19 @@ service.interceptors.request.use(
 
 service.interceptors.response.use(
   (response: AxiosResponse) => {
-    // 若响应标明 SM4 加密，自动解密
-    if (response?.headers?.['x-encrypted'] === '1' && typeof response.data === 'string') {
-      const secConfig = (window as unknown as { __WU_ADMIN_SECURITY__?: { sm4Key?: string } }).__WU_ADMIN_SECURITY__ || {}
-      const plainJson = decryptSm4(response.data, secConfig.sm4Key || 'WuAdmin16BytesKey')
-      try {
-        response.data = JSON.parse(plainJson)
-      } catch {
-        response.data = plainJson
+    const secConfig = getSecurityConfig()
+    // 若响应标明 SM4 加密，且密钥已下发，自动解密 (兼容 CORS 限制：如果启用加密且返回的是非 JSON 字符串，也尝试解密)
+    const isEncrypted = response?.headers?.['x-encrypted'] === '1' || 
+      (secConfig.sm4EncryptEnabled && typeof response.data === 'string' && !response.data.trim().startsWith('{') && !response.data.trim().startsWith('['));
+    if (isEncrypted && typeof response.data === 'string') {
+      const { sm4Key } = secConfig
+      if (sm4Key) {
+        const plainJson = decryptSm4(response.data, sm4Key)
+        try {
+          response.data = JSON.parse(plainJson)
+        } catch {
+          response.data = plainJson
+        }
       }
     }
 
@@ -156,6 +198,22 @@ service.interceptors.response.use(
     console.error('响应错误:', error)
 
     if (error.response) {
+      const secConfig = getSecurityConfig()
+      // 若错误响应标明 SM4 加密，且密钥已下发，自动解密 (CORS 容错)
+      const isEncrypted = error.response.headers?.['x-encrypted'] === '1' || 
+        (secConfig.sm4EncryptEnabled && typeof error.response.data === 'string' && !error.response.data.trim().startsWith('{') && !error.response.data.trim().startsWith('['));
+      if (isEncrypted && typeof error.response.data === 'string') {
+        const { sm4Key } = secConfig
+        if (sm4Key) {
+          const plainJson = decryptSm4(error.response.data, sm4Key)
+          try {
+            error.response.data = JSON.parse(plainJson)
+          } catch {
+            error.response.data = plainJson
+          }
+        }
+      }
+
       const { status } = error.response
       const cfg = error.config as InternalAxiosRequestConfig & { silent403?: boolean }
       const text = getErrorMessage(error) || error.message || '请求失败'

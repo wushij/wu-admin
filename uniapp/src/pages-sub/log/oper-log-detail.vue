@@ -63,13 +63,45 @@ const loading = ref(true)
 const detail = ref<OperLogVO | null>(null)
 
 const actionText = computed(() => {
-  if (!detail.value?.operParam) return ''
+  const cleanTitle = (t: string | undefined) => t ? (t.endsWith('管理') ? t.slice(0, -2) : t) : ''
+  const t = cleanTitle(detail.value?.title)
+  if (!detail.value?.operParam) {
+    if (t) {
+      const typeLabel = detail.value?.businessType === 0 ? '' : businessTypeLabel(detail.value?.businessType)
+      return `${typeLabel}${t}`
+    }
+    return ''
+  }
   try {
     const obj = JSON.parse(detail.value.operParam)
-    if (obj && typeof obj === 'object' && obj.action) {
-      return String(obj.action)
+    let name = ''
+    if (obj && typeof obj === 'object') {
+      if (obj.action) {
+        return String(obj.action)
+      }
+      const params = obj.params || obj
+      if (Array.isArray(params)) {
+        name = 'ID: ' + params.join(', ')
+      } else if (params && typeof params === 'object') {
+        name = params.username || params.nickname || params.name || params.label || params.title || params.groupName || params.dictType || params.id || ''
+        if (typeof name === 'object') {
+          name = ''
+        }
+      } else if (params != null && typeof params !== 'function') {
+        name = String(params)
+      }
+    } else if (obj != null && typeof obj !== 'function') {
+      name = String(obj)
+    }
+    const typeLabel = detail.value.businessType === 0 ? '' : businessTypeLabel(detail.value.businessType)
+    if (t) {
+      return `${typeLabel}${t}${name ? `「${name}」` : ''}`
     }
   } catch {}
+  if (t) {
+    const typeLabel = detail.value.businessType === 0 ? '' : businessTypeLabel(detail.value.businessType)
+    return `${typeLabel}${t}`
+  }
   return ''
 })
 

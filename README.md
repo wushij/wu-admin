@@ -5,7 +5,7 @@
 > 🔗 **在线演示**
 > - PC 端：<https://wushij.online>
 > - 移动端 H5：<https://app.wushij.online>
-> - 体验账号：`lisi` / `admin123`
+> - 体验账号：`lisi` / `lisi123`
 >
 > 📦 GitHub：<https://github.com/wushij/wu-admin>
 
@@ -33,6 +33,7 @@
 - **BCrypt 密码加密** + httpOnly Cookie 传 Token（防 XSS 窃取）
 - **滑块验证码**：服务端生成 challenge + Redis 存储缺口位置，校验后一次性消费 token
 - **登录锁定**：账号级 + IP 级失败计数，阈值可配置，管理员远程解锁
+- **国密 API 安全防线**：全链路支持国密 SM4 接口传输加解密（CBC 模式 + 16 字节随机 IV 向量）与数字签名防篡改（HMAC-SM3 / SM2），整合 5 分钟滑动时间戳（`X-Timestamp`）、Redis 随机数防重放（`X-Nonce`）及 `Encrypt-then-Sign` 签名校验；前端与移动端具备 `sessionStorage` / `uni.setStorageSync` 会话密钥恢复能力，保证 F5 刷新及跨端无缝衔接。
 - **安全防刷与防调试**：前端反调试禁用 Devtools（系统配置可一键开关）、Sa-Token 多端同时在线控制（`isConcurrent`），Nginx 层按路径分级限流（认证 5r/s、API 20r/s、文件 100r/s）+ 应用层注册/短信/邮箱防刷
 - **邮件服务与防垃圾投递**：支持 SMTP 多服务商（QQ/163/Gmail/自定义）、RFC 2046 规范 `multipart/alternative` 双格式（Plain Text + HTML 卡片）、跨客户端兼容内联矢量 Header，实时持久化发信日志与投递回执（`sys_email_log`）
 - **操作审计**：`@Log` 注解 + AOP 全接口记录（操作人/IP/归属地/参数/耗时），`@Async` 异步写入
@@ -57,7 +58,7 @@
 | `payment` | 支付配置 | 微信 Native/支付宝当面付，支持**测试订单**与回调验签 |
 | `sms` | 短信配置 | 阿里云/腾讯云双通道（策略模式），模板管理、测试发送与发送日志回执 (`sys_sms_log`) |
 | `email` | 邮件配置 | QQ/163/Gmail/自定义 SMTP，发件人名称、SSL/TLS/STARTTLS、测试发送与投递日志回执 (`sys_email_log`) |
-| `security` | 安全配置 | 前端反调试（禁用 Devtools）、Sa-Token 多端同时在线/互踢控制（`isConcurrent`） |
+| `security` | 安全配置 | 前端反调试（禁用 Devtools）、Sa-Token 多端控制（`isConcurrent`）、国密 SM4 接口加密与 SM2/HMAC-SM3 签名防重放 |
 
 - **字典管理**：字典类型 + 字典数据两级维护，Redis 缓存，前端封装 `DictSelect` / `DictTag` 全局组件
 
@@ -281,17 +282,16 @@ wu-admin/
 │   ├── pom.xml
 │   ├── data/                      # 开发态上传目录（git 忽略）
 │   └── src/
-│       ├── main/java/cn/rbac/server/
+│       ├── main/java/com/admin/server/
 │       │   ├── RbacServerApplication.java
 │       │   ├── common/            # 通用层：CommonResult、BusinessException、工具类
 │       │   ├── framework/         # 框架层：安全、MyBatis、Redis、Filter、WebSocket
-│       │   └── modules/system/    # 业务模块：api / service / dal / pay / sms / task
-│       │       ├── api/           # Controller + VO（参数校验，委托 Service）
-│       │       ├── service/       # Service 接口与实现（业务逻辑）
-│       │       ├── dal/           # DO 实体 + Mapper
-│       │       ├── pay/           # 微信/支付宝支付
-│       │       ├── sms/           # 阿里云/腾讯云短信
-│       │       └── task/          # 系统定时任务
+│       │   └── modules/           # 业务模块（系统、基础设施、支付、工单审批、即时通讯等）
+│       │       ├── system/        # 系统管理与核心认证
+│       │       ├── infra/         # 基础设施（文件、生成、任务监控、日志、回收站、导出）
+│       │       ├── trade/         # 支付、短信、邮件三方集成
+│       │       ├── ticket/        # 工单与审批流管理
+│       │       └── message/       # 站内消息与即时聊天 IM
 │       ├── main/resources/
 │       │   ├── application.yml / application-dev.yml / application-prod.yml
 │       │   ├── ip2region/         # IP 归属地 xdb 库（git 忽略）
@@ -337,53 +337,36 @@ wu-admin/
 ├── sql/
 │   ├── admin_platform.sql         # 本地全量脚本（wu-admin，MySQL 8）+ 附录
 │   ├── admin_platform_mysql56.sql # 生产空库全量（wuadmin，MySQL 5.6）
-│   ├── add1.sql / add2.sql …     # 发版增量补丁（本地）
-│   ├── add1_wuadmin.sql / add2_wuadmin.sql … # 发版增量补丁（生产）
-│   └── disable_devtool_off.sql    # 临时关闭前端反调试
-├── data/                          # 本地上传目录（git 忽略）
-└── docs/                          # 部署配置与项目文档（git 忽略）
-    ├── 根域名配置文件.txt
-    ├── 移动端子域名配置文件.txt
-    ├── nginx配置文件.txt
-    ├── 项目分析.txt
-    ├── 项目审查报告.md
-    ├── 安全防护与限流专项审计.txt
-    └── 简历模板.md
+│   └── migration/                 # 版本增量与迁移 SQL 脚本（addN.sql等）
+└── data/                          # 本地上传目录（git 忽略）
 ```
 
 ### 后端包分层约定
 
 ```
-cn.rbac.server/
-├── common/           # 通用层
-│   ├── pojo/         # CommonResult、PageParam、PageResult、BusinessException
-│   ├── util/         # ClientIpUtils、IpLocationUtils、UserAgentUtils、UserDisplayNames
-│   └── mybatis/      # BaseEntity（审计字段 + 逻辑删除基类）
+com.admin.server/
+├── common/           # 通用层（0 业务依赖）
+│   ├── core/         # CommonResult、PageParam、PageResult
+│   ├── exception/    # BusinessException、ErrorCode
+│   └── util/         # ClientIpUtils、IpLocationUtils、UserAgentUtils、BeanMappingUtils 等
 ├── framework/        # 技术基础设施（可抽公共 starter）
 │   ├── security/     # SecurityConfig、TokenService、SaTokenAuthenticationFilter、JsonEntryPoint
 │   ├── web/          # GlobalExceptionHandler（17 类异常）、AuthorizationQueryFilter
 │   ├── config/       # AsyncConfig、SaTokenCookieConfig（httpOnly）、DevRedissonConfig
 │   ├── storage/      # 本地文件存储（含路径穿越校验）
 │   ├── quartz/       # Quartz 任务调度
-│   ├── mybatis/      # MyBatisPlusConfig、MyMetaObjectHandler（审计字段自动填充）
+│   ├── mybatis/      # MyBatisPlusConfig、MyMetaObjectHandler、BaseDO 实体基类
 │   ├── redis/        # RedisTemplate 序列化配置
 │   ├── websocket/    # WebSocket 消息推送
 │   ├── log/          # @Log 操作日志注解
 │   ├── openapi/      # Knife4j/Springdoc OpenAPI 配置
 │   └── export/       # Excel/CSV 导出工具
-└── modules/system/
-    ├── api/          # 瘦 Controller：只做校验（@Validated）与委派（Service）
-    ├── service/      # 业务逻辑：auth/user/role/ticket/message/chat 等
-    ├── dal/          # DO 实体 + Mapper（约 30 张表）
-    ├── framework/    # SPI 实现 + 模块级框架
-    │   ├── security/     # SystemPermissionService（bean 名 ss）
-    │   ├── cache/        # DictCacheService、SysConfigCacheService、CacheWarmupRunner
-    │   ├── operlog/      # LogAspect + OperLogRecorder（@Log AOP）
-    │   ├── monitor/      # API 访问采集拦截器 + WebConfig
-    │   └── config/       # SystemConfigProvider
-    ├── pay/          # 微信支付 APIv3 + 支付宝 SDK（工厂模式）
-    ├── sms/          # 阿里云/腾讯云短信（策略模式）
-    └── task/         # 系统定时任务（日志清理/消息回收/文件清盘/缓存刷新）
+└── modules/          # 业务模块（高内聚低耦合拆分）
+    ├── system/       # 用户、角色、菜单、部门、岗位、字典、系统配置、通知、权限、登录日志、仪表盘
+    ├── infra/        # 文件存储、代码生成、定时任务、监控运维、操作日志、回收站、通用导出、系统任务调度
+    ├── trade/        # 微信/支付宝支付接入、短信平台通道、发信通道、三方渠道对接
+    ├── ticket/       # 工单与审批流（工单管理、流程审批表单、用户注册审核流）
+    └── message/      # 消息触达（站内公告推送、IM 聊天、消息撤回、@提及提醒、群聊管理）
 ```
 
 ---

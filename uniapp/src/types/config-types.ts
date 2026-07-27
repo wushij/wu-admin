@@ -146,10 +146,25 @@ export interface PaymentConfig {
   alipay: AlipayPayConfig
 }
 
+export interface SecurityPublicConfig {
+  disableDevtool?: boolean
+  /** 是否启用接口 SM4 加密 */
+  sm4EncryptEnabled?: boolean
+  /** SM4 对称密钥（16 字节） */
+  sm4Key?: string
+  /** 是否启用接口 SM2 / HMAC-SM3 签名 */
+  sm2SignEnabled?: boolean
+  sm3SignEnabled?: boolean
+  /** SM2 签名私钥或 HMAC-SM3 签名 Key */
+  sm2PrivateKey?: string
+  sm3SignKey?: string
+}
+
 export interface AuthPublicConfig {
   site?: SiteConfig
   login?: LoginConfig
   register?: RegisterConfig
+  security?: SecurityPublicConfig
 }
 
 export interface SmsLogRecord {
@@ -159,6 +174,19 @@ export interface SmsLogRecord {
   provider?: string
   status?: number
   resultMsg?: string
+  createTime?: string
+}
+
+export interface EmailLogRecord {
+  id?: number
+  email?: string
+  subject?: string
+  content?: string
+  scene?: string
+  provider?: string
+  status?: number
+  resultMsg?: string
+  ip?: string
   createTime?: string
 }
 

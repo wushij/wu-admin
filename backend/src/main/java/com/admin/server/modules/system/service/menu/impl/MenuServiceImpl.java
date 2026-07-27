@@ -1,8 +1,8 @@
 package com.admin.server.modules.system.service.menu.impl;
 
-import com.admin.server.common.pojo.BusinessException;
-import com.admin.server.common.pojo.PageParam;
-import com.admin.server.common.pojo.PageResult;
+import com.admin.server.common.exception.BusinessException;
+import com.admin.server.common.core.PageParam;
+import com.admin.server.common.core.PageResult;
 import com.admin.server.modules.system.api.menu.vo.MenuCreateReqVO;
 import com.admin.server.modules.system.api.menu.vo.MenuUpdateReqVO;
 import com.admin.server.modules.system.dal.dataobject.permission.MenuDO;
@@ -11,6 +11,8 @@ import com.admin.server.modules.system.service.menu.MenuService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import org.springframework.stereotype.Service;
+import com.admin.server.modules.infra.framework.operlog.OperLogDiffUtils;
+import com.admin.server.modules.infra.framework.operlog.OperLogContext;
 
 import jakarta.annotation.Resource;
 
@@ -88,6 +90,14 @@ public class MenuServiceImpl implements MenuService {
         if (menu == null) {
             throw new BusinessException(404, "菜单不存在");
         }
+        
+        // 计算变更明细并记录操作日志
+        List<String> diffItems = OperLogDiffUtils.diff(menu, reqVO);
+        if (!diffItems.isEmpty()) {
+            OperLogContext.setDiffItems(diffItems);
+            OperLogContext.setAction("修改菜单「" + menu.getName() + "」: " + String.join("；", diffItems));
+        }
+
         menu.setName(reqVO.getName());
         menu.setPermission(reqVO.getPermission());
         menu.setType(reqVO.getType());

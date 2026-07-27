@@ -4,10 +4,11 @@ import cn.dev33.satoken.stp.StpUtil;
 import cn.hutool.captcha.CaptchaUtil;
 import cn.hutool.captcha.LineCaptcha;
 import cn.hutool.core.util.IdUtil;
-import com.admin.server.common.pojo.BusinessException;
+import com.admin.server.common.exception.BusinessException;
 import com.admin.server.common.util.IpLocationUtils;
 import com.admin.server.common.util.UserAgentUtils;
 import com.admin.server.framework.security.core.service.TokenService;
+import com.admin.server.modules.system.enums.ErrorCodeConstants;
 import com.admin.server.modules.system.api.auth.vo.EmailCodeReqVO;
 import com.admin.server.modules.system.api.auth.vo.LoginReqVO;
 import com.admin.server.modules.system.api.auth.vo.RegisterReqVO;
@@ -18,17 +19,17 @@ import com.admin.server.modules.system.dal.dataobject.permission.RoleDO;
 import com.admin.server.modules.system.dal.dataobject.user.UserDO;
 import com.admin.server.modules.system.dal.mysql.permission.RoleMapper;
 import com.admin.server.modules.system.dal.mysql.user.UserMapper;
-import com.admin.server.modules.system.service.approval.RegisterApprovalService;
+import com.admin.server.modules.ticket.service.approval.RegisterApprovalService;
 import com.admin.server.modules.system.service.auth.AuthService;
 import com.admin.server.modules.system.service.auth.LoginLockService;
 import com.admin.server.modules.system.service.auth.SliderCaptchaService;
 import com.admin.server.modules.system.service.config.SystemConfigHelper;
-import com.admin.server.modules.system.service.email.EmailCodeService;
+import com.admin.server.modules.trade.service.email.EmailCodeService;
 import com.admin.server.modules.system.service.loginlog.LoginLogService;
-import com.admin.server.modules.system.service.monitor.OnlineUserService;
+import com.admin.server.modules.infra.service.monitor.OnlineUserService;
 import com.admin.server.modules.system.service.permission.PermissionService;
-import com.admin.server.modules.system.sms.AliyunDypnsSmsVerifyService;
-import com.admin.server.modules.system.sms.SmsServiceFactory;
+import com.admin.server.modules.trade.framework.sms.AliyunDypnsSmsVerifyService;
+import com.admin.server.modules.trade.framework.sms.SmsServiceFactory;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
@@ -320,14 +321,14 @@ public class AuthServiceImpl implements AuthService {
         if (systemConfigHelper.isAliyunAuthSmsProvider()) {
             boolean pass = aliyunDypnsSmsVerifyService.verifyCode(phone, code);
             if (!pass) {
-                throw new BusinessException(400, "验证码错误或已过期");
+                throw new BusinessException(ErrorCodeConstants.CAPTCHA_CODE_ERROR);
             }
             redissonClient.getBucket(SMS_CODE_KEY + phone).delete();
             return true;
         }
         String cached = redissonClient.<String>getBucket(SMS_CODE_KEY + phone).get();
         if (cached == null || !cached.equalsIgnoreCase(code)) {
-            throw new BusinessException(400, "验证码错误或已过期");
+            throw new BusinessException(ErrorCodeConstants.CAPTCHA_CODE_ERROR);
         }
         redissonClient.getBucket(SMS_CODE_KEY + phone).delete();
         return true;

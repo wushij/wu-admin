@@ -1,6 +1,6 @@
-package com.admin.server.modules.system.dal.dataobject.${businessName};
+package com.admin.server.modules.${moduleName}.dal.dataobject.${businessName};
 
-import com.admin.server.common.mybatis.BaseEntity;
+import com.admin.server.framework.mybatis.core.dataobject.BaseDO;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -23,7 +23,7 @@ import java.time.LocalDate;
 @Data
 @EqualsAndHashCode(callSuper = true)
 @TableName("${tableName}")
-public class ${className}DO extends BaseEntity {
+public class ${className}DO extends BaseDO {
 #foreach($column in $columns)
 #if(!$baseFields.contains($column.javaField))
     /** $column.columnComment */

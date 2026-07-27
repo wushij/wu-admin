@@ -14,11 +14,11 @@
       <el-divider content-position="left">API 安全防线与防重放</el-divider>
       <el-form-item label="SM4 数据加密">
         <el-switch :model-value="draft.sm4EncryptEnabled ?? false" :disabled="!canEdit" @update:model-value="(v) => draft.sm4EncryptEnabled = !!v" />
-        <span class="unit">是否启用接口请求/响应数据加密（国密 SM4）</span>
+        <span class="unit">是否启用接口请求/响应数据加密（国密 SM4-CBC 模式 + 16 字节随机 IV 向量）</span>
       </el-form-item>
-      <el-form-item label="SM2 数字签名">
+      <el-form-item label="数字签名验签">
         <el-switch :model-value="draft.sm2SignEnabled ?? false" :disabled="!canEdit" @update:model-value="(v) => draft.sm2SignEnabled = !!v" />
-        <span class="unit">是否启用接口签名验签（国密 SM2）</span>
+        <span class="unit">是否启用接口签名验签（国密 HMAC-SM3 高性能签名防篡改）</span>
       </el-form-item>
       <el-form-item label="时间戳校验">
         <el-switch :model-value="draft.timestampEnabled ?? true" :disabled="!canEdit" @update:model-value="(v) => draft.timestampEnabled = !!v" />

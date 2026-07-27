@@ -134,36 +134,16 @@ public class ServerMonitorServiceImpl implements ServerMonitorService {
         try {
             InetAddress addr = InetAddress.getLocalHost();
             sys.setHostName(addr.getHostName());
-            sys.setHostAddress(maskIp(addr.getHostAddress()));
+            sys.setHostAddress(addr.getHostAddress());
         } catch (Exception ignored) {
             sys.setHostName("-");
             sys.setHostAddress("-");
         }
         sys.setOsName(System.getProperty("os.name", "-"));
         sys.setOsVersion(System.getProperty("os.version", "-"));
-        sys.setUserDir(maskUserDir(System.getProperty("user.dir", "-")));
+        sys.setUserDir(System.getProperty("user.dir", "-"));
         sys.setJavaVersion(System.getProperty("java.version", "-"));
         return sys;
-    }
-
-    private String maskIp(String ip) {
-        if (ip == null || ip.isBlank() || "-".equals(ip)) {
-            return "-";
-        }
-        String[] parts = ip.split("\\.");
-        if (parts.length == 4) {
-            return parts[0] + "." + parts[1] + ".***.***";
-        }
-        return "***";
-    }
-
-    private String maskUserDir(String userDir) {
-        if (userDir == null || userDir.isBlank() || "-".equals(userDir)) {
-            return "-";
-        }
-        File file = new File(userDir);
-        String name = file.getName();
-        return (name != null && !name.isBlank()) ? "***/" + name : "***";
     }
 
     private List<ServerDiskVO> buildDisks() {

@@ -28,6 +28,16 @@ export interface RegisterConfig {
 
 export interface SecurityPublicConfig {
   disableDevtool?: boolean
+  /** 是否启用接口 SM4 加密（密钥由后端运行时下发，前端不硬编码） */
+  sm4EncryptEnabled?: boolean
+  /** SM4 对称密钥（16 字节），仅在启用加密时下发 */
+  sm4Key?: string
+  /** 是否启用接口 SM2 / HMAC-SM3 签名 */
+  sm2SignEnabled?: boolean
+  sm3SignEnabled?: boolean
+  /** SM2 签名私钥或 HMAC-SM3 签名 Key */
+  sm2PrivateKey?: string
+  sm3SignKey?: string
 }
 
 export interface AuthPublicConfig {

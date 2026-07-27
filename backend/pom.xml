@@ -224,6 +224,13 @@
             <artifactId>tencentcloud-sdk-java-sms</artifactId>
             <version>${tencent-sms.version}</version>
         </dependency>
+        <!-- ArchUnit 架构依赖检查 -->
+        <dependency>
+            <groupId>com.tngtech.archunit</groupId>
+            <artifactId>archunit-junit5</artifactId>
+            <version>1.3.0</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
@@ -240,12 +247,6 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
-                <configuration>
-                    <profiles>
-                        <profile>dev</profile>
-                    </profiles>
-                    <jvmArguments>-XX:TieredStopAtLevel=1</jvmArguments>
-                </configuration>
             </plugin>
         </plugins>
     </build>

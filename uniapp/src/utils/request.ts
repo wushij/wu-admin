@@ -11,7 +11,8 @@ import {
   showGlobalErrorToast,
 } from '@/plugins/global-error-handler'
 import { resolveApiBaseUrl } from '@/utils/api-base'
-import { generateNonce, getTimestamp, encryptSm4, decryptSm4, signSm2 } from '@/utils/crypto'
+import { generateNonce, getTimestamp, encryptSm4, decryptSm4, signSm2, signHmacSm3 } from '@/utils/crypto'
+import { getSecurityConfig } from '@/utils/security-config'
 
 const BASE_URL = resolveApiBaseUrl()
 
@@ -72,6 +73,59 @@ http.interceptors.request.use(
       config.header.Authorization = token
     }
 
+    // 自动植入接口请求 SM4 加密 / SM2 数字签名
+    const secConfig = getSecurityConfig()
+    const isFormData = typeof FormData !== 'undefined' && config.data instanceof FormData
+
+    if (secConfig.sm4EncryptEnabled && secConfig.sm4Key) {
+      config.header['X-Accept-Encrypted'] = '1'
+      if (config.data && !isFormData) {
+        const plainStr = typeof config.data === 'string' ? config.data : JSON.stringify(config.data)
+        config.data = encryptSm4(plainStr, secConfig.sm4Key) as any
+        config.header['X-Encrypted'] = '1'
+      }
+    }
+
+    const isSignEnabled = (secConfig.sm3SignEnabled || secConfig.sm2SignEnabled) && (secConfig.sm3SignKey || secConfig.sm2PrivateKey)
+    if (isSignEnabled) {
+      let bodyStr = ''
+      if (config.data && !isFormData) {
+        bodyStr = typeof config.data === 'string' ? config.data : JSON.stringify(config.data)
+        bodyStr = bodyStr.trim()
+        if (bodyStr.startsWith('"') && bodyStr.endsWith('"') && bodyStr.length > 2) {
+          bodyStr = bodyStr.substring(1, bodyStr.length - 1)
+        }
+      }
+      let fullPath = config.url || ''
+      if (fullPath.startsWith('/api/')) {
+        fullPath = fullPath.substring(4)
+      } else if (!fullPath.startsWith('/')) {
+        fullPath = '/' + fullPath
+      }
+      if (config.params && typeof config.params === 'object') {
+        const queryParts: string[] = []
+        Object.entries(config.params).forEach(([key, val]) => {
+          if (val !== undefined && val !== null) {
+            queryParts.push(`${encodeURIComponent(key)}=${encodeURIComponent(String(val))}`)
+          }
+        })
+        const qs = queryParts.join('&')
+        if (qs) {
+          fullPath += (fullPath.includes('?') ? '&' : '?') + qs
+        }
+      }
+      try {
+        fullPath = decodeURIComponent(fullPath)
+      } catch {}
+
+      const signContent = `${(config.method || 'GET').toUpperCase()}\n${fullPath}\n${timestamp}\n${nonce}\n${bodyStr}`
+      const signKey = secConfig.sm3SignKey || secConfig.sm2PrivateKey || ''
+      const signature = signHmacSm3(signContent, signKey) || signSm2(signContent, signKey)
+      if (signature) {
+        config.header['X-Signature'] = signature
+      }
+    }
+
     return config
   },
   (error) => Promise.reject(error),
@@ -79,8 +133,24 @@ http.interceptors.request.use(
 
 // luch-request 响应拦截器返回 ApiResult 而非 HttpResponse
 http.interceptors.response.use(
-  ((response: { data: ApiResult; config?: { url?: string; silent403?: boolean } }) => {
-    const res = response.data
+  ((response: { data: any; config?: { url?: string; silent403?: boolean }; header?: any }) => {
+    const secConfig = getSecurityConfig()
+    // 若响应标明 SM4 加密，且密钥已下发，自动解密 (兼容 CORS 限制：如果启用加密且返回的是非 JSON 字符串，也尝试解密)
+    const isEncrypted = response?.header?.['x-encrypted'] === '1' || response?.header?.['X-Encrypted'] === '1' || 
+      (secConfig.sm4EncryptEnabled && typeof response.data === 'string' && !response.data.trim().startsWith('{') && !response.data.trim().startsWith('['));
+    if (isEncrypted && typeof response.data === 'string') {
+      const { sm4Key } = secConfig
+      if (sm4Key) {
+        const plainJson = decryptSm4(response.data, sm4Key)
+        try {
+          response.data = JSON.parse(plainJson)
+        } catch {
+          response.data = plainJson
+        }
+      }
+    }
+
+    const res = response.data as ApiResult
     const code = res?.code
     const message = res.message || res.msg
 
@@ -118,7 +188,23 @@ http.interceptors.response.use(
     markErrorToastShown(err)
     return Promise.reject(err)
   }) as unknown as Parameters<typeof http.interceptors.response.use>[0],
-  (error: { data?: ApiResult; statusCode?: number; errMsg?: string }) => {
+  (error: { data?: any; statusCode?: number; errMsg?: string; header?: any }) => {
+    const secConfig = getSecurityConfig()
+    // 若错误响应标明 SM4 加密，且密钥已下发，自动解密 (CORS 容错)
+    const isEncrypted = error && (error.header?.['x-encrypted'] === '1' || error.header?.['X-Encrypted'] === '1' || 
+      (secConfig.sm4EncryptEnabled && typeof error.data === 'string' && !error.data.trim().startsWith('{') && !error.data.trim().startsWith('[')));
+    if (isEncrypted && typeof error.data === 'string') {
+      const { sm4Key } = secConfig
+      if (sm4Key) {
+        const plainJson = decryptSm4(error.data, sm4Key)
+        try {
+          error.data = JSON.parse(plainJson)
+        } catch {
+          error.data = plainJson
+        }
+      }
+    }
+
     if (isBenignRequestError(error)) {
       return Promise.reject(error)
     }
