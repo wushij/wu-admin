@@ -20,4 +20,6 @@ export const MODULE_PAGE_ICON = {
   server: 'Cpu',
   gen: 'SetUp',
   apiDoc: 'Connection',
+  aiModel: 'MagicStick',
+  aiLog: 'ChatDotRound',
 } as const

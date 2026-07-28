@@ -1,12 +1,10 @@
 package com.admin.server.framework.security.core.filter;
 
 import cn.hutool.core.util.HexUtil;
-import cn.hutool.core.util.RandomUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.crypto.Mode;
 import cn.hutool.crypto.Padding;
 import cn.hutool.crypto.SmUtil;
-import cn.hutool.crypto.asymmetric.SM2;
 import cn.hutool.crypto.digest.HMac;
 import cn.hutool.crypto.symmetric.SM4;
 import cn.hutool.json.JSONUtil;
@@ -31,6 +29,7 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
+import java.security.SecureRandom;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
@@ -48,6 +47,12 @@ public class ApiSecurityFilter extends OncePerRequestFilter {
     public static final String HEADER_SIGNATURE = "X-Signature";
     public static final String HEADER_ENCRYPTED = "X-Encrypted";
     public static final String HEADER_ACCEPT_ENCRYPTED = "X-Accept-Encrypted";
+    /** 客户端内存内随机 ID，用于从 Redis 查找临时会话密钥 */
+    public static final String HEADER_CLIENT_ID = "X-Client-Id";
+    /** 会话签名临时密钥 Redis 前缀（与 AuthController 中定义保持一致） */
+    private static final String SESSION_SIGN_KEY_PREFIX = "security:session-sign:";
+    /** 会话 SM4 加密密钥 Redis 前缀（与 AuthController 中保持一致） */
+    private static final String SESSION_SM4_KEY_PREFIX = "security:session-sm4:";
 
     private static final long MAX_TIMESTAMP_DIFF_MS = 5 * 60 * 1000L; // 5 分钟窗口
 
@@ -74,8 +79,24 @@ public class ApiSecurityFilter extends OncePerRequestFilter {
             "/auth/register",
             "/auth/captcha",
             "/auth/sms-code",
-            "/auth/slider-challenge"
+            "/auth/slider-challenge",
+            "/auth/session-sign-init"
     );
+
+    /** SSE 流式端点：保留请求验签，但响应体为增量推流，不可整体 SM4 加密 */
+    private static final Set<String> STREAMING_URI_SUFFIXES = Set.of(
+            "/ai/chat/stream"
+    );
+
+    private boolean isStreamingUri(String uri) {
+        if (uri == null) return false;
+        for (String suffix : STREAMING_URI_SUFFIXES) {
+            if (uri.endsWith(suffix)) {
+                return true;
+            }
+        }
+        return false;
+    }
 
     private boolean isPublicAuthUri(String uri) {
         if (uri == null) return false;
@@ -163,7 +184,8 @@ public class ApiSecurityFilter extends OncePerRequestFilter {
             effectiveBodyStr = effectiveBodyStr.substring(1, effectiveBodyStr.length() - 1);
         }
 
-        // 4. 国密 HMAC-SM3 / SM2 数字签名校验 (使用客户端提交的原始 Body，遵循 Encrypt-then-Sign 规范)
+        // 4. 国密 HMAC-SM3 数字签名校验
+        // 优先使用客户端会话临时密钥（X-Client-Id → Redis），回退到主密钥（兼容未升级客户端）
         String signature = request.getHeader(HEADER_SIGNATURE);
         if (sm2SignEnabled) {
             String servletPath = request.getServletPath();
@@ -172,16 +194,21 @@ public class ApiSecurityFilter extends OncePerRequestFilter {
             }
             boolean isPublicAuth = isPublicAuthUri(servletPath);
             if (StrUtil.isBlank(signature)) {
-                // 如果客户端未携带签名 Header，且不是公开引导接口（如 /auth/config），则拒绝请求
                 if (!isPublicAuth) {
                     writeError(response, 403, "请求已被拒绝：缺失 X-Signature 签名头");
                     return;
                 }
             } else {
-                String signKey = systemConfigHelper.getSm3SignKey();
-                if (StrUtil.isNotBlank(signKey)) {
+                // 优先从 Redis 中按 clientId 取会话临时密钥，回退到主配置密钥
+                String signKey = resolveSignKey(request);
+                if (StrUtil.isBlank(signKey)) {
+                    // 签名已开启但拿不到任何密钥：严禁静默放行，否则伪造签名可绕过校验
+                    if (!isPublicAuth) {
+                        writeError(response, 403, "请求已被拒绝：签名密钥缺失或已过期，请重新初始化会话");
+                        return;
+                    }
+                } else {
                     try {
-                        // 构造统一的 URI (包含解码后的 QueryString，彻底解决 URL 编码差异)
                         String queryString = request.getQueryString();
                         String fullPath = servletPath + (StrUtil.isNotBlank(queryString) ? "?" + queryString : "");
                         try {
@@ -194,24 +221,11 @@ public class ApiSecurityFilter extends OncePerRequestFilter {
                                 + StrUtil.nullToEmpty(nonce) + "\n"
                                 + effectiveBodyStr;
 
-                        // 优先使用高性能 HMAC-SM3 校验
                         byte[] keyBytes = signKey.getBytes(StandardCharsets.UTF_8);
                         HMac hmac = SmUtil.hmacSm3(keyBytes);
                         String expectedSignature = hmac.digestHex(signContent);
 
-                        boolean valid = expectedSignature.equalsIgnoreCase(signature);
-                        if (!valid) {
-                            // 降级支持 SM2 验签 (兼容旧版)
-                            String publicKeyHex = systemConfigHelper.getSm2PublicKey();
-                            if (StrUtil.isNotBlank(publicKeyHex)) {
-                                try {
-                                    SM2 sm2 = SmUtil.sm2(null, publicKeyHex);
-                                    valid = sm2.verify(signContent.getBytes(StandardCharsets.UTF_8), HexUtil.decodeHex(signature));
-                                } catch (Exception ignored) {}
-                            }
-                        }
-
-                        if (!valid) {
+                        if (!expectedSignature.equalsIgnoreCase(signature)) {
                             writeError(response, 403, "请求已被拒绝：数字签名验证失败");
                             return;
                         }
@@ -229,9 +243,11 @@ public class ApiSecurityFilter extends OncePerRequestFilter {
         String isEncryptedHeader = request.getHeader(HEADER_ENCRYPTED);
         boolean isRequestEncrypted = "1".equals(isEncryptedHeader) || "true".equalsIgnoreCase(isEncryptedHeader);
         if (isRequestEncrypted && StrUtil.isNotBlank(rawBodyString)) {
-            String sm4Key = systemConfigHelper.getSm4SecretKey();
+            // 优先从 Redis 取会话 SM4 密钥，回退到 DB 静态密钥（兼容旧客户端）
+            String sm4Key = resolveEncryptKey(request);
             if (StrUtil.isBlank(sm4Key)) {
-                log.error("SM4 加密已开启但未配置密钥，无法解密请求体");
+                log.error("SM4 加密已开启但无法获取解密密钥（clientId={} 无会话密钥且 DB 未配置）",
+                        request.getHeader(HEADER_CLIENT_ID));
                 writeError(response, 403, "请求已被拒绝：服务端加密密钥未配置");
                 return;
             }
@@ -240,7 +256,7 @@ public class ApiSecurityFilter extends OncePerRequestFilter {
                 if (cipherText.startsWith("\"") && cipherText.endsWith("\"") && cipherText.length() > 2) {
                     cipherText = cipherText.substring(1, cipherText.length() - 1);
                 }
-                byte[] keyBytes = sm4Key.getBytes(StandardCharsets.UTF_8);
+                byte[] keyBytes = toSm4KeyBytes(sm4Key);
                 String decryptedBody = null;
 
                 // 尝试 SM4-CBC 模式解密 (提取前 32 字符 Hex 作为 16 字节 IV 向量)
@@ -292,21 +308,24 @@ public class ApiSecurityFilter extends OncePerRequestFilter {
         // 7. 响应处理 (使用 SM4-CBC 模式 + 16 字节随机 IV 向量加密响应体)
         String acceptEncryptedHeader = request.getHeader(HEADER_ACCEPT_ENCRYPTED);
         boolean wantsEncryptedResp = "1".equals(acceptEncryptedHeader) || "true".equalsIgnoreCase(acceptEncryptedHeader);
-        boolean shouldEncryptResponse = sm4EncryptEnabled && (isRequestEncrypted || wantsEncryptedResp);
+        boolean shouldEncryptResponse = sm4EncryptEnabled && (isRequestEncrypted || wantsEncryptedResp)
+                && !isStreamingUri(request.getRequestURI());
 
         if (shouldEncryptResponse) {
             ContentCachingResponseWrapper wrappedResponse = new ContentCachingResponseWrapper(response);
             filterChain.doFilter(wrappedRequest, wrappedResponse);
 
             byte[] respContent = wrappedResponse.getContentAsByteArray();
-            String sm4Key = systemConfigHelper.getSm4SecretKey();
+            // 优先从 Redis 取会话 SM4 密钥，回退到 DB 静态密钥
+            String sm4Key = resolveEncryptKey(request);
             if (respContent.length > 0 && StrUtil.isNotBlank(sm4Key)) {
                 try {
                     String plainResp = new String(respContent, StandardCharsets.UTF_8);
-                    byte[] keyBytes = sm4Key.getBytes(StandardCharsets.UTF_8);
+                    byte[] keyBytes = toSm4KeyBytes(sm4Key);
 
-                    // 动态生成 16 字节 (128位) 密码学随机 IV 向量
-                    byte[] ivBytes = RandomUtil.randomBytes(16);
+                    // 动态生成 16 字节（128 位）密码学安全随机 IV
+                    byte[] ivBytes = new byte[16];
+                    new SecureRandom().nextBytes(ivBytes);
                     SM4 sm4Cbc = new SM4(Mode.CBC, Padding.PKCS5Padding, keyBytes, ivBytes);
 
                     // 拼接 IV (32位Hex) + SM4_CBC_Cipher (Hex)
@@ -326,6 +345,52 @@ public class ApiSecurityFilter extends OncePerRequestFilter {
         } else {
             filterChain.doFilter(wrappedRequest, response);
         }
+    }
+
+    /**
+     * 解析当前请求的签名密钥（HMAC-SM3）。
+     * <p>优先从 Redis 中按 {@code X-Client-Id} 取会话临时密钥（安全加固路径），
+     * 若未携带 clientId 或 Redis 中不存在，则回退到主配置密钥（兼容未升级客户端）。
+     */
+    private String resolveSignKey(HttpServletRequest request) {
+        String clientId = request.getHeader(HEADER_CLIENT_ID);
+        if (StrUtil.isNotBlank(clientId) && clientId.length() >= 8 && clientId.length() <= 128) {
+            String sessionKey = stringRedisTemplate.opsForValue().get(SESSION_SIGN_KEY_PREFIX + clientId);
+            if (StrUtil.isNotBlank(sessionKey)) {
+                return sessionKey;
+            }
+        }
+        // 回退：使用系统配置的主密钥（兼容旧版未升级客户端）
+        return systemConfigHelper.getSm3SignKey();
+    }
+
+    /**
+     * 解析当前请求的 SM4 加解密密钥。
+     * <p>优先从 Redis 中按 {@code X-Client-Id} 取会话 SM4 临时密钥（与 session-sign-init 协商），
+     * 若未找到则回退到 DB 中配置的静态 SM4 密钥（兼容旧版客户端）。
+     */
+    private String resolveEncryptKey(HttpServletRequest request) {
+        String clientId = request.getHeader(HEADER_CLIENT_ID);
+        if (StrUtil.isNotBlank(clientId) && clientId.length() >= 8 && clientId.length() <= 128) {
+            String sessionSm4Key = stringRedisTemplate.opsForValue().get(SESSION_SM4_KEY_PREFIX + clientId);
+            if (StrUtil.isNotBlank(sessionSm4Key)) {
+                return sessionSm4Key;
+            }
+        }
+        // 回退：使用 DB 静态 SM4 密钥（兼容未完成会话协商的旧版客户端）
+        return systemConfigHelper.getSm4SecretKey();
+    }
+
+    /**
+     * SM4 密钥字符串转 16 字节密钥。
+     * <p>会话临时密钥为 32 位 Hex（session-sign-init 下发），按 Hex 解码为 16 字节，
+     * 与前端 ensureSm4HexKey 的处理逻辑严格对齐；其余情况（DB 静态 16 字符密钥）按 UTF-8 文本取字节。
+     */
+    private static byte[] toSm4KeyBytes(String key) {
+        if (key.length() == 32 && key.matches("[0-9a-fA-F]{32}")) {
+            return HexUtil.decodeHex(key);
+        }
+        return key.getBytes(StandardCharsets.UTF_8);
     }
 
     private void writeError(HttpServletResponse response, int status, String msg) throws IOException {

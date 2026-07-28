@@ -5,8 +5,8 @@ import type { ApiResult } from '@/types/api'
 import { isApiSuccessCode } from '@/utils/api-response'
 import { getErrorMessage, markErrorToastShown } from '@/utils/axiosError'
 import { useUserStore } from '@/store/user'
-import { generateNonce, getTimestamp, encryptSm4, decryptSm4, signSm2, signHmacSm3 } from '@/utils/crypto'
-import { getSecurityConfig } from '@/utils/security-config'
+import { generateNonce, getTimestamp, encryptSm4, decryptSm4, signHmacSm3 } from '@/utils/crypto'
+import { getSecurityConfig, getClientId, requestSessionSignKey } from '@/utils/security-config'
 
 export type { ApiResult } from '@/types/api'
 export { getErrorMessage, isErrorToastShown } from '@/utils/axiosError'
@@ -66,13 +66,31 @@ const service: AxiosInstance = axios.create({
 })
 
 service.interceptors.request.use(
-  (config) => {
-    // 自动植入时间戳与 Nonce 防重放 Request Headers
+  async (config) => {
+    // 自动植入时间戳、Nonce、ClientId 防重放 Request Headers
     const timestamp = getTimestamp()
     const nonce = generateNonce()
 
+    // 竞态保护：针对一般业务请求，若密钥还未获取，主动触发并等待单例密钥获取
+    if (
+      !isAuthPublicUrl(config.url) &&
+      !config.url?.includes('/auth/session-sign-init') &&
+      !config.url?.includes('/auth/logout')
+    ) {
+      const currentSec = getSecurityConfig()
+      if (!currentSec.sm3SignKey && !currentSec.sm4Key) {
+        try {
+          await requestSessionSignKey(service)
+        } catch {
+          /* 忽略异常 */
+        }
+      }
+    }
+
     config.headers['X-Timestamp'] = timestamp
     config.headers['X-Nonce'] = nonce
+    // 【安全加固 P0】携带会话 clientId，服务端据此从 Redis 查找临时签名密钥
+    config.headers['X-Client-Id'] = getClientId()
 
     // 读取运行时下发的安全策略（闭包保存，不挂 window，密钥未下发时不启用加密/签名）
     const secConfig = getSecurityConfig()
@@ -87,13 +105,8 @@ service.interceptors.request.use(
       }
     }
 
-    const isSignEnabled = (secConfig.sm3SignEnabled || secConfig.sm2SignEnabled) && (secConfig.sm3SignKey || secConfig.sm2PrivateKey)
+    const isSignEnabled = (secConfig.sm3SignEnabled || secConfig.sm2SignEnabled) && secConfig.sm3SignKey
     if (isSignEnabled) {
-      const timestamp = getTimestamp()
-      const nonce = generateNonce()
-      config.headers['X-Timestamp'] = timestamp
-      config.headers['X-Nonce'] = nonce
-
       let bodyStr = ''
       if (config.data && !isFormData) {
         bodyStr = typeof config.data === 'string' ? config.data : JSON.stringify(config.data)
@@ -110,13 +123,13 @@ service.interceptors.request.use(
         fullPath = '/' + fullPath
       }
       if (config.params && typeof config.params === 'object') {
-        const queryParams = new URLSearchParams()
+        const queryParts: string[] = []
         Object.entries(config.params).forEach(([key, val]) => {
           if (val !== undefined && val !== null) {
-            queryParams.append(key, String(val))
+            queryParts.push(`${encodeURIComponent(key)}=${encodeURIComponent(String(val))}`)
           }
         })
-        const qs = queryParams.toString()
+        const qs = queryParts.join('&')
         if (qs) {
           fullPath += (fullPath.includes('?') ? '&' : '?') + qs
         }
@@ -126,8 +139,8 @@ service.interceptors.request.use(
       } catch {}
 
       const signContent = `${config.method?.toUpperCase()}\n${fullPath}\n${timestamp}\n${nonce}\n${bodyStr}`
-      const signKey = secConfig.sm3SignKey || secConfig.sm2PrivateKey || ''
-      const signature = signHmacSm3(signContent, signKey) || signSm2(signContent, signKey)
+      const signKey = secConfig.sm3SignKey || ''
+      const signature = signHmacSm3(signContent, signKey)
       if (signature) {
         config.headers['X-Signature'] = signature
       }
@@ -140,6 +153,7 @@ service.interceptors.request.use(
     return Promise.reject(error)
   },
 )
+
 
 service.interceptors.response.use(
   (response: AxiosResponse) => {
@@ -191,6 +205,10 @@ service.interceptors.response.use(
       return rejectWithToast(text || '操作过于频繁，请稍后再试')
     }
 
+    if (cfg?.url?.includes('/auth/session-sign-init')) {
+      return Promise.reject(new Error(text || '获取签名密钥失败'))
+    }
+
     ElMessage.error(text)
     return rejectWithToast(text)
   },
@@ -218,11 +236,16 @@ service.interceptors.response.use(
       const cfg = error.config as InternalAxiosRequestConfig & { silent403?: boolean }
       const text = getErrorMessage(error) || error.message || '请求失败'
 
+      // 🔐 静默排除：如果是初始化会话签名密钥失败，一律静默 Reject 不弹窗
+      if (cfg?.url?.includes('/auth/session-sign-init')) {
+        return Promise.reject(error)
+      }
+
       if (status === 401) {
         if (isAuthPublicUrl(cfg?.url)) {
           ElMessage.error(text || '认证失败')
         } else {
-          ElMessage.error('登录已过期，请重新登录')
+          // 未认证或 Token 过期时，静默清理 Token 并平滑跳转至登录页，不在页面上弹出多余的红色吐司
           clearSessionAndRedirectLogin()
         }
       } else if (status === 403) {

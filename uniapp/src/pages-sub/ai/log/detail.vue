@@ -89,7 +89,6 @@ import { useModulePermission } from '@/composables/useModulePermission'
 import { renderMarkdown } from '@/utils/chat-markdown'
 import { cleanMarkdownText } from '@/utils/format'
 import { showConfirm } from '@/store/dialog'
-import { navigateToFallback } from '@/utils/navigate-back'
 
 let isH5 = false
 // #ifdef H5
@@ -145,8 +144,8 @@ async function handleDelete() {
   await deleteAiChatLog(detail.value.id)
   uni.showToast({ title: '已删除', icon: 'success' })
   setTimeout(() => {
-    navigateToFallback('/pages-sub/ai/log/index')
-  }, 400)
+    uni.navigateBack()
+  }, 500)
 }
 </script>
 

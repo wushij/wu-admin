@@ -42,6 +42,7 @@ backend/data/
 
 # 本地/部署专用（不上传 GitHub）
 sql/admin_platform_mysql56.sql
+sql/migration/
 
 # 本地设计/方案文档（不上传 GitHub）
 docs/

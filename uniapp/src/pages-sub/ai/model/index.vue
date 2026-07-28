@@ -65,7 +65,7 @@
           </view>
           <view class="info-row">
             <text class="info-label">模型参数</text>
-            <text class="info-val">温度 {{ item.temperature ?? 0.7 }} · 最大 {{ item.maxTokens ?? 4096 }} Tokens</text>
+            <text class="info-val">温度 {{ item.temperature ?? 0.7 }} · 最大 {{ item.maxTokens ?? 2048 }} Tokens</text>
           </view>
 
           <view

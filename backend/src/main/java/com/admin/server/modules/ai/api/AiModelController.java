@@ -32,7 +32,7 @@ public class AiModelController {
 
     @GetMapping("/{id}")
     @Operation(summary = "模型配置详情")
-    @PreAuthorize("@ss.hasRead('system:ai-model:query')")
+    @PreAuthorize("@ss.hasRead('system:ai-model:list')")
     public CommonResult<AiModelRespVO> detail(@PathVariable Long id) {
         return CommonResult.success(aiModelService.detail(id));
     }

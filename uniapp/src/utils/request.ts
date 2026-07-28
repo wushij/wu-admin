@@ -11,8 +11,8 @@ import {
   showGlobalErrorToast,
 } from '@/plugins/global-error-handler'
 import { resolveApiBaseUrl } from '@/utils/api-base'
-import { generateNonce, getTimestamp, encryptSm4, decryptSm4, signSm2, signHmacSm3 } from '@/utils/crypto'
-import { getSecurityConfig } from '@/utils/security-config'
+import { generateNonce, getTimestamp, encryptSm4, decryptSm4, signHmacSm3 } from '@/utils/crypto'
+import { getSecurityConfig, getClientId, requestSessionSignKey } from '@/utils/security-config'
 
 const BASE_URL = resolveApiBaseUrl()
 
@@ -58,15 +58,34 @@ const http = new Request({
 })
 
 http.interceptors.request.use(
-  (config) => {
+  async (config) => {
     const token = getToken()
     const timestamp = getTimestamp()
     const nonce = generateNonce()
+
+    // 竞态保护：当有 Token 且为一般业务请求时，若会话签名密钥尚未初始化完成，主动等待其完毕
+    if (
+      token &&
+      !isAuthPublicUrl(config.url) &&
+      !config.url?.includes('/auth/session-sign-init') &&
+      !config.url?.includes('/auth/logout')
+    ) {
+      const currentSec = getSecurityConfig()
+      if (!currentSec.sm3SignKey && !currentSec.sm4Key) {
+        try {
+          await requestSessionSignKey(http)
+        } catch {
+          /* 忽略异常，继续向下尝试发送 */
+        }
+      }
+    }
 
     config.header = {
       ...config.header,
       'X-Timestamp': timestamp,
       'X-Nonce': nonce,
+      // 【安全加固 P0】携带会话 clientId，服务端据此从 Redis 查找临时签名密钥
+      'X-Client-Id': getClientId(),
     }
 
     if (token) {
@@ -86,7 +105,7 @@ http.interceptors.request.use(
       }
     }
 
-    const isSignEnabled = (secConfig.sm3SignEnabled || secConfig.sm2SignEnabled) && (secConfig.sm3SignKey || secConfig.sm2PrivateKey)
+    const isSignEnabled = (secConfig.sm3SignEnabled || secConfig.sm2SignEnabled) && secConfig.sm3SignKey
     if (isSignEnabled) {
       let bodyStr = ''
       if (config.data && !isFormData) {
@@ -119,8 +138,8 @@ http.interceptors.request.use(
       } catch {}
 
       const signContent = `${(config.method || 'GET').toUpperCase()}\n${fullPath}\n${timestamp}\n${nonce}\n${bodyStr}`
-      const signKey = secConfig.sm3SignKey || secConfig.sm2PrivateKey || ''
-      const signature = signHmacSm3(signContent, signKey) || signSm2(signContent, signKey)
+      const signKey = secConfig.sm3SignKey || ''
+      const signature = signHmacSm3(signContent, signKey)
       if (signature) {
         config.header['X-Signature'] = signature
       }
@@ -203,6 +222,11 @@ http.interceptors.response.use(
           error.data = plainJson
         }
       }
+    }
+
+    const url = (error as any)?.config?.url || ''
+    if (url.includes('/auth/session-sign-init')) {
+      return Promise.reject(error)
     }
 
     if (isBenignRequestError(error)) {

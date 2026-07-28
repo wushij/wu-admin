@@ -129,17 +129,27 @@ function goApproval() {
   uni.navigateTo({ url: '/pages-sub/system/approval/index' })
 }
 
-onMounted(async () => {
-  if (userStore.isLoggedIn && !userStore.userInfo.permissions?.length) {
-    await userStore.getUserInfo().catch(() => {})
+let hasInitialized = false
+async function initDashboard() {
+  if (hasInitialized) return
+  hasInitialized = true
+  if (userStore.token && !userStore.userInfo.permissions?.length) {
+    await userStore.ensureUserLoaded().catch(() => {})
   }
-  refresh()
+  await refresh()
+}
+
+onMounted(() => {
+  initDashboard()
 })
 
-onShow(() => {
-  if (userStore.isLoggedIn) {
-    userStore.getUserInfo().catch(() => {})
-    refresh()
+onShow(async () => {
+  if (userStore.token) {
+    if (!hasInitialized) {
+      await initDashboard()
+    } else {
+      refresh()
+    }
   }
 })
 

@@ -4,102 +4,31 @@
     <div class="panel-header">
       <div class="header-left">
         <div class="ai-avatar">
-          <AiCompassIcon :size="24" :dark="true" :spin="true" />
+          <el-icon :size="18"><MagicStick /></el-icon>
         </div>
         <div class="header-title">
           <div class="title">AI wu助手</div>
-          <div class="subtitle">系统专属智能副驾 · 贴心指引答疑</div>
+          <div class="subtitle">{{ aiWuStore.currentModel ? aiWuStore.currentModel.name : '智能问答' }}</div>
         </div>
       </div>
       <div class="header-actions">
-        <div class="header-toolbar" role="toolbar" aria-label="操作">
-          <el-tooltip :content="historyVisible ? '收起历史会话' : '历史对话记录'" placement="bottom">
-            <button
-              class="header-btn"
-              :class="{ 'is-active': historyVisible }"
-              type="button"
-              aria-label="历史对话记录"
-              @click="toggleHistory"
-            >
-              <el-icon :size="15"><Clock /></el-icon>
-            </button>
-          </el-tooltip>
-
-          <span class="header-toolbar-sep" aria-hidden="true" />
-
-          <el-tooltip content="开启新会话" placement="bottom">
-            <button
-              class="header-btn"
-              type="button"
-              aria-label="新对话"
-              @click="handleClear"
-            >
-              <el-icon :size="15"><Plus /></el-icon>
-            </button>
-          </el-tooltip>
-
-          <span class="header-toolbar-sep" aria-hidden="true" />
-
-          <el-tooltip content="收起面板" placement="bottom">
-            <button
-              class="header-btn header-btn--close"
-              type="button"
-              aria-label="收起"
-              @click="aiWuStore.closePanel()"
-            >
-              <el-icon :size="15"><Close /></el-icon>
-            </button>
-          </el-tooltip>
-        </div>
+        <el-select
+          v-if="aiWuStore.models.length > 1"
+          v-model="aiWuStore.selectedModelId"
+          size="small"
+          class="model-select"
+          :disabled="aiWuStore.streaming"
+          placeholder="选择模型"
+        >
+          <el-option v-for="m in aiWuStore.models" :key="m.id" :label="m.modelName || m.name" :value="m.id" />
+        </el-select>
+        <el-tooltip content="新对话" placement="bottom">
+          <button class="icon-btn" type="button" title="新对话" @click="handleClear">
+            <el-icon :size="15"><Plus /></el-icon>
+          </button>
+        </el-tooltip>
       </div>
     </div>
-
-    <!-- 历史对话浮层 -->
-    <transition name="history-slide">
-      <div v-if="historyVisible" class="history-layer">
-        <div class="history-head">
-          <div class="history-head-title">
-            <el-icon :size="15"><Clock /></el-icon>
-            <span>历史对话</span>
-            <span v-if="conversations.length" class="history-count">{{ conversations.length }}</span>
-          </div>
-          <button class="history-close" type="button" title="关闭" @click="historyVisible = false">
-            <el-icon :size="14"><Close /></el-icon>
-          </button>
-        </div>
-        <div v-loading="historyLoading" class="history-body">
-          <template v-if="conversations.length">
-            <button
-              v-for="conv in conversations"
-              :key="conv.conversationId"
-              class="history-item"
-              :class="{ 'is-active': conv.conversationId === aiWuStore.conversationId }"
-              type="button"
-              @click="handleRestore(conv.conversationId)"
-            >
-              <div class="history-item-icon">
-                <el-icon :size="14"><ChatDotRound /></el-icon>
-              </div>
-              <div class="history-item-main">
-                <div class="history-item-title">{{ conv.title }}</div>
-                <div class="history-item-meta">
-                  <span>{{ formatConvTime(conv.lastTime) }}</span>
-                  <span class="meta-dot">·</span>
-                  <span>{{ conv.messageCount || 0 }} 轮对话</span>
-                </div>
-              </div>
-              <span v-if="conv.conversationId === aiWuStore.conversationId" class="history-item-tag">当前</span>
-              <el-icon v-else class="history-item-arrow" :size="13"><ArrowRight /></el-icon>
-            </button>
-          </template>
-          <div v-else-if="!historyLoading" class="history-empty">
-            <el-icon :size="34"><ChatDotRound /></el-icon>
-            <p>还没有历史对话</p>
-            <span>和 AI wu助手聊聊，记录会自动保存在这里</span>
-          </div>
-        </div>
-      </div>
-    </transition>
 
     <!-- 消息区 -->
     <div ref="msgListRef" class="panel-body">
@@ -108,12 +37,12 @@
         <div class="welcome-hero">
           <div class="welcome-avatar-glow" />
           <div class="welcome-avatar">
-            <AiCompassIcon :size="38" :dark="true" :spin="true" />
+            <el-icon :size="28"><MagicStick /></el-icon>
           </div>
         </div>
         <div class="welcome-title">你好，我是 AI wu助手</div>
         <div class="welcome-desc">
-          {{ aiWuStore.modelsLoaded && aiWuStore.models.length === 0 ? '暂无可用模型，请联系管理员配置' : '我是本系统的智能助手，熟悉各功能模块与操作路径，有问题尽管问我～' }}
+          {{ aiWuStore.modelsLoaded && aiWuStore.models.length === 0 ? '暂无可用模型，请联系管理员配置' : '我是你的全能 AI 伙伴，有什么可以帮你的吗？' }}
         </div>
         <div class="quick-section">
           <div class="quick-header">
@@ -150,7 +79,7 @@
         :class="msg.role === 'user' ? 'is-user' : 'is-ai'"
       >
         <div v-if="msg.role === 'assistant'" class="msg-avatar ai">
-          <AiCompassIcon :size="18" :dark="true" :spin="false" />
+          <el-icon :size="14"><MagicStick /></el-icon>
         </div>
         <div class="bubble" :class="{ 'is-error': msg.error }">
           <!-- 等待首字节：三点跳动 -->
@@ -183,12 +112,6 @@
           <img v-if="userAvatar" :src="userAvatar" alt="" />
           <el-icon v-else :size="14"><User /></el-icon>
         </div>
-      </div>
-
-      <!-- L3 工具调用状态提示 -->
-      <div v-if="aiWuStore.streaming && aiWuStore.statusHint" class="tool-status">
-        <span class="tool-status-dot" />
-        <span>{{ aiWuStore.statusHint }}</span>
       </div>
     </div>
 
@@ -233,6 +156,7 @@
 <script setup lang="ts">
 import { ref, computed, nextTick, watch, onMounted } from 'vue'
 import {
+  MagicStick,
   Plus,
   User,
   Promotion,
@@ -242,32 +166,28 @@ import {
   Document,
   Timer,
   ChatDotRound,
-  ArrowRight,
-  Clock,
-  Close
+  ArrowRight
 } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { useAiWuStore } from '@/store/aiWu'
 import { useUserStore } from '@/store/user'
-import { listConversations, type AiConversationVO } from '@/api/ai'
 import AiWuMarkdown from './AiWuMarkdown.vue'
-import AiCompassIcon from './AiCompassIcon.vue'
 
 const QUICK_QUESTIONS = [
   {
     icon: ChatDotRound,
-    text: '这个系统有哪些功能模块？',
-    desc: '按你的权限梳理可用功能与入口'
+    text: '介绍一下这个管理系统',
+    desc: '快速了解系统架构与核心功能模块'
   },
   {
     icon: Document,
-    text: '怎么修改登录密码？',
-    desc: '获取本系统真实操作路径指引'
+    text: '帮我写一段周报总结',
+    desc: '梳理本周工作要点与项目进展现状'
   },
   {
     icon: Timer,
-    text: '我是什么角色，属于哪个部门？',
-    desc: '查看当前账号的角色与组织信息'
+    text: '如何提高工作效率？',
+    desc: '获取数字化办公与时间管理实用建议'
   }
 ]
 
@@ -330,75 +250,16 @@ async function handleSend() {
   inputText.value = ''
   isMultiLine.value = false
   nextTick(() => autoResize())
-  scrollToBottom(true)
   await aiWuStore.send(text)
-  scrollToBottom(true)
 }
 
 function sendQuick(q: string) {
   if (aiWuStore.streaming) return
-  scrollToBottom(true)
   aiWuStore.send(q)
-  scrollToBottom(true)
 }
 
 function handleClear() {
   aiWuStore.clear()
-}
-
-// ---------- 历史对话 ----------
-const historyVisible = ref(false)
-const historyLoading = ref(false)
-const conversations = ref<AiConversationVO[]>([])
-
-async function toggleHistory() {
-  historyVisible.value = !historyVisible.value
-  if (!historyVisible.value) return
-  historyLoading.value = true
-  try {
-    const res = await listConversations()
-    conversations.value = res.data || []
-  } finally {
-    historyLoading.value = false
-  }
-}
-
-async function handleRestore(conversationId: string) {
-  if (aiWuStore.streaming) {
-    ElMessage.warning('回答生成中，请稍后切换会话')
-    return
-  }
-  if (conversationId === aiWuStore.conversationId) {
-    historyVisible.value = false
-    return
-  }
-  const ok = await aiWuStore.restoreConversation(conversationId)
-  if (ok) {
-    historyVisible.value = false
-    scrollToBottom()
-  } else {
-    ElMessage.warning('该会话暂无可恢复的记录')
-  }
-}
-
-/** 会话时间友好化：今天 HH:mm / 昨天 / MM-DD */
-function formatConvTime(time?: string): string {
-  if (!time) return ''
-  const date = new Date(time.replace(' ', 'T'))
-  if (Number.isNaN(date.getTime())) return time
-  const now = new Date()
-  const pad = (n: number) => String(n).padStart(2, '0')
-  const sameDay = (a: Date, b: Date) =>
-    a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
-  if (sameDay(date, now)) {
-    return `今天 ${pad(date.getHours())}:${pad(date.getMinutes())}`
-  }
-  const yesterday = new Date(now)
-  yesterday.setDate(now.getDate() - 1)
-  if (sameDay(date, yesterday)) {
-    return `昨天 ${pad(date.getHours())}:${pad(date.getMinutes())}`
-  }
-  return `${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
 }
 
 async function copyMessage(content: string, id: string | number) {
@@ -451,12 +312,11 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 12px 16px;
-  background: linear-gradient(145deg, #101c38 0%, #0c1222 100%);
-  border-bottom: 1px solid rgba(22, 119, 255, 0.2);
+  gap: 8px;
+  padding: 14px 16px;
+  background: linear-gradient(135deg, var(--theme-primary, #6366f1) 0%, var(--theme-logo-end, var(--theme-primary, #8b5cf6)) 100%);
   color: #fff;
-  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 4px 16px rgba(var(--theme-primary-rgb, 99, 102, 241), 0.15);
 }
 
 .header-left {
@@ -464,320 +324,83 @@ onMounted(() => {
   align-items: center;
   gap: 10px;
   min-width: 0;
-  flex: 1;
 }
 
 .ai-avatar {
-  position: relative;
   width: 36px;
   height: 36px;
-  border-radius: 50%;
-  border: 1.5px solid rgba(22, 119, 255, 0.45);
-  background: linear-gradient(145deg, #101c38, #0c1222);
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3), 0 0 10px rgba(22, 119, 255, 0.2);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  transition: all 0.25s ease;
-
-  &:hover {
-    transform: scale(1.06);
-    border-color: rgba(64, 150, 255, 0.85);
-    box-shadow: 0 0 16px rgba(22, 119, 255, 0.4);
-  }
-}
-
-/* ---------- 历史对话浮层 ---------- */
-.history-layer {
-  position: absolute;
-  top: 64px;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 5;
-  display: flex;
-  flex-direction: column;
-  background: rgba(255, 255, 255, 0.97);
-  backdrop-filter: blur(16px);
-  border-radius: 0 0 20px 20px;
-}
-
-.history-slide-enter-active,
-.history-slide-leave-active {
-  transition: opacity 0.22s ease, transform 0.22s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.history-slide-enter-from,
-.history-slide-leave-to {
-  opacity: 0;
-  transform: translateY(-10px);
-}
-
-.history-head {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px 16px 10px;
-  border-bottom: 1px solid rgba(226, 232, 240, 0.7);
-}
-
-.history-head-title {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 14px;
-  font-weight: 700;
-  color: #0f172a;
-
-  .history-count {
-    min-width: 20px;
-    height: 18px;
-    padding: 0 6px;
-    border-radius: 9px;
-    background: var(--theme-primary-muted, rgba(99, 102, 241, 0.12));
-    color: var(--theme-primary, #6366f1);
-    font-size: 11px;
-    font-weight: 600;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-  }
-}
-
-.history-close {
-  width: 26px;
-  height: 26px;
-  border: none;
-  border-radius: 8px;
-  background: transparent;
-  color: #94a3b8;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s;
-
-  &:hover {
-    background: rgba(148, 163, 184, 0.15);
-    color: #475569;
-  }
-}
-
-.history-body {
-  flex: 1;
-  overflow-y: auto;
-  padding: 10px 12px 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-
-  &::-webkit-scrollbar {
-    width: 5px;
-  }
-
-  &::-webkit-scrollbar-thumb {
-    background: rgba(148, 163, 184, 0.3);
-    border-radius: 10px;
-  }
-}
-
-.history-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-  border: 1px solid transparent;
   border-radius: 12px;
-  background: transparent;
-  cursor: pointer;
-  text-align: left;
-  transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
-
-  &:hover {
-    background: rgba(248, 250, 252, 1);
-    border-color: rgba(226, 232, 240, 0.9);
-
-    .history-item-arrow {
-      opacity: 1;
-      transform: translateX(2px);
-    }
-  }
-
-  &.is-active {
-    background: var(--theme-primary-muted, rgba(99, 102, 241, 0.08));
-    border-color: var(--theme-primary-muted-strong, rgba(99, 102, 241, 0.3));
-  }
-}
-
-.history-item-icon {
-  width: 30px;
-  height: 30px;
-  border-radius: 10px;
-  background: var(--theme-primary-muted, rgba(99, 102, 241, 0.1));
-  color: var(--theme-primary, #6366f1);
+  background: rgba(255, 255, 255, 0.22);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-}
-
-.history-item-main {
-  flex: 1;
-  min-width: 0;
-}
-
-.history-item-title {
-  font-size: 13px;
-  font-weight: 600;
-  color: #1e293b;
-  line-height: 1.35;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.history-item-meta {
-  margin-top: 2px;
-  font-size: 11px;
-  color: #94a3b8;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-
-  .meta-dot {
-    opacity: 0.6;
-  }
-}
-
-.history-item-tag {
-  flex-shrink: 0;
-  padding: 2px 8px;
-  border-radius: 8px;
-  background: var(--theme-primary, #6366f1);
-  color: #fff;
-  font-size: 10px;
-  font-weight: 600;
-}
-
-.history-item-arrow {
-  flex-shrink: 0;
-  color: #cbd5e1;
-  opacity: 0.5;
-  transition: all 0.2s;
-}
-
-.history-empty {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  color: #cbd5e1;
-  padding-bottom: 30px;
-
-  p {
-    margin: 6px 0 0;
-    font-size: 13px;
-    font-weight: 600;
-    color: #94a3b8;
-  }
-
-  span {
-    font-size: 11px;
-    color: #cbd5e1;
-  }
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .header-title {
   min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
 
   .title {
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 700;
     line-height: 1.3;
     letter-spacing: 0.3px;
-    color: #f8fafc;
-    white-space: nowrap;
   }
 
   .subtitle {
     font-size: 11px;
-    color: #94a3b8;
+    opacity: 0.85;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    max-width: 200px;
+    max-width: 120px;
   }
 }
 
 .header-actions {
   display: flex;
   align-items: center;
+  gap: 6px;
   flex-shrink: 0;
 }
 
-/* 顶部操作工具栏胶囊 */
-.header-toolbar {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  padding: 3px 5px;
-  border-radius: 999px;
-  background: rgba(15, 23, 42, 0.75);
-  border: 1px solid rgba(59, 130, 246, 0.35);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 2px 8px rgba(0, 0, 0, 0.3);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+.model-select {
+  width: 165px;
+
+  :deep(.el-select__wrapper) {
+    background: rgba(255, 255, 255, 0.2);
+    box-shadow: none !important;
+    border-radius: 8px;
+    backdrop-filter: blur(4px);
+  }
+
+  :deep(.el-select__selected-item),
+  :deep(.el-select__caret) {
+    color: #fff;
+    font-size: 12px;
+    font-weight: 500;
+  }
 }
 
-.header-toolbar-sep {
-  width: 1px;
-  height: 14px;
-  margin: 0 1px;
+.icon-btn {
+  width: 30px;
+  height: 30px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 9px;
   background: rgba(255, 255, 255, 0.15);
-  flex-shrink: 0;
-}
-
-.header-btn {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background: transparent;
-  border: none;
-  color: #f1f5f9;
+  color: #fff;
+  cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  cursor: pointer;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 
   &:hover {
-    background: rgba(59, 130, 246, 0.3);
-    color: #ffffff;
-    box-shadow: 0 0 10px rgba(59, 130, 246, 0.45);
-    transform: scale(1.08);
-  }
-
-  &:active {
-    transform: scale(0.94);
-  }
-
-  &.is-active {
-    background: linear-gradient(135deg, #1677ff 0%, #3b82f6 100%);
-    color: #ffffff;
-    box-shadow: 0 0 12px rgba(37, 99, 235, 0.6);
-  }
-
-  &--close:hover {
-    background: rgba(239, 68, 68, 0.25);
-    color: #fca5a5;
-    box-shadow: 0 0 10px rgba(239, 68, 68, 0.4);
+    background: rgba(255, 255, 255, 0.3);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
   }
 }
 
@@ -816,49 +439,41 @@ onMounted(() => {
 
 .welcome-hero {
   position: relative;
-  margin-bottom: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  margin-bottom: 14px;
 }
 
 .welcome-avatar-glow {
   position: absolute;
-  inset: -8px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(37, 99, 235, 0.45) 0%, rgba(114, 46, 209, 0.25) 55%, transparent 75%);
-  filter: blur(12px);
+  inset: -6px;
+  border-radius: 22px;
+  background: linear-gradient(135deg, var(--theme-primary, #6366f1) 0%, var(--theme-logo-end, var(--theme-primary, #8b5cf6)) 100%);
+  opacity: 0.35;
+  filter: blur(10px);
   animation: pulse-glow 3s infinite alternate ease-in-out;
 }
 
 @keyframes pulse-glow {
   0% {
-    transform: scale(0.92);
-    opacity: 0.35;
+    transform: scale(0.95);
+    opacity: 0.25;
   }
   100% {
-    transform: scale(1.15);
-    opacity: 0.65;
+    transform: scale(1.1);
+    opacity: 0.45;
   }
 }
 
 .welcome-avatar {
   position: relative;
-  width: 64px;
-  height: 64px;
-  border-radius: 50%;
-  background: linear-gradient(145deg, #101c38, #0c1222);
-  border: 1.6px solid rgba(22, 119, 255, 0.5);
+  width: 58px;
+  height: 58px;
+  border-radius: 20px;
+  background: linear-gradient(135deg, var(--theme-primary, #6366f1) 0%, var(--theme-logo-end, var(--theme-primary, #8b5cf6)) 100%);
+  color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 8px 24px rgba(22, 119, 255, 0.35), 0 0 16px rgba(114, 46, 209, 0.25);
-  transition: transform 0.3s ease;
-
-  &:hover {
-    transform: scale(1.05);
-    border-color: rgba(64, 150, 255, 0.85);
-  }
+  box-shadow: 0 8px 24px rgba(var(--theme-primary-rgb, 99, 102, 241), 0.35);
 }
 
 .welcome-title {
@@ -931,15 +546,15 @@ onMounted(() => {
 }
 
 .quick-card-icon {
-  width: 28px;
-  height: 28px;
-  background: transparent;
-  border: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: var(--theme-primary-muted, rgba(99, 102, 241, 0.1));
   color: var(--theme-primary, #6366f1);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 18px;
+  font-size: 16px;
   flex-shrink: 0;
   transition: all 0.2s;
 }
@@ -987,18 +602,16 @@ onMounted(() => {
   width: 28px;
   height: 28px;
   margin-top: 2px;
-  border-radius: 50%;
+  border-radius: 10px;
   flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
 
   &.ai {
-    background: linear-gradient(145deg, #101c38, #0c1222);
-    border: 1px solid rgba(22, 119, 255, 0.45);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+    background: linear-gradient(135deg, var(--theme-primary, #6366f1) 0%, var(--theme-logo-end, var(--theme-primary, #8b5cf6)) 100%);
     color: #fff;
   }
 
@@ -1011,7 +624,6 @@ onMounted(() => {
     width: 100%;
     height: 100%;
     object-fit: cover;
-    border-radius: 50%;
   }
 }
 
@@ -1125,29 +737,6 @@ onMounted(() => {
       animation-delay: 0.3s;
     }
   }
-}
-
-/* L3 工具调用状态提示 */
-.tool-status {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  align-self: flex-start;
-  margin-left: 36px;
-  padding: 5px 12px;
-  border-radius: 10px;
-  background: var(--theme-primary-muted, rgba(99, 102, 241, 0.1));
-  color: var(--theme-primary, #6366f1);
-  font-size: 12px;
-  font-weight: 500;
-}
-
-.tool-status-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: currentColor;
-  animation: ai-bounce 1s ease-in-out infinite;
 }
 
 @keyframes ai-bounce {

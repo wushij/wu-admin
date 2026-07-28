@@ -2,7 +2,6 @@ package com.admin.server.modules.ai.service.impl;
 
 import cn.hutool.core.thread.ThreadFactoryBuilder;
 import cn.hutool.core.util.StrUtil;
-import cn.hutool.json.JSONArray;
 import cn.hutool.json.JSONObject;
 import com.admin.server.common.exception.BusinessException;
 import com.admin.server.modules.ai.api.vo.AiChatStreamReqVO;
@@ -13,9 +12,6 @@ import com.admin.server.modules.ai.providers.AiStreamListener;
 import com.admin.server.modules.ai.service.AiChatLogService;
 import com.admin.server.modules.ai.service.AiChatService;
 import com.admin.server.modules.ai.service.AiModelService;
-import com.admin.server.modules.ai.tool.AiToolContext;
-import com.admin.server.modules.ai.tool.AiToolExecutor;
-import com.admin.server.modules.ai.tool.ToolInvocationResult;
 import com.admin.server.modules.ai.util.AiSanitizerUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -53,15 +49,6 @@ public class AiChatServiceImpl implements AiChatService {
     @Resource
     private AiProviderFactory aiProviderFactory;
 
-    @Resource
-    private PromptAssembler promptAssembler;
-
-    @Resource
-    private AiToolExecutor aiToolExecutor;
-
-    @Resource
-    private AiChatQuotaGuard aiChatQuotaGuard;
-
     @PreDestroy
     public void shutdown() {
         chatExecutor.shutdownNow();
@@ -86,37 +73,9 @@ public class AiChatServiceImpl implements AiChatService {
             return emitter;
         }
 
-        // 用户级限流与 token 配额（fail-open）：被拒经 SSE error 下发，不落 chat log（未产生上游成本）
-        String quotaErr = aiChatQuotaGuard.check(userId);
-        if (quotaErr != null) {
-            log.warn("AI 对话被限流拒绝 user={}: {}", userId, quotaErr);
-            sendErrorQuietly(emitter, quotaErr);
-            return emitter;
-        }
-
-        // L1 知识注入：服务端组装 system 消息插入首位（sanitize 已丢弃客户端伪造的 system 角色）；
-        // 组装失败不阻断对话，Provider 会回退内置人设提示词
-        try {
-            String latestUserQuery = extractLatestUserQuery(messages);
-            String systemPrompt = promptAssembler.assemble(userId, model.getSystemPrompt(), reqVO.getSource(), latestUserQuery);
-            if (StrUtil.isNotBlank(systemPrompt)) {
-                AiChatStreamReqVO.ChatMessage systemMsg = new AiChatStreamReqVO.ChatMessage();
-                systemMsg.setRole("system");
-                systemMsg.setContent(systemPrompt);
-                messages.add(0, systemMsg);
-            }
-        } catch (Exception e) {
-            log.warn("AI system 提示词组装失败，降级为内置人设: {}", e.getMessage());
-        }
-
         String plainApiKey = aiModelService.decryptApiKey(model);
         long startTime = System.currentTimeMillis();
         StringBuilder answerBuffer = new StringBuilder();
-
-        // L3 工具：按用户角色可见性过滤 tool 声明；身份上下文从会话注入，工具轨迹用于审计
-        final String toolSpecs = aiToolExecutor.buildToolSpecs(userId);
-        final AiToolContext toolCtx = new AiToolContext(userId, username);
-        final JSONArray toolTrace = new JSONArray();
 
         chatExecutor.submit(() -> {
             AiStreamListener listener = new AiStreamListener() {
@@ -148,52 +107,13 @@ public class AiChatServiceImpl implements AiChatService {
                             cancelled.set(true);
                         }
                     }
-                    // token 用量回写配额计数（成功与中断均回写，中断同样产生上游消耗）；
-                    // 供应商未返回 usage 时按字符数估算，避免配额形同虚设
-                    long tokensForQuota = resolveTokensForQuota(promptTokens, completionTokens, messages, answerBuffer.toString());
-                    aiChatQuotaGuard.recordUsage(userId, tokensForQuota);
                     saveChatLog(reqVO, model, userId, username, messages, answerBuffer.toString(),
-                            promptTokens, completionTokens, duration, cancelled.get() ? 2 : 1, null, toolTrace);
+                            promptTokens, completionTokens, duration, cancelled.get() ? 2 : 1, null);
                 }
 
                 @Override
                 public boolean isCancelled() {
                     return cancelled.get();
-                }
-
-                @Override
-                public boolean toolsEnabled() {
-                    return StrUtil.isNotBlank(toolSpecs);
-                }
-
-                @Override
-                public String toolSpecsJson() {
-                    return toolSpecs;
-                }
-
-                @Override
-                public String executeTool(String toolName, String argsJson) {
-                    ToolInvocationResult r = aiToolExecutor.invoke(toolName, argsJson, toolCtx);
-                    toolTrace.add(new JSONObject()
-                            .set("tool", toolName)
-                            .set("denied", r.isDenied())
-                            .set("durationMs", r.getDurationMs()));
-                    return r.getResult();
-                }
-
-                @Override
-                public void onToolStatus(String toolName) {
-                    if (cancelled.get()) {
-                        return;
-                    }
-                    try {
-                        JSONObject status = new JSONObject()
-                                .set("tool", toolName)
-                                .set("message", toolStatusMessage(toolName));
-                        emitter.send(SseEmitter.event().name("status").data(status.toString()));
-                    } catch (IOException | IllegalStateException e) {
-                        cancelled.set(true);
-                    }
                 }
             };
 
@@ -204,7 +124,7 @@ public class AiChatServiceImpl implements AiChatService {
                 String errMsg = e instanceof BusinessException ? e.getMessage() : "AI 服务暂时不可用，请稍后再试";
                 sendErrorQuietly(emitter, errMsg);
                 saveChatLog(reqVO, model, userId, username, messages, answerBuffer.toString(),
-                        0, 0, System.currentTimeMillis() - startTime, 0, StrUtil.brief(e.getMessage(), 480), toolTrace);
+                        0, 0, System.currentTimeMillis() - startTime, 0, StrUtil.brief(e.getMessage(), 480));
             }
         });
         return emitter;
@@ -234,60 +154,6 @@ public class AiChatServiceImpl implements AiChatService {
         return result;
     }
 
-    /** 取本轮最后一条用户提问（用于 L2 知识库检索） */
-    private String extractLatestUserQuery(List<AiChatStreamReqVO.ChatMessage> messages) {
-        for (int i = messages.size() - 1; i >= 0; i--) {
-            AiChatStreamReqVO.ChatMessage msg = messages.get(i);
-            if ("user".equals(msg.getRole())) {
-                return msg.getContent();
-            }
-        }
-        return "";
-    }
-
-    /**
-     * 计算用于配额计数的 token 数：供应商返回了 usage 直接用其和；
-     * 未返回（promptTokens+completionTokens==0）时按 (各消息+回答字符数)/2 保守估算，避免配额形同虚设。
-     */
-    private long resolveTokensForQuota(int promptTokens, int completionTokens,
-                                       List<AiChatStreamReqVO.ChatMessage> messages, String answer) {
-        int total = promptTokens + completionTokens;
-        if (total > 0) {
-            return total;
-        }
-        long chars = 0;
-        if (messages != null) {
-            for (AiChatStreamReqVO.ChatMessage m : messages) {
-                if (m != null && m.getContent() != null) {
-                    chars += m.getContent().length();
-                }
-            }
-        }
-        if (answer != null) {
-            chars += answer.length();
-        }
-        return chars <= 0 ? 0 : chars / 2;
-    }
-
-    /** 工具执行前的前端提示文案 */
-    private String toolStatusMessage(String toolName) {
-        if (toolName == null) {
-            return "⚡ 正在查询系统数据...";
-        }
-        switch (toolName) {
-            case "get_online_user_count":
-                return "⚡ 正在查询在线用户数...";
-            case "get_login_stat":
-                return "⚡ 正在统计登录数据...";
-            case "get_my_todo_count":
-                return "⚡ 正在查询您的待办...";
-            case "get_announce_latest":
-                return "⚡ 正在获取最新公告...";
-            default:
-                return "⚡ 正在查询系统数据...";
-        }
-    }
-
     private void sendErrorQuietly(SseEmitter emitter, String message) {
         try {
             emitter.send(SseEmitter.event().name("error").data(StrUtil.nullToEmpty(message)));
@@ -300,7 +166,7 @@ public class AiChatServiceImpl implements AiChatService {
     private void saveChatLog(AiChatStreamReqVO reqVO, AiModelDO model, Long userId, String username,
                              List<AiChatStreamReqVO.ChatMessage> messages, String answer,
                              int promptTokens, int completionTokens, long durationMs,
-                             int chatStatus, String errorMsg, JSONArray toolTrace) {
+                             int chatStatus, String errorMsg) {
         AiChatLogDO chatLog = new AiChatLogDO();
         chatLog.setUserId(userId);
         chatLog.setUsername(StrUtil.nullToEmpty(username));
@@ -325,7 +191,6 @@ public class AiChatServiceImpl implements AiChatService {
         chatLog.setChatStatus(chatStatus);
         chatLog.setErrorMsg(errorMsg);
         chatLog.setSource("mobile".equalsIgnoreCase(reqVO.getSource()) ? "mobile" : "pc");
-        chatLog.setToolTrace(toolTrace == null || toolTrace.isEmpty() ? null : toolTrace.toString());
         chatLog.setCreator(StrUtil.nullToEmpty(username));
         chatLog.setUpdater(StrUtil.nullToEmpty(username));
         aiChatLogService.saveLogAsync(chatLog);

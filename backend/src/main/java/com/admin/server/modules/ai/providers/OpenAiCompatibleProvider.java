@@ -7,7 +7,6 @@ import cn.hutool.json.JSONUtil;
 import com.admin.server.common.exception.BusinessException;
 import com.admin.server.modules.ai.api.vo.AiChatStreamReqVO;
 import com.admin.server.modules.ai.dal.dataobject.AiModelDO;
-import com.admin.server.modules.ai.util.AiPromptTemplates;
 import org.springframework.stereotype.Component;
 
 import java.io.BufferedReader;
@@ -19,11 +18,8 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
-import java.util.TreeMap;
 
 /**
  * OpenAI 兼容协议统一实现
@@ -34,6 +30,23 @@ public class OpenAiCompatibleProvider implements AiProviderStrategy {
 
     private static final Set<String> SUPPORTED = Set.of("deepseek", "openai", "qwen", "kimi");
 
+    /**
+     * 内置默认系统提示词（模型未配置 systemPrompt 时兑底）
+     * <p>排版规范浓缩自 AgentOne persona.md：emoji 分节 + Markdown 结构化，禁报告体。</p>
+     */
+    private static final String DEFAULT_SYSTEM_PROMPT = """
+            你是「AI wu助手」，为企业管理系统用户提供智能问答服务，回答准确、简洁、可执行。
+
+            回答格式要求（必须遵守）：
+            - 使用 Markdown 排版：加粗、列表、表格、引用块；标题 # 后必须有空格。
+            - 小节用 emoji + 加粗标题（如 📌 **结论**、⚙️ **配置**、📋 **明细**、🎯 **步骤**、💡 **提示**、⚠️ **注意**），每条回答约 3~8 个 emoji，勿堆砌。
+            - 并列信息、步骤、字段用列表或表格，超过 3 行的内容必须分节或列表化。
+            - 简单问题 1~2 节直接作答，开门见山；复杂问题再多节展开。
+            - 禁止《问题分析》《处理建议》等报告体标题，禁止大段无结构纯文字。
+            - 链接统一 [说明文字](URL) 格式，不要裸贴长 URL。
+            - 使用中文，避免「很高兴为您服务」等套话；不确定的内容诚实说明，不编造数据。
+            """;
+
     private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(15))
             .build();
@@ -43,60 +56,25 @@ public class OpenAiCompatibleProvider implements AiProviderStrategy {
         return provider != null && SUPPORTED.contains(provider.toLowerCase());
     }
 
-    /** 单轮对话最多允许的工具调用轮次（防模型死循环拉高成本，设计 §5.2） */
-    private static final int MAX_TOOL_ROUNDS = 3;
-
     @Override
     public void streamChat(AiModelDO model, String plainApiKey,
                            List<AiChatStreamReqVO.ChatMessage> messages, AiStreamListener listener) throws Exception {
-        JSONArray runningMessages = buildInitialMessages(model, messages);
-        String toolSpecs = listener.toolsEnabled() ? listener.toolSpecsJson() : null;
-        int totalPrompt = 0;
-        int totalCompletion = 0;
+        JSONObject body = buildRequestBody(model, messages, true);
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(chatCompletionsUrl(model.getBaseUrl())))
+                .timeout(Duration.ofMinutes(5))
+                .header("Content-Type", "application/json")
+                .header("Authorization", "Bearer " + StrUtil.nullToEmpty(plainApiKey))
+                .POST(HttpRequest.BodyPublishers.ofString(body.toString(), StandardCharsets.UTF_8))
+                .build();
 
-        for (int round = 0; round <= MAX_TOOL_ROUNDS; round++) {
-            // 达到工具轮次上限后，最后一轮不再下发 tools，强制模型直接作答
-            String roundToolSpecs = round < MAX_TOOL_ROUNDS ? toolSpecs : null;
-            JSONObject body = buildStreamBody(model, runningMessages, roundToolSpecs);
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(chatCompletionsUrl(model.getBaseUrl())))
-                    .timeout(Duration.ofMinutes(5))
-                    .header("Content-Type", "application/json")
-                    .header("Authorization", "Bearer " + StrUtil.nullToEmpty(plainApiKey))
-                    .POST(HttpRequest.BodyPublishers.ofString(body.toString(), StandardCharsets.UTF_8))
-                    .build();
-
-            HttpResponse<InputStream> response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofInputStream());
-            if (response.statusCode() != 200) {
-                throw new BusinessException("大模型接口调用失败(HTTP " + response.statusCode() + "): " + readErrorBody(response.body()));
-            }
-
-            StreamRoundResult roundResult = parseStream(response, listener);
-            totalPrompt += roundResult.promptTokens;
-            totalCompletion += roundResult.completionTokens;
-
-            // 模型请求调用工具：执行后回填消息进入下一轮；否则本轮即最终回答
-            if (roundToolSpecs != null && !roundResult.toolCalls.isEmpty() && !listener.isCancelled()) {
-                runningMessages.add(buildAssistantToolCallMessage(roundResult.toolCalls));
-                for (ToolCallAcc call : roundResult.toolCalls) {
-                    listener.onToolStatus(call.name);
-                    String result = listener.executeTool(call.name, call.args.toString());
-                    runningMessages.add(new JSONObject()
-                            .set("role", "tool")
-                            .set("tool_call_id", StrUtil.nullToEmpty(call.id))
-                            .set("content", StrUtil.nullToEmpty(result)));
-                }
-                continue;
-            }
-            break;
+        HttpResponse<InputStream> response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofInputStream());
+        if (response.statusCode() != 200) {
+            throw new BusinessException("大模型接口调用失败(HTTP " + response.statusCode() + "): " + readErrorBody(response.body()));
         }
-        listener.onComplete(totalPrompt, totalCompletion);
-    }
 
-    /** 解析一轮 SSE 流：发射内容增量、累积 tool_calls 与 usage */
-    private StreamRoundResult parseStream(HttpResponse<InputStream> response, AiStreamListener listener) throws Exception {
-        StreamRoundResult result = new StreamRoundResult();
-        Map<Integer, ToolCallAcc> toolCallMap = new TreeMap<>();
+        int promptTokens = 0;
+        int completionTokens = 0;
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(response.body(), StandardCharsets.UTF_8))) {
             String line;
             while ((line = reader.readLine()) != null) {
@@ -113,79 +91,20 @@ public class OpenAiCompatibleProvider implements AiProviderStrategy {
                 JSONObject chunk = JSONUtil.parseObj(payload);
                 JSONArray choices = chunk.getJSONArray("choices");
                 if (choices != null && !choices.isEmpty()) {
-                    JSONObject choice = choices.getJSONObject(0);
-                    JSONObject delta = choice.getJSONObject("delta");
-                    if (delta != null) {
-                        String content = delta.getStr("content");
-                        if (StrUtil.isNotEmpty(content)) {
-                            listener.onDelta(content);
-                        }
-                        accumulateToolCalls(delta.getJSONArray("tool_calls"), toolCallMap);
+                    JSONObject delta = choices.getJSONObject(0).getJSONObject("delta");
+                    String content = delta == null ? null : delta.getStr("content");
+                    if (StrUtil.isNotEmpty(content)) {
+                        listener.onDelta(content);
                     }
                 }
                 JSONObject usage = chunk.getJSONObject("usage");
                 if (usage != null) {
-                    result.promptTokens = usage.getInt("prompt_tokens", 0);
-                    result.completionTokens = usage.getInt("completion_tokens", 0);
+                    promptTokens = usage.getInt("prompt_tokens", 0);
+                    completionTokens = usage.getInt("completion_tokens", 0);
                 }
             }
         }
-        result.toolCalls.addAll(toolCallMap.values());
-        return result;
-    }
-
-    /** 累积分片的 tool_calls（按 index 聚合 id/name/arguments） */
-    private void accumulateToolCalls(JSONArray toolCalls, Map<Integer, ToolCallAcc> toolCallMap) {
-        if (toolCalls == null) {
-            return;
-        }
-        for (int i = 0; i < toolCalls.size(); i++) {
-            JSONObject tc = toolCalls.getJSONObject(i);
-            int index = tc.getInt("index", i);
-            ToolCallAcc acc = toolCallMap.computeIfAbsent(index, k -> new ToolCallAcc());
-            String id = tc.getStr("id");
-            if (StrUtil.isNotBlank(id)) {
-                acc.id = id;
-            }
-            JSONObject function = tc.getJSONObject("function");
-            if (function != null) {
-                String name = function.getStr("name");
-                if (StrUtil.isNotBlank(name)) {
-                    acc.name = name;
-                }
-                String argsFragment = function.getStr("arguments");
-                if (argsFragment != null) {
-                    acc.args.append(argsFragment);
-                }
-            }
-        }
-    }
-
-    private JSONObject buildAssistantToolCallMessage(List<ToolCallAcc> toolCalls) {
-        JSONArray arr = new JSONArray();
-        for (ToolCallAcc call : toolCalls) {
-            arr.add(new JSONObject()
-                    .set("id", StrUtil.nullToEmpty(call.id))
-                    .set("type", "function")
-                    .set("function", new JSONObject()
-                            .set("name", StrUtil.nullToEmpty(call.name))
-                            .set("arguments", call.args.length() == 0 ? "{}" : call.args.toString())));
-        }
-        return new JSONObject().set("role", "assistant").set("content", "").set("tool_calls", arr);
-    }
-
-    /** tool_calls 分片累积器 */
-    private static class ToolCallAcc {
-        String id;
-        String name;
-        final StringBuilder args = new StringBuilder();
-    }
-
-    /** 单轮流解析结果 */
-    private static class StreamRoundResult {
-        int promptTokens;
-        int completionTokens;
-        final List<ToolCallAcc> toolCalls = new ArrayList<>();
+        listener.onComplete(promptTokens, completionTokens);
     }
 
     @Override
@@ -224,40 +143,28 @@ public class OpenAiCompatibleProvider implements AiProviderStrategy {
         return url + "/chat/completions";
     }
 
-    private JSONObject buildStreamBody(AiModelDO model, JSONArray messagesArray, String toolSpecsJson) {
+    private JSONObject buildRequestBody(AiModelDO model, List<AiChatStreamReqVO.ChatMessage> messages, boolean stream) {
         JSONObject body = new JSONObject();
         body.set("model", model.getModelName());
-        body.set("stream", true);
+        body.set("stream", stream);
         if (model.getTemperature() != null) {
             body.set("temperature", model.getTemperature());
         }
         if (model.getMaxTokens() != null && model.getMaxTokens() > 0) {
             body.set("max_tokens", model.getMaxTokens());
         }
-        // 请求供应商在最后一个 chunk 返回 usage 统计（OpenAI 兼容协议扩展，不支持的厂商会忽略）
-        body.set("stream_options", new JSONObject().set("include_usage", true));
-        if (StrUtil.isNotBlank(toolSpecsJson)) {
-            body.set("tools", JSONUtil.parseArray(toolSpecsJson));
-            body.set("tool_choice", "auto");
+        if (stream) {
+            // 请求供应商在最后一个 chunk 返回 usage 统计（OpenAI 兼容协议扩展，不支持的厂商会忽略）
+            body.set("stream_options", new JSONObject().set("include_usage", true));
         }
-        body.set("messages", messagesArray);
-        return body;
-    }
-
-    /** 构建初始消息数组（system + 多轮历史） */
-    private JSONArray buildInitialMessages(AiModelDO model, List<AiChatStreamReqVO.ChatMessage> messages) {
         JSONArray msgArray = new JSONArray();
-        // 服务层（PromptAssembler）已组装 system 消息时直接透传；
-        // 未携带时回退「模型自定义 systemPrompt 或内置人设」（兜底链路，如旧调用方）
-        boolean hasSystemMessage = !messages.isEmpty() && "system".equals(messages.get(0).getRole());
-        if (!hasSystemMessage) {
-            String systemPrompt = StrUtil.blankToDefault(model.getSystemPrompt(), AiPromptTemplates.PERSONA);
-            msgArray.add(new JSONObject().set("role", "system").set("content", systemPrompt));
-        }
+        String systemPrompt = StrUtil.blankToDefault(model.getSystemPrompt(), DEFAULT_SYSTEM_PROMPT);
+        msgArray.add(new JSONObject().set("role", "system").set("content", systemPrompt));
         for (AiChatStreamReqVO.ChatMessage msg : messages) {
             msgArray.add(new JSONObject().set("role", msg.getRole()).set("content", msg.getContent()));
         }
-        return msgArray;
+        body.set("messages", msgArray);
+        return body;
     }
 
     private String readErrorBody(InputStream body) {

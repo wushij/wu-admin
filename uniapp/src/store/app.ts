@@ -1,8 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { getConfig } from '@/api/system/auth'
-
-import { setSecurityConfig } from '@/utils/security-config'
+import { getConfig, sessionSignInit } from '@/api/system/auth'
+import { setSecurityConfig, getClientId } from '@/utils/security-config'
 
 export const useAppStore = defineStore('app', () => {
   const platformName = ref('Wu-Admin')
@@ -18,15 +17,16 @@ export const useAppStore = defineStore('app', () => {
     if (site?.platformSubtitle) platformSubtitle.value = site.platformSubtitle
     if (site?.loginWelcome) loginWelcome.value = site.loginWelcome
     if (site?.registerTitle) registerTitle.value = site.registerTitle
-    
-    // 注入运行时加密/签名安全配置
+
+    // 从公开配置获取「签名/加密是否开启」标志，但未登录前暂不下发密钥
+    const sm3SignEnabled = res.data?.security?.sm3SignEnabled === true
+    const sm4EncryptEnabled = res.data?.security?.sm4EncryptEnabled === true
+
+    // 先将开关状态写入内存闭包（密钥字段暂空，待登录后由 userStore 自动下发）
     setSecurityConfig({
-      sm4EncryptEnabled: res.data?.security?.sm4EncryptEnabled === true,
-      sm4Key: res.data?.security?.sm4Key,
-      sm2SignEnabled: res.data?.security?.sm2SignEnabled === true,
-      sm2PrivateKey: res.data?.security?.sm2PrivateKey,
-      sm3SignEnabled: res.data?.security?.sm3SignEnabled === true,
-      sm3SignKey: res.data?.security?.sm3SignKey,
+      sm4EncryptEnabled,
+      sm3SignEnabled,
+      sm2SignEnabled: sm3SignEnabled,
     })
 
     configLoaded.value = true
@@ -42,3 +42,4 @@ export const useAppStore = defineStore('app', () => {
     loadPublicConfig,
   }
 })
+

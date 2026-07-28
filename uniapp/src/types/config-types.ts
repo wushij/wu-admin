@@ -150,14 +150,9 @@ export interface SecurityPublicConfig {
   disableDevtool?: boolean
   /** 是否启用接口 SM4 加密 */
   sm4EncryptEnabled?: boolean
-  /** SM4 对称密钥（16 字节） */
-  sm4Key?: string
-  /** 是否启用接口 SM2 / HMAC-SM3 签名 */
+  /** 是否启用接口 HMAC-SM3 签名（sm2SignEnabled 为历史开关名） */
   sm2SignEnabled?: boolean
   sm3SignEnabled?: boolean
-  /** SM2 签名私钥或 HMAC-SM3 签名 Key */
-  sm2PrivateKey?: string
-  sm3SignKey?: string
 }
 
 export interface AuthPublicConfig {

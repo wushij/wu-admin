@@ -91,7 +91,7 @@
             </div>
             <div class="info-line">
               <span class="label">模型参数</span>
-              <span class="value">温度 {{ item.temperature ?? 0.7 }} · 最大 {{ item.maxTokens ?? 4096 }} Tokens</span>
+              <span class="value">温度 {{ item.temperature ?? 0.7 }} · 最大 {{ item.maxTokens ?? 2048 }} Tokens</span>
             </div>
             <div v-if="testResults[item.id] !== undefined" class="test-result" :class="testResults[item.id]! >= 0 ? 'ok' : 'fail'">
               <el-icon v-if="testResults[item.id]! >= 0"><CircleCheckFilled /></el-icon>
@@ -231,7 +231,7 @@
         <el-form-item label="最大 Tokens">
           <div style="display: flex; align-items: center; gap: 8px;">
             <el-input-number v-model="form.maxTokens" :min="128" :max="32768" :step="256" style="width: 180px" />
-            <el-tooltip content="限制 AI 单次回答生成的最大文本长度（1000 Tokens ≈ 700 汉字），默认 4096" placement="top">
+            <el-tooltip content="限制 AI 单次回答生成的最大文本长度（1000 Tokens ≈ 700 汉字），默认 2048" placement="top">
               <el-icon style="color: var(--el-text-color-secondary); cursor: pointer;"><QuestionFilled /></el-icon>
             </el-tooltip>
           </div>
@@ -276,7 +276,6 @@ import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'elem
 import ModulePageIcon from '@/components/ModulePageIcon.vue'
 import { MODULE_PAGE_ICON } from '@/constants/module-page-icons'
 import { useUserStore } from '@/store/user'
-import { useAiWuStore } from '@/store/aiWu'
 import {
   pageAiModel,
   createAiModel,
@@ -400,7 +399,7 @@ const defaultForm = (): AiModelSaveDTO & { temperature: number; maxTokens: numbe
   baseUrl: PROVIDER_META.deepseek.baseUrl,
   apiKey: '',
   temperature: 0.7,
-  maxTokens: 4096,
+  maxTokens: 2048,
   systemPrompt: '',
   isDefault: 0,
   status: 1,
@@ -439,7 +438,7 @@ function openDialog(row?: AiModelVO) {
       baseUrl: row.baseUrl,
       apiKey: '',
       temperature: row.temperature ?? 0.7,
-      maxTokens: row.maxTokens ?? 4096,
+      maxTokens: row.maxTokens ?? 2048,
       systemPrompt: row.systemPrompt || '',
       isDefault: row.isDefault ?? 0,
       status: row.status ?? 1,
@@ -510,7 +509,6 @@ async function handleSetDefault(row: AiModelVO) {
   await setDefaultAiModel(row.id)
   ElMessage.success('设置成功')
   loadData()
-  useAiWuStore().loadModels()
 }
 
 async function toggleStatus(row: AiModelVO, enabled: boolean) {

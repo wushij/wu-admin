@@ -42,6 +42,4 @@ public class AiChatLogDO extends BaseEntity {
     private String errorMsg;
     /** 来源终端 pc/mobile */
     private String source;
-    /** 工具调用轨迹（JSON 数组，L3 Function Calling） */
-    private String toolTrace;
 }

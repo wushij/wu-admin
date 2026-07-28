@@ -1,11 +1,13 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { login, getInfo, logout as logoutApi } from '@/api/system/auth'
+import { login, getInfo, logout as logoutApi, sessionSignInit } from '@/api/system/auth'
 import type { LoginForm, MenuTreeNode, AuthInfo } from '@/types/api'
 import { getToken, setToken, removeToken } from '@/utils/auth'
 import { useMessageStore } from '@/store/message'
 import { logger } from '@/utils/logger'
 import { resetMonitorBackground } from '@/composables/useMonitorBackground'
+import { setSecurityConfig, getClientId, requestSessionSignKey } from '@/utils/security-config'
+import http from '@/utils/request'
 
 export type UserInfo = Partial<
   Pick<AuthInfo, 'userId' | 'username' | 'nickname' | 'avatar' | 'roles' | 'permissions'>
@@ -18,6 +20,14 @@ export const useUserStore = defineStore('user', () => {
 
   const isLoggedIn = computed(() => !!token.value && userInfo.value.userId != null)
 
+  const initSessionKey = async () => {
+    try {
+      await requestSessionSignKey(http)
+    } catch {
+      /* 忽略获取异常 */
+    }
+  }
+
   const loginAction = async (form: LoginForm) => {
     const res = await login(form)
     const tkn = res.data.token || ''
@@ -28,10 +38,12 @@ export const useUserStore = defineStore('user', () => {
       username: res.data.username,
       nickname: res.data.nickname,
     }
+    await initSessionKey()
     return res
   }
 
   const getUserInfo = async () => {
+    await initSessionKey()
     const res = await getInfo()
     userInfo.value = {
       userId: res.data.userId,
@@ -53,6 +65,18 @@ export const useUserStore = defineStore('user', () => {
       logout()
       throw error
     }
+  }
+
+  let loadingPromise: Promise<any> | null = null
+  const ensureUserLoaded = async () => {
+    if (!token.value) return null
+    if (userInfo.value.userId != null) return userInfo.value
+    if (!loadingPromise) {
+      loadingPromise = refreshUserStore().finally(() => {
+        loadingPromise = null
+      })
+    }
+    return loadingPromise
   }
 
   const patchUserInfo = (partial: Partial<UserInfo>) => {
@@ -102,6 +126,7 @@ export const useUserStore = defineStore('user', () => {
     menus,
     token,
     isLoggedIn,
+    ensureUserLoaded,
     loginAction,
     getUserInfo,
     refreshUserStore,

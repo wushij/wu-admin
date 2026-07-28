@@ -4,6 +4,7 @@ import cn.dev33.satoken.stp.StpUtil;
 import cn.hutool.captcha.CaptchaUtil;
 import cn.hutool.captcha.LineCaptcha;
 import cn.hutool.core.util.IdUtil;
+import cn.hutool.core.util.StrUtil;
 import com.admin.server.common.exception.BusinessException;
 import com.admin.server.common.util.IpLocationUtils;
 import com.admin.server.common.util.UserAgentUtils;
@@ -347,9 +348,7 @@ public class AuthServiceImpl implements AuthService {
         String username = reqVO.getUsername().trim();
         int minPwdLen = systemConfigHelper.getRegisterMinPasswordLength();
         String password = reqVO.getPassword();
-        if (password.length() < minPwdLen) {
-            throw new BusinessException(400, "密码长度不能少于 " + minPwdLen + " 位");
-        }
+        validatePasswordComplexity(password, minPwdLen);
         String regCaptchaErr = validateRegisterCaptcha(reqVO.getUuid(), reqVO.getCode());
         if (regCaptchaErr != null) {
             throw new BusinessException(400, regCaptchaErr);
@@ -605,5 +604,11 @@ public class AuthServiceImpl implements AuthService {
             return userMapper.selectOne(new LambdaQueryWrapper<UserDO>().eq(UserDO::getEmail, email.trim()));
         }
         return null;
+    }
+
+    private void validatePasswordComplexity(String password, int minPwdLen) {
+        if (StrUtil.isBlank(password) || password.length() < minPwdLen) {
+            throw new BusinessException(400, "密码长度不能少于 " + minPwdLen + " 位");
+        }
     }
 }

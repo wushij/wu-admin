@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory, RouteRecordRaw } from 'vue-router'
 import { useUserStore } from '@/store/user'
+import { useSiteStore } from '@/store/site'
 import { hasMenuPermission } from '@/directives/permission'
 
 const routes: RouteRecordRaw[] = [
@@ -121,6 +122,26 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '审批单中心', icon: 'Checked', permission: 'system:approval:list' }
       },
       {
+        path: 'ai/model',
+        name: 'AiModel',
+        component: () => import('@/views/ai/model/index.vue'),
+        meta: { title: 'AI 模型配置', icon: 'MagicStick', permission: 'system:ai-model:list' }
+      },
+      {
+        path: 'ai/log',
+        name: 'AiLog',
+        component: () => import('@/views/ai/log/index.vue'),
+        meta: { title: 'AI 对话日志', icon: 'ChatDotRound', permission: 'system:ai-log:list' }
+      },
+      {
+        path: 'system/ai-model',
+        redirect: '/ai/model'
+      },
+      {
+        path: 'system/ai-log',
+        redirect: '/ai/log'
+      },
+      {
         path: 'monitor/api-access',
         name: 'MonitorApiAccess',
         component: () => import('@/views/monitor/api-access/index.vue'),
@@ -197,6 +218,9 @@ function hasRoutePermission(userStore: ReturnType<typeof useUserStore>, required
 }
 
 router.beforeEach(async (to, _from, next) => {
+  const siteStore = useSiteStore()
+  await siteStore.ensureConfigLoaded()
+
   const userStore = useUserStore()
 
   document.title = to.meta.title ? `${to.meta.title} - Admin Platform` : 'Admin Platform'

@@ -1,12 +1,14 @@
 <template>
   <MessageNotification />
   <H5BackButton />
+  <AiWuAssistant />
 </template>
 
 <script setup lang="ts">
 import { onLaunch, onShow, onHide } from '@dcloudio/uni-app'
 import MessageNotification from '@/components/business/MessageNotification/index.vue'
 import H5BackButton from '@/components/common/H5BackButton/index.vue'
+import AiWuAssistant from '@/components/business/AiWuAssistant/index.vue'
 import { useUserStore } from '@/store/user'
 import { useAppStore } from '@/store/app'
 import { setupRouteGuard, bootstrapSession } from '@/utils/route-guard'
@@ -30,7 +32,7 @@ onLaunch(async () => {
 
   const userStore = useUserStore()
   if (hasToken()) {
-    await bootstrapSession(() => userStore.refreshUserStore())
+    await bootstrapSession(() => userStore.ensureUserLoaded() as Promise<any>)
     startSessionServices()
     if (shouldRedirectAuthedUserToHome()) {
       uni.switchTab({ url: '/pages/index/index' })
@@ -62,4 +64,5 @@ onHide(() => {
 @use '@/styles/module-themes.scss';
 @use '@/styles/common.scss';
 @use '@/styles/toast-h5.scss';
+@use '@/styles/chat-markdown-global.scss';
 </style>

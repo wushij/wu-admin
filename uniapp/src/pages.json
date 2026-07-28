@@ -3,7 +3,8 @@
     "autoscan": true,
     "custom": {
       "^uv-(.*)": "@climblee/uv-ui/components/uv-$1/uv-$1.vue",
-      "^custom-tab-bar$": "@/custom-tab-bar/index.vue"
+      "^custom-tab-bar$": "@/custom-tab-bar/index.vue",
+      "^AiWuAssistant$": "@/components/business/AiWuAssistant/index.vue"
     }
   },
   "globalStyle": {
@@ -538,6 +539,41 @@
           "path": "api-access",
           "style": {
             "navigationBarTitleText": "API访问统计",
+            "navigationStyle": "custom"
+          }
+        }
+      ]
+    },
+    {
+      "root": "pages-sub/ai",
+      "pages": [
+        {
+          "path": "model/index",
+          "style": {
+            "navigationBarTitleText": "AI 模型配置",
+            "navigationStyle": "custom",
+            "enablePullDownRefresh": true
+          }
+        },
+        {
+          "path": "model/form",
+          "style": {
+            "navigationBarTitleText": "编辑模型",
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "log/index",
+          "style": {
+            "navigationBarTitleText": "AI 对话日志",
+            "navigationStyle": "custom",
+            "enablePullDownRefresh": true
+          }
+        },
+        {
+          "path": "log/detail",
+          "style": {
+            "navigationBarTitleText": "日志详情",
             "navigationStyle": "custom"
           }
         }
