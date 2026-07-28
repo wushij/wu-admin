@@ -122,6 +122,26 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '审批单中心', icon: 'Checked', permission: 'system:approval:list' }
       },
       {
+        path: 'ai/model',
+        name: 'AiModel',
+        component: () => import('@/views/ai/model/index.vue'),
+        meta: { title: 'AI 模型配置', icon: 'MagicStick', permission: 'system:ai-model:list' }
+      },
+      {
+        path: 'ai/log',
+        name: 'AiLog',
+        component: () => import('@/views/ai/log/index.vue'),
+        meta: { title: 'AI 对话日志', icon: 'ChatDotRound', permission: 'system:ai-log:list' }
+      },
+      {
+        path: 'system/ai-model',
+        redirect: '/ai/model'
+      },
+      {
+        path: 'system/ai-log',
+        redirect: '/ai/log'
+      },
+      {
         path: 'monitor/api-access',
         name: 'MonitorApiAccess',
         component: () => import('@/views/monitor/api-access/index.vue'),

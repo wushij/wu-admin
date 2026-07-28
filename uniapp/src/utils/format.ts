@@ -29,6 +29,17 @@ export function summarizeText(text?: string, max = 48) {
   return plain.length > max ? `${plain.slice(0, max)}…` : plain
 }
 
+/** 清理 Markdown 标记符号（如 **加粗**、### 标题等），保留纯文本 */
+export function cleanMarkdownText(text?: string) {
+  if (!text) return ''
+  return text
+    .replace(/\*\*(.*?)\*\*/g, '$1')
+    .replace(/\*(.*?)\*/g, '$1')
+    .replace(/#{1,6}\s?/g, '')
+    .replace(/`{1,3}(.*?)`{1,3}/g, '$1')
+    .trim()
+}
+
 export function formatBytes(bytes?: number) {
   if (bytes == null || Number.isNaN(bytes)) return '—'
   if (bytes < 1024) return `${bytes} B`

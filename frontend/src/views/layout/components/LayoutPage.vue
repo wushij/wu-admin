@@ -50,6 +50,7 @@
     </div>
 
     <MessageNotification />
+    <AiWuFloatBtn />
   </div>
 </template>
 
@@ -58,6 +59,7 @@ import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/store/user'
 import MessageNotification from '@/components/MessageNotification.vue'
+import AiWuFloatBtn from '@/components/AiWu/AiWuFloatBtn.vue'
 import LayoutSidebar from './LayoutSidebar.vue'
 import LayoutHeader from './LayoutHeader.vue'
 import LayoutTagsView from './LayoutTagsView.vue'

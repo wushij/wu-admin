@@ -2,10 +2,13 @@
   <view class="page-tab" :class="{ 'page-tab--bare': bare }">
     <slot />
     <custom-tab-bar />
+    <AiWuAssistant />
   </view>
 </template>
 
 <script setup lang="ts">
+import AiWuAssistant from '@/components/business/AiWuAssistant/index.vue'
+
 withDefaults(defineProps<{ bare?: boolean }>(), { bare: false })
 </script>
 

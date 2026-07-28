@@ -83,6 +83,21 @@ public class ApiSecurityFilter extends OncePerRequestFilter {
             "/auth/session-sign-init"
     );
 
+    /** SSE 流式端点：保留请求验签，但响应体为增量推流，不可整体 SM4 加密 */
+    private static final Set<String> STREAMING_URI_SUFFIXES = Set.of(
+            "/ai/chat/stream"
+    );
+
+    private boolean isStreamingUri(String uri) {
+        if (uri == null) return false;
+        for (String suffix : STREAMING_URI_SUFFIXES) {
+            if (uri.endsWith(suffix)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private boolean isPublicAuthUri(String uri) {
         if (uri == null) return false;
         for (String publicUri : PUBLIC_AUTH_URIS) {
@@ -293,7 +308,8 @@ public class ApiSecurityFilter extends OncePerRequestFilter {
         // 7. 响应处理 (使用 SM4-CBC 模式 + 16 字节随机 IV 向量加密响应体)
         String acceptEncryptedHeader = request.getHeader(HEADER_ACCEPT_ENCRYPTED);
         boolean wantsEncryptedResp = "1".equals(acceptEncryptedHeader) || "true".equalsIgnoreCase(acceptEncryptedHeader);
-        boolean shouldEncryptResponse = sm4EncryptEnabled && (isRequestEncrypted || wantsEncryptedResp);
+        boolean shouldEncryptResponse = sm4EncryptEnabled && (isRequestEncrypted || wantsEncryptedResp)
+                && !isStreamingUri(request.getRequestURI());
 
         if (shouldEncryptResponse) {
             ContentCachingResponseWrapper wrappedResponse = new ContentCachingResponseWrapper(response);

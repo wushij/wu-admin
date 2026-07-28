@@ -10,8 +10,8 @@
 --   强制重装         SET @WU_ADMIN_ALLOW_DROP=1; 后再执行全文（会 DROP 清库）
 --
 -- 【正文结构】
---   Part A  建表      §1 用户 ~ §17 代码生成（gen_table 含 uk_gen_table_name_deleted 唯一索引）
---   Part B  初始数据  组织/用户/字典/配置/菜单（含代码生成 164-169,179）/定时任务/角色权限
+--   Part A  建表      §1 用户 ~ §18 AI wu助手（gen_table 含 uk_gen_table_name_deleted 唯一索引）
+--   Part B  初始数据  组织/用户/字典/配置/菜单（含代码生成 164-169,179、AI 管理 200-206,210）/定时任务/角色权限
 --
 -- 【附录】旧库补丁（含代码生成表/菜单/唯一索引迁移及历次发版变更）
 -- =============================================================================
@@ -710,6 +710,58 @@ CREATE TABLE gen_table_column (
     INDEX idx_gen_col_table (table_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='代码生成字段表';
 
+-- §18 AI wu助手（sys_ai_model / sys_ai_chat_log）
+DROP TABLE IF EXISTS sys_ai_chat_log;
+DROP TABLE IF EXISTS sys_ai_model;
+CREATE TABLE sys_ai_model (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '模型配置ID',
+    name VARCHAR(100) NOT NULL COMMENT '配置名称（展示用，如「DeepSeek 官方」）',
+    provider VARCHAR(32) NOT NULL COMMENT '供应商: deepseek/openai/qwen/kimi',
+    model_name VARCHAR(100) NOT NULL COMMENT '模型名称（如 deepseek-chat / qwen-plus）',
+    base_url VARCHAR(255) NOT NULL COMMENT 'API 基础地址（不含 /chat/completions）',
+    api_key VARCHAR(1024) DEFAULT '' COMMENT 'API 密钥（SM4-CBC 加密存储）',
+    temperature DECIMAL(3,2) DEFAULT 0.70 COMMENT '采样温度 0~2',
+    max_tokens INT DEFAULT 4096 COMMENT '单次回复最大 Token 数',
+    system_prompt VARCHAR(2000) DEFAULT NULL COMMENT '系统提示词（角色设定）',
+    is_default TINYINT DEFAULT 0 COMMENT '是否默认模型 0:否 1:是（全局唯一）',
+    status TINYINT DEFAULT 1 COMMENT '状态 0:禁用 1:启用',
+    remark VARCHAR(500) DEFAULT NULL COMMENT '备注',
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    creator VARCHAR(64) DEFAULT '' COMMENT '创建者',
+    updater VARCHAR(64) DEFAULT '' COMMENT '更新者',
+    deleted TINYINT DEFAULT 0 COMMENT '是否删除',
+    INDEX idx_provider (provider),
+    INDEX idx_is_default (is_default)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='AI 模型供应商配置表';
+
+CREATE TABLE sys_ai_chat_log (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '日志ID',
+    user_id BIGINT DEFAULT 0 COMMENT '提问用户ID',
+    username VARCHAR(64) DEFAULT '' COMMENT '提问用户名',
+    conversation_id VARCHAR(64) DEFAULT '' COMMENT '会话ID（前端生成，串联多轮对话）',
+    model_id BIGINT DEFAULT 0 COMMENT '模型配置ID',
+    provider VARCHAR(32) DEFAULT '' COMMENT '供应商',
+    model_name VARCHAR(100) DEFAULT '' COMMENT '模型名称',
+    question TEXT COMMENT '用户提问（脱敏后）',
+    answer MEDIUMTEXT COMMENT 'AI 回答',
+    prompt_tokens INT DEFAULT 0 COMMENT '提问 Token 消耗',
+    completion_tokens INT DEFAULT 0 COMMENT '回答 Token 消耗',
+    total_tokens INT DEFAULT 0 COMMENT '总 Token 消耗',
+    duration_ms BIGINT DEFAULT 0 COMMENT '耗时（毫秒）',
+    chat_status TINYINT DEFAULT 1 COMMENT '结果 1:成功 0:失败 2:用户中断',
+    error_msg VARCHAR(500) DEFAULT NULL COMMENT '失败原因',
+    source VARCHAR(20) DEFAULT 'pc' COMMENT '来源终端 pc/mobile',
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    creator VARCHAR(64) DEFAULT '' COMMENT '创建者',
+    updater VARCHAR(64) DEFAULT '' COMMENT '更新者',
+    deleted TINYINT DEFAULT 0 COMMENT '是否删除',
+    INDEX idx_user_id (user_id),
+    INDEX idx_model_id (model_id),
+    INDEX idx_create_time (create_time)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='AI 对话日志审计表';
+
 -- =============================================================================
 -- Part B  初始化数据
 -- =============================================================================
@@ -931,7 +983,7 @@ INSERT INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, c
 -- 登录日志（隶属系统日志）
 (6, '登录日志', 'system:loginLog:list', 2, 2, 120, '/system/login-log', 'Promotion', 'system/login-log/index', 1),
 -- 开发工具
-(150, '开发工具', '', 1, 8, 0, '/tool', 'Tools', '', 1),
+(150, '开发工具', '', 1, 9, 0, '/tool', 'Tools', '', 1),
 (151, '接口文档', 'tool:apiDoc:view', 2, 1, 150, '/tool/api-doc', 'Connection', '/doc.html', 1),
 (164, '代码生成', 'tool:gen:list', 2, 2, 150, '/tool/gen', 'SetUp', 'tool/gen/index', 1),
 (165, '代码生成查询', 'tool:gen:query', 3, 1, 164, '', '', '', 1),
@@ -949,7 +1001,16 @@ INSERT INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, c
 (175, '通知修改', 'system:announce:update', 3, 3, 171, '', '', '', 1),
 (176, '通知删除', 'system:announce:delete', 3, 4, 171, '', '', '', 1),
 (177, '通知发布', 'system:announce:publish', 3, 5, 171, '', '', '', 1),
-(178, '聊天查询', 'system:chat:query', 3, 1, 172, '', '', '', 1);
+(178, '聊天查询', 'system:chat:query', 3, 1, 172, '', '', '', 1),
+-- AI 管理（顶级目录 210，排在开发工具之前）
+(210, 'AI 管理', '', 1, 8, 0, '/ai', 'MagicStick', '', 1),
+(200, 'AI 模型配置', 'system:ai-model:list', 2, 1, 210, '/ai/model', 'MagicStick', 'ai/model/index', 1),
+(201, 'AI模型新增', 'system:ai-model:create', 3, 1, 200, '', '', '', 1),
+(202, 'AI模型修改', 'system:ai-model:update', 3, 2, 200, '', '', '', 1),
+(203, 'AI模型删除', 'system:ai-model:delete', 3, 3, 200, '', '', '', 1),
+(204, 'AI模型测试', 'system:ai-model:test', 3, 4, 200, '', '', '', 1),
+(205, 'AI 对话日志', 'system:ai-log:list', 2, 2, 210, '/ai/log', 'ChatDotRound', 'ai/log/index', 1),
+(206, 'AI日志删除', 'system:ai-log:delete', 3, 1, 205, '', '', '', 1);
 
 -- 内置定时任务（默认暂停 status=0，在「系统监控 → 定时任务」启用）
 INSERT INTO sys_job (id, job_name, job_group, invoke_target, cron_expression, misfire_policy, concurrent, status, remark) VALUES
@@ -980,7 +1041,8 @@ INSERT INTO sys_role_menu (role_id, menu_id) VALUES
 (1, 100), (1, 101), (1, 102), (1, 103), (1, 190), (1, 104), (1, 180), (1, 181), (1, 182), (1, 183), (1, 184), (1, 185), (1, 186), (1, 187), (1, 188), (1, 189),
 (1, 105), (1, 110), (1, 111), (1, 112), (1, 113),
 (1, 150), (1, 151), (1, 164), (1, 165), (1, 166), (1, 167), (1, 168), (1, 169), (1, 179),
-(1, 170), (1, 171), (1, 172), (1, 173), (1, 174), (1, 175), (1, 176), (1, 177), (1, 178);
+(1, 170), (1, 171), (1, 172), (1, 173), (1, 174), (1, 175), (1, 176), (1, 177), (1, 178),
+(1, 210), (1, 200), (1, 201), (1, 202), (1, 203), (1, 204), (1, 205), (1, 206);
 
 -- 普通用户默认权限（页面+查询按钮；侧栏父级由 getUserMenuList 自动补齐）
 INSERT INTO sys_role_menu (role_id, menu_id) VALUES
@@ -2157,4 +2219,77 @@ INSERT IGNORE INTO sys_role_menu (role_id, menu_id)
 SELECT rm.role_id, 191
 FROM sys_role_menu rm
 WHERE rm.menu_id = 163;
+
+-- [附录·AI] add5：AI wu助手（sys_ai_model / sys_ai_chat_log + 「AI 管理」菜单，可重复执行）
+CREATE TABLE IF NOT EXISTS sys_ai_model (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '模型配置ID',
+    name VARCHAR(100) NOT NULL COMMENT '配置名称（展示用，如「DeepSeek 官方」）',
+    provider VARCHAR(32) NOT NULL COMMENT '供应商: deepseek/openai/qwen/kimi',
+    model_name VARCHAR(100) NOT NULL COMMENT '模型名称（如 deepseek-chat / qwen-plus）',
+    base_url VARCHAR(255) NOT NULL COMMENT 'API 基础地址（不含 /chat/completions）',
+    api_key VARCHAR(1024) DEFAULT '' COMMENT 'API 密钥（SM4-CBC 加密存储）',
+    temperature DECIMAL(3,2) DEFAULT 0.70 COMMENT '采样温度 0~2',
+    max_tokens INT DEFAULT 4096 COMMENT '单次回复最大 Token 数',
+    system_prompt VARCHAR(2000) DEFAULT NULL COMMENT '系统提示词（角色设定）',
+    is_default TINYINT DEFAULT 0 COMMENT '是否默认模型 0:否 1:是（全局唯一）',
+    status TINYINT DEFAULT 1 COMMENT '状态 0:禁用 1:启用',
+    remark VARCHAR(500) DEFAULT NULL COMMENT '备注',
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    creator VARCHAR(64) DEFAULT '' COMMENT '创建者',
+    updater VARCHAR(64) DEFAULT '' COMMENT '更新者',
+    deleted TINYINT DEFAULT 0 COMMENT '是否删除',
+    INDEX idx_provider (provider),
+    INDEX idx_is_default (is_default)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='AI 模型供应商配置表';
+
+CREATE TABLE IF NOT EXISTS sys_ai_chat_log (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '日志ID',
+    user_id BIGINT DEFAULT 0 COMMENT '提问用户ID',
+    username VARCHAR(64) DEFAULT '' COMMENT '提问用户名',
+    conversation_id VARCHAR(64) DEFAULT '' COMMENT '会话ID（前端生成，串联多轮对话）',
+    model_id BIGINT DEFAULT 0 COMMENT '模型配置ID',
+    provider VARCHAR(32) DEFAULT '' COMMENT '供应商',
+    model_name VARCHAR(100) DEFAULT '' COMMENT '模型名称',
+    question TEXT COMMENT '用户提问（脱敏后）',
+    answer MEDIUMTEXT COMMENT 'AI 回答',
+    prompt_tokens INT DEFAULT 0 COMMENT '提问 Token 消耗',
+    completion_tokens INT DEFAULT 0 COMMENT '回答 Token 消耗',
+    total_tokens INT DEFAULT 0 COMMENT '总 Token 消耗',
+    duration_ms BIGINT DEFAULT 0 COMMENT '耗时（毫秒）',
+    chat_status TINYINT DEFAULT 1 COMMENT '结果 1:成功 0:失败 2:用户中断',
+    error_msg VARCHAR(500) DEFAULT NULL COMMENT '失败原因',
+    source VARCHAR(20) DEFAULT 'pc' COMMENT '来源终端 pc/mobile',
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    creator VARCHAR(64) DEFAULT '' COMMENT '创建者',
+    updater VARCHAR(64) DEFAULT '' COMMENT '更新者',
+    deleted TINYINT DEFAULT 0 COMMENT '是否删除',
+    INDEX idx_user_id (user_id),
+    INDEX idx_model_id (model_id),
+    INDEX idx_create_time (create_time)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='AI 对话日志审计表';
+
+-- 菜单：顶级目录「AI 管理」（id=210）+ AI 模型配置 / AI 对话日志 + 按钮权限
+INSERT IGNORE INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, component, status) VALUES
+(210, 'AI 管理', '', 1, 8, 0, '/ai', 'MagicStick', '', 1),
+(200, 'AI 模型配置', 'system:ai-model:list', 2, 1, 210, '/ai/model', 'MagicStick', 'ai/model/index', 1),
+(201, 'AI模型新增', 'system:ai-model:create', 3, 1, 200, '', '', '', 1),
+(202, 'AI模型修改', 'system:ai-model:update', 3, 2, 200, '', '', '', 1),
+(203, 'AI模型删除', 'system:ai-model:delete', 3, 3, 200, '', '', '', 1),
+(204, 'AI模型测试', 'system:ai-model:test', 3, 4, 200, '', '', '', 1),
+(205, 'AI 对话日志', 'system:ai-log:list', 2, 2, 210, '/ai/log', 'ChatDotRound', 'ai/log/index', 1),
+(206, 'AI日志删除', 'system:ai-log:delete', 3, 1, 205, '', '', '', 1);
+
+-- 存量库迁移：早期版本曾将两个菜单挂在「系统管理」id=1 下，统一迁至「AI 管理」（可重复执行）
+UPDATE sys_menu SET parent_id = 210, sort = 1, path = '/ai/model', component = 'ai/model/index' WHERE id = 200;
+UPDATE sys_menu SET parent_id = 210, sort = 2, path = '/ai/log', component = 'ai/log/index' WHERE id = 205;
+
+-- 顶级排序：「AI 管理」排在「开发工具」之前（可重复执行）
+UPDATE sys_menu SET sort = 8 WHERE id = 210;
+UPDATE sys_menu SET sort = 9 WHERE id = 150;
+
+-- 超管默认拥有全部 AI 菜单权限
+INSERT IGNORE INTO sys_role_menu (role_id, menu_id) VALUES
+(1, 210), (1, 200), (1, 201), (1, 202), (1, 203), (1, 204), (1, 205), (1, 206);
 

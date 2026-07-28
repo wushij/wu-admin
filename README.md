@@ -1,6 +1,6 @@
 # Admin Platform
 
-基于 **Vue 3 + Spring Boot** 的企业级后台管理系统，配套 **uni-app 移动端（H5 / 微信小程序）**。覆盖 RBAC 权限、工单审批、企业 IM、系统监控大屏、代码生成、支付/短信集成等场景，已部署上线运行。
+基于 **Vue 3 + Spring Boot** 的企业级后台管理系统，配套 **uni-app 移动端（H5 / 微信小程序）**。覆盖 RBAC 权限、工单审批、企业 IM、AI 智能助手、系统监控大屏、代码生成、支付/短信集成等场景，已部署上线运行。
 
 > 🔗 **在线演示**
 > - PC 端：<https://wushij.online>
@@ -81,6 +81,17 @@
 - **正在输入…**：私聊输入时推送 typing 事件，顶栏实时显示
 - **WebSocket 推送类型**：`notice` / `chat` / `groupChat` / `groupAnnouncement` / `typing` / `presence`
 
+### AI wu 助手（AI 管理）
+
+- **全局悬浮球助手**：PC 端登录后右下角悬浮球（`AiWuFloatBtn` + `AiWuChatPanel`）随时唤起对话，移动端提供同款 `AiWuAssistant` 组件，登录即可使用、无需菜单权限
+- **SSE 流式对话**：`POST /api/ai/chat/stream` 基于 `SseEmitter` 增量推送（事件 `delta` / `done` / `error`），专用线程池不占用 Web 容器线程，客户端断开自动停止拉流
+- **多供应商接入**：DeepSeek / OpenAI / Qwen（通义千问）/ Kimi（月之暗面），统一走 OpenAI 兼容协议 `/chat/completions`（策略模式 `AiProviderFactory`），仅 baseUrl 与模型名不同
+- **AI 模型配置**：供应商/模型/baseUrl/温度等可视化管理，支持连通性测试与启用停用；**API Key 使用国密 SM4 加密存储**，回显仅掩码
+- **AI 对话日志**：问答全量审计（问题/回答/Token 用量/耗时/状态/来源 pc·mobile），`@Async` 异步落库 `sys_ai_chat_log`，PC 与移动端均可查看明细
+- **流式 Markdown 渲染**：markdown-it + highlight.js 代码高亮，`useStreamingMarkdown` 打字机式增量渲染
+- **成本与安全防护**：单轮上下文最多 20 条、单条 4000 字截断，提问内容脱敏（`AiSanitizerUtil`），异常统一降级提示
+- **独立顶级菜单「AI 管理」**：菜单 ID 210（`/ai`），下挂「AI 模型配置」（`/ai/model`）与「AI 对话日志」（`/ai/log`），权限标识 `system:ai-model:*` / `system:ai-log:*`
+
 ### 系统监控大屏
 
 | 模块 | 后端 | 前端特性 |
@@ -111,6 +122,7 @@
 - **移动端 IM**：☺/⌨ 表情键盘切换、H5 `visualViewport` 键盘高度适配、发送后保持键盘；「最近」表情本地记录
 - **个人中心**：资料编辑、头像上传、短信验证绑定/更换手机号（发码前强制滑块）、自助改密、忘记密码
 - **监控运维**：移动端同步支持服务/缓存/在线用户/定时任务监控、工单审批、代码生成
+- **AI 助手同款体验**：`AiWuAssistant` 流式对话 + Markdown 渲染，工作台「AI 管理」分组直达模型配置与对话日志页面
 - **API 地址自动解析**：`resolveApiBaseUrl()` 区分 H5 线上（同域 `/api`）与小程序（完整 HTTPS），避免局域网 IP 误打包
 
 ### 第三方集成
@@ -134,8 +146,9 @@
 - Vue **3.4** + Composition API + TypeScript 5.3
 - Pinia 2.1.7 · Element Plus 2.4.0 · Vite 5
 - ECharts 5.6 · Three.js 0.184 · tsparticles（engine/slim 3.9 + vue3 3.0）
+- markdown-it 14 + highlight.js 11（AI 对话流式 Markdown 渲染与代码高亮）
 
-**移动端**：uni-app (Vue 3) + uv-ui 1.1.20 + luch-request 3.1.1
+**移动端**：uni-app (Vue 3) + uv-ui 1.1.20 + luch-request 3.1.1 + markdown-it/highlight.js
 
 **运行时**：JDK **17** · MySQL **8.0**（兼容 5.6.5+）· Redis **7.x** · Node.js 18+ · Maven 3.6+
 
@@ -208,8 +221,11 @@ mysql -u wuadmin -p wuadmin < sql/admin_platform_mysql56.sql
 
 # 已有库升级：极旧库执行 admin_platform.sql 文末附录段（约 990 行起）
 # 后续发版增量按版本依次：
-#   mysql -u root -p wu-admin < sql/add1.sql    # 在线用户查询权限（monitor:online:query）
-#   mysql -u root -p wu-admin < sql/add2.sql    # 回收中心 query/restore/delete 权限
+#   mysql -u root -p wu-admin < sql/migration/add1.sql    # 在线用户查询权限（monitor:online:query）
+#   mysql -u root -p wu-admin < sql/migration/add2.sql    # 回收中心 query/restore/delete 权限
+#   mysql -u root -p wu-admin < sql/migration/add3_api_security.sql     # 国密 API 安全配置
+#   mysql -u root -p wu-admin < sql/migration/add4_email_config.sql     # 邮件配置与发信日志
+#   mysql -u root -p wu-admin < sql/migration/add5_ai_wu_assistant.sql  # AI wu助手（模型配置/对话日志/AI 管理菜单）
 ```
 
 > 切勿对已有表的生产库跑 `admin_platform.sql` 全文（含 DROP，默认熔断拦截）。旧库升级用附录或 `addN.sql`。
@@ -286,12 +302,13 @@ wu-admin/
 │       │   ├── RbacServerApplication.java
 │       │   ├── common/            # 通用层：CommonResult、BusinessException、工具类
 │       │   ├── framework/         # 框架层：安全、MyBatis、Redis、Filter、WebSocket
-│       │   └── modules/           # 业务模块（系统、基础设施、支付、工单审批、即时通讯等）
+│       │   └── modules/           # 业务模块（系统、基础设施、支付、工单审批、即时通讯、AI 等）
 │       │       ├── system/        # 系统管理与核心认证
 │       │       ├── infra/         # 基础设施（文件、生成、任务监控、日志、回收站、导出）
 │       │       ├── trade/         # 支付、短信、邮件三方集成
 │       │       ├── ticket/        # 工单与审批流管理
-│       │       └── message/       # 站内消息与即时聊天 IM
+│       │       ├── message/       # 站内消息与即时聊天 IM
+│       │       └── ai/            # AI wu助手（流式对话、模型配置、对话日志、供应商策略）
 │       ├── main/resources/
 │       │   ├── application.yml / application-dev.yml / application-prod.yml
 │       │   ├── ip2region/         # IP 归属地 xdb 库（git 忽略）
@@ -305,10 +322,10 @@ wu-admin/
 │   ├── vite.config.ts
 │   └── src/
 │       ├── api/                   # API 接口层（按模块分目录）
-│       ├── views/                 # 页面视图（login/dashboard/system/monitor/tool/message）
-│       ├── components/            # 全局组件（DictSelect、SliderCaptcha、EmojiPicker 等）
-│       ├── composables/           # 组合式函数（useDict、useMonitorBackground 等）
-│       ├── store/                 # Pinia（user/message/site/tagsView）
+│       ├── views/                 # 页面视图（login/dashboard/system/ai/monitor/tool/message）
+│       ├── components/            # 全局组件（DictSelect、SliderCaptcha、EmojiPicker、AiWu 悬浮球助手等）
+│       ├── composables/           # 组合式函数（useDict、useMonitorBackground、useStreamingMarkdown 等）
+│       ├── store/                 # Pinia（user/message/site/tagsView/aiWu）
 │       ├── router/                # 路由与守卫
 │       ├── utils/                 # request、主题、菜单树、WebSocket 工具
 │       ├── directives/            # v-permission / v-role 指令
@@ -323,7 +340,7 @@ wu-admin/
 │   ├── vite.config.ts
 │   └── src/
 │       ├── pages/                 # 主包页面：首页、工作台、消息、我的
-│       ├── pages-sub/             # 子包：系统管理、监控、IM、个人中心
+│       ├── pages-sub/             # 子包：系统管理、监控、IM、AI 管理、个人中心
 │       ├── components/            # 70+ 通用/业务组件
 │       ├── composables/           # useH5ListPageNav、useChatKeyboardInset 等
 │       ├── store/                 # Pinia stores
@@ -366,7 +383,8 @@ com.admin.server/
     ├── infra/        # 文件存储、代码生成、定时任务、监控运维、操作日志、回收站、通用导出、系统任务调度
     ├── trade/        # 微信/支付宝支付接入、短信平台通道、发信通道、三方渠道对接
     ├── ticket/       # 工单与审批流（工单管理、流程审批表单、用户注册审核流）
-    └── message/      # 消息触达（站内公告推送、IM 聊天、消息撤回、@提及提醒、群聊管理）
+    ├── message/      # 消息触达（站内公告推送、IM 聊天、消息撤回、@提及提醒、群聊管理）
+    └── ai/           # AI wu助手（SSE 流式对话、模型配置与连通测试、对话日志审计、SM4 密钥加密）
 ```
 
 ---
@@ -432,6 +450,8 @@ com.admin.server/
 |------|------|:--:|
 | `/api/auth/**` | 登录/注册/验证码/config/profile（公开 `config` 无需登录） | 🌐 匿名 |
 | `/api/system/**` | 用户/角色/菜单/组织/字典/配置/工单/审批/消息 | 🔒 登录+权限 |
+| `/api/ai/chat/**` | AI wu助手流式对话（SSE）与启用模型列表 | 🔒 登录 |
+| `/api/system/ai-model/**` `/api/system/ai-log/**` | AI 模型配置、AI 对话日志管理 | 🔒 登录+权限 |
 | `/api/monitor/**` | API 访问/在线用户/定时任务/缓存/服务监控 | 🔒 登录+权限 |
 | `/api/pay/notify/**` | 微信/支付宝回调 | 🌐 白名单 |
 | `/api/files/**` | 文件上传与访问（GET 走 Nginx alias 直出） | 🌐 GET 公开 |
@@ -729,6 +749,20 @@ A：除了前端反调试之外，还支持 Sa-Token 账号多端同时在线/�
 
 **Q：上传失败提示大小或类型？**
 A：系统配置 → 文件存储 调整限制，上限不超过 500MB。聊天文件共享文件配置约束。
+
+### AI wu 助手
+
+**Q：「AI 管理」菜单不显示或悬浮球不出现？**
+A：旧库需执行 `sql/migration/add5_ai_wu_assistant.sql`（建表 `sys_ai_model` / `sys_ai_chat_log` + 菜单）→ 重启后端 → **重新登录**。悬浮球对所有登录用户可见；若面板提示「暂无可用模型」，需管理员在 AI 模型配置中启用至少一个模型。
+
+**Q：AI 对话提示「AI 服务暂时不可用」？**
+A：到 AI 管理 → AI 模型配置 点「测试」验证连通性：检查 API Key 是否有效、baseUrl 是否可达（服务器需能访问供应商 API）、账户余额是否充足。具体报错可在「AI 对话日志」失败记录的错误明细中查看。
+
+**Q：支持哪些大模型供应商？**
+A：DeepSeek / OpenAI / Qwen（通义千问）/ Kimi（月之暗面），均通过 OpenAI 兼容协议接入，不支持 Coze 等智能体平台。其他兼容 `/chat/completions` 协议的服务可尝试以上述供应商类型 + 自定义 baseUrl 接入。
+
+**Q：API Key 安全吗？**
+A：入库前经国密 SM4 加密，列表/详情接口仅返回掩码；对话日志中的提问内容会先脱敏再落库。
 
 ### 监控与性能
 
