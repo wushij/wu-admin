@@ -290,7 +290,7 @@ public class SystemConfigHelper {
 
     // ---------- 前端与 API 安全 ----------
     public boolean isDisableDevtool() {
-        return getGroupJson(GROUP_SECURITY).getBool("disableDevtool", false);
+        return getGroupJson(GROUP_SECURITY).getBool("disableDevtool", true);
     }
 
     /** Sa-Token is-concurrent，默认 false（禁止多端同时在线） */
@@ -303,9 +303,14 @@ public class SystemConfigHelper {
         return getGroupJson(GROUP_SECURITY).getBool("sm4EncryptEnabled", false);
     }
 
-    /** SM4 数据加密是否生效（开关开启且已配置 16 字节密钥） */
+    /**
+     * SM4 数据加密是否生效。
+     *
+     * 注意：自从引入 session-sign-init 会话随机密钥机制后，SM4 密钥由后端随机生成并存入 Redis，
+     * 不再依赖 DB 中配置的静态 sm4SecretKey。只要管理员将加密开关打开即生效。
+     */
     public boolean isSm4EncryptEffective() {
-        return isSm4EncryptEnabled() && StrUtil.isNotBlank(getSm4SecretKey());
+        return isSm4EncryptEnabled();
     }
 
     /** SM2 数字签名开启状态 */
@@ -320,10 +325,15 @@ public class SystemConfigHelper {
         return getSm4SecretKey();
     }
 
-    /** SM2/HMAC-SM3 数字签名是否生效（开关开启且已配置签名 Key） */
+    /**
+     * SM2/HMAC-SM3 数字签名是否生效。
+     *
+     * 注意：自从引入 session-sign-init 会话随机密钥机制后，签名密钥由后端随机生成并存入 Redis，
+     * 不再依赖 DB 中配置的静态 sm3SignKey / sm4SecretKey。
+     * 因此，只要管理员在后台将签名开关打开，签名功能即生效，无需额外配置静态密钥字段。
+     */
     public boolean isSm2SignEffective() {
-        boolean enabled = isSm2SignEnabled() || getGroupJson(GROUP_SECURITY).getBool("sm3SignEnabled", false);
-        return enabled && StrUtil.isNotBlank(getSm3SignKey());
+        return isSm2SignEnabled() || getGroupJson(GROUP_SECURITY).getBool("sm3SignEnabled", false);
     }
 
     /** 时间戳校验开启状态（默认开启） */
@@ -340,16 +350,6 @@ public class SystemConfigHelper {
     public String getSm4SecretKey() {
         String key = getGroupJson(GROUP_SECURITY).getStr("sm4SecretKey", "");
         return StrUtil.isBlank(key) ? "" : key.trim();
-    }
-
-    /** SM2 数字签名公钥 */
-    public String getSm2PublicKey() {
-        return getGroupJson(GROUP_SECURITY).getStr("sm2PublicKey", "");
-    }
-
-    /** SM2 数字签名私钥 */
-    public String getSm2PrivateKey() {
-        return getGroupJson(GROUP_SECURITY).getStr("sm2PrivateKey", "");
     }
 
     // ---------- 短信配置 ----------
@@ -620,7 +620,7 @@ public class SystemConfigHelper {
         security.put("sm3SignEnabled", sm3SignActive);
         security.put("sm2SignEnabled", sm3SignActive);
         security.put("sm4EncryptEnabled", sm4Active);
-        // 严禁输出：sm4Key / sm3SignKey / sm2PrivateKey
+        // 严禁输出：sm4Key / sm3SignKey 等任何密钥材料
 
         result.put("security", security);
 

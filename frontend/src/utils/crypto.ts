@@ -1,4 +1,4 @@
-import { sm2, sm3, sm4 } from 'sm-crypto'
+import { sm3, sm4 } from 'sm-crypto'
 
 /**
  * 生成 32 位随机 Nonce 字符串 (使用密码学强随机数生成器)
@@ -136,32 +136,6 @@ export function signHmacSm3(content: string, signKey: string): string {
   } catch (err) {
     console.error('HMAC-SM3 签名失败:', err)
     return ''
-  }
-}
-
-/**
- * SM2 签名计算 (保留兼容)
- */
-export function signSm2(content: string, privateKeyHex: string): string {
-  if (!content || !privateKeyHex) return ''
-  try {
-    return sm2.doSignature(content, privateKeyHex)
-  } catch (err) {
-    console.error('SM2 签名失败:', err)
-    return ''
-  }
-}
-
-/**
- * SM2 验签 (保留兼容)
- */
-export function verifySm2(content: string, signature: string, publicKeyHex: string): boolean {
-  if (!content || !signature || !publicKeyHex) return false
-  try {
-    return sm2.doVerifySignature(content, signature, publicKeyHex)
-  } catch (err) {
-    console.error('SM2 验签失败:', err)
-    return false
   }
 }
 

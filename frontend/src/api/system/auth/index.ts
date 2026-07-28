@@ -21,10 +21,10 @@ export interface SliderChallengeResult {
 export interface SessionSignResult {
   /** 服务端签名功能是否已开启 */
   enabled: boolean
-  /** HMAC-SM3 签名密钥（enabled=true 时有值，仅存内存） */
+  /** HMAC-SM3 签名密钥（enabled=true 且签名开启时有值，仅存内存） */
   sm3SignKey?: string
-  /** 签名密钥别名（与 sm3SignKey 相同，向前兼容） */
-  sm2PrivateKey?: string
+  /** 会话 SM4 对称密钥（32 位 Hex，enabled=true 且加密开启时有值） */
+  sm4Key?: string
   /** 临时密钥有效期（分钟） */
   ttlMinutes?: number
 }

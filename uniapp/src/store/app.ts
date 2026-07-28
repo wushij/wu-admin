@@ -18,32 +18,16 @@ export const useAppStore = defineStore('app', () => {
     if (site?.loginWelcome) loginWelcome.value = site.loginWelcome
     if (site?.registerTitle) registerTitle.value = site.registerTitle
 
-    // 从公开配置获取「签名/加密是否开启」标志，但不再从此接口取密钥
+    // 从公开配置获取「签名/加密是否开启」标志，但未登录前暂不下发密钥
     const sm3SignEnabled = res.data?.security?.sm3SignEnabled === true
     const sm4EncryptEnabled = res.data?.security?.sm4EncryptEnabled === true
 
-    // 先将开关状态写入内存闭包（密钥字段暂空）
+    // 先将开关状态写入内存闭包（密钥字段暂空，待登录后由 userStore 自动下发）
     setSecurityConfig({
       sm4EncryptEnabled,
       sm3SignEnabled,
       sm2SignEnabled: sm3SignEnabled,
     })
-
-    // 若签名功能已开启，调用 session-sign-init 获取本次启动专属临时密钥（30 分钟有效）
-    // 密钥仅存于内存，不写入 uni.setStorageSync
-    if (sm3SignEnabled) {
-      try {
-        const signRes = await sessionSignInit(getClientId())
-        if (signRes.data?.enabled) {
-          setSecurityConfig({
-            sm3SignKey: signRes.data.sm3SignKey,
-            sm2PrivateKey: signRes.data.sm2PrivateKey,
-          })
-        }
-      } catch {
-        // 密钥获取失败不阻断应用启动，签名功能将被跳过
-      }
-    }
 
     configLoaded.value = true
     return res

@@ -30,7 +30,7 @@ onLaunch(async () => {
 
   const userStore = useUserStore()
   if (hasToken()) {
-    await bootstrapSession(() => userStore.refreshUserStore())
+    await bootstrapSession(() => userStore.ensureUserLoaded() as Promise<any>)
     startSessionServices()
     if (shouldRedirectAuthedUserToHome()) {
       uni.switchTab({ url: '/pages/index/index' })

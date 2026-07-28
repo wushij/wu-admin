@@ -11,13 +11,12 @@
 export interface ClientSecurityConfig {
   /** 是否启用接口请求/响应 SM4 加密 */
   sm4EncryptEnabled?: boolean
-  /** 是否启用接口 SM2 / HMAC-SM3 签名 */
+  /** 是否启用接口 HMAC-SM3 签名（sm2SignEnabled 为历史开关名，实际控制 HMAC-SM3） */
   sm2SignEnabled?: boolean
   sm3SignEnabled?: boolean
   /** SM4 对称密钥（16 字节），由 session-sign-init 下发，仅存内存 */
   sm4Key?: string
   /** HMAC-SM3 签名 Key，由 session-sign-init 下发，仅存内存 */
-  sm2PrivateKey?: string
   sm3SignKey?: string
 }
 
@@ -58,5 +57,77 @@ export function getSecurityConfig(): Readonly<ClientSecurityConfig> {
 
 /** 重置安全配置（登出时调用） */
 export function resetSecurityConfig(): void {
-  securityConfig = {}
+  // 只清除会话密钥，保留签名/加密开关：
+  // 开关来自 /auth/config 且只加载一次，若一并清空，
+  // 退出后重新登录会因开关丢失而不再附加 X-Signature，导致后端 403
+  securityConfig = {
+    sm4EncryptEnabled: securityConfig.sm4EncryptEnabled,
+    sm3SignEnabled: securityConfig.sm3SignEnabled,
+    sm2SignEnabled: securityConfig.sm2SignEnabled,
+  }
+  // 同时清空 Promise 缓存，确保登出后重新登录可获取新密钥
+  sessionSignPromise = null
 }
+
+let sessionSignPromise: Promise<any> | null = null
+
+/**
+ * 请求初始化会话签名密钥。
+ *
+ * 修复竞态 bug：
+ * - 成功后不清空 sessionSignPromise，保持为已 resolved 的 Promise 缓存。
+ * - 后续调用直接返回缓存，不会重复发 session-sign-init，不会覆盖 Redis 里的密钥。
+ * - 失败时清空 Promise，允许下次重试。
+ * - resetSecurityConfig（登出）时一并清空，保证下次登录重新初始化。
+ */
+export function requestSessionSignKey(httpInstance: any): Promise<any> {
+  // 快速返回：密钥已在内存，无需再请求
+  const existing = securityConfig
+  if (existing.sm3SignKey || existing.sm4Key) {
+    return sessionSignPromise ?? Promise.resolve(null)
+  }
+
+  // Promise 锁：正在请求中，复用同一个 Promise，防止并发多次
+  if (sessionSignPromise) {
+    return sessionSignPromise
+  }
+
+  sessionSignPromise = (async () => {
+    try {
+      const res = (await httpInstance.post('/auth/session-sign-init', undefined, {
+        params: { clientId: getClientId() }
+      })) as any
+      if (res.data?.enabled) {
+        setSecurityConfig({
+          sm3SignKey: res.data.sm3SignKey,
+          sm4Key: res.data.sm4Key,
+        })
+      }
+      // 成功后不清空 Promise，保持为已 resolved 的缓存，防止后续调用重复发请求
+      return res
+    } catch (err) {
+      // 失败时清空 Promise，允许下次重试
+      sessionSignPromise = null
+      throw err
+    }
+  })()
+
+  return sessionSignPromise
+}
+
+/** 供拦截器或其它地方判断当前是否正在加载密钥 */
+export function isSessionInitializing(): boolean {
+  return sessionSignPromise !== null
+}
+
+/** 供拦截器或其它地方等待当前正在进行的密钥初始化 */
+export async function waitSessionInitialized(): Promise<void> {
+  if (sessionSignPromise) {
+    try {
+      await sessionSignPromise
+    } catch {
+      /* 忽略 */
+    }
+  }
+}
+

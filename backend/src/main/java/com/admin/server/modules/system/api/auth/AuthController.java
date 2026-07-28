@@ -37,6 +37,8 @@ public class AuthController {
 
     /** 会话签名密钥 Redis 前缀，TTL = 30 分钟 */
     private static final String SESSION_SIGN_KEY_PREFIX = "security:session-sign:";
+    /** 会话 SM4 加密密钥 Redis 前缀，TTL 与签名密钥相同 */
+    private static final String SESSION_SM4_KEY_PREFIX = "security:session-sm4:";
     private static final long SESSION_SIGN_TTL_MINUTES = 30L;
     /** clientId 合法字符校验（32~64位十六进制或 UUID 格式） */
     private static final int CLIENT_ID_MIN_LEN = 8;
@@ -75,28 +77,27 @@ public class AuthController {
         return CommonResult.success(authService.getPublicConfig());
     }
 
+    @Resource
+    private com.admin.server.modules.system.service.auth.SliderCaptchaService sliderCaptchaService;
+
     /**
-     * 【安全加固 P0】会话签名密钥初始化接口。
+     * 【安全加固 P0-1 深度修复】会话签名密钥初始化接口。
      *
-     * <p>替代原「公开接口明文下发固定密钥」方案。
-     * 客户端在应用启动时生成一个随机 clientId（内存保存，不持久化），
-     * 携带 clientId 调用此接口，服务端为其生成一个随机 32 字节（64 位 Hex）临时签名密钥，
-     * 以 {@code security:session-sign:{clientId}} 为 key 存入 Redis，TTL=30 分钟。
-     * 后续请求的 X-Signature 均使用此临时密钥计算，Filter 也用 clientId 从 Redis 取密钥验签。
+     * <p>严禁匿名脚本免认证批量获取密钥！
+     * 获取签名密钥必须满足以下条件之一：
+     * 1. 处于已登录状态（StpUtil.isLogin() == true）；
+     * 2. 未登录状态下，必须提供人机交互验证凭证（uuid + code），并通过服务端滑块/人机挑战校验。
      *
-     * <p>安全收益：
-     * <ul>
-     *   <li>密钥不再全局固定（不再是 WuAdmin16ByteKey 这类硬编码值）</li>
-     *   <li>密钥每 30 分钟自动过期，不同客户端拿到不同密钥</li>
-     *   <li>即使某次下发的临时密钥被截获，有效窗口仅 30 分钟</li>
-     * </ul>
-     *
-     * @param clientId 前端随机生成的设备标识（8~128 字符），要求每次应用启动重新生成，不持久化
+     * @param clientId 前端随机生成的设备标识（8~128 字符），每次应用启动重新生成
+     * @param uuid 人机挑战/验证码 UUID（未登录时必填）
+     * @param code 人机挑战/验证码 校验代码（未登录时必填）
      */
     @Operation(summary = "初始化会话签名密钥（安全加固）")
     @PostMapping("/session-sign-init")
     public CommonResult<Map<String, Object>> sessionSignInit(
-            @RequestParam(value = "clientId") String clientId) {
+            @RequestParam(value = "clientId") String clientId,
+            @RequestParam(value = "uuid", required = false) String uuid,
+            @RequestParam(value = "code", required = false) String code) {
         // 校验 clientId 格式，防止 Redis key 注入
         if (StrUtil.isBlank(clientId)
                 || clientId.length() < CLIENT_ID_MIN_LEN
@@ -104,20 +105,46 @@ public class AuthController {
                 || !clientId.matches("[A-Za-z0-9\\-_]+")) {
             throw new BusinessException(400, "clientId 格式非法");
         }
-        // 仅在服务端签名功能开启时才生成并返回密钥
-        if (!systemConfigHelper.isSm2SignEffective()) {
+        // 签名与 SM4 加密均未开启时，无需下发任何密钥
+        boolean signActive = systemConfigHelper.isSm2SignEffective();
+        boolean sm4Active = systemConfigHelper.isSm4EncryptEffective();
+        if (!signActive && !sm4Active) {
             return CommonResult.success(Map.of("enabled", false));
         }
-        // 生成 32 字节（64 位 Hex）密码学安全随机临时密钥
-        String tempKey = RandomUtil.randomString("0123456789abcdef", 64);
-        String redisKey = SESSION_SIGN_KEY_PREFIX + clientId;
-        stringRedisTemplate.opsForValue().set(redisKey, tempKey, SESSION_SIGN_TTL_MINUTES, TimeUnit.MINUTES);
-        return CommonResult.success(Map.of(
-                "enabled", true,
-                "sm3SignKey", tempKey,
-                "sm2PrivateKey", tempKey,
-                "ttlMinutes", SESSION_SIGN_TTL_MINUTES
-        ));
+
+        // 人机与身份防刷检查：未登录且未提供有效人机校验时，严禁下发密钥
+        boolean isLoggedIn = StpUtil.isLogin();
+        if (!isLoggedIn) {
+            if (StrUtil.isBlank(uuid) || StrUtil.isBlank(code)) {
+                throw new BusinessException(400, "获取签名密钥须提供人机校验凭证或具备登录态");
+            }
+            String sliderErr = sliderCaptchaService.verifyAndConsume(uuid, code);
+            if (sliderErr != null) {
+                throw new BusinessException(400, sliderErr);
+            }
+        }
+
+        Map<String, Object> result = new java.util.HashMap<>();
+        result.put("enabled", true);
+        result.put("ttlMinutes", SESSION_SIGN_TTL_MINUTES);
+
+        // 签名密钥：32 字节（64 位 Hex）密码学安全随机临时密钥
+        if (signActive) {
+            String signKey = RandomUtil.randomString("0123456789abcdef", 64);
+            stringRedisTemplate.opsForValue().set(
+                    SESSION_SIGN_KEY_PREFIX + clientId, signKey, SESSION_SIGN_TTL_MINUTES, TimeUnit.MINUTES);
+            result.put("sm3SignKey", signKey);
+        }
+
+        // SM4 加密密钥：16 字节（32 位 Hex），SM4 要求 128 位密钥
+        if (sm4Active) {
+            String sm4Key = RandomUtil.randomString("0123456789abcdef", 32);
+            stringRedisTemplate.opsForValue().set(
+                    SESSION_SM4_KEY_PREFIX + clientId, sm4Key, SESSION_SIGN_TTL_MINUTES, TimeUnit.MINUTES);
+            result.put("sm4Key", sm4Key);
+        }
+
+        return CommonResult.success(result);
     }
 
     @Log(title = "用户登录", businessType = Log.BusinessType.OTHER, isSaveRequestData = false)

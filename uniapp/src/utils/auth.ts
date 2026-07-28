@@ -15,3 +15,4 @@ export function removeToken(): void {
 export function hasToken(): boolean {
   return !!getToken()
 }
+
