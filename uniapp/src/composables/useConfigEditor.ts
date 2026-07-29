@@ -14,6 +14,7 @@ import { getRoleList } from '@/api/system/role'
 import { getUserList } from '@/api/system/user'
 import type {
   ConfigGroupCode,
+  AiAdminConfig,
   EmailAdminConfig,
   FileStorageConfig,
   LoginAdminConfig,
@@ -32,7 +33,7 @@ import type { RoleVO } from '@/types/system'
 import type { UserVO } from '@/types/user'
 
 const GROUP_CODES: ConfigGroupCode[] = [
-  'site', 'session', 'file', 'rateLimit', 'login', 'register', 'thirdParty', 'payment', 'sms', 'email', 'security',
+  'site', 'session', 'file', 'rateLimit', 'login', 'register', 'thirdParty', 'payment', 'sms', 'email', 'security', 'ai',
 ]
 
 const SITE_DEFAULTS: SiteAdminConfig = {
@@ -114,6 +115,13 @@ const RATE_DEFAULTS: RateLimitConfig = {
   smsSendIntervalSeconds: 60,
   smsPerPhoneDaily: 10,
   smsPerIpDaily: 30,
+  aiChatPerUserMinute: 8,
+}
+const AI_DEFAULTS: AiAdminConfig = {
+  globalKnowledge: '',
+  answerScope: 'focus',
+  tokensPerUserDaily: 100000,
+  roleTokenQuotas: [],
 }
 const THIRD_DEFAULTS: ThirdPartyConfig = {
   wechat: { enabled: false, appId: '', appSecret: '' },
@@ -213,7 +221,19 @@ function mergeLoadedConfig<K extends ConfigGroupCode>(code: K, raw: string | und
     if (rl.smsSendIntervalSeconds === undefined) rl.smsSendIntervalSeconds = 60
     if (rl.smsPerPhoneDaily === undefined) rl.smsPerPhoneDaily = 10
     if (rl.smsPerIpDaily === undefined) rl.smsPerIpDaily = 30
+    if (rl.aiChatPerUserMinute === undefined) rl.aiChatPerUserMinute = 8
     merged = rl
+  }
+  if (code === 'ai') {
+    const ai = merged as AiAdminConfig
+    if (ai.answerScope !== 'open') ai.answerScope = 'focus'
+    if (typeof ai.tokensPerUserDaily !== 'number') ai.tokensPerUserDaily = 100000
+    ai.roleTokenQuotas = Array.isArray(ai.roleTokenQuotas)
+      ? ai.roleTokenQuotas
+          .filter((q) => q && Number(q.roleId) > 0)
+          .map((q) => ({ roleId: Number(q.roleId), tokensDaily: Number(q.tokensDaily) || 0 }))
+      : []
+    merged = ai
   }
   if (code === 'register') {
     merged = normalizeRegister(merged as RegisterAdminConfig)
@@ -262,6 +282,7 @@ export function useConfigEditor() {
   const emailDraft = reactive<EmailAdminConfig>({ ...EMAIL_DEFAULTS })
   const fileDraft = reactive<FileStorageConfig>({ ...FILE_DEFAULTS })
   const rateDraft = reactive<RateLimitConfig>({ ...RATE_DEFAULTS })
+  const aiDraft = reactive<AiAdminConfig>(clone(AI_DEFAULTS))
   const thirdDraft = reactive<ThirdPartyConfig>(clone(THIRD_DEFAULTS))
   const paymentDraft = reactive<PaymentConfig>(clone(PAYMENT_DEFAULTS))
 
@@ -277,6 +298,7 @@ export function useConfigEditor() {
     rateLimit: clone(RATE_DEFAULTS),
     thirdParty: clone(THIRD_DEFAULTS),
     payment: clone(PAYMENT_DEFAULTS),
+    ai: clone(AI_DEFAULTS),
   })
 
   const drafts = {
@@ -291,6 +313,7 @@ export function useConfigEditor() {
     rateLimit: rateDraft,
     thirdParty: thirdDraft,
     payment: paymentDraft,
+    ai: aiDraft,
   } as const
 
   const captchaTypeOptions = [
@@ -345,6 +368,7 @@ export function useConfigEditor() {
         rateLimit: RATE_DEFAULTS,
         thirdParty: THIRD_DEFAULTS,
         payment: PAYMENT_DEFAULTS,
+        ai: AI_DEFAULTS,
       }
       const configResults = await Promise.allSettled(GROUP_CODES.map((code) => getConfigGroup(code)))
       GROUP_CODES.forEach((code, i) => {
@@ -423,6 +447,7 @@ export function useConfigEditor() {
   const saveRateLimit = () => saveGroup('rateLimit', '限流配置')
   const saveThirdParty = () => saveGroup('thirdParty', '第三方配置')
   const savePayment = () => saveGroup('payment', '支付配置')
+  const saveAi = () => saveGroup('ai', 'AI 助手配置')
   const saveLogin = () => saveGroup('login', '登录配置')
   const saveRegister = () => saveGroup('register', '注册配置')
   const saveSms = () => saveGroup('sms', '短信配置')
@@ -604,6 +629,7 @@ export function useConfigEditor() {
     rateDraft,
     thirdDraft,
     paymentDraft,
+    aiDraft,
     savedSnapshot,
     roleOptions,
     userOptions,
@@ -642,6 +668,7 @@ export function useConfigEditor() {
     saveRateLimit,
     saveThirdParty,
     savePayment,
+    saveAi,
     loadRecentSmsLogs,
     loadSmsLogs,
     openSmsLogs,

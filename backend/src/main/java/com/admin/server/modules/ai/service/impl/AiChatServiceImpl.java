@@ -59,6 +59,9 @@ public class AiChatServiceImpl implements AiChatService {
     @Resource
     private AiToolExecutor aiToolExecutor;
 
+    @Resource
+    private AiChatQuotaGuard aiChatQuotaGuard;
+
     @PreDestroy
     public void shutdown() {
         chatExecutor.shutdownNow();
@@ -80,6 +83,14 @@ public class AiChatServiceImpl implements AiChatService {
             model = aiModelService.getAvailableModel(reqVO.getModelId());
         } catch (BusinessException e) {
             sendErrorQuietly(emitter, e.getMessage());
+            return emitter;
+        }
+
+        // 用户级限流与 token 配额（fail-open）：被拒经 SSE error 下发，不落 chat log（未产生上游成本）
+        String quotaErr = aiChatQuotaGuard.check(userId);
+        if (quotaErr != null) {
+            log.warn("AI 对话被限流拒绝 user={}: {}", userId, quotaErr);
+            sendErrorQuietly(emitter, quotaErr);
             return emitter;
         }
 
@@ -137,6 +148,10 @@ public class AiChatServiceImpl implements AiChatService {
                             cancelled.set(true);
                         }
                     }
+                    // token 用量回写配额计数（成功与中断均回写，中断同样产生上游消耗）；
+                    // 供应商未返回 usage 时按字符数估算，避免配额形同虚设
+                    long tokensForQuota = resolveTokensForQuota(promptTokens, completionTokens, messages, answerBuffer.toString());
+                    aiChatQuotaGuard.recordUsage(userId, tokensForQuota);
                     saveChatLog(reqVO, model, userId, username, messages, answerBuffer.toString(),
                             promptTokens, completionTokens, duration, cancelled.get() ? 2 : 1, null, toolTrace);
                 }
@@ -228,6 +243,30 @@ public class AiChatServiceImpl implements AiChatService {
             }
         }
         return "";
+    }
+
+    /**
+     * 计算用于配额计数的 token 数：供应商返回了 usage 直接用其和；
+     * 未返回（promptTokens+completionTokens==0）时按 (各消息+回答字符数)/2 保守估算，避免配额形同虚设。
+     */
+    private long resolveTokensForQuota(int promptTokens, int completionTokens,
+                                       List<AiChatStreamReqVO.ChatMessage> messages, String answer) {
+        int total = promptTokens + completionTokens;
+        if (total > 0) {
+            return total;
+        }
+        long chars = 0;
+        if (messages != null) {
+            for (AiChatStreamReqVO.ChatMessage m : messages) {
+                if (m != null && m.getContent() != null) {
+                    chars += m.getContent().length();
+                }
+            }
+        }
+        if (answer != null) {
+            chars += answer.length();
+        }
+        return chars <= 0 ? 0 : chars / 2;
     }
 
     /** 工具执行前的前端提示文案 */

@@ -17,10 +17,10 @@
   </view>
 
   <!-- 对话抽屉 -->
-  <view v-if="aiWuStore.panelVisible" class="aiwu-mask" @click="aiWuStore.closePanel()" @touchmove.stop.prevent />
-  <view class="aiwu-drawer" :class="{ 'is-open': aiWuStore.panelVisible }">
+  <view v-if="aiWuStore.panelVisible" class="aiwu-mask" @click="handleMaskClick" @touchmove.stop.prevent />
+  <view class="aiwu-drawer" :class="{ 'is-open': aiWuStore.panelVisible }" @click="handleBlankClick" @touchmove.stop>
     <!-- 头部 -->
-    <view class="aiwu-header">
+    <view class="aiwu-header" @touchmove.stop.prevent>
       <view class="aiwu-header__left">
         <view class="aiwu-header__avatar" @click.stop="toggleHistory">
           <svg viewBox="0 0 1024 1024" width="18" height="18" fill="#ffffff">
@@ -37,12 +37,15 @@
       </view>
       <view class="aiwu-header__actions">
         <view class="model-picker-wrap">
-          <view class="aiwu-header__btn model" @click.stop="toggleModelMenu">
+          <view class="aiwu-header__btn model" :class="{ 'is-active': modelMenuVisible }" @click.stop="toggleModelMenu">
             <text class="model-name">{{ aiWuStore.currentModel ? (aiWuStore.currentModel.modelName || aiWuStore.currentModel.name) : '选择模型' }}</text>
-            <text class="arrow" :class="{ 'is-open': modelMenuVisible }">▾</text>
+            <svg class="arrow-svg" :class="{ 'is-open': modelMenuVisible }" viewBox="0 0 1024 1024" width="10" height="10" fill="currentColor">
+              <path d="M840.4 300H183.6c-19.7 0-30.7 22.7-18.7 38.3l328.4 424.7c11.6 15 34.6 15 46.2 0l328.4-424.7c12.1-15.6 1.1-38.3-17.5-38.3z" />
+            </svg>
           </view>
           <!-- 内嵌模型选择浮框 (留在当前界面切换，不触发全屏 mask 关闭) -->
           <view v-if="modelMenuVisible" class="model-dropdown-popover" @click.stop>
+            <view class="popover-arrow" />
             <view
               v-for="m in aiWuStore.models"
               :key="m.id"
@@ -51,15 +54,21 @@
               @click.stop="selectModel(m.id)"
             >
               <text class="popover-name">{{ m.modelName || m.name }}</text>
-              <text v-if="m.id === aiWuStore.selectedModelId" class="popover-check">✓</text>
+              <svg v-if="m.id === aiWuStore.selectedModelId" class="popover-check" viewBox="0 0 1024 1024" width="14" height="14" fill="currentColor">
+                <path d="M406.656 706.944 195.84 496.256a32 32 0 1 0-45.248 45.248l256 256 512-512a32 32 0 0 0-45.248-45.248L406.592 706.944z" />
+              </svg>
             </view>
           </view>
         </view>
         <view class="aiwu-header__btn plus" title="新对话" @click="handleClear">
-          <text class="plus-txt">+</text>
+          <svg viewBox="0 0 1024 1024" width="13" height="13" fill="currentColor">
+            <path d="M480 480V208a32 32 0 1 1 64 0v272h272a32 32 0 1 1 0 64H544v272a32 32 0 1 1-64 0V544H208a32 32 0 1 1 0-64h272z" />
+          </svg>
         </view>
         <view class="aiwu-header__btn close" title="关闭" @click="aiWuStore.closePanel()">
-          <text>✕</text>
+          <svg viewBox="0 0 1024 1024" width="12" height="12" fill="currentColor">
+            <path d="M292.7 236.1a32 32 0 0 0-45.3 45.3L466.7 512 247.4 731.3a32 32 0 0 0 45.3 45.3L512 557.3l219.3 219.3a32 32 0 0 0 45.3-45.3L557.3 512l219.3-219.3a32 32 0 0 0-45.3-45.3L512 466.7 292.7 236.1z" />
+          </svg>
         </view>
       </view>
     </view>
@@ -106,7 +115,7 @@
     <scroll-view
       class="aiwu-body"
       scroll-y
-      :scroll-into-view="scrollIntoId"
+      :scroll-top="scrollTop"
       scroll-with-animation
       @scroll="onBodyScroll"
     >
@@ -213,7 +222,7 @@
     </scroll-view>
 
     <!-- 输入区 -->
-    <view class="aiwu-footer">
+    <view class="aiwu-footer" @touchmove.stop.prevent>
       <view class="aiwu-input-wrap">
         <textarea
           v-model="inputText"
@@ -292,9 +301,25 @@ const userAvatar = computed(() => userStore.userInfo?.avatar || '')
 const userInitial = computed(() => (userStore.userInfo?.nickname || 'U').slice(0, 1))
 
 const inputText = ref('')
-const scrollIntoId = ref('')
+const scrollTop = ref(0)
+let savedScrollY = 0
 
 const modelMenuVisible = ref(false)
+const historyVisible = ref(false)
+
+function handleMaskClick() {
+  if (modelMenuVisible.value) {
+    modelMenuVisible.value = false
+    return
+  }
+  aiWuStore.closePanel()
+}
+
+function handleBlankClick() {
+  if (modelMenuVisible.value) {
+    modelMenuVisible.value = false
+  }
+}
 
 function toggleModelMenu() {
   if (aiWuStore.streaming) return
@@ -324,12 +349,28 @@ watch(
       modelMenuVisible.value = false
       historyVisible.value = false
     }
-    // 抽屉打开时锁定页面滚动，防止内层滚到边界后穿透滚动外层页面
+    // 抽屉打开时强力锁定外层 Body 滚动，彻底防止 H5 下流式渲染与输入导致的页面位移
     // #ifdef H5
-    document.documentElement.style.overflow = visible ? 'hidden' : ''
-    document.body.style.overflow = visible ? 'hidden' : ''
+    if (visible) {
+      savedScrollY = window.scrollY || document.documentElement.scrollTop || 0
+      document.documentElement.style.overflow = 'hidden'
+      document.body.style.overflow = 'hidden'
+      document.body.style.position = 'fixed'
+      document.body.style.top = `-${savedScrollY}px`
+      document.body.style.width = '100%'
+      document.body.style.touchAction = 'none'
+    } else {
+      document.documentElement.style.overflow = ''
+      document.body.style.overflow = ''
+      document.body.style.position = ''
+      document.body.style.top = ''
+      document.body.style.width = ''
+      document.body.style.touchAction = ''
+      window.scrollTo(0, savedScrollY)
+    }
     // #endif
   },
+  { immediate: true },
 )
 
 // 面板开着时组件被卸载（如切页）需解除页面滚动锁定
@@ -337,13 +378,16 @@ onUnmounted(() => {
   // #ifdef H5
   document.documentElement.style.overflow = ''
   document.body.style.overflow = ''
+  document.body.style.position = ''
+  document.body.style.top = ''
+  document.body.style.width = ''
+  document.body.style.touchAction = ''
   // #endif
 })
 
 function scrollToBottom() {
-  scrollIntoId.value = ''
   nextTick(() => {
-    scrollIntoId.value = 'aiwu-bottom-anchor'
+    scrollTop.value = scrollTop.value === 999999 ? 999998 : 999999
   })
 }
 
@@ -407,7 +451,6 @@ function handleClear() {
 }
 
 // ---------- 历史对话 ----------
-const historyVisible = ref(false)
 const historyLoading = ref(false)
 const conversations = ref<AiConversationVO[]>([])
 
@@ -663,49 +706,72 @@ function copyMessage(content: string, id: string | number) {
 
 .model-dropdown-popover {
   position: absolute;
-  top: calc(100% + 12rpx);
+  top: calc(100% + 14rpx);
   right: 0;
   z-index: 1010;
-  min-width: 280rpx;
-  max-width: 400rpx;
-  background: #1e293b;
-  border: 2rpx solid rgba(255, 255, 255, 0.16);
+  min-width: 320rpx;
+  max-width: 440rpx;
+  background: rgba(30, 41, 59, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 20rpx;
-  box-shadow: 0 16rpx 40rpx rgba(15, 23, 42, 0.6);
+  box-shadow: 0 16rpx 48rpx rgba(15, 23, 42, 0.7);
   padding: 10rpx 0;
   overflow: hidden;
+  animation: popover-fade 0.2s ease-out;
+
+  .popover-arrow {
+    position: absolute;
+    top: -10rpx;
+    right: 32rpx;
+    width: 0;
+    height: 0;
+    border-left: 10rpx solid transparent;
+    border-right: 10rpx solid transparent;
+    border-bottom: 10rpx solid rgba(255, 255, 255, 0.16);
+  }
 
   .popover-item {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 16rpx;
-    padding: 18rpx 24rpx;
+    padding: 20rpx 26rpx;
     font-size: 24rpx;
-    color: #cbd5e1;
-    transition: background 0.2s;
+    color: rgba(255, 255, 255, 0.82);
+    transition: background 0.18s;
 
     &:active {
-      background: rgba(255, 255, 255, 0.1);
+      background: rgba(255, 255, 255, 0.08);
     }
 
     &.is-active {
-      color: #6366f1;
+      color: #818cf8;
       font-weight: 600;
-      background: rgba(99, 102, 241, 0.15);
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.25) 0%, rgba(99, 102, 241, 0.12) 100%);
     }
 
     .popover-name {
+      flex: 1;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
     }
 
     .popover-check {
-      font-size: 24rpx;
-      color: #6366f1;
-      font-weight: 700;
+      color: #818cf8;
+      flex-shrink: 0;
     }
+  }
+}
+
+@keyframes popover-fade {
+  from {
+    opacity: 0;
+    transform: translateY(-8rpx);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
@@ -718,46 +784,57 @@ function copyMessage(content: string, id: string | number) {
 
   &__btn {
     height: 52rpx;
-    padding: 0 18rpx;
-    border-radius: 14rpx;
-    background: rgba(255, 255, 255, 0.12);
-    border: 2rpx solid rgba(255, 255, 255, 0.15);
+    padding: 0 20rpx;
+    border-radius: 26rpx;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.12);
     display: flex;
     align-items: center;
-    gap: 6rpx;
+    justify-content: center;
+    gap: 8rpx;
     font-size: 22rpx;
-    color: #fff;
+    color: rgba(255, 255, 255, 0.9);
+    transition: all 0.2s ease;
 
-    &.close {
-      width: 52rpx;
-      padding: 0;
-      justify-content: center;
+    &:active {
+      background: rgba(255, 255, 255, 0.18);
+      transform: scale(0.92);
     }
 
+    &.is-active {
+      background: rgba(99, 102, 241, 0.25);
+      border-color: rgba(129, 140, 248, 0.45);
+      color: #a5b4fc;
+    }
+
+    &.close,
     &.plus {
       width: 52rpx;
+      height: 52rpx;
       padding: 0;
-      justify-content: center;
-      .plus-txt {
-        font-size: 32rpx;
-        line-height: 1;
-        font-weight: 500;
-      }
+      border-radius: 50%;
     }
 
     &.model {
-      max-width: 380rpx;
+      max-width: 360rpx;
     }
 
     .model-name {
-      max-width: 320rpx;
+      max-width: 260rpx;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+      font-weight: 500;
     }
 
-    .arrow {
-      opacity: 0.8;
+    .arrow-svg {
+      transition: transform 0.25s ease;
+      opacity: 0.75;
+      flex-shrink: 0;
+
+      &.is-open {
+        transform: rotate(180deg);
+      }
     }
   }
 }

@@ -100,6 +100,21 @@ export interface RateLimitConfig {
   smsSendIntervalSeconds: number
   smsPerPhoneDaily: number
   smsPerIpDaily: number
+  /** AI 对话：单用户每分钟请求次数上限（0 表示不限制） */
+  aiChatPerUserMinute: number
+}
+
+/** AI 对话角色级每日 token 配额项 */
+export interface RoleTokenQuota {
+  roleId: number
+  tokensDaily: number
+}
+
+export interface AiAdminConfig {
+  globalKnowledge: string
+  answerScope: 'focus' | 'open'
+  tokensPerUserDaily: number
+  roleTokenQuotas: RoleTokenQuota[]
 }
 
 export interface ThirdPartyOAuthConfig {
@@ -224,3 +239,4 @@ export type ConfigGroupCode =
   | 'sms'
   | 'email'
   | 'security'
+  | 'ai'

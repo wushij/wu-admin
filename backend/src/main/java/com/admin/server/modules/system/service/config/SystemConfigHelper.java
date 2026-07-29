@@ -147,6 +147,11 @@ public class SystemConfigHelper {
         return clampDaily(getGroupJson(GROUP_RATE_LIMIT).getInt("smsPerIpDaily", 30));
     }
 
+    /** AI 对话：单用户每分钟请求次数上限（0 表示不限制），归属限流分组 */
+    public int getAiChatPerUserMinute() {
+        return clampRate(getGroupJson(GROUP_RATE_LIMIT).getInt("aiChatPerUserMinute", 8));
+    }
+
     private int clampRate(int n) {
         if (n <= 0) {
             return 0;
@@ -639,5 +644,46 @@ public class SystemConfigHelper {
     public String getAiAnswerScope() {
         String scope = getGroupJson(GROUP_AI).getStr("answerScope", "focus");
         return "open".equalsIgnoreCase(scope) ? "open" : "focus";
+    }
+
+    /** AI 对话：单用户每日 token 兜底配额（0 表示不限制），未命中角色规则时生效 */
+    public long getAiTokensPerUserDaily() {
+        return clampTokenQuota(getGroupJson(GROUP_AI).getLong("tokensPerUserDaily", 100000L));
+    }
+
+    /**
+     * AI 对话：角色级每日 token 配额映射 roleId -&gt; tokensDaily（已 clamp）。
+     * 配置缺失或解析异常时返回空映射，由调用方回退兜底配额。
+     */
+    public Map<Long, Long> getAiRoleTokenQuotas() {
+        Map<Long, Long> result = new HashMap<>();
+        try {
+            JSONArray arr = getGroupJson(GROUP_AI).getJSONArray("roleTokenQuotas");
+            if (arr == null) {
+                return result;
+            }
+            for (int i = 0; i < arr.size(); i++) {
+                JSONObject item = arr.getJSONObject(i);
+                if (item == null) {
+                    continue;
+                }
+                Long roleId = item.getLong("roleId");
+                if (roleId == null || roleId <= 0) {
+                    continue;
+                }
+                result.put(roleId, clampTokenQuota(item.getLong("tokensDaily", 0L)));
+            }
+        } catch (Exception e) {
+            return new HashMap<>();
+        }
+        return result;
+    }
+
+    /** token 配额收敛：非正数归零（表示不限制），上限 1000 万 */
+    private long clampTokenQuota(long n) {
+        if (n <= 0) {
+            return 0L;
+        }
+        return Math.min(n, 10_000_000L);
     }
 }

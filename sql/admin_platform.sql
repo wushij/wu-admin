@@ -1126,8 +1126,8 @@ INSERT INTO sys_config_group (group_code, group_name, config_value, remark) VALU
  '{"wechatPay":{"enabled":false,"mchId":"","appId":"","apiV3Key":"","privateKey":"","certSerialNo":"","notifyUrl":""},"alipay":{"enabled":false,"appId":"","privateKey":"","publicKey":"","signType":"RSA2","gatewayUrl":"https://openapi.alipay.com/gateway.do","notifyUrl":"","returnUrl":""}}',
  '微信/支付宝支付与测试下单'),
 ('ai', 'AI助手配置',
- '{"globalKnowledge":"## 你所服务的系统\\n- 系统名称：Admin Platform（wu-admin），企业级后台管理平台，含 PC 端与移动端 H5。\\n- 核心定位：提供用户权限管理、系统监控、消息协作、工单审批与 AI 智能助手服务。\\n- 常见操作路径：\\n  - 修改密码：个人中心 → 安全设置 → 修改密码\\n  - 忘记密码：登录页 → 忘记密码 → 邮箱验证重置\\n  - 提交工单：系统管理 → 工单管理 → 新建工单\\n  - 绑定邮箱：个人中心 → 安全设置 → 邮箱绑定\\n  - 查看公告：消息中心 → 公告","answerScope":"focus"}',
- 'AI wu助手知识注入：globalKnowledge 全局项目知识(Markdown)、answerScope 回答边界(focus/open)')
+ '{"globalKnowledge":"","answerScope":"focus","tokensPerUserDaily":100000,"roleTokenQuotas":[]}',
+ 'AI wu助手配置：answerScope 回答边界(focus/open)、Token 每日配额设置')
 ON DUPLICATE KEY UPDATE
     group_name = VALUES(group_name),
     remark = VALUES(remark);

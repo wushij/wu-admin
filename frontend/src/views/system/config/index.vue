@@ -77,6 +77,9 @@
         <el-tab-pane label="安全配置" name="security">
           <SecurityConfigTab :draft="draft.security" :can-edit="canEdit" v-model:forbid-concurrent-login="forbidConcurrentLogin" />
         </el-tab-pane>
+        <el-tab-pane label="AI 助手" name="ai">
+          <AiConfigTab :draft="draft.ai" :can-edit="canEdit" :role-options="roleOptions" />
+        </el-tab-pane>
       </el-tabs>
 
       <div v-if="canEdit" class="footer-actions">
@@ -175,7 +178,7 @@ import { computed, watch, onMounted } from 'vue'
 import ModulePageIcon from '@/components/ModulePageIcon.vue'
 import { MODULE_PAGE_ICON } from '@/constants/module-page-icons'
 
-const configTabCount = 11
+const configTabCount = 12
 import SiteConfigTab from './components/SiteConfigTab.vue'
 import SessionConfigTab from './components/SessionConfigTab.vue'
 import FileConfigTab from './components/FileConfigTab.vue'
@@ -187,6 +190,7 @@ import PaymentConfigTab from './components/PaymentConfigTab.vue'
 import SmsConfigTab from './components/SmsConfigTab.vue'
 import EmailConfigTab from './components/EmailConfigTab.vue'
 import SecurityConfigTab from './components/SecurityConfigTab.vue'
+import AiConfigTab from './components/AiConfigTab.vue'
 import { useConfigDraft } from './composables/useConfigDraft'
 import { usePaymentTest } from './composables/usePaymentTest'
 import { useSmsTest } from './composables/useSmsTest'

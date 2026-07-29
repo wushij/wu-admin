@@ -24,6 +24,11 @@
       <el-input-number v-model="draft.smsPerIpDaily" :min="0" :max="500" :disabled="!canEdit" />
       <span class="unit">0 表示不限制</span>
     </el-form-item>
+    <el-divider content-position="left">AI 对话限流</el-divider>
+    <el-form-item label="AI 对话(次/分钟/用户)">
+      <el-input-number v-model="draft.aiChatPerUserMinute" :min="0" :max="200" :disabled="!canEdit" />
+      <span class="unit">0 表示不限制</span>
+    </el-form-item>
   </el-form>
 </template>
 

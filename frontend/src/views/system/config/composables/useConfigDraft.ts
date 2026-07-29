@@ -9,7 +9,7 @@ import { useSiteStore } from '@/store/site'
 import type { ConfigGroupCode, ConfigGroupMap } from '@/types/config'
 
 export const GROUP_CODES = [
-  'site', 'session', 'file', 'rateLimit', 'login', 'register', 'thirdParty', 'payment', 'sms', 'email', 'security',
+  'site', 'session', 'file', 'rateLimit', 'login', 'register', 'thirdParty', 'payment', 'sms', 'email', 'security', 'ai',
 ] as const satisfies readonly ConfigGroupCode[]
 
 const DEFAULTS = {
@@ -34,6 +34,7 @@ const DEFAULTS = {
     smsSendIntervalSeconds: 60,
     smsPerPhoneDaily: 10,
     smsPerIpDaily: 30,
+    aiChatPerUserMinute: 8,
   },
   login: {
     captchaEnabled: true,
@@ -97,6 +98,12 @@ const DEFAULTS = {
     codeExpireMinutes: 5, codeLength: 6,
     dailyLimitPerEmail: 20, sendIntervalSeconds: 60,
   },
+  ai: {
+    globalKnowledge: '',
+    answerScope: 'focus',
+    tokensPerUserDaily: 100000,
+    roleTokenQuotas: [],
+  },
 } satisfies ConfigGroupMap
 
 type ConfigState = ConfigGroupMap
@@ -158,6 +165,18 @@ function applyGroupFromServer<K extends ConfigGroupCode>(
     const reg = merged as ConfigGroupMap['register']
     if (!Array.isArray(reg.auditorUserIds)) reg.auditorUserIds = []
   }
+  if (code === 'ai') {
+    const ai = merged as ConfigGroupMap['ai']
+    if (ai.answerScope !== 'open') ai.answerScope = 'focus'
+    if (typeof ai.tokensPerUserDaily !== 'number') ai.tokensPerUserDaily = 100000
+    if (!Array.isArray(ai.roleTokenQuotas)) {
+      ai.roleTokenQuotas = []
+    } else {
+      ai.roleTokenQuotas = ai.roleTokenQuotas
+        .filter((q) => q && Number(q.roleId) > 0)
+        .map((q) => ({ roleId: Number(q.roleId), tokensDaily: Number(q.tokensDaily) || 0 }))
+    }
+  }
   if (code === 'sms') {
     const sms = merged as ConfigGroupMap['sms']
     if ((sms.provider as string) === 'aliyun') sms.provider = 'aliyunAuth'
@@ -174,7 +193,7 @@ function applyGroupFromServer<K extends ConfigGroupCode>(
   setConfigGroup(draft, code, cloneConfig(merged))
 }
 
-export interface RoleOption { name: string; code: string }
+export interface RoleOption { id: number; name: string; code: string }
 export interface UserOption { id: number; label: string }
 
 export function useConfigDraft() {
@@ -223,14 +242,14 @@ export function useConfigDraft() {
   async function loadRoles() {
     const perms = userStore.userInfo?.permissions || []
     if (!perms.includes('system:role:list') && !perms.includes('system:role:query')) {
-      roleOptions.value = [{ name: '普通用户', code: 'user' }]
+      roleOptions.value = [{ id: 0, name: '普通用户', code: 'user' }]
       return
     }
     try {
       const res = await getRoleList({ status: 1 })
-      roleOptions.value = (res.data || []).map((r: any) => ({ name: r.name, code: r.code }))
+      roleOptions.value = (res.data || []).map((r: any) => ({ id: r.id, name: r.name, code: r.code }))
     } catch {
-      roleOptions.value = [{ name: '普通用户', code: 'user' }]
+      roleOptions.value = [{ id: 0, name: '普通用户', code: 'user' }]
     }
   }
 
