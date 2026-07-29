@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import jakarta.annotation.Resource;
+import jakarta.servlet.http.HttpServletResponse;
 import java.util.List;
 
 /**
@@ -42,7 +43,11 @@ public class AiChatController {
 
     @PostMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     @Operation(summary = "流式对话（SSE 增量推送，事件: delta/done/error）")
-    public SseEmitter stream(@RequestBody AiChatStreamReqVO reqVO) {
+    public SseEmitter stream(@RequestBody AiChatStreamReqVO reqVO, HttpServletResponse response) {
+        // 关闭反代缓冲：Nginx 尊重 X-Accel-Buffering:no 对本响应禁用 proxy_buffering，
+        // 否则 SSE 会被整段缓冲导致“非流式”（本地直连无代理故正常）
+        response.setHeader("X-Accel-Buffering", "no");
+        response.setHeader("Cache-Control", "no-cache");
         Long userId = SecurityUtils.getLoginUserIdOrZero();
         String username = SecurityUtils.getLoginUsername();
         return aiChatService.stream(reqVO, userId, username);
