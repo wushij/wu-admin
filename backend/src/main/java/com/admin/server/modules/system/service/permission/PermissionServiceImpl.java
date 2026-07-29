@@ -2,8 +2,10 @@ package com.admin.server.modules.system.service.permission;
 
 import com.admin.server.modules.system.dal.dataobject.permission.*;
 import com.admin.server.modules.system.dal.mysql.permission.*;
+import com.admin.server.modules.system.service.permission.event.UserPermissionChangedEvent;
 import cn.hutool.core.collection.CollUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -22,6 +24,8 @@ public class PermissionServiceImpl implements PermissionService {
     private RoleMapper roleMapper;
     @Resource
     private MenuMapper menuMapper;
+    @Resource
+    private ApplicationEventPublisher eventPublisher;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -39,6 +43,8 @@ public class PermissionServiceImpl implements PermissionService {
             }
             userRoleMapper.insertBatch(list);
         }
+        // 通知下游模块失效该用户的权限上下文缓存（如 AI 助手用户上下文）
+        eventPublisher.publishEvent(new UserPermissionChangedEvent(userId));
     }
 
     @Override
@@ -72,6 +78,8 @@ public class PermissionServiceImpl implements PermissionService {
             }
             roleMenuMapper.insertBatch(list);
         }
+        // 角色菜单变更影响该角色下所有用户，广播全量失效
+        eventPublisher.publishEvent(new UserPermissionChangedEvent(null));
     }
 
     @Override

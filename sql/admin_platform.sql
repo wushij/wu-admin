@@ -1117,14 +1117,17 @@ WHERE group_code = 'login'
         OR JSON_UNQUOTE(JSON_EXTRACT(config_value, '$.captchaType')) = ''
     );
 
--- [附录·配置] 第三方 + 支付分组（ON DUPLICATE 不覆盖已有 config_value）
+-- [附录·配置] 第三方 + 支付 + AI 助手分组（ON DUPLICATE 不覆盖已有 config_value）
 INSERT INTO sys_config_group (group_code, group_name, config_value, remark) VALUES
 ('thirdParty', '第三方配置',
  '{"wechat":{"enabled":false,"appId":"","appSecret":""},"alipay":{"enabled":false,"appId":"","privateKey":"","publicKey":""},"github":{"enabled":false,"clientId":"","clientSecret":""},"google":{"enabled":false,"clientId":"","clientSecret":"","redirectUri":""}}',
  '微信/支付宝/GitHub/Google 第三方登录密钥'),
 ('payment', '支付配置',
  '{"wechatPay":{"enabled":false,"mchId":"","appId":"","apiV3Key":"","privateKey":"","certSerialNo":"","notifyUrl":""},"alipay":{"enabled":false,"appId":"","privateKey":"","publicKey":"","signType":"RSA2","gatewayUrl":"https://openapi.alipay.com/gateway.do","notifyUrl":"","returnUrl":""}}',
- '微信/支付宝支付与测试下单')
+ '微信/支付宝支付与测试下单'),
+('ai', 'AI助手配置',
+ '{"globalKnowledge":"## 你所服务的系统\\n- 系统名称：Admin Platform（wu-admin），企业级后台管理平台，含 PC 端与移动端 H5。\\n- 核心定位：提供用户权限管理、系统监控、消息协作、工单审批与 AI 智能助手服务。\\n- 常见操作路径：\\n  - 修改密码：个人中心 → 安全设置 → 修改密码\\n  - 忘记密码：登录页 → 忘记密码 → 邮箱验证重置\\n  - 提交工单：系统管理 → 工单管理 → 新建工单\\n  - 绑定邮箱：个人中心 → 安全设置 → 邮箱绑定\\n  - 查看公告：消息中心 → 公告","answerScope":"focus"}',
+ 'AI wu助手知识注入：globalKnowledge 全局项目知识(Markdown)、answerScope 回答边界(focus/open)')
 ON DUPLICATE KEY UPDATE
     group_name = VALUES(group_name),
     remark = VALUES(remark);
@@ -2292,4 +2295,53 @@ UPDATE sys_menu SET sort = 9 WHERE id = 150;
 -- 超管默认拥有全部 AI 菜单权限
 INSERT IGNORE INTO sys_role_menu (role_id, menu_id) VALUES
 (1, 210), (1, 200), (1, 201), (1, 202), (1, 203), (1, 204), (1, 205), (1, 206);
+
+-- [附录·AI] add7：AI 知识库（RAG-lite）表 + 菜单与权限 + 示例知识（可重复执行）
+CREATE TABLE IF NOT EXISTS sys_ai_knowledge (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '知识ID',
+    title VARCHAR(128) NOT NULL DEFAULT '' COMMENT '知识标题',
+    keywords VARCHAR(255) NOT NULL DEFAULT '' COMMENT '检索关键词(逗号分隔)',
+    content TEXT NOT NULL COMMENT '知识正文(Markdown)',
+    category VARCHAR(32) NOT NULL DEFAULT 'faq' COMMENT '分类: faq/manual/module/other',
+    sort INT NOT NULL DEFAULT 0 COMMENT '排序权重(大者优先)',
+    status TINYINT NOT NULL DEFAULT 1 COMMENT '状态: 1启用 0停用',
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    creator VARCHAR(64) DEFAULT '' COMMENT '创建者',
+    updater VARCHAR(64) DEFAULT '' COMMENT '更新者',
+    deleted TINYINT DEFAULT 0 COMMENT '是否删除',
+    INDEX idx_status_category (status, category),
+    FULLTEXT INDEX ft_knowledge (title, keywords, content) WITH PARSER ngram
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='AI 知识库';
+
+INSERT IGNORE INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, component, status) VALUES
+(220, 'AI 知识库', 'system:ai-knowledge:list', 2, 3, 210, '/ai/knowledge', 'Notebook', 'ai/knowledge/index', 1),
+(221, 'AI知识新增', 'system:ai-knowledge:create', 3, 1, 220, '', '', '', 1),
+(222, 'AI知识修改', 'system:ai-knowledge:update', 3, 2, 220, '', '', '', 1),
+(223, 'AI知识删除', 'system:ai-knowledge:delete', 3, 3, 220, '', '', '', 1);
+
+INSERT IGNORE INTO sys_role_menu (role_id, menu_id) VALUES
+(1, 220), (1, 221), (1, 222), (1, 223);
+
+INSERT IGNORE INTO sys_ai_knowledge (id, title, keywords, content, category, sort, status, creator, updater) VALUES
+(1, '忘记密码如何找回', '忘记密码,找回密码,重置密码,登录不了',
+ '## 忘记密码找回流程\n1. 打开登录页，点击「忘记密码」。\n2. 输入账号绑定的邮箱，获取验证码。\n3. 输入验证码后设置新密码即可重新登录。\n\n> 若账号未绑定邮箱，请联系管理员在「系统管理 → 用户管理」中重置密码。',
+ 'faq', 10, 1, 'admin', 'admin'),
+(2, '如何提交与跟进工单', '工单,提交工单,报障,问题反馈',
+ '## 工单提交流程\n1. 进入「系统管理 → 工单管理」，点击「新建工单」。\n2. 填写标题、问题描述与优先级后提交。\n3. 处理进度可在工单列表查看，处理完成后可进行确认或评价。',
+ 'manual', 5, 1, 'admin', 'admin');
+
+-- [附录·AI] add8：sys_ai_chat_log 增 tool_trace 列（L3 Function Calling 工具轨迹，幂等）
+SET @col_exists := (
+    SELECT COUNT(*) FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'sys_ai_chat_log'
+      AND COLUMN_NAME = 'tool_trace'
+);
+SET @sql := IF(@col_exists = 0,
+    'ALTER TABLE sys_ai_chat_log ADD COLUMN tool_trace TEXT DEFAULT NULL COMMENT ''工具调用轨迹(JSON数组)'' AFTER error_msg',
+    'SELECT ''tool_trace exists'' AS info');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
 

@@ -3,9 +3,14 @@
     <!-- 头部 -->
     <div class="panel-header">
       <div class="header-left">
-        <div class="ai-avatar">
-          <el-icon :size="18"><MagicStick /></el-icon>
-        </div>
+        <el-tooltip content="历史对话" placement="bottom">
+          <button class="ai-avatar" type="button" @click="toggleHistory">
+            <el-icon :size="18"><MagicStick /></el-icon>
+            <span class="avatar-badge">
+              <el-icon :size="10"><Clock /></el-icon>
+            </span>
+          </button>
+        </el-tooltip>
         <div class="header-title">
           <div class="title">AI wu助手</div>
           <div class="subtitle">{{ aiWuStore.currentModel ? aiWuStore.currentModel.name : '智能问答' }}</div>
@@ -30,6 +35,53 @@
       </div>
     </div>
 
+    <!-- 历史对话浮层 -->
+    <transition name="history-slide">
+      <div v-if="historyVisible" class="history-layer">
+        <div class="history-head">
+          <div class="history-head-title">
+            <el-icon :size="15"><Clock /></el-icon>
+            <span>历史对话</span>
+            <span v-if="conversations.length" class="history-count">{{ conversations.length }}</span>
+          </div>
+          <button class="history-close" type="button" title="关闭" @click="historyVisible = false">
+            <el-icon :size="14"><Close /></el-icon>
+          </button>
+        </div>
+        <div v-loading="historyLoading" class="history-body">
+          <template v-if="conversations.length">
+            <button
+              v-for="conv in conversations"
+              :key="conv.conversationId"
+              class="history-item"
+              :class="{ 'is-active': conv.conversationId === aiWuStore.conversationId }"
+              type="button"
+              @click="handleRestore(conv.conversationId)"
+            >
+              <div class="history-item-icon">
+                <el-icon :size="14"><ChatDotRound /></el-icon>
+              </div>
+              <div class="history-item-main">
+                <div class="history-item-title">{{ conv.title }}</div>
+                <div class="history-item-meta">
+                  <span>{{ formatConvTime(conv.lastTime) }}</span>
+                  <span class="meta-dot">·</span>
+                  <span>{{ conv.messageCount || 0 }} 轮对话</span>
+                </div>
+              </div>
+              <span v-if="conv.conversationId === aiWuStore.conversationId" class="history-item-tag">当前</span>
+              <el-icon v-else class="history-item-arrow" :size="13"><ArrowRight /></el-icon>
+            </button>
+          </template>
+          <div v-else-if="!historyLoading" class="history-empty">
+            <el-icon :size="34"><ChatDotRound /></el-icon>
+            <p>还没有历史对话</p>
+            <span>和 AI wu助手聊聊，记录会自动保存在这里</span>
+          </div>
+        </div>
+      </div>
+    </transition>
+
     <!-- 消息区 -->
     <div ref="msgListRef" class="panel-body">
       <!-- 欢迎屏 -->
@@ -42,7 +94,7 @@
         </div>
         <div class="welcome-title">你好，我是 AI wu助手</div>
         <div class="welcome-desc">
-          {{ aiWuStore.modelsLoaded && aiWuStore.models.length === 0 ? '暂无可用模型，请联系管理员配置' : '我是你的全能 AI 伙伴，有什么可以帮你的吗？' }}
+          {{ aiWuStore.modelsLoaded && aiWuStore.models.length === 0 ? '暂无可用模型，请联系管理员配置' : '我是本系统的智能助手，熟悉各功能模块与操作路径，有问题尽管问我～' }}
         </div>
         <div class="quick-section">
           <div class="quick-header">
@@ -113,6 +165,12 @@
           <el-icon v-else :size="14"><User /></el-icon>
         </div>
       </div>
+
+      <!-- L3 工具调用状态提示 -->
+      <div v-if="aiWuStore.streaming && aiWuStore.statusHint" class="tool-status">
+        <span class="tool-status-dot" />
+        <span>{{ aiWuStore.statusHint }}</span>
+      </div>
     </div>
 
     <!-- 输入区 -->
@@ -166,28 +224,31 @@ import {
   Document,
   Timer,
   ChatDotRound,
-  ArrowRight
+  ArrowRight,
+  Clock,
+  Close
 } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { useAiWuStore } from '@/store/aiWu'
 import { useUserStore } from '@/store/user'
+import { listConversations, type AiConversationVO } from '@/api/ai'
 import AiWuMarkdown from './AiWuMarkdown.vue'
 
 const QUICK_QUESTIONS = [
   {
     icon: ChatDotRound,
-    text: '介绍一下这个管理系统',
-    desc: '快速了解系统架构与核心功能模块'
+    text: '这个系统有哪些功能模块？',
+    desc: '按你的权限梳理可用功能与入口'
   },
   {
     icon: Document,
-    text: '帮我写一段周报总结',
-    desc: '梳理本周工作要点与项目进展现状'
+    text: '怎么修改登录密码？',
+    desc: '获取本系统真实操作路径指引'
   },
   {
     icon: Timer,
-    text: '如何提高工作效率？',
-    desc: '获取数字化办公与时间管理实用建议'
+    text: '我是什么角色，属于哪个部门？',
+    desc: '查看当前账号的角色与组织信息'
   }
 ]
 
@@ -262,6 +323,61 @@ function handleClear() {
   aiWuStore.clear()
 }
 
+// ---------- 历史对话 ----------
+const historyVisible = ref(false)
+const historyLoading = ref(false)
+const conversations = ref<AiConversationVO[]>([])
+
+async function toggleHistory() {
+  historyVisible.value = !historyVisible.value
+  if (!historyVisible.value) return
+  historyLoading.value = true
+  try {
+    const res = await listConversations()
+    conversations.value = res.data || []
+  } finally {
+    historyLoading.value = false
+  }
+}
+
+async function handleRestore(conversationId: string) {
+  if (aiWuStore.streaming) {
+    ElMessage.warning('回答生成中，请稍后切换会话')
+    return
+  }
+  if (conversationId === aiWuStore.conversationId) {
+    historyVisible.value = false
+    return
+  }
+  const ok = await aiWuStore.restoreConversation(conversationId)
+  if (ok) {
+    historyVisible.value = false
+    scrollToBottom()
+  } else {
+    ElMessage.warning('该会话暂无可恢复的记录')
+  }
+}
+
+/** 会话时间友好化：今天 HH:mm / 昨天 / MM-DD */
+function formatConvTime(time?: string): string {
+  if (!time) return ''
+  const date = new Date(time.replace(' ', 'T'))
+  if (Number.isNaN(date.getTime())) return time
+  const now = new Date()
+  const pad = (n: number) => String(n).padStart(2, '0')
+  const sameDay = (a: Date, b: Date) =>
+    a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
+  if (sameDay(date, now)) {
+    return `今天 ${pad(date.getHours())}:${pad(date.getMinutes())}`
+  }
+  const yesterday = new Date(now)
+  yesterday.setDate(now.getDate() - 1)
+  if (sameDay(date, yesterday)) {
+    return `昨天 ${pad(date.getHours())}:${pad(date.getMinutes())}`
+  }
+  return `${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+}
+
 async function copyMessage(content: string, id: string | number) {
   try {
     await navigator.clipboard.writeText(content)
@@ -327,17 +443,250 @@ onMounted(() => {
 }
 
 .ai-avatar {
+  position: relative;
   width: 36px;
   height: 36px;
   border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
   background: rgba(255, 255, 255, 0.22);
   backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  cursor: pointer;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.35);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+
+    .avatar-badge {
+      transform: scale(1.1);
+    }
+  }
+}
+
+/* 头像右下角小时钟角标：提示可点击查看历史 */
+.avatar-badge {
+  position: absolute;
+  right: -4px;
+  bottom: -4px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  color: var(--theme-primary, #6366f1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
+  transition: transform 0.2s;
+}
+
+/* ---------- 历史对话浮层 ---------- */
+.history-layer {
+  position: absolute;
+  top: 64px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  background: rgba(255, 255, 255, 0.97);
+  backdrop-filter: blur(16px);
+  border-radius: 0 0 20px 20px;
+}
+
+.history-slide-enter-active,
+.history-slide-leave-active {
+  transition: opacity 0.22s ease, transform 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.history-slide-enter-from,
+.history-slide-leave-to {
+  opacity: 0;
+  transform: translateY(-10px);
+}
+
+.history-head {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px 10px;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.7);
+}
+
+.history-head-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #0f172a;
+
+  .history-count {
+    min-width: 20px;
+    height: 18px;
+    padding: 0 6px;
+    border-radius: 9px;
+    background: var(--theme-primary-muted, rgba(99, 102, 241, 0.12));
+    color: var(--theme-primary, #6366f1);
+    font-size: 11px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+.history-close {
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #94a3b8;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+
+  &:hover {
+    background: rgba(148, 163, 184, 0.15);
+    color: #475569;
+  }
+}
+
+.history-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  &::-webkit-scrollbar {
+    width: 5px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, 0.3);
+    border-radius: 10px;
+  }
+}
+
+.history-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+
+  &:hover {
+    background: rgba(248, 250, 252, 1);
+    border-color: rgba(226, 232, 240, 0.9);
+
+    .history-item-arrow {
+      opacity: 1;
+      transform: translateX(2px);
+    }
+  }
+
+  &.is-active {
+    background: var(--theme-primary-muted, rgba(99, 102, 241, 0.08));
+    border-color: var(--theme-primary-muted-strong, rgba(99, 102, 241, 0.3));
+  }
+}
+
+.history-item-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  background: var(--theme-primary-muted, rgba(99, 102, 241, 0.1));
+  color: var(--theme-primary, #6366f1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.history-item-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.history-item-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e293b;
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.history-item-meta {
+  margin-top: 2px;
+  font-size: 11px;
+  color: #94a3b8;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+
+  .meta-dot {
+    opacity: 0.6;
+  }
+}
+
+.history-item-tag {
+  flex-shrink: 0;
+  padding: 2px 8px;
+  border-radius: 8px;
+  background: var(--theme-primary, #6366f1);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.history-item-arrow {
+  flex-shrink: 0;
+  color: #cbd5e1;
+  opacity: 0.5;
+  transition: all 0.2s;
+}
+
+.history-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: #cbd5e1;
+  padding-bottom: 30px;
+
+  p {
+    margin: 6px 0 0;
+    font-size: 13px;
+    font-weight: 600;
+    color: #94a3b8;
+  }
+
+  span {
+    font-size: 11px;
+    color: #cbd5e1;
+  }
 }
 
 .header-title {
@@ -737,6 +1086,29 @@ onMounted(() => {
       animation-delay: 0.3s;
     }
   }
+}
+
+/* L3 工具调用状态提示 */
+.tool-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  margin-left: 36px;
+  padding: 5px 12px;
+  border-radius: 10px;
+  background: var(--theme-primary-muted, rgba(99, 102, 241, 0.1));
+  color: var(--theme-primary, #6366f1);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.tool-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: ai-bounce 1s ease-in-out infinite;
 }
 
 @keyframes ai-bounce {

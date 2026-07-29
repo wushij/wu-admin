@@ -30,6 +30,7 @@ public class SystemConfigHelper {
     public static final String GROUP_PAYMENT = "payment";
     public static final String GROUP_SMS = "sms";
     public static final String GROUP_EMAIL = "email";
+    public static final String GROUP_AI = "ai";
     public static final String CAPTCHA_TYPE_IMAGE = "image";
     public static final String CAPTCHA_TYPE_SLIDER = "slider";
     public static final String CAPTCHA_TYPE_SMS = "sms";
@@ -625,5 +626,18 @@ public class SystemConfigHelper {
         result.put("security", security);
 
         return result;
+    }
+
+    // ---------- AI 助手 ----------
+
+    /** AI 助手全局项目知识块（Markdown，注入 system 提示词），未配置时返回空串 */
+    public String getAiGlobalKnowledge() {
+        return getGroupJson(GROUP_AI).getStr("globalKnowledge", "");
+    }
+
+    /** AI 助手回答边界策略：focus(聚焦本系统，默认) / open(开放问答) */
+    public String getAiAnswerScope() {
+        String scope = getGroupJson(GROUP_AI).getStr("answerScope", "focus");
+        return "open".equalsIgnoreCase(scope) ? "open" : "focus";
     }
 }

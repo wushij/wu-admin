@@ -18,6 +18,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.util.List;
 import java.util.Set;
@@ -43,6 +44,8 @@ class PermissionServiceImplTest extends MybatisLambdaTestBase {
     private RoleMapper roleMapper;
     @Mock
     private MenuMapper menuMapper;
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
 
     @InjectMocks
     private PermissionServiceImpl permissionService;

@@ -22,4 +22,5 @@ export const MODULE_PAGE_ICON = {
   apiDoc: 'Connection',
   aiModel: 'MagicStick',
   aiLog: 'ChatDotRound',
+  aiKnowledge: 'Notebook',
 } as const

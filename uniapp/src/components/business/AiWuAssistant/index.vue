@@ -22,10 +22,13 @@
     <!-- 头部 -->
     <view class="aiwu-header">
       <view class="aiwu-header__left">
-        <view class="aiwu-header__avatar">
+        <view class="aiwu-header__avatar" @click.stop="toggleHistory">
           <svg viewBox="0 0 1024 1024" width="18" height="18" fill="#ffffff">
             <path fill="#ffffff" d="M512 64h64v192h-64zm0 576h64v192h-64zM160 480v-64h192v64zm576 0v-64h192v64zM249.856 199.04l45.248-45.184L430.848 289.6 385.6 334.848 249.856 199.104zM657.152 606.4l45.248-45.248 135.744 135.744-45.248 45.248zM114.048 923.2 68.8 877.952l316.8-316.8 45.248 45.248zM702.4 334.848 657.152 289.6l135.744-135.744 45.248 45.248z"/>
           </svg>
+          <view class="aiwu-header__avatar-badge">
+            <IconFont name="clock-o" :size="20" color="#0f172a" />
+          </view>
         </view>
         <view class="aiwu-header__title">
           <text class="title">AI wu助手</text>
@@ -61,6 +64,44 @@
       </view>
     </view>
 
+    <!-- 历史对话浮层 -->
+    <view v-if="historyVisible" class="aiwu-history" @click.stop>
+      <view class="aiwu-history__head">
+        <view class="aiwu-history__head-title">
+          <IconFont name="clock-o" :size="30" color="#0f172a" />
+          <text>历史对话</text>
+          <text v-if="conversations.length" class="count">{{ conversations.length }}</text>
+        </view>
+        <view class="aiwu-history__close" @click="historyVisible = false">
+          <text>✕</text>
+        </view>
+      </view>
+      <scroll-view scroll-y class="aiwu-history__body">
+        <view
+          v-for="conv in conversations"
+          :key="conv.conversationId"
+          class="aiwu-history__item"
+          :class="{ 'is-active': conv.conversationId === aiWuStore.conversationId }"
+          @click="handleRestore(conv.conversationId)"
+        >
+          <view class="item-icon">
+            <IconFont name="chat-o" :size="28" color="#6366f1" />
+          </view>
+          <view class="item-main">
+            <text class="item-title">{{ conv.title }}</text>
+            <text class="item-meta">{{ formatConvTime(conv.lastTime) }} · {{ conv.messageCount || 0 }} 轮对话</text>
+          </view>
+          <text v-if="conv.conversationId === aiWuStore.conversationId" class="item-tag">当前</text>
+          <text v-else class="item-arrow">›</text>
+        </view>
+        <view v-if="!historyLoading && conversations.length === 0" class="aiwu-history__empty">
+          <IconFont name="chat-o" :size="64" color="#cbd5e1" />
+          <text class="empty-title">还没有历史对话</text>
+          <text class="empty-desc">和 AI wu助手聊聊，记录会自动保存在这里</text>
+        </view>
+      </scroll-view>
+    </view>
+
     <!-- 消息区 -->
     <scroll-view
       class="aiwu-body"
@@ -81,7 +122,7 @@
         </view>
         <text class="welcome-title">你好，我是 AI wu助手</text>
         <text class="welcome-desc">
-          {{ aiWuStore.modelsLoaded && aiWuStore.models.length === 0 ? '暂无可用模型，请联系管理员配置' : '我是你的全能 AI 伙伴，有什么可以帮你的吗？' }}
+          {{ aiWuStore.modelsLoaded && aiWuStore.models.length === 0 ? '暂无可用模型，请联系管理员配置' : '我是本系统的智能助手，熟悉各功能模块与操作路径，有问题尽管问我～' }}
         </text>
 
         <view class="quick-section">
@@ -163,6 +204,11 @@
           <text>{{ userInitial }}</text>
         </view>
       </view>
+      <!-- L3 工具调用状态提示 -->
+      <view v-if="aiWuStore.streaming && aiWuStore.statusHint" class="aiwu-tool-status">
+        <text>{{ aiWuStore.statusHint }}</text>
+      </view>
+
       <view id="aiwu-bottom-anchor" class="aiwu-anchor" />
     </scroll-view>
 
@@ -211,22 +257,23 @@ import { useAiWuStore } from '@/store/aiWu'
 import { useUserStore } from '@/store/user'
 import { renderMarkdown } from '@/utils/chat-markdown'
 import { hasToken } from '@/utils/auth'
+import { listConversations, type AiConversationVO } from '@/api/ai'
 
 const QUICK_QUESTIONS = [
   {
     icon: 'chat-o',
-    text: '介绍一下这个管理系统',
-    desc: '快速了解系统架构与核心功能模块',
+    text: '这个系统有哪些功能模块？',
+    desc: '按你的权限梳理可用功能与入口',
   },
   {
     icon: 'notes-o',
-    text: '帮我写一段周报总结',
-    desc: '梳理本周工作要点与项目进展现状',
+    text: '怎么修改登录密码？',
+    desc: '获取本系统真实操作路径指引',
   },
   {
     icon: 'clock-o',
-    text: '如何提高工作效率？',
-    desc: '获取数字化办公与时间管理实用建议',
+    text: '我是什么角色，属于哪个部门？',
+    desc: '查看当前账号的角色与组织信息',
   },
 ] as const
 
@@ -273,7 +320,10 @@ function selectModel(id: number) {
 watch(
   () => aiWuStore.panelVisible,
   (visible) => {
-    if (!visible) modelMenuVisible.value = false
+    if (!visible) {
+      modelMenuVisible.value = false
+      historyVisible.value = false
+    }
     // 抽屉打开时锁定页面滚动，防止内层滚到边界后穿透滚动外层页面
     // #ifdef H5
     document.documentElement.style.overflow = visible ? 'hidden' : ''
@@ -354,6 +404,62 @@ function sendQuick(q: string) {
 function handleClear() {
   if (aiWuStore.messages.length === 0) return
   aiWuStore.clear()
+}
+
+// ---------- 历史对话 ----------
+const historyVisible = ref(false)
+const historyLoading = ref(false)
+const conversations = ref<AiConversationVO[]>([])
+
+async function toggleHistory() {
+  historyVisible.value = !historyVisible.value
+  if (!historyVisible.value) return
+  modelMenuVisible.value = false
+  historyLoading.value = true
+  try {
+    const res = await listConversations()
+    conversations.value = res.data || []
+  } finally {
+    historyLoading.value = false
+  }
+}
+
+async function handleRestore(conversationId: string) {
+  if (aiWuStore.streaming) {
+    uni.showToast({ title: '回答生成中，请稍后切换', icon: 'none' })
+    return
+  }
+  if (conversationId === aiWuStore.conversationId) {
+    historyVisible.value = false
+    return
+  }
+  const ok = await aiWuStore.restoreConversation(conversationId)
+  if (ok) {
+    historyVisible.value = false
+    scrollToBottom()
+  } else {
+    uni.showToast({ title: '该会话暂无可恢复的记录', icon: 'none' })
+  }
+}
+
+/** 会话时间友好化：今天 HH:mm / 昨天 / MM-DD */
+function formatConvTime(time?: string): string {
+  if (!time) return ''
+  const date = new Date(time.replace(' ', 'T'))
+  if (Number.isNaN(date.getTime())) return time
+  const now = new Date()
+  const pad = (n: number) => String(n).padStart(2, '0')
+  const sameDay = (a: Date, b: Date) =>
+    a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
+  if (sameDay(date, now)) {
+    return `今天 ${pad(date.getHours())}:${pad(date.getMinutes())}`
+  }
+  const yesterday = new Date(now)
+  yesterday.setDate(now.getDate() - 1)
+  if (sameDay(date, yesterday)) {
+    return `昨天 ${pad(date.getHours())}:${pad(date.getMinutes())}`
+  }
+  return `${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
 }
 
 const copiedId = ref<string | number | null>(null)
@@ -498,6 +604,7 @@ function copyMessage(content: string, id: string | number) {
   }
 
   &__avatar {
+    position: relative;
     width: 64rpx;
     height: 64rpx;
     border-radius: 20rpx;
@@ -508,6 +615,25 @@ function copyMessage(content: string, id: string | number) {
     justify-content: center;
     font-size: 32rpx;
     flex-shrink: 0;
+
+    &:active {
+      background: rgba(255, 255, 255, 0.22);
+    }
+  }
+
+  /* 头像右下角小时钟角标：提示可点击查看历史对话 */
+  &__avatar-badge {
+    position: absolute;
+    right: -8rpx;
+    bottom: -8rpx;
+    width: 30rpx;
+    height: 30rpx;
+    border-radius: 50%;
+    background: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4rpx 10rpx rgba(0, 0, 0, 0.25);
   }
 
   &__title {
@@ -644,6 +770,169 @@ function copyMessage(content: string, id: string | number) {
   overscroll-behavior: contain;
   padding: 24rpx;
   box-sizing: border-box;
+}
+
+/* ---------- 历史对话浮层 ---------- */
+.aiwu-history {
+  position: absolute;
+  top: 112rpx;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  background: #f8fafc;
+
+  &__head {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 28rpx 32rpx 20rpx;
+    border-bottom: 2rpx solid rgba(226, 232, 240, 0.8);
+  }
+
+  &__head-title {
+    display: flex;
+    align-items: center;
+    gap: 12rpx;
+
+    text {
+      font-size: 30rpx;
+      font-weight: 700;
+      color: #0f172a;
+    }
+
+    .count {
+      min-width: 36rpx;
+      height: 34rpx;
+      padding: 0 12rpx;
+      border-radius: 17rpx;
+      background: rgba(99, 102, 241, 0.12);
+      color: #6366f1;
+      font-size: 22rpx;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+  }
+
+  &__close {
+    width: 52rpx;
+    height: 52rpx;
+    border-radius: 14rpx;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #94a3b8;
+    font-size: 30rpx;
+
+    &:active {
+      background: rgba(148, 163, 184, 0.15);
+    }
+  }
+
+  &__body {
+    flex: 1;
+    min-height: 0;
+    padding: 16rpx 24rpx 32rpx;
+    box-sizing: border-box;
+  }
+
+  &__item {
+    display: flex;
+    align-items: center;
+    gap: 20rpx;
+    padding: 22rpx 24rpx;
+    margin-bottom: 14rpx;
+    border: 2rpx solid transparent;
+    border-radius: 20rpx;
+    background: #ffffff;
+    box-shadow: 0 4rpx 14rpx rgba(15, 23, 42, 0.03);
+
+    &:active {
+      background: #f1f5f9;
+    }
+
+    &.is-active {
+      background: rgba(99, 102, 241, 0.08);
+      border-color: rgba(99, 102, 241, 0.3);
+    }
+
+    .item-icon {
+      width: 60rpx;
+      height: 60rpx;
+      border-radius: 18rpx;
+      background: rgba(99, 102, 241, 0.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .item-main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 6rpx;
+      min-width: 0;
+    }
+
+    .item-title {
+      font-size: 27rpx;
+      font-weight: 600;
+      color: #1e293b;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .item-meta {
+      font-size: 21rpx;
+      color: #94a3b8;
+    }
+
+    .item-tag {
+      flex-shrink: 0;
+      padding: 4rpx 14rpx;
+      border-radius: 12rpx;
+      background: #6366f1;
+      color: #fff;
+      font-size: 20rpx;
+      font-weight: 600;
+    }
+
+    .item-arrow {
+      flex-shrink: 0;
+      font-size: 40rpx;
+      color: #cbd5e1;
+      font-weight: 300;
+    }
+  }
+
+  &__empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 120rpx 40rpx;
+    gap: 12rpx;
+
+    .empty-title {
+      margin-top: 12rpx;
+      font-size: 27rpx;
+      font-weight: 600;
+      color: #94a3b8;
+    }
+
+    .empty-desc {
+      font-size: 22rpx;
+      color: #cbd5e1;
+      text-align: center;
+    }
+  }
 }
 
 .aiwu-anchor {
@@ -882,6 +1171,23 @@ function copyMessage(content: string, id: string | number) {
   &.is-copied {
     color: #16a34a;
     border-color: rgba(22, 163, 74, 0.35);
+  }
+}
+
+/* L3 工具调用状态提示 */
+.aiwu-tool-status {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  margin: 4rpx 0 8rpx 66rpx;
+  padding: 8rpx 20rpx;
+  border-radius: 14rpx;
+  background: rgba(99, 102, 241, 0.1);
+
+  text {
+    font-size: 22rpx;
+    color: #6366f1;
+    font-weight: 500;
   }
 }
 

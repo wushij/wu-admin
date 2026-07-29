@@ -22,10 +22,12 @@ import com.admin.server.modules.system.service.auth.LoginLockService;
 import com.admin.server.modules.system.service.auth.vo.LoginLockStatusVO;
 import com.admin.server.modules.system.service.dept.DeptService;
 import com.admin.server.modules.system.service.permission.PermissionService;
+import com.admin.server.modules.system.service.permission.event.UserPermissionChangedEvent;
 import com.admin.server.modules.system.service.user.UserService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import jakarta.annotation.Resource;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import com.admin.server.modules.infra.framework.operlog.OperLogDiffUtils;
@@ -66,6 +68,8 @@ public class UserServiceImpl implements UserService {
     private LoginLockService loginLockService;
     @Resource
     private LoginLogMapper loginLogMapper;
+    @Resource
+    private ApplicationEventPublisher eventPublisher;
 
     @Override
     public List<UserDO> listAll() {
@@ -179,6 +183,8 @@ public class UserServiceImpl implements UserService {
             permissionService.assignUserRole(user.getId(), Collections.singleton(reqVO.getRoleId()));
         }
         saveUserPosts(user.getId(), reqVO.getPostIds());
+        // 昵称/部门等资料变更，通知下游失效该用户的上下文缓存（角色分支内 assignUserRole 已发布，重复发布仅多一次幂等删键）
+        eventPublisher.publishEvent(new UserPermissionChangedEvent(user.getId()));
     }
 
     @Override

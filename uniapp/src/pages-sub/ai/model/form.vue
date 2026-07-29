@@ -74,7 +74,7 @@
             editable
             boxed
             input-type="number"
-            placeholder="128 ~ 32768，默认 2048"
+            placeholder="128 ~ 32768，默认 4096"
           />
           <FormCell
             v-model="form.remark"
@@ -140,7 +140,7 @@ const form = reactive<Required<Omit<AiModelSaveDTO, 'id'>> & { id?: number }>({
   baseUrl: AI_PROVIDER_META.deepseek.baseUrl,
   apiKey: '',
   temperature: 0.7,
-  maxTokens: 2048,
+  maxTokens: 4096,
   systemPrompt: '',
   isDefault: 0,
   status: 1,
@@ -149,7 +149,7 @@ const form = reactive<Required<Omit<AiModelSaveDTO, 'id'>> & { id?: number }>({
 
 /** 数字字段以文本双向绑定，保存时转换 */
 const temperatureText = ref('0.7')
-const maxTokensText = ref('2048')
+const maxTokensText = ref('4096')
 
 const providerLabels = computed(() => AI_PROVIDER_KEYS.map((k) => AI_PROVIDER_META[k].label))
 
@@ -290,7 +290,7 @@ async function load(id: number) {
       remark: data.remark || '',
     })
     temperatureText.value = String(data.temperature ?? 0.7)
-    maxTokensText.value = String(data.maxTokens ?? 2048)
+    maxTokensText.value = String(data.maxTokens ?? 4096)
     hasKey.value = !!data.hasApiKey
   } finally {
     loading.value = false
