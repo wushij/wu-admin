@@ -59,12 +59,20 @@ export function resetSecurityConfig(): void {
   // 只清除会话密钥，保留签名/加密开关：
   // 开关来自 /auth/config 且 site store 只加载一次，若一并清空，
   // 退出后重新登录会因开关丢失而不再附加 X-Signature，导致后端 403
+  clearSignKeys()
+}
+
+/**
+ * 仅清除会话密钥材料（签名密钥失效自愈时调用）。
+ * 保留签名/加密开关，并清空 Promise 缓存，允许 requestSessionSignKey 重新发起协商。
+ */
+export function clearSignKeys(): void {
   securityConfig = {
     sm4EncryptEnabled: securityConfig.sm4EncryptEnabled,
     sm3SignEnabled: securityConfig.sm3SignEnabled,
     sm2SignEnabled: securityConfig.sm2SignEnabled,
   }
-  // 同时清空 Promise 缓存，确保登出后重新登录可获取新密钥
+  // 同时清空 Promise 缓存，确保下次调用可重新获取新密钥
   sessionSignPromise = null
 }
 
