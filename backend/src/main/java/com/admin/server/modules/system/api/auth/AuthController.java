@@ -35,11 +35,11 @@ import java.util.concurrent.TimeUnit;
 @RequestMapping("/auth")
 public class AuthController {
 
-    /** 会话签名密钥 Redis 前缀，TTL = 30 分钟 */
+    /** 会话签名密钥 Redis 前缀，TTL = 120 分钟 (2 小时) */
     private static final String SESSION_SIGN_KEY_PREFIX = "security:session-sign:";
     /** 会话 SM4 加密密钥 Redis 前缀，TTL 与签名密钥相同 */
     private static final String SESSION_SM4_KEY_PREFIX = "security:session-sm4:";
-    private static final long SESSION_SIGN_TTL_MINUTES = 30L;
+    private static final long SESSION_SIGN_TTL_MINUTES = 120L;
     /** clientId 合法字符校验（32~64位十六进制或 UUID 格式） */
     private static final int CLIENT_ID_MIN_LEN = 8;
     private static final int CLIENT_ID_MAX_LEN = 128;

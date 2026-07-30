@@ -12,7 +12,26 @@ import {
 } from '@/plugins/global-error-handler'
 import { resolveApiBaseUrl } from '@/utils/api-base'
 import { generateNonce, getTimestamp, encryptSm4, decryptSm4, signHmacSm3 } from '@/utils/crypto'
-import { getSecurityConfig, getClientId, requestSessionSignKey } from '@/utils/security-config'
+import { getSecurityConfig, getClientId, requestSessionSignKey, clearSignKeys } from '@/utils/security-config'
+
+function isSignKeyExpiredMessage(text?: string): boolean {
+  if (!text) return false
+  return text.includes('签名密钥') || text.includes('签名验证失败') || text.includes('X-Signature')
+}
+
+async function retryUniappRequestWithNewSignKey(config: any): Promise<any> {
+  config._isRetrySign = true
+  clearSignKeys()
+  try {
+    await requestSessionSignKey(http)
+    if (config._rawBody !== undefined) {
+      config.data = config._rawBody
+    }
+    return http.request(config)
+  } catch (err) {
+    return Promise.reject(err)
+  }
+}
 
 const BASE_URL = resolveApiBaseUrl()
 
@@ -59,6 +78,12 @@ const http = new Request({
 
 http.interceptors.request.use(
   async (config) => {
+    const customCfg = config as any
+    if (customCfg._rawBody === undefined) {
+      customCfg._rawBody = config.data
+    } else {
+      config.data = customCfg._rawBody
+    }
     const token = getToken()
     const timestamp = getTimestamp()
     const nonce = generateNonce()
@@ -189,7 +214,10 @@ http.interceptors.response.use(
     }
 
     if (code === 403) {
-      const cfg = response.config
+      const cfg = response.config as any
+      if (isSignKeyExpiredMessage(message) && !cfg?._isRetrySign && !cfg?.url?.includes('/auth/session-sign-init')) {
+        return retryUniappRequestWithNewSignKey(cfg)
+      }
       if (!cfg?.silent403) {
         showForbiddenOnce(message || '权限不足')
       }
@@ -207,7 +235,7 @@ http.interceptors.response.use(
     markErrorToastShown(err)
     return Promise.reject(err)
   }) as unknown as Parameters<typeof http.interceptors.response.use>[0],
-  (error: { data?: any; statusCode?: number; errMsg?: string; header?: any }) => {
+  (error: { data?: any; statusCode?: number; errMsg?: string; header?: any; config?: any }) => {
     const secConfig = getSecurityConfig()
     // 若错误响应标明 SM4 加密，且密钥已下发，自动解密 (CORS 容错)
     const isEncrypted = error && (error.header?.['x-encrypted'] === '1' || error.header?.['X-Encrypted'] === '1' || 
@@ -229,10 +257,12 @@ http.interceptors.response.use(
       return Promise.reject(error)
     }
 
-    if (isBenignRequestError(error)) {
-      return Promise.reject(error)
-    }
     const msg = extractApiErrorMessage(error, '网络异常')
+    const cfg = (error as any)?.config
+
+    if ((error.statusCode === 403 || isSignKeyExpiredMessage(msg)) && !cfg?._isRetrySign && !url.includes('/auth/session-sign-init')) {
+      return retryUniappRequestWithNewSignKey(cfg)
+    }
     showGlobalErrorToast(msg)
     const err = new Error(msg)
     markErrorToastShown(err)

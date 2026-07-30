@@ -62,11 +62,30 @@ export function resetSecurityConfig(): void {
   clearSignKeys()
 }
 
+let refreshTimer: ReturnType<typeof setTimeout> | null = null
+
+function stopHeartbeatTimer(): void {
+  if (refreshTimer) {
+    clearTimeout(refreshTimer)
+    refreshTimer = null
+  }
+}
+
+function startHeartbeatTimer(axiosInstance: any): void {
+  stopHeartbeatTimer()
+  // 每 20 分钟自动静默刷新一次签名密钥，防止 Redis Key（120分钟）过期
+  refreshTimer = setTimeout(() => {
+    clearSignKeys()
+    requestSessionSignKey(axiosInstance).catch(() => {})
+  }, 20 * 60 * 1000)
+}
+
 /**
  * 仅清除会话密钥材料（签名密钥失效自愈时调用）。
  * 保留签名/加密开关，并清空 Promise 缓存，允许 requestSessionSignKey 重新发起协商。
  */
 export function clearSignKeys(): void {
+  stopHeartbeatTimer()
   securityConfig = {
     sm4EncryptEnabled: securityConfig.sm4EncryptEnabled,
     sm3SignEnabled: securityConfig.sm3SignEnabled,
@@ -109,12 +128,14 @@ export function requestSessionSignKey(axiosInstance: any): Promise<any> {
           sm3SignKey: res.data.sm3SignKey,
           sm4Key: res.data.sm4Key,
         })
+        startHeartbeatTimer(axiosInstance)
       }
       // 成功后不清空 Promise，保持为已 resolved 的缓存，防止后续调用重复发请求
       return res
     } catch (err) {
       // 失败时清空 Promise，允许下次重试
       sessionSignPromise = null
+      stopHeartbeatTimer()
       throw err
     }
   })()
