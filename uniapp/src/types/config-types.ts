@@ -111,6 +111,7 @@ export interface RoleTokenQuota {
 }
 
 export interface AiAdminConfig {
+  assistantEnabled?: boolean
   globalKnowledge: string
   answerScope: 'focus' | 'open'
   tokensPerUserDaily: number
@@ -170,11 +171,16 @@ export interface SecurityPublicConfig {
   sm3SignEnabled?: boolean
 }
 
+export interface AiPublicConfig {
+  assistantEnabled?: boolean
+}
+
 export interface AuthPublicConfig {
   site?: SiteConfig
   login?: LoginConfig
   register?: RegisterConfig
   security?: SecurityPublicConfig
+  ai?: AiPublicConfig
 }
 
 export interface SmsLogRecord {

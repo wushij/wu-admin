@@ -630,10 +630,19 @@ public class SystemConfigHelper {
 
         result.put("security", security);
 
+        Map<String, Object> ai = new HashMap<>();
+        ai.put("assistantEnabled", isAiAssistantEnabled());
+        result.put("ai", ai);
+
         return result;
     }
 
     // ---------- AI 助手 ----------
+
+    /** AI 助手悬浮小窗/全局 AI 功能开关（true 开启，false 关闭） */
+    public boolean isAiAssistantEnabled() {
+        return getGroupJson(GROUP_AI).getBool("assistantEnabled", true);
+    }
 
     /** AI 助手全局项目知识块（Markdown，注入 system 提示词），未配置时返回空串 */
     public String getAiGlobalKnowledge() {

@@ -99,6 +99,7 @@ const DEFAULTS = {
     dailyLimitPerEmail: 20, sendIntervalSeconds: 60,
   },
   ai: {
+    assistantEnabled: true,
     globalKnowledge: '',
     answerScope: 'focus',
     tokensPerUserDaily: 100000,
@@ -167,6 +168,7 @@ function applyGroupFromServer<K extends ConfigGroupCode>(
   }
   if (code === 'ai') {
     const ai = merged as ConfigGroupMap['ai']
+    if (ai.assistantEnabled === undefined) ai.assistantEnabled = true
     if (ai.answerScope !== 'open') ai.answerScope = 'focus'
     if (typeof ai.tokensPerUserDaily !== 'number') ai.tokensPerUserDaily = 100000
     if (!Array.isArray(ai.roleTokenQuotas)) {

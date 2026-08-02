@@ -311,12 +311,16 @@ async function handleSend() {
   inputText.value = ''
   isMultiLine.value = false
   nextTick(() => autoResize())
+  scrollToBottom(true)
   await aiWuStore.send(text)
+  scrollToBottom(true)
 }
 
 function sendQuick(q: string) {
   if (aiWuStore.streaming) return
+  scrollToBottom(true)
   aiWuStore.send(q)
+  scrollToBottom(true)
 }
 
 function handleClear() {

@@ -1,5 +1,5 @@
 <template>
-  <div class="ai-wu-float">
+  <div v-if="siteStore.aiAssistantEnabled" class="ai-wu-float">
     <transition name="ai-slide-panel">
       <AiWuChatPanel v-if="aiWuStore.panelVisible" />
     </transition>
@@ -21,9 +21,11 @@
 <script setup lang="ts">
 import { MagicStick, Close } from '@element-plus/icons-vue'
 import { useAiWuStore } from '@/store/aiWu'
+import { useSiteStore } from '@/store/site'
 import AiWuChatPanel from './AiWuChatPanel.vue'
 
 const aiWuStore = useAiWuStore()
+const siteStore = useSiteStore()
 </script>
 
 <style scoped lang="scss">

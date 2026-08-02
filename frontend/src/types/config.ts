@@ -35,11 +35,16 @@ export interface SecurityPublicConfig {
   sm3SignEnabled?: boolean
 }
 
+export interface AiPublicConfig {
+  assistantEnabled?: boolean
+}
+
 export interface AuthPublicConfig {
   site?: SiteConfig
   login?: LoginConfig
   register?: RegisterConfig
   security?: SecurityPublicConfig
+  ai?: AiPublicConfig
 }
 
 /** 系统配置页各分组（与后端 configValue JSON 结构一致） */
@@ -79,6 +84,8 @@ export interface RoleTokenQuota {
 }
 
 export interface AiConfig {
+  /** 是否开启 AI 助手悬浮小窗 */
+  assistantEnabled?: boolean
   /** 全局项目知识块（Markdown，注入 system 提示词） */
   globalKnowledge: string
   /** 回答边界：focus 聚焦本系统 / open 开放问答 */

@@ -7,15 +7,16 @@ let configPromise: Promise<void> | null = null
 
 export const useSiteStore = defineStore('site', () => {
   const disableDevtool = ref(false)
+  const aiAssistantEnabled = ref(true)
   const configLoaded = ref(false)
 
   async function loadConfig() {
-    if (configPromise) return configPromise
     configPromise = (async () => {
       try {
         const res = await getConfig()
         const data = res.data
         disableDevtool.value = data?.security?.disableDevtool === true
+        aiAssistantEnabled.value = data?.ai?.assistantEnabled !== false
 
         // 从公开配置获取「签名/加密是否开启」标志，但未登录前暂不下发密钥
         const sm3SignEnabled = data?.security?.sm3SignEnabled === true
@@ -29,8 +30,10 @@ export const useSiteStore = defineStore('site', () => {
         })
       } catch {
         disableDevtool.value = false
+        aiAssistantEnabled.value = true
       } finally {
         configLoaded.value = true
+        configPromise = null
       }
     })()
     return configPromise
@@ -45,5 +48,5 @@ export const useSiteStore = defineStore('site', () => {
     disableDevtool.value = value
   }
 
-  return { disableDevtool, configLoaded, loadConfig, ensureConfigLoaded, setDisableDevtool }
+  return { disableDevtool, aiAssistantEnabled, configLoaded, loadConfig, ensureConfigLoaded, setDisableDevtool }
 })

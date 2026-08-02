@@ -30,6 +30,7 @@
         :key="item.id"
         class="data-card card--elevated"
         @click="onDataTap(item)"
+        @longpress="onDataTap(item)"
       >
         <view class="data-card__sort">{{ item.sort ?? 0 }}</view>
         <view class="data-card__main">
@@ -51,6 +52,7 @@
     </scroll-view>
 
     <FabButton v-if="canCreate" @click="addData" />
+    <AppDialogHost />
   </view>
 </template>
 
@@ -65,6 +67,8 @@ import EmptyState from '@/components/common/EmptyState/index.vue'
 import DictTag from '@/components/common/DictTag/index.vue'
 import FabButton from '@/components/common/FabButton/index.vue'
 import SegmentTabs from '@/components/common/SegmentTabs/index.vue'
+import AppDialogHost from '@/components/common/AppDialogHost/index.vue'
+import { showConfirm, showActionSheet, type ActionSheetItem } from '@/utils/app-dialog'
 import { useModulePermission } from '@/composables/useModulePermission'
 import { listClassToTagType } from '@/composables/useDict'
 import { listDictDataForManage, deleteDictData } from '@/api/system/dict'
@@ -116,33 +120,35 @@ async function loadData(silent = false) {
   }
 }
 
-function onDataTap(item: DictDataItem) {
+async function onDataTap(item: DictDataItem) {
   if (!canUpdate.value && !canDelete.value) return
-  const actions: string[] = []
-  if (canUpdate.value) actions.push('编辑')
-  if (canDelete.value) actions.push('删除')
-  uni.showActionSheet({
-    itemList: actions,
-    success: async (res) => {
-      if (actions[res.tapIndex] === '编辑') {
-        uni.navigateTo({
-          url: `/pages-sub/system/dict/data-form?dictType=${encodeURIComponent(dictType.value)}&dataId=${item.id}`,
-        })
-      } else if (actions[res.tapIndex] === '删除' && item.id) {
-        uni.showModal({
-          title: '删除字典项',
-          content: `确定删除「${item.dictLabel}」？`,
-          confirmColor: '#f56c6c',
-          success: async (r) => {
-            if (!r.confirm) return
-            await deleteDictData(item.id!)
-            uni.showToast({ title: '已删除', icon: 'success' })
-            await loadData(true)
-          },
-        })
-      }
-    },
-  })
+  const actions: ActionSheetItem[] = []
+  if (canUpdate.value) actions.push({ label: '编辑' })
+  if (canDelete.value) actions.push({ label: '删除', danger: true })
+
+  try {
+    const tapIndex = await showActionSheet({
+      title: item.dictLabel ? `字典项: ${item.dictLabel}` : '字典项操作',
+      items: actions,
+    })
+    const action = actions[tapIndex]?.label
+    if (action === '编辑') {
+      uni.navigateTo({
+        url: `/pages-sub/system/dict/data-form?dictType=${encodeURIComponent(dictType.value)}&dataId=${item.id}`,
+      })
+    } else if (action === '删除' && item.id) {
+      const { confirmed } = await showConfirm({
+        title: '删除字典项',
+        content: `确定删除「${item.dictLabel}」？`,
+        confirmText: '删除',
+        tone: 'danger',
+      })
+      if (!confirmed) return
+      await deleteDictData(item.id!)
+      uni.showToast({ title: '已删除', icon: 'success' })
+      await loadData(true)
+    }
+  } catch {}
 }
 
 function addData() {

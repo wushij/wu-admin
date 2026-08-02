@@ -9,39 +9,49 @@
           <text class="msg-hero__title">站内信</text>
           <text class="msg-hero__sub">共 {{ list.length }} 条全部消息</text>
           <view class="msg-hero__extras">
+            <text
+              class="msg-hero__action"
+              :class="{ 'msg-hero__action--disabled': !unreadCount }"
+              @click="onReadAll"
+            >
+              全部已读
+            </text>
             <text v-if="unreadCount" class="msg-hero__badge">{{ unreadCount }} 条未读</text>
-            <text v-if="list.length" class="msg-hero__action" @click="onReadAll">全部已读</text>
           </view>
         </view>
       </view>
     </view>
 
-    <ListLoading v-if="loading && !list.length" variant="message" />
+    <scroll-view scroll-y class="inbox-page__scroll">
+      <ListLoading v-if="loading && !list.length" variant="message" />
 
-    <scroll-view v-else scroll-y class="inbox-page__scroll">
-      <view
-        v-for="item in list"
-        :key="item.id"
-        class="msg-card card--elevated"
-        :class="{ 'msg-card--unread': item.readStatus === 0 }"
-        @click="onTap(item)"
-      >
-        <view class="msg-card__head">
-          <ModuleIcon icon="notes-o" theme="inbox" size="sm" />
-          <view class="msg-card__head-main">
-            <text class="msg-card__title">{{ item.title }}</text>
-            <text class="msg-card__time">{{ formatListTime(item.createTime) }}</text>
+      <template v-else>
+        <view
+          v-for="item in list"
+          :key="item.id"
+          class="msg-card card--elevated"
+          :class="{ 'msg-card--unread': item.readStatus === 0 }"
+          @click="onTap(item)"
+          @longpress="onLongPress(item)"
+        >
+          <view class="msg-card__head">
+            <ModuleIcon icon="notes-o" theme="inbox" size="sm" />
+            <view class="msg-card__head-main">
+              <text class="msg-card__title">{{ item.title }}</text>
+              <text class="msg-card__time">{{ formatListTime(item.createTime) }}</text>
+            </view>
+            <view v-if="item.readStatus === 0" class="msg-card__dot" />
           </view>
-          <view v-if="item.readStatus === 0" class="msg-card__dot" />
+          <text class="msg-card__content">{{ inboxContentPreview(item) }}</text>
+          <view v-if="inboxBizLabel(item.bizType)" class="msg-card__footer">
+            <text class="msg-card__chip">{{ inboxBizLabel(item.bizType) }}</text>
+          </view>
         </view>
-        <text class="msg-card__content">{{ inboxContentPreview(item) }}</text>
-        <view v-if="inboxBizLabel(item.bizType)" class="msg-card__footer">
-          <text class="msg-card__chip">{{ inboxBizLabel(item.bizType) }}</text>
-        </view>
-      </view>
 
-      <EmptyState v-if="!loading && !list.length" title="暂无业务消息" icon="notes-o" />
+        <EmptyState v-if="!loading && !list.length" title="暂无业务消息" icon="notes-o" />
+      </template>
     </scroll-view>
+    <AppDialogHost />
   </view>
 </template>
 
@@ -51,9 +61,12 @@ import { onPullDownRefresh } from '@dcloudio/uni-app'
 import ModuleIcon from '@/components/common/ModuleIcon/index.vue'
 import ListLoading from '@/components/common/ListLoading/index.vue'
 import EmptyState from '@/components/common/EmptyState/index.vue'
+import AppDialogHost from '@/components/common/AppDialogHost/index.vue'
 import { useInboxList } from '@/composables/useInboxList'
 import { formatListTime } from '@/utils/format'
 import { openInboxItem, inboxBizLabel, inboxContentPreview } from '@/utils/inbox-nav'
+import { showConfirm } from '@/utils/app-dialog'
+import { deleteNotice } from '@/api/system/notice'
 import type { NoticeVO } from '@/types/message'
 
 const { list, loading, refresh, markAllRead } = useInboxList()
@@ -64,7 +77,24 @@ function onTap(item: NoticeVO) {
   openInboxItem(item)
 }
 
+async function onLongPress(item: NoticeVO) {
+  const { confirmed } = await showConfirm({
+    title: '删除消息',
+    content: '确定删除该条业务消息？',
+    tone: 'danger',
+    confirmText: '删除',
+  })
+  if (!confirmed) return
+  await deleteNotice(item.id)
+  uni.showToast({ title: '已删除', icon: 'success' })
+  await refresh()
+}
+
 async function onReadAll() {
+  if (!unreadCount.value) {
+    uni.showToast({ title: '已无未读消息', icon: 'none' })
+    return
+  }
   await markAllRead()
   uni.showToast({ title: '已全部标记已读', icon: 'success' })
 }
@@ -142,6 +172,13 @@ onPullDownRefresh(async () => {
   color: #fff;
   background: rgba(255, 255, 255, 0.12);
   border: 1px solid rgba(255, 255, 255, 0.18);
+  transition: all 0.2s ease;
+
+  &--disabled {
+    opacity: 0.5;
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.1);
+  }
 }
 
 .inbox-page__scroll {

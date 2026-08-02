@@ -244,6 +244,7 @@ onPullDownRefresh(async () => {
 
 .recycle-types-scroll {
   width: 100%;
+  height: 96rpx;
   margin-bottom: 16rpx;
   white-space: nowrap;
 }

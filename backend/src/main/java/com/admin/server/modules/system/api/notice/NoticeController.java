@@ -46,6 +46,13 @@ public class NoticeController {
         return CommonResult.success(true);
     }
 
+    @Operation(summary = "删除单条消息")
+    @DeleteMapping("/{id}")
+    public CommonResult<Boolean> deleteNotice(@PathVariable("id") Long id) {
+        noticeService.deleteNotice(SecurityUtils.getLoginUserIdOrZero(), id);
+        return CommonResult.success(true);
+    }
+
     @Data
     public static class NoticeReadReqVO {
         private Long id;

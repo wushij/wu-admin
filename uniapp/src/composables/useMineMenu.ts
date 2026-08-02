@@ -92,7 +92,7 @@ export function useMineMenu() {
         desc: channel.desc,
         path: channel.path,
         permission: channel.permission,
-        theme: (channel.theme === 'notice' ? 'notice' : channel.theme === 'chat' ? 'emerald' : 'amber') as MineMenuTheme,
+        theme: (channel.theme === 'notice' || channel.theme === 'announce' ? 'rose' : channel.theme === 'chat' ? 'emerald' : 'amber') as MineMenuTheme,
         badge: countMap[channel.countKey] || 0,
       })),
     )

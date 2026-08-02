@@ -475,6 +475,9 @@
 
       <!-- AI 助手 -->
       <view v-else-if="tab === 'ai'" class="form-panel">
+        <FormCell label="AI 助手" hint="关闭后，PC端与移动端的悬浮小窗将不再显示" switch-cell>
+          <switch :checked="aiDraft.assistantEnabled !== false" :disabled="!canEdit" @change="aiDraft.assistantEnabled = $event.detail.value" />
+        </FormCell>
         <FormCell label="回答边界" last>
           <ConfigRadioGroup v-model="aiDraft.answerScope" :options="answerScopeOptions" :disabled="!canEdit" />
         </FormCell>

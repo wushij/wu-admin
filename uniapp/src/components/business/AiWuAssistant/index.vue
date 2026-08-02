@@ -116,7 +116,7 @@
       class="aiwu-body"
       scroll-y
       :scroll-top="scrollTop"
-      scroll-with-animation
+      :scroll-into-view="scrollIntoViewId"
       @scroll="onBodyScroll"
     >
       <!-- 欢迎屏（与 PC 100% 对齐） -->
@@ -264,6 +264,7 @@ import { ref, computed, nextTick, watch, onUnmounted } from 'vue'
 import IconFont from '@/components/common/IconFont/index.vue'
 import { useAiWuStore } from '@/store/aiWu'
 import { useUserStore } from '@/store/user'
+import { useAppStore } from '@/store/app'
 import { renderMarkdown } from '@/utils/chat-markdown'
 import { hasToken } from '@/utils/auth'
 import { listConversations, type AiConversationVO } from '@/api/ai'
@@ -294,14 +295,16 @@ isH5 = true
 
 const aiWuStore = useAiWuStore()
 const userStore = useUserStore()
+const appStore = useAppStore()
 
-const showFloatBall = computed(() => hasToken() || !!userStore.userInfo?.userId)
+const showFloatBall = computed(() => (hasToken() || !!userStore.userInfo?.userId) && appStore.aiAssistantEnabled)
 
 const userAvatar = computed(() => userStore.userInfo?.avatar || '')
 const userInitial = computed(() => (userStore.userInfo?.nickname || 'U').slice(0, 1))
 
 const inputText = ref('')
 const scrollTop = ref(0)
+const scrollIntoViewId = ref('')
 let savedScrollY = 0
 
 const modelMenuVisible = ref(false)
@@ -385,18 +388,38 @@ onUnmounted(() => {
   // #endif
 })
 
-function scrollToBottom() {
+function scrollToBottom(force = true) {
+  if (force) {
+    nearBottom.value = true
+  }
   nextTick(() => {
+    scrollIntoViewId.value = ''
+    nextTick(() => {
+      scrollIntoViewId.value = 'aiwu-bottom-anchor'
+    })
     scrollTop.value = scrollTop.value === 999999 ? 999998 : 999999
+
+    // #ifdef H5
+    const el = document.querySelector('.aiwu-body') as HTMLElement
+    if (el && (force || nearBottom.value)) {
+      el.scrollTop = el.scrollHeight
+    }
+    // #endif
   })
 }
 
-// 用户是否贴近底部（scroll-view 无法直接量高，靠 @scroll 事件实时计算）
+// 用户是否贴近底部（scroll-view 靠 @scroll 事件实时计算）
 const nearBottom = ref(true)
 
 function onBodyScroll(e: { detail: { scrollTop: number; scrollHeight: number } }) {
   const { scrollTop, scrollHeight } = e.detail
-  // 视口高度约占屏 60%，用 rpx 换算不可靠，直接用窗口高度估算
+  // #ifdef H5
+  const el = document.querySelector('.aiwu-body') as HTMLElement
+  if (el) {
+    nearBottom.value = el.scrollHeight - el.scrollTop - el.clientHeight < 120
+    return
+  }
+  // #endif
   const viewH = uni.getWindowInfo().windowHeight * 0.6
   nearBottom.value = scrollHeight - scrollTop - viewH < 120
 }
@@ -405,31 +428,36 @@ function onBodyScroll(e: { detail: { scrollTop: number; scrollHeight: number } }
 watch(
   () => aiWuStore.messages.length,
   () => {
-    nearBottom.value = true
-    scrollToBottom()
+    scrollToBottom(true)
   },
 )
 
-// 流式增量：用户往上滚阅后不再强制拉回底部
+// 流式增量：仅在跟随模式下向上推动
 watch(
   () => aiWuStore.messages[aiWuStore.messages.length - 1]?.content,
   () => {
-    if (aiWuStore.streaming && nearBottom.value) scrollToBottom()
+    if (aiWuStore.streaming && nearBottom.value) {
+      scrollToBottom(false)
+    }
   },
 )
 
-// 流式结束：若仍在跟随模式则滚到完整回答底部
+// 流式结束：滚到完整回答底部
 watch(
   () => aiWuStore.streaming,
   (val) => {
-    if (!val && nearBottom.value) scrollToBottom()
+    if (!val) {
+      scrollToBottom(true)
+    }
   },
 )
 
 watch(
   () => aiWuStore.panelVisible,
   (visible) => {
-    if (visible) scrollToBottom()
+    if (visible) {
+      scrollToBottom(true)
+    }
   },
 )
 
@@ -437,12 +465,16 @@ async function handleSend() {
   const text = inputText.value.trim()
   if (!text || aiWuStore.streaming) return
   inputText.value = ''
+  scrollToBottom(true)
   await aiWuStore.send(text)
+  scrollToBottom(true)
 }
 
 function sendQuick(q: string) {
   if (aiWuStore.streaming || (aiWuStore.modelsLoaded && aiWuStore.models.length === 0)) return
+  scrollToBottom(true)
   aiWuStore.send(q)
+  scrollToBottom(true)
 }
 
 function handleClear() {

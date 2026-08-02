@@ -1,6 +1,13 @@
 <template>
   <div class="ai-config-tab">
     <el-form :model="draft" label-width="120px" class="config-form">
+      <el-form-item label="AI 助手">
+        <div class="switch-with-tip">
+          <el-switch v-model="draft.assistantEnabled" :disabled="!canEdit" />
+          <span class="form-item-tip">关闭后，PC 端与移动端的悬浮 AI 助手小窗将不再显示</span>
+        </div>
+      </el-form-item>
+
       <el-form-item label="回答边界">
         <el-radio-group v-model="draft.answerScope" :disabled="!canEdit">
           <el-radio label="focus">聚焦本系统</el-radio>
@@ -181,6 +188,18 @@ async function removeRow(index: number) {
 
 .config-form {
   margin-bottom: 20px;
+}
+
+.switch-with-tip {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.form-item-tip {
+  font-size: 12px;
+  color: var(--el-text-color-secondary, #909399);
+  white-space: nowrap;
 }
 
 .token-quota-card {

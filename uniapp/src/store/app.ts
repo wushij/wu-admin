@@ -8,6 +8,7 @@ export const useAppStore = defineStore('app', () => {
   const platformSubtitle = ref('')
   const loginWelcome = ref('欢迎登录')
   const registerTitle = ref('注册账号')
+  const aiAssistantEnabled = ref(true)
   const configLoaded = ref(false)
 
   async function loadPublicConfig() {
@@ -17,6 +18,7 @@ export const useAppStore = defineStore('app', () => {
     if (site?.platformSubtitle) platformSubtitle.value = site.platformSubtitle
     if (site?.loginWelcome) loginWelcome.value = site.loginWelcome
     if (site?.registerTitle) registerTitle.value = site.registerTitle
+    aiAssistantEnabled.value = res.data?.ai?.assistantEnabled !== false
 
     // 从公开配置获取「签名/加密是否开启」标志，但未登录前暂不下发密钥
     const sm3SignEnabled = res.data?.security?.sm3SignEnabled === true
@@ -38,6 +40,7 @@ export const useAppStore = defineStore('app', () => {
     platformSubtitle,
     loginWelcome,
     registerTitle,
+    aiAssistantEnabled,
     configLoaded,
     loadPublicConfig,
   }

@@ -333,28 +333,32 @@ wu-admin/
 │       ├── styles/                # 全局样式与主题变量
 │       ├── types/                 # TypeScript 类型定义
 │       ├── App.vue / main.ts
+├── scripts/                       # 生产环境部署 Shell 脚本（deploy-backend.sh / deploy-frontend.sh）
 ├── uniapp/                        # uni-app 移动端（H5 / 微信小程序）
 │   ├── .env / .env.example / .env.production
-│   ├── index.html / manifest.json / pages.json / uni.scss
-│   ├── package.json / package-lock.json / tsconfig.json / shims-uni.d.ts
+│   ├── index.html / package.json / package-lock.json / tsconfig.json / shims-uni.d.ts
 │   ├── vite.config.ts
 │   └── src/
+│       ├── manifest.json / pages.json / uni.scss / env.d.ts
+│       ├── api/                   # 移动端 API 接口层
 │       ├── pages/                 # 主包页面：首页、工作台、消息、我的
 │       ├── pages-sub/             # 子包：系统管理、监控、IM、AI 管理、个人中心
-│       ├── components/            # 70+ 通用/业务组件
+│       ├── components/            # 通用与业务组件
 │       ├── composables/           # useH5ListPageNav、useChatKeyboardInset 等
+│       ├── constants/             # 常量定义（TabBar 配置、图标映射等）
 │       ├── store/                 # Pinia stores
-│       ├── utils/                 # api-base、nav-history、webSocket 等
+│       ├── utils/                 # api-base、nav-history、webSocket、security-config 等
 │       ├── config/                # 路由/请求等配置
 │       ├── plugins/               # uView/luch-request 等插件接入
 │       ├── custom-tab-bar/        # 自定义底部导航
 │       ├── styles/                # 全局样式
-│       ├── static/                # 静态资源（图片、字体等）
+│       ├── types/                 # TypeScript 类型定义
+│       ├── static/                # 静态资源（图片、图标等）
 │       ├── App.vue / main.ts
 ├── sql/
 │   ├── admin_platform.sql         # 本地全量脚本（wu-admin，MySQL 8）+ 附录
 │   ├── admin_platform_mysql56.sql # 生产空库全量（wuadmin，MySQL 5.6）
-│   └── migration/                 # 版本增量与迁移 SQL 脚本（addN.sql等）
+│   └── migration/                 # 版本增量与迁移 SQL 脚本
 └── data/                          # 本地上传目录（git 忽略）
 ```
 

@@ -118,6 +118,7 @@ const RATE_DEFAULTS: RateLimitConfig = {
   aiChatPerUserMinute: 8,
 }
 const AI_DEFAULTS: AiAdminConfig = {
+  assistantEnabled: true,
   globalKnowledge: '',
   answerScope: 'focus',
   tokensPerUserDaily: 100000,
@@ -226,6 +227,7 @@ function mergeLoadedConfig<K extends ConfigGroupCode>(code: K, raw: string | und
   }
   if (code === 'ai') {
     const ai = merged as AiAdminConfig
+    if (ai.assistantEnabled === undefined) ai.assistantEnabled = true
     if (ai.answerScope !== 'open') ai.answerScope = 'focus'
     if (typeof ai.tokensPerUserDaily !== 'number') ai.tokensPerUserDaily = 100000
     ai.roleTokenQuotas = Array.isArray(ai.roleTokenQuotas)
