@@ -239,6 +239,10 @@ public class SysConfigGroupServiceImpl implements SysConfigGroupService {
         if (hours < 1 || hours > 720) {
             throw new BusinessException("Token 有效期须在 1～720 小时之间");
         }
+        int signHours = json.getInt("sessionSignExpireHours", 24);
+        if (signHours < 1 || signHours > 120) {
+            throw new BusinessException("会话签名密钥有效期须在 1～120 小时之间");
+        }
     }
 
     private void validateFileConfig(JSONObject json) {

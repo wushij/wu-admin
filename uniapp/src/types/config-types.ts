@@ -59,6 +59,7 @@ export interface SiteAdminConfig {
 
 export interface SessionAdminConfig {
   tokenExpireHours: number
+  sessionSignExpireHours: number
 }
 
 export interface SecurityAdminConfig {

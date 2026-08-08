@@ -58,6 +58,7 @@ export interface AdminSiteConfig {
 
 export interface SessionConfig {
   tokenExpireHours: number
+  sessionSignExpireHours: number
 }
 
 export interface FileStorageConfig {

@@ -18,10 +18,18 @@
 
       <!-- 会话 -->
       <view v-else-if="tab === 'session'" class="form-panel form-panel--session">
-        <FormCell label="Token 有效期" last>
+        <FormCell label="Token 有效期">
           <NumberStepper v-model="sessionDraft.tokenExpireHours" :min="1" :max="720" :disabled="!canEdit" />
           <text class="config-unit">小时</text>
         </FormCell>
+        <FormCell label="签名密钥有效期" last>
+          <NumberStepper v-model="sessionDraft.sessionSignExpireHours" :min="1" :max="120" :disabled="!canEdit" />
+          <text class="config-unit">小时</text>
+        </FormCell>
+      </view>
+      <view v-if="tab === 'session'" class="session-alert-box">
+        <text class="session-alert-icon">ℹ</text>
+        <text class="session-alert-text">建议：将签名密钥有效期与 Token 有效期设为相同的时长（例如 24 小时）。</text>
       </view>
 
       <!-- 文件 -->
@@ -1010,6 +1018,39 @@ onPullDownRefresh(async () => {
   font-size: $font-size-xs;
   color: $color-text-secondary;
   white-space: nowrap;
+}
+
+.session-alert-box {
+  display: flex;
+  align-items: center;
+  gap: 14rpx;
+  margin: 20rpx 24rpx 0;
+  padding: 18rpx 24rpx;
+  background: rgba(59, 130, 246, 0.08);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  border-radius: 12rpx;
+}
+
+.session-alert-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32rpx;
+  height: 32rpx;
+  border-radius: 50%;
+  background: #2563eb;
+  color: #ffffff;
+  font-size: 20rpx;
+  font-weight: bold;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.session-alert-text {
+  flex: 1;
+  font-size: 24rpx;
+  line-height: 1.4;
+  color: #2563eb;
 }
 
 .config-page :deep(.form-cell__body .number-stepper) {

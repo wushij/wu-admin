@@ -44,7 +44,7 @@ const SITE_DEFAULTS: SiteAdminConfig = {
   copyright: '',
 }
 
-const SESSION_DEFAULTS: SessionAdminConfig = { tokenExpireHours: 24 }
+const SESSION_DEFAULTS: SessionAdminConfig = { tokenExpireHours: 24, sessionSignExpireHours: 24 }
 const SECURITY_DEFAULTS: SecurityAdminConfig = { disableDevtool: false, isConcurrent: false }
 const LOGIN_DEFAULTS: LoginAdminConfig = {
   captchaEnabled: true,

@@ -20,7 +20,7 @@ const DEFAULTS = {
     registerTitle: 'Sign Up',
     copyright: ''
   },
-  session: { tokenExpireHours: 24 },
+  session: { tokenExpireHours: 24, sessionSignExpireHours: 24 },
   file: {
     maxSizeMb: 50,
     allowedExtensions:

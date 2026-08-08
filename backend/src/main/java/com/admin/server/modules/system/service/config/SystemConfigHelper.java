@@ -99,6 +99,23 @@ public class SystemConfigHelper {
         return getTokenExpireHours() * 3600_000L;
     }
 
+    /**
+     * 会话签名密钥（SM3 签名 / SM4 加密）在 Redis 中的有效期，单位：小时。
+     * 默认 24 小时，与会话 Token 有效期（tokenExpireHours）保持完全一致的单位与设计。
+     * 范围 1～120 小时（即 1 小时 ～ 5 天）。
+     */
+    public int getSessionSignExpireHours() {
+        int hours = getGroupJson(GROUP_SESSION).getInt("sessionSignExpireHours", 24);
+        return Math.max(1, Math.min(hours, 120));
+    }
+
+    /**
+     * 会话签名密钥在 Redis 中的实际 TTL（分钟），由小时换算而来，供底层存储使用。
+     */
+    public long getSessionSignTtlMinutes() {
+        return (long) getSessionSignExpireHours() * 60;
+    }
+
     // ---------- 文件 ----------
     public int getFileMaxSizeMb() {
         int n = getGroupJson(GROUP_FILE).getInt("maxSizeMb", defaultMaxSizeMb);
