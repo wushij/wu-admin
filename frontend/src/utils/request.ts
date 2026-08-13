@@ -86,6 +86,11 @@ async function retryRequestWithNewSignKey(cfg: any): Promise<any> {
 
 service.interceptors.request.use(
   async (config) => {
+    // Axios 会把 null body 序列化为字面量字符串 "null"（typeof null === 'object'），
+    // 而前端签名逻辑对 null 判定为空串 "" -> 导致网关验签失败 403。
+    if (config.data === null) {
+      config.data = undefined
+    }
     const customCfg = config as InternalAxiosRequestConfig & { _rawBody?: any; _isRetrySign?: boolean }
     if (customCfg._rawBody === undefined) {
       customCfg._rawBody = config.data
@@ -311,11 +316,11 @@ export const get = <T = unknown>(url: string, params?: object, config?: AxiosReq
 }
 
 export const post = <T = unknown>(url: string, data?: unknown, config?: AxiosRequestConfig) => {
-  return service.post(url, data, config) as Promise<ApiResult<T>>
+  return service.post(url, data === null ? undefined : data, config) as Promise<ApiResult<T>>
 }
 
 export const put = <T = unknown>(url: string, data?: unknown, config?: AxiosRequestConfig) => {
-  return service.put(url, data, config) as Promise<ApiResult<T>>
+  return service.put(url, data === null ? undefined : data, config) as Promise<ApiResult<T>>
 }
 
 export const del = <T = unknown>(url: string, config?: AxiosRequestConfig) => {

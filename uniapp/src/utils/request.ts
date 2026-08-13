@@ -78,6 +78,9 @@ const http = new Request({
 
 http.interceptors.request.use(
   async (config) => {
+    if (config.data === null) {
+      config.data = undefined
+    }
     const customCfg = config as any
     if (customCfg._rawBody === undefined) {
       customCfg._rawBody = config.data
@@ -280,7 +283,7 @@ export const post = <T = unknown>(
   data?: unknown,
   config?: { params?: Record<string, unknown> },
 ) =>
-  http.post(url, data as Record<string, unknown> | undefined, {
+  http.post(url, (data === null ? undefined : data) as Record<string, unknown> | undefined, {
     params: config?.params,
   }) as Promise<ApiResult<T>>
 
@@ -289,7 +292,7 @@ export const put = <T = unknown>(
   data?: unknown,
   config?: { params?: Record<string, unknown> },
 ) =>
-  http.put(url, data as Record<string, unknown> | undefined, {
+  http.put(url, (data === null ? undefined : data) as Record<string, unknown> | undefined, {
     params: config?.params,
   }) as Promise<ApiResult<T>>
 
