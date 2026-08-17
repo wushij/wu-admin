@@ -62,7 +62,12 @@ export const useUserStore = defineStore('user', () => {
       await getUserInfo()
     } catch (error) {
       logger.error('刷新用户信息失败:', error)
-      logout()
+      // 仅在登录态失效时清本地会话。签名失败、网络中断、下拉刷新 abort
+      // 若一律 logout，用户会看到「请求失败」，返回时已被踢去登录页。
+      const msg = error instanceof Error ? error.message : String(error || '')
+      if (msg.includes('未授权') || msg.includes('登录已过期')) {
+        logout()
+      }
       throw error
     }
   }

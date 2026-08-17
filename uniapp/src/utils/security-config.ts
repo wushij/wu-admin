@@ -124,10 +124,11 @@ export function requestSessionSignKey(httpInstance: any): Promise<any> {
       const res = (await httpInstance.post('/auth/session-sign-init', undefined, {
         params: { clientId: getClientId() }
       })) as any
-      if (res.data?.enabled) {
+      const payload = res?.data ?? res
+      if (payload?.enabled) {
         setSecurityConfig({
-          sm3SignKey: res.data.sm3SignKey,
-          sm4Key: res.data.sm4Key,
+          sm3SignKey: payload.sm3SignKey,
+          sm4Key: payload.sm4Key,
         })
         startHeartbeatTimer(httpInstance)
       }

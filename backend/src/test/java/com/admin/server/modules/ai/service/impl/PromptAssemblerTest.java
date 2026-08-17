@@ -1,6 +1,5 @@
 package com.admin.server.modules.ai.service.impl;
 
-import cn.hutool.json.JSONObject;
 import com.admin.server.modules.system.dal.dataobject.dept.DeptDO;
 import com.admin.server.modules.system.dal.dataobject.permission.RoleDO;
 import com.admin.server.modules.system.dal.dataobject.user.UserDO;

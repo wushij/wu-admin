@@ -433,7 +433,12 @@ public class AuthServiceImpl implements AuthService {
         logEntry.setLoginLocation(IpLocationUtils.resolve(ip));
         logEntry.setBrowser(UserAgentUtils.parseBrowser(userAgent));
         logEntry.setOs(UserAgentUtils.parseOsFromUserAgent(userAgent));
-        loginLogService.recordAsync(logEntry);
+        // 成功日志同步写入，保证进入工作台时「今日登录成功」已包含本次登录
+        if (status != null && status == 0) {
+            loginLogService.record(logEntry);
+        } else {
+            loginLogService.recordAsync(logEntry);
+        }
     }
 
     private String validateLoginCaptcha(LoginReqVO reqVO) {

@@ -19,11 +19,21 @@ function isSignKeyExpiredMessage(text?: string): boolean {
   return text.includes('签名密钥') || text.includes('签名验证失败') || text.includes('X-Signature')
 }
 
+/** 并发 403 只协商一次新密钥，避免互相 clearSignKeys 把 Redis 密钥冲掉 */
+let signKeyRetryLock: Promise<void> | null = null
+
 async function retryUniappRequestWithNewSignKey(config: any): Promise<any> {
   config._isRetrySign = true
-  clearSignKeys()
+  if (!signKeyRetryLock) {
+    signKeyRetryLock = (async () => {
+      clearSignKeys()
+      await requestSessionSignKey(http)
+    })().finally(() => {
+      signKeyRetryLock = null
+    })
+  }
   try {
-    await requestSessionSignKey(http)
+    await signKeyRetryLock
     if (config._rawBody !== undefined) {
       config.data = config._rawBody
     }
@@ -120,11 +130,12 @@ http.interceptors.request.use(
       config.header.Authorization = token
     }
 
-    // 自动植入接口请求 SM4 加密 / SM2 数字签名
+    // 以「手里是否已有密钥」为准，不要等 /auth/config 开关。
+    // 生产环境整页刷新后，页面请求常早于 config 返回；若此时不签名，网关会 403，下拉刷新显示「加载失败」。
     const secConfig = getSecurityConfig()
     const isFormData = typeof FormData !== 'undefined' && config.data instanceof FormData
 
-    if (secConfig.sm4EncryptEnabled && secConfig.sm4Key) {
+    if (secConfig.sm4Key) {
       config.header['X-Accept-Encrypted'] = '1'
       if (config.data && !isFormData) {
         const plainStr = typeof config.data === 'string' ? config.data : JSON.stringify(config.data)
@@ -133,8 +144,7 @@ http.interceptors.request.use(
       }
     }
 
-    const isSignEnabled = (secConfig.sm3SignEnabled || secConfig.sm2SignEnabled) && secConfig.sm3SignKey
-    if (isSignEnabled) {
+    if (secConfig.sm3SignKey) {
       let bodyStr = ''
       if (config.data && !isFormData) {
         bodyStr = typeof config.data === 'string' ? config.data : JSON.stringify(config.data)
@@ -184,7 +194,7 @@ http.interceptors.response.use(
     const secConfig = getSecurityConfig()
     // 若响应标明 SM4 加密，且密钥已下发，自动解密 (兼容 CORS 限制：如果启用加密且返回的是非 JSON 字符串，也尝试解密)
     const isEncrypted = response?.header?.['x-encrypted'] === '1' || response?.header?.['X-Encrypted'] === '1' || 
-      (secConfig.sm4EncryptEnabled && typeof response.data === 'string' && !response.data.trim().startsWith('{') && !response.data.trim().startsWith('['));
+      (!!secConfig.sm4Key && typeof response.data === 'string' && !response.data.trim().startsWith('{') && !response.data.trim().startsWith('['));
     if (isEncrypted && typeof response.data === 'string') {
       const { sm4Key } = secConfig
       if (sm4Key) {
@@ -242,7 +252,7 @@ http.interceptors.response.use(
     const secConfig = getSecurityConfig()
     // 若错误响应标明 SM4 加密，且密钥已下发，自动解密 (CORS 容错)
     const isEncrypted = error && (error.header?.['x-encrypted'] === '1' || error.header?.['X-Encrypted'] === '1' || 
-      (secConfig.sm4EncryptEnabled && typeof error.data === 'string' && !error.data.trim().startsWith('{') && !error.data.trim().startsWith('[')));
+      (!!secConfig.sm4Key && typeof error.data === 'string' && !error.data.trim().startsWith('{') && !error.data.trim().startsWith('[')));
     if (isEncrypted && typeof error.data === 'string') {
       const { sm4Key } = secConfig
       if (sm4Key) {
@@ -257,6 +267,11 @@ http.interceptors.response.use(
 
     const url = (error as any)?.config?.url || ''
     if (url.includes('/auth/session-sign-init')) {
+      return Promise.reject(error)
+    }
+
+    // H5 下拉刷新/切后台会 abort 进行中的请求，不能当失败处理，更不能触发清密钥重试
+    if (isBenignRequestError(error)) {
       return Promise.reject(error)
     }
 

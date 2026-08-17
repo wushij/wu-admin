@@ -39,7 +39,6 @@ public class AuthController {
     private static final String SESSION_SIGN_KEY_PREFIX = "security:session-sign:";
     /** 会话 SM4 加密密钥 Redis 前缀，TTL 与签名密钥相同 */
     private static final String SESSION_SM4_KEY_PREFIX = "security:session-sm4:";
-    private static final long SESSION_SIGN_TTL_MINUTES = 120L; // 兜底默认值，实际以系统配置 sessionSignExpireMinutes 为准
     /** clientId 合法字符校验（32~64位十六进制或 UUID 格式） */
     private static final int CLIENT_ID_MIN_LEN = 8;
     private static final int CLIENT_ID_MAX_LEN = 128;

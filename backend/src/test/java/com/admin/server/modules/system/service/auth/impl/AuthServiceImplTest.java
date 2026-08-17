@@ -161,7 +161,7 @@ class AuthServiceImplTest extends MybatisLambdaTestBase {
             assertEquals("alice", result.get("username"));
             verify(tokenService).createToken(1L, "alice");
             verify(onlineUserService).recordLoginSession(eq(1L), eq("alice"), any(), eq("127.0.0.1"), eq("JUnit"));
-            verify(loginLogService).recordAsync(any());
+            verify(loginLogService).record(any());
         }
     }
 
