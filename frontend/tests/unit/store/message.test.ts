@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { useMessageStore } from '@/store/message'
-import { getMessageSummary } from '@/api/message'
+import { useUserStore } from '@/store/user'
+import { getMessageSummary, getChatGroups } from '@/api/message'
 import { getMyNoticeList } from '@/api/system/notice'
 
 vi.mock('@/api/message', () => ({
@@ -114,5 +115,30 @@ describe('useMessageStore', () => {
     expect(store.showNotification).toBe(true)
     vi.advanceTimersByTime(5000)
     expect(store.showNotification).toBe(false)
+  })
+
+  it('loadGroupNotifySettings skips chat API when IM menu is absent', async () => {
+    const userStore = useUserStore()
+    userStore.menus = [{ id: 1, name: '用户管理', permission: 'system:user:list', children: [] }]
+    userStore.userInfo = { permissions: ['system:chat:list'] }
+
+    const store = useMessageStore()
+    await store.loadGroupNotifySettings()
+
+    expect(getChatGroups).not.toHaveBeenCalled()
+  })
+
+  it('loadGroupNotifySettings loads groups when IM menu is present', async () => {
+    vi.mocked(getChatGroups).mockResolvedValue({
+      code: 200,
+      data: [{ id: 1, name: 'g', notifyMuted: true }],
+    })
+    const userStore = useUserStore()
+    userStore.menus = [{ id: 2, name: '即时通讯', permission: 'system:chat:list', children: [] }]
+
+    const store = useMessageStore()
+    await store.loadGroupNotifySettings()
+
+    expect(getChatGroups).toHaveBeenCalledWith({ silent403: true })
   })
 })

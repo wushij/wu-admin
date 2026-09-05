@@ -89,6 +89,18 @@ public class SystemConfigHelper {
         return getGroupJson(GROUP_SITE).getStr("copyright", "");
     }
 
+    public boolean isIcpEnabled() {
+        return getGroupJson(GROUP_SITE).getBool("icpEnabled", true);
+    }
+
+    public String getIcpNumber() {
+        return getGroupJson(GROUP_SITE).getStr("icpNumber", "粤ICP备2026045343号-1");
+    }
+
+    public String getIcpUrl() {
+        return getGroupJson(GROUP_SITE).getStr("icpUrl", "https://beian.miit.gov.cn");
+    }
+
     // ---------- 会话 ----------
     public int getTokenExpireHours() {
         int hours = getGroupJson(GROUP_SESSION).getInt("tokenExpireHours", 24);
@@ -605,6 +617,9 @@ public class SystemConfigHelper {
         site.put("loginWelcome", getLoginWelcome());
         site.put("registerTitle", getRegisterTitle());
         site.put("copyright", getCopyright());
+        site.put("icpEnabled", isIcpEnabled());
+        site.put("icpNumber", getIcpNumber());
+        site.put("icpUrl", getIcpUrl());
         result.put("site", site);
 
         JSONObject loginJson = getGroupJson(GROUP_LOGIN);

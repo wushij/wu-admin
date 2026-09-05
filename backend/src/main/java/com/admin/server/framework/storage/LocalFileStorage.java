@@ -55,7 +55,9 @@ public class LocalFileStorage {
     }
 
     public String upload(InputStream inputStream, String storagePath, String fileName) throws IOException {
-        Path dir = Paths.get(properties.getLocalPath(), storagePath);
+        Path base = Paths.get(properties.getLocalPath());
+        Files.createDirectories(base);
+        Path dir = base.resolve(storagePath);
         Files.createDirectories(dir);
         Path target = dir.resolve(fileName);
         Files.copy(inputStream, target, StandardCopyOption.REPLACE_EXISTING);

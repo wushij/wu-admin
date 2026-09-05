@@ -1,17 +1,19 @@
 -- =============================================================================
--- Admin Platform 数据库脚本（唯一入口）
+-- Admin Platform 数据库脚本（本地开发 · dev profile）
 -- 数据库: wu-admin  |  字符集: utf8mb4_unicode_ci
+-- 对应后端: application-dev.yml → jdbc:mysql://127.0.0.1:3306/wu-admin
+-- 生产环境请用: sql/admin_platform_prod.sql（库名 wuadmin）
 -- =============================================================================
 --
 -- 【使用方式】
 --   全新安装（空库）  直接执行全文即可（自动检测空库放行 Part A/B）
---                     示例: mysql -u root -p < sql/admin_platform.sql
+--                     示例: mysql -u root -p < sql/admin_platform_dev.sql
 --   已有库（有表）    勿跑全文 Part A/B；仅执行文末「附录」
 --   强制重装         SET @WU_ADMIN_ALLOW_DROP=1; 后再执行全文（会 DROP 清库）
 --
 -- 【正文结构】
 --   Part A  建表      §1 用户 ~ §18 AI wu助手（gen_table 含 uk_gen_table_name_deleted 唯一索引）
---   Part B  初始数据  组织/用户/字典/配置/菜单（含代码生成 164-169,179、AI 管理 200-206,210）/定时任务/角色权限
+--   Part B  初始数据  组织/用户/字典/配置/菜单（含代码生成 164-169,179、AI 管理 200-208,210,220-224）/定时任务/角色权限
 --
 -- 【附录】旧库补丁（含代码生成表/菜单/唯一索引迁移及历次发版变更）
 -- =============================================================================
@@ -774,15 +776,15 @@ INSERT INTO sys_dept (id, name, parent_id, ancestors, sort, status, leader_name,
 (4, '职能中心', 1, '0,1', 3, 1, NULL, NULL),
 (5, '运营中心', 1, '0,1', 4, 1, NULL, NULL),
 (6, '研发部', 2, '0,1,2', 1, 1, '张三', 2),
-(7, '运维部', 2, '0,1,2', 2, 1, NULL),
-(8, '产品部', 2, '0,1,2', 3, 1, NULL),
-(9, '市场部', 3, '0,1,3', 1, 1, '李四'),
-(10, '财务部', 4, '0,1,4', 1, 1, '王五'),
-(11, '人事部', 4, '0,1,4', 2, 1, NULL),
-(12, '实训部', 5, '0,1,5', 1, 1, NULL),
-(13, '客服部', 5, '0,1,5', 2, 1, NULL),
-(14, '前端组', 6, '0,1,2,6', 1, 1, NULL),
-(15, '后端组', 6, '0,1,2,6', 2, 1, NULL);
+(7, '运维部', 2, '0,1,2', 2, 1, NULL, NULL),
+(8, '产品部', 2, '0,1,2', 3, 1, NULL, NULL),
+(9, '市场部', 3, '0,1,3', 1, 1, '李四', NULL),
+(10, '财务部', 4, '0,1,4', 1, 1, '王五', NULL),
+(11, '人事部', 4, '0,1,4', 2, 1, NULL, NULL),
+(12, '实训部', 5, '0,1,5', 1, 1, NULL, NULL),
+(13, '客服部', 5, '0,1,5', 2, 1, NULL, NULL),
+(14, '前端组', 6, '0,1,2,6', 1, 1, NULL, NULL),
+(15, '后端组', 6, '0,1,2,6', 2, 1, NULL, NULL);
 
 -- 岗位（树形层级）
 INSERT INTO sys_post (id, parent_id, post_code, post_name, sort, status, remark) VALUES
@@ -811,8 +813,8 @@ ALTER TABLE sys_post AUTO_INCREMENT = 20;
 
 -- 用户（默认密码 admin123，BCrypt 加密）
 INSERT INTO sys_user (id, username, password, nickname, mobile, email, status, dept_id) VALUES
-(1, 'admin', '$2a$10$7JB720yubVSZvUI0rEqK/.VqGOZTH.ulu33dHOiBE8ByOhJIrdAu2', '管理员', '13800138000', 'admin@admin.cn', 1, 1),
-(2, 'zhangsan', '$2a$10$7JB720yubVSZvUI0rEqK/.VqGOZTH.ulu33dHOiBE8ByOhJIrdAu2', '张三', '13800138001', 'zhangsan@admin.cn', 1, 6);
+(1, 'admin', '$2a$10$7JB720yubVSZvUI0rEqK/.VqGOZTH.ulu33dHOiBE8ByOhJIrdAu2', '管理员', NULL, NULL, 1, 1),
+(2, 'zhangsan', '$2a$10$7JB720yubVSZvUI0rEqK/.VqGOZTH.ulu33dHOiBE8ByOhJIrdAu2', '张三', NULL, NULL, 1, 6);
 
 -- 角色
 INSERT INTO sys_role (id, name, code, sort, status, remark) VALUES
@@ -859,7 +861,7 @@ INSERT INTO sys_dict_data (dict_type, sort, dict_label, dict_value, list_class, 
 
 -- 系统配置（11 分组：site / session / file / rateLimit / login / register / thirdParty / payment / sms / email / security）
 INSERT INTO sys_config_group (group_code, group_name, config_value, remark) VALUES
-('site', '基础信息', '{"platformName":"Admin Platform","platformSubtitle":"统一运维 · 高效管控","loginWelcome":"Welcome","registerTitle":"Sign Up","copyright":""}', '平台展示名称与登录页文案'),
+('site', '基础信息', '{"platformName":"Admin Platform","platformSubtitle":"统一运维 · 高效管控","loginWelcome":"Welcome","registerTitle":"Sign Up","copyright":"","icpEnabled":true,"icpNumber":"粤ICP备2026045343号-1","icpUrl":"https://beian.miit.gov.cn"}', '平台展示名称与登录页文案'),
 ('session', '会话配置', '{"tokenExpireHours":24,"sessionSignExpireHours":24}', 'JWT 与 Redis 会话有效期（小时）'),
 ('file', '文件配置', '{"maxSizeMb":50,"allowedExtensions":"jpg,jpeg,png,gif,webp,bmp,svg,pdf,doc,docx,xls,xlsx,ppt,pptx,txt,md,json,xml,zip,rar,mp4,mp3,wav,avi,mov"}', '文件管理上传限制'),
 ('rateLimit', '接口限流', '{"captchaPerIpMinute":40,"loginPerIpMinute":30,"registerPerIpMinute":10,"smsPerIpMinute":5,"smsSendIntervalSeconds":60,"smsPerPhoneDaily":10,"smsPerIpDaily":30}', '认证接口按 IP 限流；含短信防刷'),
@@ -1005,12 +1007,14 @@ INSERT INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, c
 -- AI 管理（顶级目录 210，排在开发工具之前）
 (210, 'AI 管理', '', 1, 8, 0, '/ai', 'MagicStick', '', 1),
 (200, 'AI 模型配置', 'system:ai-model:list', 2, 1, 210, '/ai/model', 'MagicStick', 'ai/model/index', 1),
-(201, 'AI模型新增', 'system:ai-model:create', 3, 1, 200, '', '', '', 1),
-(202, 'AI模型修改', 'system:ai-model:update', 3, 2, 200, '', '', '', 1),
-(203, 'AI模型删除', 'system:ai-model:delete', 3, 3, 200, '', '', '', 1),
-(204, 'AI模型测试', 'system:ai-model:test', 3, 4, 200, '', '', '', 1),
+(207, 'AI模型查询', 'system:ai-model:query', 3, 1, 200, '', '', '', 1),
+(201, 'AI模型新增', 'system:ai-model:create', 3, 2, 200, '', '', '', 1),
+(202, 'AI模型修改', 'system:ai-model:update', 3, 3, 200, '', '', '', 1),
+(203, 'AI模型删除', 'system:ai-model:delete', 3, 4, 200, '', '', '', 1),
+(204, 'AI模型测试', 'system:ai-model:test', 3, 5, 200, '', '', '', 1),
 (205, 'AI 对话日志', 'system:ai-log:list', 2, 2, 210, '/ai/log', 'ChatDotRound', 'ai/log/index', 1),
-(206, 'AI日志删除', 'system:ai-log:delete', 3, 1, 205, '', '', '', 1);
+(208, 'AI日志查询', 'system:ai-log:query', 3, 1, 205, '', '', '', 1),
+(206, 'AI日志删除', 'system:ai-log:delete', 3, 2, 205, '', '', '', 1);
 
 -- 内置定时任务（默认暂停 status=0，在「系统监控 → 定时任务」启用）
 INSERT INTO sys_job (id, job_name, job_group, invoke_target, cron_expression, misfire_policy, concurrent, status, remark) VALUES
@@ -1042,19 +1046,27 @@ INSERT INTO sys_role_menu (role_id, menu_id) VALUES
 (1, 105), (1, 110), (1, 111), (1, 112), (1, 113),
 (1, 150), (1, 151), (1, 164), (1, 165), (1, 166), (1, 167), (1, 168), (1, 169), (1, 179),
 (1, 170), (1, 171), (1, 172), (1, 173), (1, 174), (1, 175), (1, 176), (1, 177), (1, 178),
-(1, 210), (1, 200), (1, 201), (1, 202), (1, 203), (1, 204), (1, 205), (1, 206);
+(1, 210), (1, 200), (1, 207), (1, 201), (1, 202), (1, 203), (1, 204), (1, 205), (1, 208), (1, 206);
 
--- 普通用户默认权限（页面+查询按钮；侧栏父级由 getUserMenuList 自动补齐）
+-- 普通用户默认权限（与角色管理默认勾选一致；侧栏父级由 getUserMenuList 自动补齐）
 INSERT INTO sys_role_menu (role_id, menu_id) VALUES
-(2, 2), (2, 10), (2, 3), (2, 20), (2, 4), (2, 30), (2, 5), (2, 40),
-(2, 130), (2, 131), (2, 160), (2, 161),
-(2, 8), (2, 7), (2, 60), (2, 61), (2, 62), (2, 63), (2, 64),
-(2, 9), (2, 70), (2, 71), (2, 73),
-(2, 101), (2, 102),
-(2, 105), (2, 110), (2, 111), (2, 112),
+-- 系统管理
+(2, 2), (2, 10), (2, 3), (2, 20), (2, 4), (2, 30), (2, 5), (2, 40), (2, 44),
+(2, 130), (2, 131), (2, 160), (2, 161), (2, 163), (2, 191),
+-- 流程中心
+(2, 8), (2, 9), (2, 70), (2, 71), (2, 73), (2, 7), (2, 60), (2, 61), (2, 62), (2, 63), (2, 64),
+-- 系统监控
+(2, 103), (2, 190), (2, 180), (2, 181), (2, 185), (2, 188), (2, 187), (2, 189), (2, 101), (2, 102),
+-- 系统日志
 (2, 121), (2, 126), (2, 6), (2, 50),
-(2, 151),
-(2, 170), (2, 172), (2, 178);
+-- 文件管理
+(2, 105), (2, 110), (2, 111), (2, 112),
+-- 消息中心
+(2, 170), (2, 171), (2, 173), (2, 172), (2, 178),
+-- 开发工具
+(2, 151), (2, 164), (2, 165), (2, 169),
+-- AI 管理
+(2, 200), (2, 207), (2, 201), (2, 204), (2, 205), (2, 208);
 
 -- =============================================================================
 -- ▼▼▼ MySQL 5.6 空库安装请在此停止 ▼▼▼
@@ -1064,7 +1076,7 @@ INSERT INTO sys_role_menu (role_id, menu_id) VALUES
 
 -- =============================================================================
 -- 附录：已有库升级（极旧库首次补丁；可重复执行，无 DROP）
--- 执行: 在客户端选中本节至文件末尾，或 mysql ... wu-admin < admin_platform.sql 仅当已跳过 Part A/B
+-- 执行: 在客户端选中本节至文件末尾，或 mysql ... wu-admin < admin_platform_dev.sql 仅当已跳过 Part A/B
 -- 菜单默认 INSERT IGNORE，不覆盖 name/path/icon
 -- =============================================================================
 
@@ -1508,7 +1520,7 @@ INSERT IGNORE INTO sys_menu (id, name, permission, type, sort, parent_id, path, 
 
 INSERT IGNORE INTO sys_role_menu (role_id, menu_id) VALUES
 (1, 170), (1, 171), (1, 172), (1, 173), (1, 174), (1, 175), (1, 176), (1, 177), (1, 178),
-(2, 170), (2, 172), (2, 178);
+(2, 170), (2, 171), (2, 173), (2, 172), (2, 178);
 
 -- [附录·修复] 操作日志 oper_name 误存 userId → 回填 username
 UPDATE sys_oper_log o
@@ -1521,15 +1533,25 @@ UPDATE sys_role SET remark = '仅部分功能'
 WHERE id = 2 AND (remark IS NULL OR remark = '' OR remark = '普通用户');
 
 INSERT IGNORE INTO sys_role_menu (role_id, menu_id) VALUES
-(2, 2), (2, 10), (2, 3), (2, 20), (2, 4), (2, 30), (2, 5), (2, 40),
-(2, 130), (2, 131), (2, 160), (2, 161),
-(2, 8), (2, 7), (2, 60), (2, 61), (2, 62), (2, 63), (2, 64),
-(2, 9), (2, 70), (2, 71), (2, 73),
-(2, 101), (2, 102),
-(2, 105), (2, 110), (2, 111), (2, 112),
+-- 系统管理
+(2, 2), (2, 10), (2, 3), (2, 20), (2, 4), (2, 30), (2, 5), (2, 40), (2, 44),
+(2, 130), (2, 131), (2, 160), (2, 161), (2, 163), (2, 191),
+-- 流程中心
+(2, 8), (2, 9), (2, 70), (2, 71), (2, 73), (2, 7), (2, 60), (2, 61), (2, 62), (2, 63), (2, 64),
+-- 系统监控
+(2, 103), (2, 190), (2, 180), (2, 181), (2, 185), (2, 188), (2, 187), (2, 189), (2, 101), (2, 102),
+-- 系统日志
 (2, 121), (2, 126), (2, 6), (2, 50),
-(2, 151),
-(2, 170), (2, 172), (2, 178);
+-- 文件管理
+(2, 105), (2, 110), (2, 111), (2, 112),
+-- 消息中心
+(2, 170), (2, 171), (2, 173), (2, 172), (2, 178),
+-- 开发工具
+(2, 151), (2, 164), (2, 165), (2, 169),
+-- AI 管理
+(2, 200), (2, 207), (2, 201), (2, 204), (2, 205), (2, 208),
+-- AI 知识库
+(2, 220), (2, 224);
 
 -- [附录·修复] 待审核用户（status=2）补建 REGISTER 审批单
 SET @register_approver_id := (
@@ -2277,12 +2299,14 @@ CREATE TABLE IF NOT EXISTS sys_ai_chat_log (
 INSERT IGNORE INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, component, status) VALUES
 (210, 'AI 管理', '', 1, 8, 0, '/ai', 'MagicStick', '', 1),
 (200, 'AI 模型配置', 'system:ai-model:list', 2, 1, 210, '/ai/model', 'MagicStick', 'ai/model/index', 1),
-(201, 'AI模型新增', 'system:ai-model:create', 3, 1, 200, '', '', '', 1),
-(202, 'AI模型修改', 'system:ai-model:update', 3, 2, 200, '', '', '', 1),
-(203, 'AI模型删除', 'system:ai-model:delete', 3, 3, 200, '', '', '', 1),
-(204, 'AI模型测试', 'system:ai-model:test', 3, 4, 200, '', '', '', 1),
+(207, 'AI模型查询', 'system:ai-model:query', 3, 1, 200, '', '', '', 1),
+(201, 'AI模型新增', 'system:ai-model:create', 3, 2, 200, '', '', '', 1),
+(202, 'AI模型修改', 'system:ai-model:update', 3, 3, 200, '', '', '', 1),
+(203, 'AI模型删除', 'system:ai-model:delete', 3, 4, 200, '', '', '', 1),
+(204, 'AI模型测试', 'system:ai-model:test', 3, 5, 200, '', '', '', 1),
 (205, 'AI 对话日志', 'system:ai-log:list', 2, 2, 210, '/ai/log', 'ChatDotRound', 'ai/log/index', 1),
-(206, 'AI日志删除', 'system:ai-log:delete', 3, 1, 205, '', '', '', 1);
+(208, 'AI日志查询', 'system:ai-log:query', 3, 1, 205, '', '', '', 1),
+(206, 'AI日志删除', 'system:ai-log:delete', 3, 2, 205, '', '', '', 1);
 
 -- 存量库迁移：早期版本曾将两个菜单挂在「系统管理」id=1 下，统一迁至「AI 管理」（可重复执行）
 UPDATE sys_menu SET parent_id = 210, sort = 1, path = '/ai/model', component = 'ai/model/index' WHERE id = 200;
@@ -2294,7 +2318,7 @@ UPDATE sys_menu SET sort = 9 WHERE id = 150;
 
 -- 超管默认拥有全部 AI 菜单权限
 INSERT IGNORE INTO sys_role_menu (role_id, menu_id) VALUES
-(1, 210), (1, 200), (1, 201), (1, 202), (1, 203), (1, 204), (1, 205), (1, 206);
+(1, 210), (1, 200), (1, 207), (1, 201), (1, 202), (1, 203), (1, 204), (1, 205), (1, 208), (1, 206);
 
 -- [附录·AI] add7：AI 知识库（RAG-lite）表 + 菜单与权限 + 示例知识（可重复执行）
 CREATE TABLE IF NOT EXISTS sys_ai_knowledge (
@@ -2316,12 +2340,14 @@ CREATE TABLE IF NOT EXISTS sys_ai_knowledge (
 
 INSERT IGNORE INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, component, status) VALUES
 (220, 'AI 知识库', 'system:ai-knowledge:list', 2, 3, 210, '/ai/knowledge', 'Notebook', 'ai/knowledge/index', 1),
-(221, 'AI知识新增', 'system:ai-knowledge:create', 3, 1, 220, '', '', '', 1),
-(222, 'AI知识修改', 'system:ai-knowledge:update', 3, 2, 220, '', '', '', 1),
-(223, 'AI知识删除', 'system:ai-knowledge:delete', 3, 3, 220, '', '', '', 1);
+(224, 'AI知识查询', 'system:ai-knowledge:query', 3, 1, 220, '', '', '', 1),
+(221, 'AI知识新增', 'system:ai-knowledge:create', 3, 2, 220, '', '', '', 1),
+(222, 'AI知识修改', 'system:ai-knowledge:update', 3, 3, 220, '', '', '', 1),
+(223, 'AI知识删除', 'system:ai-knowledge:delete', 3, 4, 220, '', '', '', 1);
 
 INSERT IGNORE INTO sys_role_menu (role_id, menu_id) VALUES
-(1, 220), (1, 221), (1, 222), (1, 223);
+(1, 220), (1, 224), (1, 221), (1, 222), (1, 223),
+(2, 220), (2, 224);
 
 INSERT IGNORE INTO sys_ai_knowledge (id, title, keywords, content, category, sort, status, creator, updater) VALUES
 (1, '忘记密码如何找回', '忘记密码,找回密码,重置密码,登录不了',
@@ -2344,4 +2370,28 @@ SET @sql := IF(@col_exists = 0,
 PREPARE stmt FROM @sql;
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
+
+-- [附录·AI] add9：AI 模块查询按钮（207/208/224），与代码生成/用户管理风格一致（可重复执行）
+INSERT IGNORE INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, component, status) VALUES
+(207, 'AI模型查询', 'system:ai-model:query', 3, 1, 200, '', '', '', 1),
+(208, 'AI日志查询', 'system:ai-log:query', 3, 1, 205, '', '', '', 1),
+(224, 'AI知识查询', 'system:ai-knowledge:query', 3, 1, 220, '', '', '', 1);
+
+UPDATE sys_menu SET sort = 2 WHERE id = 201;
+UPDATE sys_menu SET sort = 3 WHERE id = 202;
+UPDATE sys_menu SET sort = 4 WHERE id = 203;
+UPDATE sys_menu SET sort = 5 WHERE id = 204;
+UPDATE sys_menu SET sort = 2 WHERE id = 206;
+UPDATE sys_menu SET sort = 2 WHERE id = 221;
+UPDATE sys_menu SET sort = 3 WHERE id = 222;
+UPDATE sys_menu SET sort = 4 WHERE id = 223;
+
+INSERT IGNORE INTO sys_role_menu (role_id, menu_id) VALUES (1, 207), (1, 208), (1, 224);
+
+INSERT IGNORE INTO sys_role_menu (role_id, menu_id)
+SELECT role_id, 207 FROM sys_role_menu WHERE menu_id = 200;
+INSERT IGNORE INTO sys_role_menu (role_id, menu_id)
+SELECT role_id, 208 FROM sys_role_menu WHERE menu_id = 205;
+INSERT IGNORE INTO sys_role_menu (role_id, menu_id)
+SELECT role_id, 224 FROM sys_role_menu WHERE menu_id = 220;
 

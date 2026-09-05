@@ -31,7 +31,7 @@ public class AiKnowledgeController {
 
     @GetMapping("/{id}")
     @Operation(summary = "知识详情")
-    @PreAuthorize("@ss.hasRead('system:ai-knowledge:list')")
+    @PreAuthorize("@ss.hasRead('system:ai-knowledge:query')")
     public CommonResult<AiKnowledgeRespVO> detail(@PathVariable Long id) {
         return CommonResult.success(aiKnowledgeService.detail(id));
     }

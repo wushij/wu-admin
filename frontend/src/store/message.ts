@@ -18,6 +18,7 @@ import {
 import { getChatGroups } from '@/api/message'
 import type { ChatGroup } from '@/types/message'
 import { useUserStore } from '@/store/user'
+import { hasChatPerm } from '@/utils/hasMenuPerm'
 
 export type { ActiveChatTarget } from '@/utils/message-push'
 
@@ -74,11 +75,13 @@ export const useMessageStore = defineStore('message', () => {
   }
 
   async function loadGroupNotifySettings() {
+    const userStore = useUserStore()
+    if (!hasChatPerm(userStore.userInfo.permissions, userStore.menus)) return
     try {
-      const res = await getChatGroups()
+      const res = await getChatGroups({ silent403: true })
       if (res.data) syncGroupNotifySettings(res.data)
-    } catch (e) {
-      console.error('loadGroupNotifySettings failed', e)
+    } catch {
+      /* 无 IM 权限或接口不可用时不打扰用户 */
     }
   }
 

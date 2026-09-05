@@ -42,6 +42,9 @@ const SITE_DEFAULTS: SiteAdminConfig = {
   loginWelcome: 'Welcome',
   registerTitle: 'Sign Up',
   copyright: '',
+  icpEnabled: true,
+  icpNumber: '粤ICP备2026045343号-1',
+  icpUrl: 'https://beian.miit.gov.cn',
 }
 
 const SESSION_DEFAULTS: SessionAdminConfig = { tokenExpireHours: 24, sessionSignExpireHours: 24 }

@@ -18,7 +18,10 @@ const DEFAULTS = {
     platformSubtitle: '统一运维 · 高效管控',
     loginWelcome: 'Welcome',
     registerTitle: 'Sign Up',
-    copyright: ''
+    copyright: '',
+    icpEnabled: true,
+    icpNumber: '粤ICP备2026045343号-1',
+    icpUrl: 'https://beian.miit.gov.cn'
   },
   session: { tokenExpireHours: 24, sessionSignExpireHours: 24 },
   file: {

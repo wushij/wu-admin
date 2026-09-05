@@ -13,7 +13,14 @@
         <FormCell v-model="siteDraft.platformSubtitle" label="平台副标题" editable boxed :disabled="!canEdit" />
         <FormCell v-model="siteDraft.loginWelcome" label="登录页标题" editable boxed :disabled="!canEdit" />
         <FormCell v-model="siteDraft.registerTitle" label="注册页标题" editable boxed :disabled="!canEdit" />
-        <FormCell v-model="siteDraft.copyright" label="页脚版权" editable boxed placeholder="选填" :disabled="!canEdit" last />
+        <FormCell v-model="siteDraft.copyright" label="页脚版权" editable boxed placeholder="选填" :disabled="!canEdit" />
+        <FormCell label="ICP备案展示" :last="!siteDraft.icpEnabled">
+          <switch :checked="siteDraft.icpEnabled" :disabled="!canEdit" color="#6366f1" @change="siteDraft.icpEnabled = $event.detail.value" />
+        </FormCell>
+        <template v-if="siteDraft.icpEnabled">
+          <FormCell v-model="siteDraft.icpNumber" label="ICP备案号" editable boxed placeholder="粤ICP备2026045343号-1" :disabled="!canEdit" />
+          <FormCell v-model="siteDraft.icpUrl" label="工信部链接" editable boxed placeholder="https://beian.miit.gov.cn" :disabled="!canEdit" last />
+        </template>
       </view>
 
       <!-- 会话 -->

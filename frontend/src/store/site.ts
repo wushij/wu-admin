@@ -9,12 +9,37 @@ export const useSiteStore = defineStore('site', () => {
   const disableDevtool = ref(false)
   const aiAssistantEnabled = ref(true)
   const configLoaded = ref(false)
+  const siteConfig = ref<{
+    platformName?: string
+    platformSubtitle?: string
+    loginWelcome?: string
+    registerTitle?: string
+    copyright?: string
+    icpEnabled?: boolean
+    icpNumber?: string
+    icpUrl?: string
+  }>({
+    platformName: 'Admin Platform',
+    platformSubtitle: '统一运维 · 高效管控',
+    loginWelcome: 'Welcome',
+    registerTitle: 'Sign Up',
+    copyright: '',
+    icpEnabled: true,
+    icpNumber: '粤ICP备2026045343号-1',
+    icpUrl: 'https://beian.miit.gov.cn'
+  })
 
   async function loadConfig() {
     configPromise = (async () => {
       try {
         const res = await getConfig()
         const data = res.data
+        if (data?.site) {
+          siteConfig.value = {
+            ...siteConfig.value,
+            ...data.site
+          }
+        }
         disableDevtool.value = data?.security?.disableDevtool === true
         aiAssistantEnabled.value = data?.ai?.assistantEnabled !== false
 
@@ -48,5 +73,13 @@ export const useSiteStore = defineStore('site', () => {
     disableDevtool.value = value
   }
 
-  return { disableDevtool, aiAssistantEnabled, configLoaded, loadConfig, ensureConfigLoaded, setDisableDevtool }
+  return {
+    disableDevtool,
+    aiAssistantEnabled,
+    configLoaded,
+    siteConfig,
+    loadConfig,
+    ensureConfigLoaded,
+    setDisableDevtool,
+  }
 })

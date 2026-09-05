@@ -69,6 +69,8 @@ public class PermissionServiceImpl implements PermissionService {
     public void assignRoleMenu(Long roleId, Set<Long> menuIds) {
         roleMenuMapper.deleteByRoleId(roleId);
         if (CollUtil.isNotEmpty(menuIds)) {
+            // 勾选按钮时同步补齐父级页面/目录，与 getUserMenuList 一致，避免侧栏能进但接口 403
+            menuIds = expandMenuClosure(menuIds);
             List<RoleMenuDO> list = new ArrayList<>(menuIds.size());
             for (Long menuId : menuIds) {
                 RoleMenuDO roleMenu = new RoleMenuDO();
@@ -136,19 +138,11 @@ public class PermissionServiceImpl implements PermissionService {
     }
 
     private boolean matchPermissionDirect(Long userId, String permission) {
-        Set<Long> roleIds = getUserRoleIdListByUserId(userId);
-        if (CollUtil.isEmpty(roleIds)) {
+        Set<Long> menuIds = collectExpandedMenuIdsForUser(userId);
+        if (CollUtil.isEmpty(menuIds)) {
             return false;
         }
-        // 批量收集所有角色关联的菜单ID，一次查询代替 N*M 次逐条查询
-        Set<Long> allMenuIds = new HashSet<>();
-        for (Long roleId : roleIds) {
-            allMenuIds.addAll(getRoleMenuListByRoleId(roleId));
-        }
-        if (CollUtil.isEmpty(allMenuIds)) {
-            return false;
-        }
-        List<MenuDO> menus = listMenusByIds(allMenuIds);
+        List<MenuDO> menus = listMenusByIds(menuIds);
         return menus.stream().anyMatch(menu -> permission.equals(menu.getPermission()));
     }
 
@@ -175,6 +169,21 @@ public class PermissionServiceImpl implements PermissionService {
     }
 
     private Set<String> loadUserPermissionCodes(Long userId) {
+        Set<Long> menuIds = collectExpandedMenuIdsForUser(userId);
+        if (CollUtil.isEmpty(menuIds)) {
+            return Collections.emptySet();
+        }
+        Set<String> codes = new HashSet<>();
+        for (MenuDO menu : listMenusByIds(menuIds)) {
+            if (StringUtils.hasText(menu.getPermission())) {
+                codes.add(menu.getPermission());
+            }
+        }
+        return codes;
+    }
+
+    /** 汇总用户各角色菜单 ID，并补齐父级（与侧栏菜单树逻辑一致） */
+    private Set<Long> collectExpandedMenuIdsForUser(Long userId) {
         Set<Long> roleIds = getUserRoleIdListByUserId(userId);
         if (CollUtil.isEmpty(roleIds)) {
             return Collections.emptySet();
@@ -186,13 +195,7 @@ public class PermissionServiceImpl implements PermissionService {
         if (CollUtil.isEmpty(menuIds)) {
             return Collections.emptySet();
         }
-        Set<String> codes = new HashSet<>();
-        for (MenuDO menu : listMenusByIds(menuIds)) {
-            if (StringUtils.hasText(menu.getPermission())) {
-                codes.add(menu.getPermission());
-            }
-        }
-        return codes;
+        return expandMenuClosure(menuIds);
     }
 
     private List<MenuDO> listMenusByIds(Collection<Long> ids) {

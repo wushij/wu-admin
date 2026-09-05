@@ -154,6 +154,25 @@
           @click="goRegister"
         />
       </AuthGlassForm>
+
+      <view v-if="appStore.copyright || (appStore.icpEnabled && appStore.icpNumber)" class="login-page__footer auth-anim auth-anim--5">
+        <text v-if="appStore.copyright" class="footer-text">{{ appStore.copyright }}</text>
+        <text v-if="appStore.copyright && appStore.icpEnabled && appStore.icpNumber" class="footer-divider">|</text>
+        <!-- #ifdef H5 -->
+        <a
+          v-if="appStore.icpEnabled && appStore.icpNumber"
+          class="footer-icp-link"
+          :href="appStore.icpUrl || 'https://beian.miit.gov.cn/'"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          {{ appStore.icpNumber }}
+        </a>
+        <!-- #endif -->
+        <!-- #ifndef H5 -->
+        <text v-if="appStore.icpEnabled && appStore.icpNumber" class="footer-text">{{ appStore.icpNumber }}</text>
+        <!-- #endif -->
+      </view>
     </view>
 
     <SliderCaptcha
@@ -457,6 +476,39 @@ onShow(() => {
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+.login-page__footer {
+  margin-top: auto;
+  padding: 40rpx 20rpx 16rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 12rpx;
+  text-align: center;
+  font-size: 24rpx;
+  color: #000000;
+}
+
+.footer-divider {
+  color: #000000;
+  opacity: 0.5;
+}
+
+.footer-text {
+  color: #000000;
+}
+
+.footer-icp-link {
+  color: #000000;
+  text-decoration: none !important;
+}
+
+.footer-icp-link:hover {
+  color: #000000;
+  text-decoration: none !important;
+  opacity: 0.75;
 }
 
 </style>

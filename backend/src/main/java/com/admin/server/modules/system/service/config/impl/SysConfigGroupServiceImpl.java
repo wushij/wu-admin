@@ -150,6 +150,9 @@ public class SysConfigGroupServiceImpl implements SysConfigGroupService {
                 case "loginWelcome": return "登录页欢迎语";
                 case "registerTitle": return "注册页标题";
                 case "copyright": return "版权信息";
+                case "icpEnabled": return "ICP备案展示";
+                case "icpNumber": return "ICP备案号";
+                case "icpUrl": return "工信部链接";
                 default: break;
             }
         } else if (SystemConfigHelper.GROUP_REGISTER.equals(groupCode)) {

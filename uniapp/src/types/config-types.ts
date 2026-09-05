@@ -5,6 +5,9 @@ export interface SiteConfig {
   loginWelcome?: string
   registerTitle?: string
   copyright?: string
+  icpEnabled?: boolean
+  icpNumber?: string
+  icpUrl?: string
 }
 
 export interface LoginConfig {
@@ -55,6 +58,9 @@ export interface SiteAdminConfig {
   loginWelcome: string
   registerTitle: string
   copyright: string
+  icpEnabled: boolean
+  icpNumber: string
+  icpUrl: string
 }
 
 export interface SessionAdminConfig {
