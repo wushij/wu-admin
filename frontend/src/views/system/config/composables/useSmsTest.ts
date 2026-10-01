@@ -1,6 +1,6 @@
 import { ref, reactive } from 'vue'
-import { ElMessage } from 'element-plus'
-import { testSms, getRecentSmsLogs, getSmsLogs } from '@/api/system/config'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { testSms, getRecentSmsLogs, getSmsLogs, deleteSmsLog, deleteBatchSmsLogs, cleanSmsLogs } from '@/api/system/config'
 import { getErrorMessage } from '@/utils/axiosError'
 import type { SmsLogRecord } from '@/types/config'
 
@@ -73,6 +73,68 @@ export function useSmsTest(isDirty: () => boolean, getProvider: () => string) {
   }
   function handleSmsLogsSizeChange() { smsLogsPagination.page = 1; loadSmsLogs() }
 
+  const selectedSmsLogIds = ref<(number | string)[]>([])
+
+  function handleSmsSelectionChange(rows: SmsLogRecord[]) {
+    selectedSmsLogIds.value = rows.map((r) => r.id).filter(Boolean) as (number | string)[]
+  }
+
+  async function handleDeleteSmsLog(id: number | string) {
+    try {
+      await deleteSmsLog(id)
+      ElMessage.success('删除成功')
+      await Promise.all([
+        loadRecentSmsLogs(),
+        showSmsLogsModal.value ? loadSmsLogs() : Promise.resolve(),
+      ])
+    } catch (e) {
+      ElMessage.error(getErrorMessage(e) || '删除失败')
+    }
+  }
+
+  async function handleBatchDeleteSmsLogs() {
+    if (!selectedSmsLogIds.value.length) return
+    try {
+      await ElMessageBox.confirm(`确定删除选中的 ${selectedSmsLogIds.value.length} 条短信记录吗？`, '批量删除确认', {
+        type: 'warning',
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+      })
+      await deleteBatchSmsLogs(selectedSmsLogIds.value)
+      ElMessage.success('批量删除成功')
+      selectedSmsLogIds.value = []
+      await Promise.all([
+        loadRecentSmsLogs(),
+        loadSmsLogs(),
+      ])
+    } catch (e) {
+      if (e !== 'cancel') {
+        ElMessage.error(getErrorMessage(e) || '批量删除失败')
+      }
+    }
+  }
+
+  async function handleCleanSmsLogs() {
+    try {
+      await ElMessageBox.confirm('确定要清空全部短信发送记录吗？该操作不可恢复！', '清空警告', {
+        type: 'warning',
+        confirmButtonText: '清空',
+        cancelButtonText: '取消',
+      })
+      await cleanSmsLogs()
+      ElMessage.success('已清空全部短信记录')
+      selectedSmsLogIds.value = []
+      await Promise.all([
+        loadRecentSmsLogs(),
+        loadSmsLogs(),
+      ])
+    } catch (e) {
+      if (e !== 'cancel') {
+        ElMessage.error(getErrorMessage(e) || '清空失败')
+      }
+    }
+  }
+
   function syncTemplateFromConfig(templateVerifyCode?: string) {
     if (templateVerifyCode) testSmsTemplate.value = templateVerifyCode
   }
@@ -84,5 +146,6 @@ export function useSmsTest(isDirty: () => boolean, getProvider: () => string) {
     loadRecentSmsLogs, handleTestSms, handleShowAllSmsLogs,
     loadSmsLogs, handleSearchSmsLogs, handleResetSmsLogsSearch, handleSmsLogsSizeChange,
     syncTemplateFromConfig,
+    selectedSmsLogIds, handleSmsSelectionChange, handleDeleteSmsLog, handleBatchDeleteSmsLogs, handleCleanSmsLogs,
   }
 }

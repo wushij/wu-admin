@@ -12,7 +12,36 @@ import {
 } from '@/plugins/global-error-handler'
 import { resolveApiBaseUrl } from '@/utils/api-base'
 import { generateNonce, getTimestamp, encryptSm4, decryptSm4, signHmacSm3 } from '@/utils/crypto'
-import { getSecurityConfig, getClientId, requestSessionSignKey } from '@/utils/security-config'
+import { getSecurityConfig, getClientId, requestSessionSignKey, clearSignKeys } from '@/utils/security-config'
+
+function isSignKeyExpiredMessage(text?: string): boolean {
+  if (!text) return false
+  return text.includes('签名密钥') || text.includes('签名验证失败') || text.includes('X-Signature')
+}
+
+/** 并发 403 只协商一次新密钥，避免互相 clearSignKeys 把 Redis 密钥冲掉 */
+let signKeyRetryLock: Promise<void> | null = null
+
+async function retryUniappRequestWithNewSignKey(config: any): Promise<any> {
+  config._isRetrySign = true
+  if (!signKeyRetryLock) {
+    signKeyRetryLock = (async () => {
+      clearSignKeys()
+      await requestSessionSignKey(http)
+    })().finally(() => {
+      signKeyRetryLock = null
+    })
+  }
+  try {
+    await signKeyRetryLock
+    if (config._rawBody !== undefined) {
+      config.data = config._rawBody
+    }
+    return http.request(config)
+  } catch (err) {
+    return Promise.reject(err)
+  }
+}
 
 const BASE_URL = resolveApiBaseUrl()
 
@@ -59,6 +88,15 @@ const http = new Request({
 
 http.interceptors.request.use(
   async (config) => {
+    if (config.data === null) {
+      config.data = undefined
+    }
+    const customCfg = config as any
+    if (customCfg._rawBody === undefined) {
+      customCfg._rawBody = config.data
+    } else {
+      config.data = customCfg._rawBody
+    }
     const token = getToken()
     const timestamp = getTimestamp()
     const nonce = generateNonce()
@@ -92,11 +130,12 @@ http.interceptors.request.use(
       config.header.Authorization = token
     }
 
-    // 自动植入接口请求 SM4 加密 / SM2 数字签名
+    // 以「手里是否已有密钥」为准，不要等 /auth/config 开关。
+    // 生产环境整页刷新后，页面请求常早于 config 返回；若此时不签名，网关会 403，下拉刷新显示「加载失败」。
     const secConfig = getSecurityConfig()
     const isFormData = typeof FormData !== 'undefined' && config.data instanceof FormData
 
-    if (secConfig.sm4EncryptEnabled && secConfig.sm4Key) {
+    if (secConfig.sm4Key) {
       config.header['X-Accept-Encrypted'] = '1'
       if (config.data && !isFormData) {
         const plainStr = typeof config.data === 'string' ? config.data : JSON.stringify(config.data)
@@ -105,8 +144,7 @@ http.interceptors.request.use(
       }
     }
 
-    const isSignEnabled = (secConfig.sm3SignEnabled || secConfig.sm2SignEnabled) && secConfig.sm3SignKey
-    if (isSignEnabled) {
+    if (secConfig.sm3SignKey) {
       let bodyStr = ''
       if (config.data && !isFormData) {
         bodyStr = typeof config.data === 'string' ? config.data : JSON.stringify(config.data)
@@ -156,7 +194,7 @@ http.interceptors.response.use(
     const secConfig = getSecurityConfig()
     // 若响应标明 SM4 加密，且密钥已下发，自动解密 (兼容 CORS 限制：如果启用加密且返回的是非 JSON 字符串，也尝试解密)
     const isEncrypted = response?.header?.['x-encrypted'] === '1' || response?.header?.['X-Encrypted'] === '1' || 
-      (secConfig.sm4EncryptEnabled && typeof response.data === 'string' && !response.data.trim().startsWith('{') && !response.data.trim().startsWith('['));
+      (!!secConfig.sm4Key && typeof response.data === 'string' && !response.data.trim().startsWith('{') && !response.data.trim().startsWith('['));
     if (isEncrypted && typeof response.data === 'string') {
       const { sm4Key } = secConfig
       if (sm4Key) {
@@ -189,7 +227,10 @@ http.interceptors.response.use(
     }
 
     if (code === 403) {
-      const cfg = response.config
+      const cfg = response.config as any
+      if (isSignKeyExpiredMessage(message) && !cfg?._isRetrySign && !cfg?.url?.includes('/auth/session-sign-init')) {
+        return retryUniappRequestWithNewSignKey(cfg)
+      }
       if (!cfg?.silent403) {
         showForbiddenOnce(message || '权限不足')
       }
@@ -201,17 +242,28 @@ http.interceptors.response.use(
       return Promise.reject(new Error(message || '操作过于频繁'))
     }
 
+    // 🔐 对会话签名初始化接口做静默过滤与登录态过期自愈：
+    // 若客户端本地有 Token 却收到具备登录态要求或 401，说明服务端 Token 已失效，触发清理与重定向
+    const reqUrl = (response.config?.url || '') as string
+    if (reqUrl.includes('/auth/session-sign-init')) {
+      if (getToken() && (message?.includes('具备登录态') || message?.includes('登录已过期') || code === 401)) {
+        uni.showToast({ title: '登录已过期', icon: 'none' })
+        clearSessionAndRedirectLogin()
+      }
+      return Promise.reject(new Error(message || '获取签名密钥失败'))
+    }
+
     const msg = message || '请求失败'
     showGlobalErrorToast(msg)
     const err = new Error(msg)
     markErrorToastShown(err)
     return Promise.reject(err)
   }) as unknown as Parameters<typeof http.interceptors.response.use>[0],
-  (error: { data?: any; statusCode?: number; errMsg?: string; header?: any }) => {
+  (error: { data?: any; statusCode?: number; errMsg?: string; header?: any; config?: any }) => {
     const secConfig = getSecurityConfig()
     // 若错误响应标明 SM4 加密，且密钥已下发，自动解密 (CORS 容错)
     const isEncrypted = error && (error.header?.['x-encrypted'] === '1' || error.header?.['X-Encrypted'] === '1' || 
-      (secConfig.sm4EncryptEnabled && typeof error.data === 'string' && !error.data.trim().startsWith('{') && !error.data.trim().startsWith('[')));
+      (!!secConfig.sm4Key && typeof error.data === 'string' && !error.data.trim().startsWith('{') && !error.data.trim().startsWith('[')));
     if (isEncrypted && typeof error.data === 'string') {
       const { sm4Key } = secConfig
       if (sm4Key) {
@@ -226,13 +278,24 @@ http.interceptors.response.use(
 
     const url = (error as any)?.config?.url || ''
     if (url.includes('/auth/session-sign-init')) {
+      if (error?.statusCode === 401 && getToken()) {
+        uni.showToast({ title: '登录已过期', icon: 'none' })
+        clearSessionAndRedirectLogin()
+      }
       return Promise.reject(error)
     }
 
+    // H5 下拉刷新/切后台会 abort 进行中的请求，不能当失败处理，更不能触发清密钥重试
     if (isBenignRequestError(error)) {
       return Promise.reject(error)
     }
+
     const msg = extractApiErrorMessage(error, '网络异常')
+    const cfg = (error as any)?.config
+
+    if ((error.statusCode === 403 || isSignKeyExpiredMessage(msg)) && !cfg?._isRetrySign && !url.includes('/auth/session-sign-init')) {
+      return retryUniappRequestWithNewSignKey(cfg)
+    }
     showGlobalErrorToast(msg)
     const err = new Error(msg)
     markErrorToastShown(err)
@@ -250,7 +313,7 @@ export const post = <T = unknown>(
   data?: unknown,
   config?: { params?: Record<string, unknown> },
 ) =>
-  http.post(url, data as Record<string, unknown> | undefined, {
+  http.post(url, (data === null ? undefined : data) as Record<string, unknown> | undefined, {
     params: config?.params,
   }) as Promise<ApiResult<T>>
 
@@ -259,7 +322,7 @@ export const put = <T = unknown>(
   data?: unknown,
   config?: { params?: Record<string, unknown> },
 ) =>
-  http.put(url, data as Record<string, unknown> | undefined, {
+  http.put(url, (data === null ? undefined : data) as Record<string, unknown> | undefined, {
     params: config?.params,
   }) as Promise<ApiResult<T>>
 

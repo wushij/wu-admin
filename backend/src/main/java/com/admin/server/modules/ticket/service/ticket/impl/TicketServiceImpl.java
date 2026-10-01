@@ -100,11 +100,9 @@ public class TicketServiceImpl implements TicketService {
     }
 
     @Override
-    public TicketDO getDetail(Long id) {
+    public TicketDO getDetail(Long id, Long currentUserId) {
         TicketDO ticket = ticketMapper.selectById(id);
-        if (ticket == null) {
-            throw new BusinessException(404, "工单不存在");
-        }
+        assertAccessible(ticket, currentUserId);
         fillUserName(Collections.singletonList(ticket));
         return ticket;
     }
@@ -144,9 +142,7 @@ public class TicketServiceImpl implements TicketService {
     @Transactional(rollbackFor = Exception.class)
     public void update(TicketUpdateReqVO reqVO, Long currentUserId) {
         TicketDO ticket = ticketMapper.selectById(reqVO.getId());
-        if (ticket == null) {
-            throw new BusinessException(404, "工单不存在");
-        }
+        assertAccessible(ticket, currentUserId);
         Long newAssigneeUserId = reqVO.getAssigneeUserId();
         boolean allUsers = newAssigneeUserId != null && newAssigneeUserId.equals(0L);
         ticket.setTitle(reqVO.getTitle());
@@ -165,11 +161,9 @@ public class TicketServiceImpl implements TicketService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void delete(Long id) {
+    public void delete(Long id, Long currentUserId) {
         TicketDO ticket = ticketMapper.selectById(id);
-        if (ticket == null) {
-            throw new BusinessException(404, "工单不存在");
-        }
+        assertAccessible(ticket, currentUserId);
         ticketCommentMapper.delete(new LambdaQueryWrapper<TicketCommentDO>().eq(TicketCommentDO::getTicketId, id));
         ticketAttachmentMapper.delete(new LambdaQueryWrapper<TicketAttachmentDO>().eq(TicketAttachmentDO::getTicketId, id));
         ticketMapper.deleteById(id);
@@ -208,9 +202,7 @@ public class TicketServiceImpl implements TicketService {
     @Override
     public void transition(TicketTransitionReqVO reqVO, Long currentUserId) {
         TicketDO ticket = ticketMapper.selectById(reqVO.getId());
-        if (ticket == null) {
-            throw new BusinessException(404, "工单不存在");
-        }
+        assertAccessible(ticket, currentUserId);
         boolean hasTransitionPermission = permissionService.hasRole(currentUserId, "super_admin")
                 || permissionService.hasPermission(currentUserId, "system:ticket:transition");
         boolean isAssignee = ticket.getAssigneeUserId() != null && ticket.getAssigneeUserId().equals(currentUserId);
@@ -231,7 +223,8 @@ public class TicketServiceImpl implements TicketService {
     }
 
     @Override
-    public List<TicketCommentDO> listComments(Long ticketId) {
+    public List<TicketCommentDO> listComments(Long ticketId, Long currentUserId) {
+        assertAccessible(ticketMapper.selectById(ticketId), currentUserId);
         List<TicketCommentDO> comments = ticketCommentMapper.selectList(
                 new LambdaQueryWrapper<TicketCommentDO>()
                         .eq(TicketCommentDO::getTicketId, ticketId)
@@ -243,9 +236,7 @@ public class TicketServiceImpl implements TicketService {
     @Override
     public Long createComment(TicketCommentCreateReqVO reqVO, Long currentUserId) {
         TicketDO ticket = ticketMapper.selectById(reqVO.getTicketId());
-        if (ticket == null) {
-            throw new BusinessException(404, "工单不存在");
-        }
+        assertAccessible(ticket, currentUserId);
         TicketCommentDO comment = new TicketCommentDO();
         comment.setTicketId(reqVO.getTicketId());
         comment.setUserId(currentUserId);
@@ -255,7 +246,8 @@ public class TicketServiceImpl implements TicketService {
     }
 
     @Override
-    public List<TicketAttachmentDO> listAttachments(Long ticketId) {
+    public List<TicketAttachmentDO> listAttachments(Long ticketId, Long currentUserId) {
+        assertAccessible(ticketMapper.selectById(ticketId), currentUserId);
         List<TicketAttachmentDO> attachments = ticketAttachmentMapper.selectList(
                 new LambdaQueryWrapper<TicketAttachmentDO>()
                         .eq(TicketAttachmentDO::getTicketId, ticketId)
@@ -267,23 +259,25 @@ public class TicketServiceImpl implements TicketService {
     @Override
     public Long uploadAttachment(Long ticketId, MultipartFile file, Long currentUserId) throws IOException {
         TicketDO ticket = ticketMapper.selectById(ticketId);
-        if (ticket == null) {
-            throw new BusinessException(404, "工单不存在");
-        }
+        assertAccessible(ticket, currentUserId);
         if (file == null || file.isEmpty()) {
             throw new BusinessException(400, "附件不能为空");
         }
         String originFileName = StringUtils.hasText(file.getOriginalFilename()) ? file.getOriginalFilename() : "file";
-        String safeName = UUID.randomUUID().toString().replace("-", "") + "_" + originFileName;
-        Path uploadDir = Paths.get(System.getProperty("user.dir"), "data", "uploads", "ticket");
+        String cleanFileName = Paths.get(originFileName).getFileName().toString();
+        String safeName = UUID.randomUUID().toString().replace("-", "") + "_" + cleanFileName;
+        Path uploadDir = Paths.get(System.getProperty("user.dir"), "data", "uploads", "ticket").toAbsolutePath().normalize();
         Files.createDirectories(uploadDir);
-        Path targetPath = uploadDir.resolve(safeName);
+        Path targetPath = uploadDir.resolve(safeName).normalize();
+        if (!targetPath.startsWith(uploadDir)) {
+            throw new BusinessException(400, "非法文件名");
+        }
         Files.copy(file.getInputStream(), targetPath, StandardCopyOption.REPLACE_EXISTING);
 
         TicketAttachmentDO attachment = new TicketAttachmentDO();
         attachment.setTicketId(ticketId);
         attachment.setUploaderUserId(currentUserId);
-        attachment.setFileName(originFileName);
+        attachment.setFileName(cleanFileName);
         attachment.setFilePath(targetPath.toString());
         attachment.setFileSize(file.getSize());
         ticketAttachmentMapper.insert(attachment);
@@ -291,8 +285,42 @@ public class TicketServiceImpl implements TicketService {
     }
 
     @Override
-    public TicketAttachmentDO getAttachmentForDownload(Long id) {
-        return ticketAttachmentMapper.selectById(id);
+    public TicketAttachmentDO getAttachmentForDownload(Long id, Long currentUserId) {
+        if (id == null) {
+            throw new BusinessException(400, "附件ID不能为空");
+        }
+        TicketAttachmentDO attachment = ticketAttachmentMapper.selectById(id);
+        if (attachment == null) {
+            throw new BusinessException(404, "附件不存在");
+        }
+        // 附件无归属字段，需反查其所属工单再判定可见性，防止按附件 id 越权下载他人工单附件
+        assertAccessible(ticketMapper.selectById(attachment.getTicketId()), currentUserId);
+        return attachment;
+    }
+
+    /**
+     * 工单可见性校验（与 {@link #page} 的过滤口径严格一致）。
+     *
+     * <p>仅以下身份可访问工单及其评论、附件：
+     * 创建人本人 / 处理人本人 / 全员工单（assigneeUserId = 0）/ 超级管理员。
+     * 其余情况一律 403，避免按 id 枚举越权读写他人数据。
+     */
+    private void assertAccessible(TicketDO ticket, Long currentUserId) {
+        if (ticket == null) {
+            throw new BusinessException(404, "工单不存在");
+        }
+        if (currentUserId == null || currentUserId <= 0) {
+            throw new BusinessException(401, "登录已过期，请重新登录");
+        }
+        if (permissionService.hasRole(currentUserId, "super_admin")) {
+            return;
+        }
+        boolean isCreator = currentUserId.equals(ticket.getCreatorUserId());
+        boolean isAssignee = currentUserId.equals(ticket.getAssigneeUserId());
+        boolean isPublicPool = ticket.getAssigneeUserId() != null && ticket.getAssigneeUserId().equals(0L);
+        if (!isCreator && !isAssignee && !isPublicPool) {
+            throw new BusinessException(403, "无权访问该工单");
+        }
     }
 
     // ---- 私有方法 ----

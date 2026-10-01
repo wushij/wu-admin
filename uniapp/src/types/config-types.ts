@@ -5,6 +5,9 @@ export interface SiteConfig {
   loginWelcome?: string
   registerTitle?: string
   copyright?: string
+  icpEnabled?: boolean
+  icpNumber?: string
+  icpUrl?: string
 }
 
 export interface LoginConfig {
@@ -55,10 +58,14 @@ export interface SiteAdminConfig {
   loginWelcome: string
   registerTitle: string
   copyright: string
+  icpEnabled: boolean
+  icpNumber: string
+  icpUrl: string
 }
 
 export interface SessionAdminConfig {
   tokenExpireHours: number
+  sessionSignExpireHours: number
 }
 
 export interface SecurityAdminConfig {
@@ -100,6 +107,22 @@ export interface RateLimitConfig {
   smsSendIntervalSeconds: number
   smsPerPhoneDaily: number
   smsPerIpDaily: number
+  /** AI 对话：单用户每分钟请求次数上限（0 表示不限制） */
+  aiChatPerUserMinute: number
+}
+
+/** AI 对话角色级每日 token 配额项 */
+export interface RoleTokenQuota {
+  roleId: number
+  tokensDaily: number
+}
+
+export interface AiAdminConfig {
+  assistantEnabled?: boolean
+  globalKnowledge: string
+  answerScope: 'focus' | 'open'
+  tokensPerUserDaily: number
+  roleTokenQuotas: RoleTokenQuota[]
 }
 
 export interface ThirdPartyOAuthConfig {
@@ -155,11 +178,16 @@ export interface SecurityPublicConfig {
   sm3SignEnabled?: boolean
 }
 
+export interface AiPublicConfig {
+  assistantEnabled?: boolean
+}
+
 export interface AuthPublicConfig {
   site?: SiteConfig
   login?: LoginConfig
   register?: RegisterConfig
   security?: SecurityPublicConfig
+  ai?: AiPublicConfig
 }
 
 export interface SmsLogRecord {
@@ -224,3 +252,4 @@ export type ConfigGroupCode =
   | 'sms'
   | 'email'
   | 'security'
+  | 'ai'

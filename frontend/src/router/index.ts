@@ -134,6 +134,12 @@ const routes: RouteRecordRaw[] = [
         meta: { title: 'AI 对话日志', icon: 'ChatDotRound', permission: 'system:ai-log:list' }
       },
       {
+        path: 'ai/knowledge',
+        name: 'AiKnowledge',
+        component: () => import('@/views/ai/knowledge/index.vue'),
+        meta: { title: 'AI 知识库', icon: 'Notebook', permission: 'system:ai-knowledge:list' }
+      },
+      {
         path: 'system/ai-model',
         redirect: '/ai/model'
       },

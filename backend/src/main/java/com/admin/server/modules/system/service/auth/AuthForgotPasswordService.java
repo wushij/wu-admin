@@ -35,6 +35,9 @@ public class AuthForgotPasswordService {
         if (user == null) {
             return "用户不存在";
         }
+        if ("zhangsan".equalsIgnoreCase(user.getUsername())) {
+            return "演示体验账号禁止找回密码";
+        }
         String statusErr = checkUserStatus(user);
         if (statusErr != null) {
             return statusErr;

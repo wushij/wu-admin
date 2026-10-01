@@ -35,11 +35,10 @@ import java.util.concurrent.TimeUnit;
 @RequestMapping("/auth")
 public class AuthController {
 
-    /** 会话签名密钥 Redis 前缀，TTL = 30 分钟 */
+    /** 会话签名密钥 Redis 前缀，TTL 默认 24 小时，以系统配置 sessionSignExpireHours 为准 */
     private static final String SESSION_SIGN_KEY_PREFIX = "security:session-sign:";
     /** 会话 SM4 加密密钥 Redis 前缀，TTL 与签名密钥相同 */
     private static final String SESSION_SM4_KEY_PREFIX = "security:session-sm4:";
-    private static final long SESSION_SIGN_TTL_MINUTES = 30L;
     /** clientId 合法字符校验（32~64位十六进制或 UUID 格式） */
     private static final int CLIENT_ID_MIN_LEN = 8;
     private static final int CLIENT_ID_MAX_LEN = 128;
@@ -97,7 +96,8 @@ public class AuthController {
     public CommonResult<Map<String, Object>> sessionSignInit(
             @RequestParam(value = "clientId") String clientId,
             @RequestParam(value = "uuid", required = false) String uuid,
-            @RequestParam(value = "code", required = false) String code) {
+            @RequestParam(value = "code", required = false) String code,
+            HttpServletRequest request) {
         // 校验 clientId 格式，防止 Redis key 注入
         if (StrUtil.isBlank(clientId)
                 || clientId.length() < CLIENT_ID_MIN_LEN
@@ -115,6 +115,11 @@ public class AuthController {
         // 人机与身份防刷检查：未登录且未提供有效人机校验时，严禁下发密钥
         boolean isLoggedIn = StpUtil.isLogin();
         if (!isLoggedIn) {
+            String token = com.admin.server.framework.security.core.AuthTokenResolver.resolve(request);
+            if (StrUtil.isNotBlank(token)) {
+                // 客户端携带有 Token 凭据发起初始化，但服务端会话已过期/被踢，直接返回 401 触发客户端自动登出
+                throw new BusinessException(401, "登录已过期，请重新登录");
+            }
             if (StrUtil.isBlank(uuid) || StrUtil.isBlank(code)) {
                 throw new BusinessException(400, "获取签名密钥须提供人机校验凭证或具备登录态");
             }
@@ -124,15 +129,19 @@ public class AuthController {
             }
         }
 
+        long signTtlMinutes = systemConfigHelper.getSessionSignTtlMinutes();
+        int signTtlHours = systemConfigHelper.getSessionSignExpireHours();
+
         Map<String, Object> result = new java.util.HashMap<>();
         result.put("enabled", true);
-        result.put("ttlMinutes", SESSION_SIGN_TTL_MINUTES);
+        result.put("ttlMinutes", signTtlMinutes);
+        result.put("ttlHours", signTtlHours);
 
         // 签名密钥：32 字节（64 位 Hex）密码学安全随机临时密钥
         if (signActive) {
             String signKey = RandomUtil.randomString("0123456789abcdef", 64);
             stringRedisTemplate.opsForValue().set(
-                    SESSION_SIGN_KEY_PREFIX + clientId, signKey, SESSION_SIGN_TTL_MINUTES, TimeUnit.MINUTES);
+                    SESSION_SIGN_KEY_PREFIX + clientId, signKey, signTtlMinutes, TimeUnit.MINUTES);
             result.put("sm3SignKey", signKey);
         }
 
@@ -140,14 +149,17 @@ public class AuthController {
         if (sm4Active) {
             String sm4Key = RandomUtil.randomString("0123456789abcdef", 32);
             stringRedisTemplate.opsForValue().set(
-                    SESSION_SM4_KEY_PREFIX + clientId, sm4Key, SESSION_SIGN_TTL_MINUTES, TimeUnit.MINUTES);
+                    SESSION_SM4_KEY_PREFIX + clientId, sm4Key, signTtlMinutes, TimeUnit.MINUTES);
             result.put("sm4Key", sm4Key);
         }
 
         return CommonResult.success(result);
     }
 
-    @Log(title = "用户登录", businessType = Log.BusinessType.OTHER, isSaveRequestData = false)
+    /**
+     * 登录审计统一由 sys_login_log 记录（含成功/失败、失败原因、UA、IP 归属地），
+     * 故此处不再标注 @Log，避免同一次登录重复写入 sys_oper_log。
+     */
     @Operation(summary = "登录")
     @PostMapping("/login")
     public CommonResult<Map<String, Object>> login(@Validated @RequestBody LoginReqVO reqVO, HttpServletRequest request) {

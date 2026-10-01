@@ -1,6 +1,7 @@
 import { ref, reactive, computed, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
+import { useSiteStore } from '@/store/site'
 import { getCaptcha, register, getConfig } from '@/api/system/auth'
 import type { RegisterForm } from '@/types/api'
 import { getErrorMessage } from '@/utils/axiosError'
@@ -116,6 +117,11 @@ export function useRegisterForm() {
         if (config.site.platformName) sitePlatformName.value = config.site.platformName
         if (config.site.platformSubtitle) sitePlatformSubtitle.value = config.site.platformSubtitle
         if (config.site.registerTitle) siteRegisterTitle.value = config.site.registerTitle
+        const siteStore = useSiteStore()
+        siteStore.siteConfig = {
+          ...siteStore.siteConfig,
+          ...config.site,
+        }
       }
     } catch (error) {
       console.error('加载配置失败', error)

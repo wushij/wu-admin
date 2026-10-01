@@ -14,10 +14,16 @@
 .main-content {
   flex: 1;
   min-height: 0;
-  padding: 20px;
+  padding: 20px 20px 8px;
   background: var(--theme-bg, #f0f2f5);
   overflow: auto;
   scrollbar-gutter: stable;
+  display: flex;
+  flex-direction: column;
+}
+
+.main-content__body {
+  flex: 1 0 auto;
 }
 
 .fade-enter-active,

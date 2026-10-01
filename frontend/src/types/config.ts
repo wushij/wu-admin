@@ -5,6 +5,9 @@ export interface SiteConfig {
   loginWelcome?: string
   registerTitle?: string
   copyright?: string
+  icpEnabled?: boolean
+  icpNumber?: string
+  icpUrl?: string
 }
 
 export interface LoginConfig {
@@ -35,11 +38,16 @@ export interface SecurityPublicConfig {
   sm3SignEnabled?: boolean
 }
 
+export interface AiPublicConfig {
+  assistantEnabled?: boolean
+}
+
 export interface AuthPublicConfig {
   site?: SiteConfig
   login?: LoginConfig
   register?: RegisterConfig
   security?: SecurityPublicConfig
+  ai?: AiPublicConfig
 }
 
 /** 系统配置页各分组（与后端 configValue JSON 结构一致） */
@@ -49,10 +57,14 @@ export interface AdminSiteConfig {
   loginWelcome: string
   registerTitle: string
   copyright: string
+  icpEnabled: boolean
+  icpNumber: string
+  icpUrl: string
 }
 
 export interface SessionConfig {
   tokenExpireHours: number
+  sessionSignExpireHours: number
 }
 
 export interface FileStorageConfig {
@@ -68,6 +80,27 @@ export interface RateLimitConfig {
   smsSendIntervalSeconds: number
   smsPerPhoneDaily: number
   smsPerIpDaily: number
+  /** AI 对话：单用户每分钟请求次数上限（0 表示不限制） */
+  aiChatPerUserMinute: number
+}
+
+/** AI 对话角色级每日 token 配额项 */
+export interface RoleTokenQuota {
+  roleId: number
+  tokensDaily: number
+}
+
+export interface AiConfig {
+  /** 是否开启 AI 助手悬浮小窗 */
+  assistantEnabled?: boolean
+  /** 全局项目知识块（Markdown，注入 system 提示词） */
+  globalKnowledge: string
+  /** 回答边界：focus 聚焦本系统 / open 开放问答 */
+  answerScope: 'focus' | 'open'
+  /** 每用户每日 token 兜底配额（0 表示不限制） */
+  tokensPerUserDaily: number
+  /** 角色级配额规则（多角色取最大值，未命中走兜底） */
+  roleTokenQuotas: RoleTokenQuota[]
 }
 
 export interface LoginAdminConfig {
@@ -232,6 +265,7 @@ export type ConfigGroupCode =
   | 'sms'
   | 'email'
   | 'security'
+  | 'ai'
 
 export interface ConfigGroupMap {
   site: AdminSiteConfig
@@ -245,6 +279,7 @@ export interface ConfigGroupMap {
   sms: SmsConfig
   email: EmailConfig
   security: SecurityConfig
+  ai: AiConfig
 }
 
 export interface PayOrderRecord {

@@ -1,5 +1,9 @@
 <template>
-  <view class="number-stepper" :class="{ 'number-stepper--disabled': disabled }">
+  <view
+    class="number-stepper"
+    :class="{ 'number-stepper--disabled': disabled }"
+    :style="widthStyle"
+  >
     <view
       class="number-stepper__btn"
       :class="{ 'number-stepper__btn--disabled': disabled || atMin }"
@@ -35,12 +39,14 @@ const props = withDefaults(
     max?: number
     step?: number
     disabled?: boolean
+    width?: string
   }>(),
   {
     min: 0,
-    max: 999999,
+    max: 99999999,
     step: 1,
     disabled: false,
+    width: '',
   },
 )
 
@@ -57,6 +63,8 @@ watch(
 
 const atMin = computed(() => innerValue.value <= props.min)
 const atMax = computed(() => innerValue.value >= props.max)
+
+const widthStyle = computed(() => (props.width ? { width: props.width } : undefined))
 
 function clamp(value: number) {
   const num = Number.isFinite(value) ? value : props.min
@@ -96,7 +104,8 @@ function commitInput() {
 .number-stepper {
   display: inline-flex;
   align-items: stretch;
-  width: 240rpx;
+  width: 280rpx;
+  max-width: 100%;
   height: 72rpx;
   border: 1px solid #dcdfe6;
   border-radius: $radius-md;
@@ -105,7 +114,7 @@ function commitInput() {
 }
 
 .number-stepper__btn {
-  width: 72rpx;
+  width: 68rpx;
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -133,11 +142,12 @@ function commitInput() {
   flex: 1;
   min-width: 0;
   height: 100%;
-  padding: 0 8rpx;
+  padding: 0 4rpx;
   border: none;
   background: #fff;
   text-align: center;
-  font-size: $font-size-md;
+  font-size: 25rpx;
+  font-weight: 500;
   color: $color-text-primary;
 }
 

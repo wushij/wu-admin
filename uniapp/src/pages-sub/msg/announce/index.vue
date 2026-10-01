@@ -9,44 +9,51 @@
           <text class="msg-hero__title">系统公告</text>
           <text class="msg-hero__sub">共 {{ total }} 条全部公告</text>
           <view class="msg-hero__extras">
+            <text
+              class="msg-hero__action"
+              :class="{ 'msg-hero__action--disabled': !unreadCount }"
+              @click="onReadAll"
+            >
+              全部已读
+            </text>
             <text v-if="unreadCount" class="msg-hero__badge">{{ unreadCount }} 条未读</text>
-            <text v-if="list.length" class="msg-hero__action" @click="onReadAll">全部已读</text>
           </view>
         </view>
       </view>
     </view>
 
-    <ListLoading v-if="loading && !list.length" variant="message" />
-
     <scroll-view
-      v-else
       scroll-y
       class="announce-page__scroll"
       @scrolltolower="loadMore"
     >
-      <view
-        v-for="item in list"
-        :key="item.id"
-        class="msg-card card--elevated"
-        :class="{ 'msg-card--unread': item.isRead === 0 }"
-        @click="goDetail(item.id)"
-      >
-        <view class="msg-card__head">
-          <ModuleIcon icon="bell" theme="notice" size="sm" />
-          <view class="msg-card__head-main">
-            <text class="msg-card__title">{{ item.title }}</text>
-            <text class="msg-card__time">{{ formatListTime(item.createTime) }}</text>
-          </view>
-          <view v-if="item.isRead === 0" class="msg-card__dot" />
-        </view>
-        <text class="msg-card__content">{{ summarizeText(item.content) }}</text>
-        <view v-if="item.createName" class="msg-card__footer">
-          <text class="msg-card__chip">{{ item.createName }}</text>
-        </view>
-      </view>
+      <ListLoading v-if="loading && !list.length" variant="message" />
 
-      <EmptyState v-if="empty && !loading" title="暂无公告" icon="bell" />
-      <ListFooter v-else :loading="loading" :finished="finished" :empty="empty" />
+      <template v-else>
+        <view
+          v-for="item in list"
+          :key="item.id"
+          class="msg-card card--elevated"
+          :class="{ 'msg-card--unread': item.isRead === 0 }"
+          @click="goDetail(item.id)"
+        >
+          <view class="msg-card__head">
+            <ModuleIcon icon="bell" theme="notice" size="sm" />
+            <view class="msg-card__head-main">
+              <text class="msg-card__title">{{ item.title }}</text>
+              <text class="msg-card__time">{{ formatListTime(item.createTime) }}</text>
+            </view>
+            <view v-if="item.isRead === 0" class="msg-card__dot" />
+          </view>
+          <text class="msg-card__content">{{ summarizeText(item.content) }}</text>
+          <view v-if="item.createName" class="msg-card__footer">
+            <text class="msg-card__chip">{{ item.createName }}</text>
+          </view>
+        </view>
+
+        <EmptyState v-if="empty && !loading" title="暂无公告" icon="bell" />
+        <ListFooter v-else :loading="loading" :finished="finished" :empty="empty" />
+      </template>
     </scroll-view>
   </view>
 </template>
@@ -76,6 +83,10 @@ const unreadCount = computed(() => list.value.filter((item) => item.isRead === 0
 useNoticeWs(refresh)
 
 async function onReadAll() {
+  if (!unreadCount.value) {
+    uni.showToast({ title: '已无未读公告', icon: 'none' })
+    return
+  }
   await readAllAnnounce()
   list.value.forEach((item) => {
     item.isRead = 1
@@ -161,6 +172,13 @@ onPullDownRefresh(async () => {
   color: #fff;
   background: rgba(255, 255, 255, 0.12);
   border: 1px solid rgba(255, 255, 255, 0.18);
+  transition: all 0.2s ease;
+
+  &--disabled {
+    opacity: 0.5;
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.1);
+  }
 }
 
 .announce-page__scroll {
@@ -201,6 +219,7 @@ onPullDownRefresh(async () => {
   text-overflow: ellipsis;
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
 }
 
@@ -233,6 +252,7 @@ onPullDownRefresh(async () => {
   text-overflow: ellipsis;
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
 }
 

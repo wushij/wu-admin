@@ -44,6 +44,7 @@
             class="message-item"
             :class="{ 'message-item--unread': item.readStatus === 0 }"
             @click="onInboxTap(item)"
+            @longpress="onInboxLongPress(item)"
           >
             <MessageListIcon icon="notes-o" theme="inbox" />
             <view class="message-item__body">
@@ -107,6 +108,7 @@
       description="请联系管理员分配消息相关权限"
       icon="chat-o"
     />
+    <AppDialogHost />
   </PageTabShell>
 </template>
 
@@ -121,9 +123,12 @@ import IconFont from '@/components/common/IconFont/index.vue'
 import ModuleIcon from '@/components/common/ModuleIcon/index.vue'
 import MessageListIcon from '@/components/business/MessageListIcon/index.vue'
 import ChatAvatar from '@/components/business/ChatAvatar/index.vue'
+import AppDialogHost from '@/components/common/AppDialogHost/index.vue'
 import { useMessageTab, type ChatSessionPreview } from '@/composables/useMessageTab'
 import { useTabBarPage } from '@/composables/useTabBarPage'
 import { openInboxItem, inboxBizLabel } from '@/utils/inbox-nav'
+import { showConfirm } from '@/utils/app-dialog'
+import { deleteNotice } from '@/api/system/notice'
 import type { IconName } from '@/constants/iconfont'
 import type { NoticeVO } from '@/types/message'
 
@@ -194,6 +199,19 @@ function goAnnounceDetail(id: number) {
 
 function onInboxTap(item: NoticeVO) {
   openInboxItem(item)
+}
+
+async function onInboxLongPress(item: NoticeVO) {
+  const { confirmed } = await showConfirm({
+    title: '删除消息',
+    content: '确定删除该条业务消息？',
+    tone: 'danger',
+    confirmText: '删除',
+  })
+  if (!confirmed) return
+  await deleteNotice(item.id)
+  uni.showToast({ title: '已删除', icon: 'success' })
+  await refresh()
 }
 
 function goChat(item: ChatSessionPreview) {
@@ -310,6 +328,7 @@ onPullDownRefresh(async () => {
   text-overflow: ellipsis;
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
 }
 

@@ -7,7 +7,24 @@
     popper-class="theme-picker-popper"
   >
     <template #reference>
-      <el-icon class="theme-icon" :size="20"><component :is="ElementPlusIconsVue.Brush" /></el-icon>
+      <div class="header-icon-btn" title="主题风格">
+        <svg
+          class="palette-svg"
+          viewBox="0 0 24 24"
+          width="18"
+          height="18"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.563-2.512 5.563-5.563C22 6.5 17.5 2 12 2z" />
+          <circle cx="7.5" cy="11.5" r="1" fill="currentColor" />
+          <circle cx="12" cy="7.5" r="1" fill="currentColor" />
+          <circle cx="16.5" cy="11.5" r="1" fill="currentColor" />
+        </svg>
+      </div>
     </template>
     <div class="theme-picker-content">
       <div class="theme-picker-header">
@@ -60,13 +77,32 @@ defineEmits<{
 </script>
 
 <style scoped>
-.theme-icon {
-  cursor: pointer;
+.header-icon-btn {
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  border: 1px solid var(--theme-border, #e2e8f0);
+  background: #ffffff;
   color: var(--theme-text-base, #1F2937);
-  transition: color 0.3s;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.theme-icon:hover { color: var(--theme-primary, #010710); }
+.header-icon-btn:hover {
+  border-color: var(--theme-primary, #3b82f6);
+  color: var(--theme-primary, #3b82f6);
+  background: var(--theme-primary-muted, rgba(59, 130, 246, 0.06));
+  transform: translateY(-1px);
+}
+
+.palette-svg {
+  display: block;
+  flex-shrink: 0;
+}
 
 .theme-picker-content { padding: 4px 2px 8px; }
 

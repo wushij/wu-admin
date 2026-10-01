@@ -249,7 +249,6 @@ public class OnlineUserServiceImpl implements OnlineUserService {
         OnlineUserVO vo = new OnlineUserVO();
         vo.setUserId(userId);
         vo.setTokenId(String.valueOf(userId));
-        vo.setTokenValue(loginInfo.getToken());
 
         OnlineDetail detail = loadDetail(userId);
         UserDO user = userMapper.selectById(userId);

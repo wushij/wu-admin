@@ -36,11 +36,38 @@ export interface AiChatStreamCallbacks {
   onDone: (usage: AiChatUsage | null) => void
   /** 服务端/网络错误 */
   onError: (message: string) => void
+  /** 工具调用状态提示（L3 Function Calling，可选） */
+  onStatus?: (message: string) => void
 }
 
 /** 启用中的模型列表（悬浮窗模型选择器） */
 export function listChatModels() {
   return get<AiModelVO[]>('/ai/chat/models')
+}
+
+/** 历史会话摘要 */
+export interface AiConversationVO {
+  conversationId: string
+  title: string
+  lastTime?: string
+  messageCount?: number
+}
+
+/** 历史会话单轮问答 */
+export interface AiChatHistoryItemVO {
+  question: string
+  answer: string
+  createTime?: string
+}
+
+/** 我的历史会话列表（仅本人，最近优先） */
+export function listConversations() {
+  return get<AiConversationVO[]>('/ai/chat/conversations')
+}
+
+/** 指定会话的问答序列（恢复续聊） */
+export function getConversationHistory(conversationId: string) {
+  return get<AiChatHistoryItemVO[]>('/ai/chat/history', { conversationId })
 }
 
 /**
@@ -119,6 +146,15 @@ export async function streamChat(
     const data = dataLines.join('\n')
     if (eventName === 'delta') {
       callbacks.onDelta(data)
+    } else if (eventName === 'status') {
+      // L3 工具调用状态提示，解析 message 字段；失败则忽略
+      if (callbacks.onStatus) {
+        try {
+          callbacks.onStatus((JSON.parse(data) as { message?: string }).message || '')
+        } catch {
+          /* 忽略非法状态数据 */
+        }
+      }
     } else if (eventName === 'done') {
       finished = true
       try {

@@ -65,6 +65,7 @@ import { useModulePermission } from '@/composables/useModulePermission'
 import { buildDeptLabels, buildDeptNodeMaps } from '@/utils/dept-tree'
 import { formatDateTime } from '@/utils/format'
 import { showConfirm } from '@/utils/app-dialog'
+import { navigateToFallback } from '@/utils/navigate-back'
 import type { AnnounceVO } from '@/types/message'
 
 const loading = ref(true)
@@ -151,7 +152,9 @@ async function onDelete() {
   if (!confirmed) return
   await deleteAnnounce(announceId.value)
   uni.showToast({ title: '已删除', icon: 'success' })
-  setTimeout(() => uni.navigateBack(), 400)
+  setTimeout(() => {
+    navigateToFallback('/pages-sub/system/announce/index')
+  }, 400)
 }
 
 onLoad((options) => {

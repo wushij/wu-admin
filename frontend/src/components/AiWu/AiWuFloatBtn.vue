@@ -1,5 +1,5 @@
 <template>
-  <div class="ai-wu-float">
+  <div v-if="siteStore.aiAssistantEnabled" class="ai-wu-float">
     <transition name="ai-slide-panel">
       <AiWuChatPanel v-if="aiWuStore.panelVisible" />
     </transition>
@@ -11,43 +11,63 @@
       :title="aiWuStore.panelVisible ? '收起 AI wu助手' : 'AI wu助手'"
       @click="aiWuStore.togglePanel()"
     >
-      <span class="ball-halo" />
-      <el-icon v-if="aiWuStore.panelVisible" class="ball-icon" :size="22"><Close /></el-icon>
-      <el-icon v-else class="ball-icon" :size="24"><MagicStick /></el-icon>
+      <!-- 极光脉冲光环 -->
+      <span class="aurora-pulse-ring" />
+
+      <!-- 面板展开时显示关闭图标，否则显示科技罗盘 SVG -->
+      <el-icon v-if="aiWuStore.panelVisible" class="ball-icon-close" :size="20"><Close /></el-icon>
+      <AiCompassIcon v-else :size="34" :dark="true" :spin="true" class="ball-compass" />
+
+      <!-- 流式回答跳动徽标 -->
+      <span v-if="aiWuStore.streaming" class="streaming-ping" />
     </button>
   </div>
 </template>
 
 <script setup lang="ts">
-import { MagicStick, Close } from '@element-plus/icons-vue'
+import { Close } from '@element-plus/icons-vue'
 import { useAiWuStore } from '@/store/aiWu'
+import { useSiteStore } from '@/store/site'
 import AiWuChatPanel from './AiWuChatPanel.vue'
+import AiCompassIcon from './AiCompassIcon.vue'
 
 const aiWuStore = useAiWuStore()
+const siteStore = useSiteStore()
 </script>
 
 <style scoped lang="scss">
+.ai-wu-float {
+  position: relative;
+  z-index: 2000;
+}
+
 .ai-wu-ball {
   position: fixed;
-  right: 32px;
-  bottom: 32px;
+  right: 28px;
+  bottom: 28px;
   z-index: 2001;
-  width: 56px;
-  height: 56px;
-  border: none;
+  width: 52px;
+  height: 52px;
   border-radius: 50%;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
+  background: linear-gradient(145deg, #101c38, #0c1222) !important;
+  border: 1.6px solid rgba(22, 119, 255, 0.5) !important;
+  box-shadow: 0 6px 24px rgba(22, 119, 255, 0.35), 0 0 16px rgba(114, 46, 209, 0.25);
   color: #fff;
-  background: linear-gradient(135deg, var(--theme-primary, #6366f1) 0%, var(--theme-logo-end, var(--theme-primary, #8b5cf6)) 100%);
-  box-shadow: 0 8px 24px rgba(var(--theme-primary-rgb, 99, 102, 241), 0.4);
-  transition: transform 0.25s, box-shadow 0.25s;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  overflow: visible;
 
   &:hover {
-    transform: translateY(-3px) scale(1.05);
-    box-shadow: 0 12px 30px rgba(var(--theme-primary-rgb, 99, 102, 241), 0.5);
+    transform: translateY(-3px) scale(1.08);
+    border-color: rgba(64, 150, 255, 0.9) !important;
+    box-shadow: 0 10px 32px rgba(22, 119, 255, 0.5), 0 0 24px rgba(114, 46, 209, 0.4);
+
+    :deep(.compass-star) {
+      transform: rotate(45deg);
+    }
   }
 
   &:active {
@@ -55,46 +75,80 @@ const aiWuStore = useAiWuStore()
   }
 
   &.is-open {
-    background: linear-gradient(135deg, var(--theme-primary, #475569) 0%, var(--theme-logo-end, #1e293b) 100%);
-    box-shadow: 0 8px 24px rgba(var(--theme-primary-rgb, 15, 23, 42), 0.35);
+    border-color: #4096ff !important;
+    box-shadow: 0 0 24px rgba(22, 119, 255, 0.55);
+    background: linear-gradient(145deg, #0e172a, #020617) !important;
   }
 }
 
-.ball-icon {
+.ball-compass {
   position: relative;
   z-index: 1;
 }
 
-/* 待机呼吸光环；流式回答中加速脉冲 */
-.ball-halo {
+.ball-icon-close {
+  position: relative;
+  z-index: 1;
+  color: #93c5fd;
+  transition: transform 0.25s ease;
+}
+
+.ai-wu-ball.is-open:hover .ball-icon-close {
+  transform: rotate(90deg);
+  color: #ffffff;
+}
+
+/* 极光环境脉冲光环 */
+.aurora-pulse-ring {
   position: absolute;
-  inset: 0;
+  inset: -4px;
   border-radius: 50%;
-  background: inherit;
-  animation: ai-wu-pulse 2.6s ease-out infinite;
+  border: 1px solid rgba(64, 150, 255, 0.55);
+  animation: auroraPulse 2.8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
   pointer-events: none;
 }
 
-.ai-wu-ball.is-open .ball-halo {
+.ai-wu-ball.is-open .aurora-pulse-ring {
   animation: none;
+  opacity: 0;
 }
 
-.ai-wu-ball.is-streaming .ball-halo {
-  animation-duration: 1.2s;
+.streaming-ping {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: #52c41a;
+  box-shadow: 0 0 10px #52c41a;
+  animation: pingDot 1.2s ease-in-out infinite alternate;
+  z-index: 2;
 }
 
-@keyframes ai-wu-pulse {
+@keyframes auroraPulse {
   0% {
-    transform: scale(1);
-    opacity: 0.55;
+    transform: scale(0.95);
+    opacity: 0.8;
   }
-  70% {
-    transform: scale(1.55);
+  50% {
+    transform: scale(1.18);
     opacity: 0;
   }
   100% {
-    transform: scale(1.55);
+    transform: scale(0.95);
     opacity: 0;
+  }
+}
+
+@keyframes pingDot {
+  from {
+    opacity: 0.4;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1.2);
   }
 }
 
@@ -110,3 +164,4 @@ const aiWuStore = useAiWuStore()
   transform: translateY(24px) scale(0.96);
 }
 </style>
+

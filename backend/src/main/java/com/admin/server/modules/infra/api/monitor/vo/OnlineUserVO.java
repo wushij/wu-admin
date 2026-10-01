@@ -19,5 +19,4 @@ public class OnlineUserVO {
     private String lastAccessTime;
     /** 强退时传用户 ID */
     private String tokenId;
-    private String tokenValue;
 }

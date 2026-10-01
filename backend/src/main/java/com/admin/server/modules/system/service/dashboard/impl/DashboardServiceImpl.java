@@ -73,6 +73,7 @@ public class DashboardServiceImpl implements DashboardService {
 
         DashboardStatsRow row = loadAggregateStatsRow(todayStart, yesterdayStart);
         putAggregateFields(stats, row);
+        putLoginStatsFresh(stats, todayStart, yesterdayStart);
         putFileCountFresh(stats);
         putJobStatsFresh(stats);
         putApprovalPendingFresh(stats, loginUserId);
@@ -161,10 +162,6 @@ public class DashboardServiceImpl implements DashboardService {
         stats.put("userPendingCount", longVal(row.getUserPendingCount()));
         stats.put("userDisabledCount", longVal(row.getUserDisabledCount()));
 
-        stats.put("todayLoginSuccess", longVal(row.getTodayLoginSuccess()));
-        stats.put("todayLoginFail", longVal(row.getTodayLoginFail()));
-        stats.put("yesterdayLoginSuccess", longVal(row.getYesterdayLoginSuccess()));
-
         stats.put("ticketOpenCount", longVal(row.getTicketOpenCount()));
         stats.put("ticketOverdueCount", longVal(row.getTicketOverdueCount()));
         stats.put("approvalPendingCount", longVal(row.getApprovalPendingCount()));
@@ -173,6 +170,23 @@ public class DashboardServiceImpl implements DashboardService {
         stats.put("roleTrend", trendPercent(longVal(row.getRoleToday()), longVal(row.getRoleYesterday())));
         stats.put("deptTrend", trendPercent(longVal(row.getDeptToday()), longVal(row.getDeptYesterday())));
         stats.put("menuTrend", 0);
+    }
+
+    /**
+     * 今日登录成功/失败与欢迎区「在线用户」「今日访问」一样实时查询。
+     * 聚合缓存 2 分钟，登录后进工作台会看到旧数字。
+     */
+    private void putLoginStatsFresh(Map<String, Object> stats, LocalDateTime todayStart, LocalDateTime yesterdayStart) {
+        stats.put("todayLoginSuccess", loginLogMapper.selectCount(new LambdaQueryWrapper<LoginLogDO>()
+                .eq(LoginLogDO::getStatus, 0)
+                .ge(LoginLogDO::getLoginTime, todayStart)));
+        stats.put("todayLoginFail", loginLogMapper.selectCount(new LambdaQueryWrapper<LoginLogDO>()
+                .eq(LoginLogDO::getStatus, 1)
+                .ge(LoginLogDO::getLoginTime, todayStart)));
+        stats.put("yesterdayLoginSuccess", loginLogMapper.selectCount(new LambdaQueryWrapper<LoginLogDO>()
+                .eq(LoginLogDO::getStatus, 0)
+                .ge(LoginLogDO::getLoginTime, yesterdayStart)
+                .lt(LoginLogDO::getLoginTime, todayStart)));
     }
 
     /** 文件数量每次实时查询，与文件管理列表口径一致（排除聊天目录、仅未删除） */

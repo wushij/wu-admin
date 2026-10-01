@@ -1,6 +1,5 @@
 package com.admin.server.modules.message.api;
 
-import com.admin.server.common.exception.BusinessException;
 import com.admin.server.common.core.CommonResult;
 import com.admin.server.common.core.PageParam;
 import com.admin.server.common.core.PageResult;
@@ -43,7 +42,8 @@ public class AnnounceController {
             @RequestParam(required = false) String title,
             @RequestParam(required = false) Integer noticeType,
             @RequestParam(required = false) Integer status) {
-        Page<AnnounceDO> page = announceService.page(pageParam.getPageNo(), pageParam.getPageSize(), title, noticeType, status);
+        Page<AnnounceDO> page = announceService.page(pageParam.getPageNo(), pageParam.getPageSize(), title, noticeType,
+                status, SecurityUtils.getLoginUserIdOrZero());
         return CommonResult.success(PageResult.of(page.getRecords(), page.getTotal()));
     }
 
@@ -58,11 +58,10 @@ public class AnnounceController {
 
     @GetMapping("/{id}")
     @Operation(summary = "通知详情")
+    @PreAuthorize("isAuthenticated()")
     public CommonResult<AnnounceRequest> detail(@PathVariable Long id) {
-        AnnounceDO entity = announceService.getById(id);
-        if (entity == null) {
-            throw new BusinessException(404, "通知不存在");
-        }
+        // 可见性由 service 判定：通知管理/发布人可看草稿，其余用户仅可见「已发布且已投递给自己」的通知
+        AnnounceDO entity = announceService.getVisibleById(id, SecurityUtils.getLoginUserIdOrZero());
         AnnounceRequest resp = AnnounceRequest.from(entity, objectMapper);
         resp.setCreateTime(entity.getCreateTime());
         resp.setCreateName(announceService.resolvePublisherName(entity));
@@ -130,7 +129,7 @@ public class AnnounceController {
     @PreAuthorize("@ss.hasRead('system:announce:list')")
     @Operation(summary = "发送日志")
     public CommonResult<List<AnnounceSendLogDO>> sendLogs(@PathVariable Long id) {
-        return CommonResult.success(announceService.sendLogs(id));
+        return CommonResult.success(announceService.sendLogs(id, SecurityUtils.getLoginUserIdOrZero()));
     }
 
     @GetMapping("/recycle/page")

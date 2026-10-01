@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import {
   listChatModels,
   streamChat,
+  getConversationHistory,
   type AiChatMessage,
   type AiChatModelVO,
 } from '@/api/ai'
@@ -38,6 +39,8 @@ export const useAiWuStore = defineStore('aiWu', () => {
   const selectedModelId = ref<number | null>(null)
   const streaming = ref(false)
   const modelsLoaded = ref(false)
+  /** L3 工具调用状态提示（空串表示无） */
+  const statusHint = ref('')
   let abortController: AbortController | null = null
 
   const currentModel = computed(
@@ -49,13 +52,9 @@ export const useAiWuStore = defineStore('aiWu', () => {
       const res = await listChatModels()
       models.value = res.data || []
       modelsLoaded.value = true
-      if (
-        selectedModelId.value == null ||
-        !models.value.some((m) => m.id === selectedModelId.value)
-      ) {
-        const def = models.value.find((m) => m.isDefault === 1) || models.value[0]
-        selectedModelId.value = def ? def.id : null
-      }
+      // 始终优先选用后台设定的默认模型 isDefault === 1，若无则取首个
+      const def = models.value.find((m) => m.isDefault === 1) || models.value[0]
+      selectedModelId.value = def ? def.id : null
     } catch {
       modelsLoaded.value = true
     }
@@ -63,9 +62,7 @@ export const useAiWuStore = defineStore('aiWu', () => {
 
   function openPanel() {
     panelVisible.value = true
-    if (!modelsLoaded.value) {
-      loadModels()
-    }
+    loadModels()
   }
 
   function closePanel() {
@@ -109,6 +106,7 @@ export const useAiWuStore = defineStore('aiWu', () => {
     const finish = () => {
       assistantMsg.streaming = false
       streaming.value = false
+      statusHint.value = ''
       abortController = null
     }
 
@@ -121,9 +119,13 @@ export const useAiWuStore = defineStore('aiWu', () => {
       },
       {
         onDelta: (delta) => {
+          statusHint.value = ''
           assistantMsg.content += delta
         },
         onDone: () => finish(),
+        onStatus: (message) => {
+          statusHint.value = message
+        },
         onError: (message) => {
           if (!assistantMsg.content) {
             assistantMsg.content = message
@@ -157,6 +159,26 @@ export const useAiWuStore = defineStore('aiWu', () => {
     conversationId.value = genConversationId()
   }
 
+  /** 恢复历史会话：拉取问答序列重建消息流，后续发送自动带上下文续聊 */
+  async function restoreConversation(targetConversationId: string): Promise<boolean> {
+    if (streaming.value || !targetConversationId) return false
+    const res = await getConversationHistory(targetConversationId)
+    const rounds = res.data || []
+    if (rounds.length === 0) return false
+    const restored: AiWuMessage[] = []
+    for (const round of rounds) {
+      if (round.question) {
+        restored.push({ id: ++msgSeq, role: 'user', content: round.question, time: Date.now() })
+      }
+      if (round.answer) {
+        restored.push({ id: ++msgSeq, role: 'assistant', content: round.answer, time: Date.now() })
+      }
+    }
+    messages.value = restored
+    conversationId.value = targetConversationId
+    return true
+  }
+
   return {
     panelVisible,
     messages,
@@ -165,6 +187,7 @@ export const useAiWuStore = defineStore('aiWu', () => {
     selectedModelId,
     streaming,
     modelsLoaded,
+    statusHint,
     currentModel,
     loadModels,
     openPanel,
@@ -173,5 +196,6 @@ export const useAiWuStore = defineStore('aiWu', () => {
     send,
     stop,
     clear,
+    restoreConversation,
   }
 })

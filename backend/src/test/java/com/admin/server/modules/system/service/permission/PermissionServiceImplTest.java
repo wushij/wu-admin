@@ -18,6 +18,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.util.List;
 import java.util.Set;
@@ -43,6 +44,8 @@ class PermissionServiceImplTest extends MybatisLambdaTestBase {
     private RoleMapper roleMapper;
     @Mock
     private MenuMapper menuMapper;
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
 
     @InjectMocks
     private PermissionServiceImpl permissionService;
@@ -131,6 +134,74 @@ class PermissionServiceImplTest extends MybatisLambdaTestBase {
 
         verify(userRoleMapper).deleteByUserId(USER_ID);
         verify(userRoleMapper, never()).insertBatch(any());
+    }
+
+    @Test
+    @DisplayName("hasPermission：仅 AI 查询按钮时可访问 list 接口")
+    void hasPermission_aiQueryAllowsList() {
+        MenuDO dir = ServiceTestFixtures.menu(210L, 0L, 1, null);
+        MenuDO page = ServiceTestFixtures.menu(200L, 210L, 2, "system:ai-model:list");
+        MenuDO queryBtn = ServiceTestFixtures.menu(207L, 200L, 3, "system:ai-model:query");
+        when(roleMenuMapper.selectListByRoleId(ROLE_ID))
+                .thenReturn(List.of(ServiceTestFixtures.roleMenu(ROLE_ID, 207L)));
+        when(menuMapper.selectList(isNull())).thenReturn(List.of(dir, page, queryBtn));
+        when(menuMapper.selectList(MybatisMockMatchers.anyLambdaQueryWrapper()))
+                .thenReturn(List.of(dir, page, queryBtn));
+
+        assertTrue(permissionService.hasPermission(USER_ID, "system:ai-model:list"));
+        assertTrue(permissionService.hasPermission(USER_ID, "system:ai-model:query"));
+        assertFalse(permissionService.hasPermission(USER_ID, "system:ai-model:create"));
+    }
+
+    @Test
+    @DisplayName("getUserPermissionCodes：query 权限自动附带 list 别名")
+    void getUserPermissionCodes_queryAddsListAlias() {
+        MenuDO page = ServiceTestFixtures.menu(205L, 210L, 2, "system:ai-log:list");
+        MenuDO queryBtn = ServiceTestFixtures.menu(208L, 205L, 3, "system:ai-log:query");
+        when(roleMenuMapper.selectListByRoleId(ROLE_ID))
+                .thenReturn(List.of(ServiceTestFixtures.roleMenu(ROLE_ID, 208L)));
+        when(menuMapper.selectList(isNull())).thenReturn(List.of(page, queryBtn));
+        when(menuMapper.selectList(MybatisMockMatchers.anyLambdaQueryWrapper()))
+                .thenReturn(List.of(page, queryBtn));
+
+        Set<String> codes = permissionService.getUserPermissionCodes(USER_ID);
+
+        assertTrue(codes.contains("system:ai-log:query"));
+        assertTrue(codes.contains("system:ai-log:list"));
+    }
+
+    @Test
+    @DisplayName("hasPermission：仅勾选按钮时继承父级 list 权限（与侧栏一致）")
+    void hasPermission_buttonInheritsParentList() {
+        MenuDO dir = ServiceTestFixtures.menu(210L, 0L, 1, null);
+        MenuDO page = ServiceTestFixtures.menu(200L, 210L, 2, "system:ai-model:list");
+        MenuDO createBtn = ServiceTestFixtures.menu(201L, 200L, 3, "system:ai-model:create");
+        when(roleMenuMapper.selectListByRoleId(ROLE_ID))
+                .thenReturn(List.of(ServiceTestFixtures.roleMenu(ROLE_ID, 201L)));
+        when(menuMapper.selectList(isNull())).thenReturn(List.of(dir, page, createBtn));
+        when(menuMapper.selectList(MybatisMockMatchers.anyLambdaQueryWrapper()))
+                .thenReturn(List.of(dir, page, createBtn));
+
+        assertTrue(permissionService.hasPermission(USER_ID, "system:ai-model:list"));
+        assertTrue(permissionService.hasPermission(USER_ID, "system:ai-model:create"));
+        assertFalse(permissionService.hasPermission(USER_ID, "system:ai-model:delete"));
+    }
+
+    @Test
+    @DisplayName("assignRoleMenu：保存时自动补齐父级菜单")
+    void assignRoleMenu_expandsParentMenus() {
+        MenuDO dir = ServiceTestFixtures.menu(210L, 0L, 1, null);
+        MenuDO page = ServiceTestFixtures.menu(200L, 210L, 2, "system:ai-model:list");
+        MenuDO createBtn = ServiceTestFixtures.menu(201L, 200L, 3, "system:ai-model:create");
+        when(menuMapper.selectList(isNull())).thenReturn(List.of(dir, page, createBtn));
+
+        permissionService.assignRoleMenu(ROLE_ID, Set.of(201L));
+
+        verify(roleMenuMapper).insertBatch(argThat(list ->
+                list != null && list.size() == 3
+                        && list.stream().anyMatch(rm -> rm.getMenuId().equals(210L))
+                        && list.stream().anyMatch(rm -> rm.getMenuId().equals(200L))
+                        && list.stream().anyMatch(rm -> rm.getMenuId().equals(201L))));
     }
 
     @Test

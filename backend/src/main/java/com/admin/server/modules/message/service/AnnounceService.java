@@ -13,6 +13,7 @@ import com.admin.server.modules.message.dal.mysql.AnnounceMapper;
 import com.admin.server.modules.message.dal.mysql.AnnounceSendLogMapper;
 import com.admin.server.modules.message.dal.mysql.UserAnnounceMapper;
 import com.admin.server.modules.system.dal.mysql.user.UserMapper;
+import com.admin.server.modules.system.service.permission.PermissionService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -50,8 +51,11 @@ public class AnnounceService {
     private MessageWebSocketHandler webSocketHandler;
     @Resource
     private ObjectMapper objectMapper;
+    @Resource
+    private PermissionService permissionService;
 
-    public Page<AnnounceDO> page(int pageNo, int pageSize, String title, Integer noticeType, Integer status) {
+    public Page<AnnounceDO> page(int pageNo, int pageSize, String title, Integer noticeType, Integer status,
+                                 Long currentUserId) {
         LambdaQueryWrapper<AnnounceDO> w = new LambdaQueryWrapper<>();
         if (StringUtils.hasText(title)) {
             w.like(AnnounceDO::getTitle, title);
@@ -61,6 +65,16 @@ public class AnnounceService {
         }
         if (status != null) {
             w.eq(AnnounceDO::getStatus, status);
+        }
+        if (!canManageAll(currentUserId)) {
+            // 非通知管理用户：只返回「已发布 + 已投递给自己」的通知，
+            // 避免通过调整 status 参数或翻页读到草稿与他人的定向公告
+            w.eq(AnnounceDO::getStatus, 1);
+            Set<Long> visibleIds = visibleAnnounceIds(currentUserId);
+            if (visibleIds.isEmpty()) {
+                return new Page<>(pageNo, pageSize, 0);
+            }
+            w.in(AnnounceDO::getId, visibleIds);
         }
         w.orderByDesc(AnnounceDO::getCreateTime);
         return announceMapper.selectPage(new Page<>(pageNo, pageSize), w);
@@ -96,8 +110,54 @@ public class AnnounceService {
         return result;
     }
 
-    public AnnounceDO getById(Long id) {
-        return announceMapper.selectById(id);
+    /**
+     * 通知详情（带可见性校验）。
+     *
+     * <p>通知管理用户（见 {@link #canManageAll}）与发布人本人可查看任意状态（含草稿）；
+     * 其余用户仅可查看「已发布 且 已投递给自己」的通知，杜绝按 id 枚举读取未发布草稿或他人的定向公告。
+     */
+    public AnnounceDO getVisibleById(Long id, Long currentUserId) {
+        AnnounceDO announce = announceMapper.selectById(id);
+        if (announce == null) {
+            throw new BusinessException(404, "通知不存在");
+        }
+        if (currentUserId == null || currentUserId <= 0) {
+            throw new BusinessException(401, "登录已过期，请重新登录");
+        }
+        if (canManageAll(currentUserId) || currentUserId.equals(announce.getCreateBy())) {
+            return announce;
+        }
+        boolean published = announce.getStatus() != null && announce.getStatus() == 1;
+        if (!published || !visibleAnnounceIds(currentUserId).contains(id)) {
+            throw new BusinessException(403, "无权查看该通知");
+        }
+        return announce;
+    }
+
+    /**
+     * 是否具备「通知管理」身份：能新建/编辑/发布/删除通知的人。
+     *
+     * <p>注意：不能仅凭 {@code system:announce:query} 判定——普通用户角色默认也会被授予该查询权限，
+     * 用它做门槛会放任草稿被任意登录用户读到。
+     */
+    private boolean canManageAll(Long userId) {
+        if (userId == null || userId <= 0) {
+            return false;
+        }
+        return permissionService.hasRole(userId, "super_admin")
+                || permissionService.hasPermission(userId, "system:announce:create")
+                || permissionService.hasPermission(userId, "system:announce:update")
+                || permissionService.hasPermission(userId, "system:announce:publish")
+                || permissionService.hasPermission(userId, "system:announce:delete");
+    }
+
+    /** 当前用户已收到的通知 ID 集合（发布时投递进 sys_user_announce 的即其可见范围） */
+    private Set<Long> visibleAnnounceIds(Long userId) {
+        if (userId == null || userId <= 0) {
+            return new HashSet<>();
+        }
+        List<Long> ids = userAnnounceMapper.selectAnnounceIdsByUserId(userId);
+        return ids == null ? new HashSet<>() : new HashSet<>(ids);
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -246,7 +306,15 @@ public class AnnounceService {
         return userAnnounceMapper.countUnread(userId);
     }
 
-    public List<AnnounceSendLogDO> sendLogs(Long announceId) {
+    public List<AnnounceSendLogDO> sendLogs(Long announceId, Long currentUserId) {
+        AnnounceDO announce = announceMapper.selectById(announceId);
+        if (announce == null) {
+            throw new BusinessException(404, "通知不存在");
+        }
+        // 投递日志含受众规模等管理信息，仅通知管理用户或发布人本人可见
+        if (!canManageAll(currentUserId) && !currentUserId.equals(announce.getCreateBy())) {
+            throw new BusinessException(403, "无权查看该通知的发送日志");
+        }
         return sendLogMapper.selectList(new LambdaQueryWrapper<AnnounceSendLogDO>()
                 .eq(AnnounceSendLogDO::getAnnounceId, announceId)
                 .orderByDesc(AnnounceSendLogDO::getSendTime));

@@ -35,6 +35,7 @@
     </scroll-view>
 
     <FabButton v-if="canCreate" @click="goCreate" />
+    <AppDialogHost />
   </view>
 </template>
 
@@ -51,6 +52,8 @@ import DictTag from '@/components/common/DictTag/index.vue'
 import FabButton from '@/components/common/FabButton/index.vue'
 import ListCard from '@/components/common/ListCard/index.vue'
 import PermissionBlock from '@/components/common/PermissionBlock/index.vue'
+import AppDialogHost from '@/components/common/AppDialogHost/index.vue'
+import { showConfirm, showActionSheet, type ActionSheetItem } from '@/utils/app-dialog'
 import { usePageList } from '@/composables/usePageList'
 import { useModulePermission } from '@/composables/useModulePermission'
 import { getRolePage, deleteRole } from '@/api/system/role'
@@ -71,20 +74,25 @@ const { list, loading, finished, empty, refresh, loadMore, refreshing } = usePag
   },
 )
 
-function onCardTap(item: RoleVO) {
-  const actions: string[] = []
-  if (canUpdate.value) actions.push('编辑', '分配权限')
-  if (canDelete.value) actions.push('删除')
+async function onCardTap(item: RoleVO) {
+  const actions: ActionSheetItem[] = []
+  if (canUpdate.value) {
+    actions.push({ label: '编辑' }, { label: '分配权限' })
+  }
+  if (canDelete.value) {
+    actions.push({ label: '删除', danger: true })
+  }
   if (!actions.length) return
-  uni.showActionSheet({
-    itemList: actions,
-    success: (res) => {
-      const action = actions[res.tapIndex]
-      if (action === '编辑') goEdit(item.id)
-      else if (action === '分配权限') goMenuAssign(item)
-      else if (action === '删除') confirmDelete(item)
-    },
-  })
+  try {
+    const tapIndex = await showActionSheet({
+      title: item.name ? `角色: ${item.name}` : '角色操作',
+      items: actions,
+    })
+    const action = actions[tapIndex]?.label
+    if (action === '编辑') goEdit(item.id)
+    else if (action === '分配权限') goMenuAssign(item)
+    else if (action === '删除') confirmDelete(item)
+  } catch {}
 }
 
 function goCreate() {
@@ -101,18 +109,17 @@ function goMenuAssign(item: RoleVO) {
   })
 }
 
-function confirmDelete(item: RoleVO) {
-  uni.showModal({
+async function confirmDelete(item: RoleVO) {
+  const { confirmed } = await showConfirm({
     title: '删除角色',
     content: `确定删除「${item.name}」？`,
-    confirmColor: '#f56c6c',
-    success: async (res) => {
-      if (!res.confirm) return
-      await deleteRole(item.id)
-      uni.showToast({ title: '已删除', icon: 'success' })
-      await refresh()
-    },
+    confirmText: '删除',
+    tone: 'danger',
   })
+  if (!confirmed) return
+  await deleteRole(item.id)
+  uni.showToast({ title: '已删除', icon: 'success' })
+  await refresh()
 }
 
 function onSearch() { refresh() }

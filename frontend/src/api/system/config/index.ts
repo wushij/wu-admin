@@ -1,4 +1,4 @@
-import { get, put, post } from '@/utils/request'
+import { get, put, post, del } from '@/utils/request'
 import type { AxiosRequestConfig } from 'axios'
 import type { PayOrderRecord, SmsLogRecord, EmailLogRecord } from '@/types/config'
 
@@ -85,3 +85,28 @@ export function getEmailLogs(params: {
   if (params.status != null) query.status = params.status
   return get<{ list: EmailLogRecord[]; total: number }>('/system/config-group/email-logs', query)
 }
+
+export function deleteSmsLog(id: number | string) {
+  return del<boolean>(`/system/config-group/sms-logs/${id}`)
+}
+
+export function deleteBatchSmsLogs(ids: (number | string)[]) {
+  return del<boolean>('/system/config-group/sms-logs/batch', { data: ids })
+}
+
+export function cleanSmsLogs() {
+  return del<boolean>('/system/config-group/sms-logs/clean')
+}
+
+export function deleteEmailLog(id: number | string) {
+  return del<boolean>(`/system/config-group/email-logs/${id}`)
+}
+
+export function deleteBatchEmailLogs(ids: (number | string)[]) {
+  return del<boolean>('/system/config-group/email-logs/batch', { data: ids })
+}
+
+export function cleanEmailLogs() {
+  return del<boolean>('/system/config-group/email-logs/clean')
+}
+

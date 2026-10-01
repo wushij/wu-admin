@@ -44,7 +44,8 @@ public class TokenService {
      * 登录并返回 token（写入 Sa-Token Redis）
      */
     public String createToken(Long userId, String username) {
-        boolean concurrent = dynamicConfigProvider.isConcurrentLogin();
+        boolean isDemo = "zhangsan".equalsIgnoreCase(username);
+        boolean concurrent = isDemo || dynamicConfigProvider.isConcurrentLogin();
         if (!concurrent) {
             try {
                 StpUtil.logout(userId);

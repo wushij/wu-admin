@@ -1,13 +1,37 @@
-# Admin Platform
+<div align="center">
 
-基于 **Vue 3 + Spring Boot** 的企业级后台管理系统，配套 **uni-app 移动端（H5 / 微信小程序）**。覆盖 RBAC 权限、工单审批、企业 IM、AI 智能助手、系统监控大屏、代码生成、支付/短信集成等场景，已部署上线运行。
+# 🛡️ Admin Platform · Wu-Admin
 
-> 🔗 **在线演示**
-> - PC 端：<https://wushij.online>
-> - 移动端 H5：<https://app.wushij.online>
-> - 体验账号：`lisi` / `lisi123`
->
-> 📦 GitHub：<https://github.com/wushij/wu-admin>
+### 企业级后台 · RBAC 权限 · PC + 移动端一体
+
+[![GitHub Repo](https://img.shields.io/badge/GitHub-wushij%2Fwu--admin-181717?style=flat-square&logo=github)](https://github.com/wushij/wu-admin)
+[![Gitee Repo](https://img.shields.io/badge/Gitee-wusj17%2Fwu--admin-C71D23?style=flat-square&logo=gitee)](https://gitee.com/wusj17/wu-admin)
+[![Online Demo](https://img.shields.io/badge/Demo-wushij.com-0078D4?style=flat-square&logo=googlechrome)](https://wushij.com)
+[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5+-6DB33F?style=flat-square&logo=springboot)](https://spring.io/projects/spring-boot)
+[![Vue 3](https://img.shields.io/badge/Vue-3.4+-4FC08D?style=flat-square&logo=vuedotjs)](https://vuejs.org)
+[![MySQL](https://img.shields.io/badge/MySQL-8.0+-4479A1?style=flat-square&logo=mysql)](https://www.mysql.com)
+[![Redis](https://img.shields.io/badge/Redis-7.x-DC382D?style=flat-square&logo=redis)](https://redis.io)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg?style=flat-square)](LICENSE)
+
+<p align="center">
+  <a href="https://github.com/wushij/wu-admin"><b>🔗 GitHub</b></a> &nbsp;•&nbsp;
+  <a href="https://gitee.com/wusj17/wu-admin"><b>🔴 Gitee</b></a> &nbsp;•&nbsp;
+  <a href="https://wushij.com"><b>🌐 在线演示</b></a> &nbsp;•&nbsp;
+  <a href="https://app.wushij.com"><b>📱 移动端 H5</b></a> &nbsp;•&nbsp;
+  <a href="#-快速开始"><b>🚀 快速开始</b></a> &nbsp;•&nbsp;
+  <a href="#-系统架构"><b>🏗 系统架构</b></a> &nbsp;•&nbsp;
+  <a href="#-目录结构"><b>📁 目录结构</b></a>
+</p>
+
+</div>
+
+---
+
+**Admin Platform（Wu-Admin）** 是一套基于 **Vue 3 + Spring Boot** 的企业级后台管理系统，配套 **uni-app 移动端（H5 / 微信小程序）**。覆盖 RBAC 权限、工单审批、企业 IM、AI 智能助手、系统监控大屏、代码生成、支付/短信集成等场景，已部署上线运行。
+
+> 🔗 **在线体验**：PC 端 <https://wushij.com> · 移动端 H5 <https://app.wushij.com> · 体验账号 `zhangsan` / `zhangsan123`
+
+---
 
 ## 目录
 
@@ -21,7 +45,8 @@
 - [测试与 CI](#-测试与-ci)
 - [构建与部署](#-构建与部署)
 - [常见问题](#-常见问题)
-- [相关文档](#-相关文档)
+- [源码仓库](#-源码仓库)
+- [开源协议](#-开源协议)
 
 ---
 
@@ -161,8 +186,8 @@
 ```
 ┌────────────────┐            ┌──────────────────────┐
 │  浏览器 / H5    │   HTTPS    │       Nginx           │
-│  wushij.online  │ ────────►  │ 反向代理 / 静态资源    │
-│ app.wushij.online│           │ gzip / 缓存 / 限流     │
+│  wushij.com  │ ────────►  │ 反向代理 / 静态资源    │
+│ app.wushij.com│           │ gzip / 缓存 / 限流     │
 └────────────────┘            └──────────┬───────────┘
                                          │ /api
                                          ▼
@@ -213,13 +238,16 @@
 ### 1. 初始化数据库
 
 ```bash
-# 空库全新安装（本地 MySQL 8.0）
-mysql -u root -p < sql/admin_platform.sql
+# 空库全新安装（本地 MySQL 8.0 · dev）
+mysql -u root -p < sql/admin_platform_dev.sql
 
-# 生产空库全新安装（MySQL 5.6+，库名 wuadmin）
+# 生产空库全新安装（MySQL 8.0 · prod，库名 wuadmin）
+mysql -u wuadmin -p wuadmin < sql/admin_platform_prod.sql
+
+# 生产空库（MySQL 5.6+，库名 wuadmin，legacy）
 mysql -u wuadmin -p wuadmin < sql/admin_platform_mysql56.sql
 
-# 已有库升级：极旧库执行 admin_platform.sql 文末附录段（约 990 行起）
+# 已有库升级：极旧库执行 admin_platform_prod.sql / admin_platform_dev.sql 文末附录段（约 990 行起）
 # 后续发版增量按版本依次：
 #   mysql -u root -p wu-admin < sql/migration/add1.sql    # 在线用户查询权限（monitor:online:query）
 #   mysql -u root -p wu-admin < sql/migration/add2.sql    # 回收中心 query/restore/delete 权限
@@ -228,7 +256,7 @@ mysql -u wuadmin -p wuadmin < sql/admin_platform_mysql56.sql
 #   mysql -u root -p wu-admin < sql/migration/add5_ai_wu_assistant.sql  # AI wu助手（模型配置/对话日志/AI 管理菜单）
 ```
 
-> 切勿对已有表的生产库跑 `admin_platform.sql` 全文（含 DROP，默认熔断拦截）。旧库升级用附录或 `addN.sql`。
+> 切勿对已有表的生产库跑 `admin_platform_prod.sql` 全文（含 DROP，默认熔断拦截）。旧库升级用附录或 `sql/migration/` 下增量脚本。
 
 ### 2. 启动 Redis
 
@@ -333,28 +361,33 @@ wu-admin/
 │       ├── styles/                # 全局样式与主题变量
 │       ├── types/                 # TypeScript 类型定义
 │       ├── App.vue / main.ts
+├── scripts/                       # 生产环境部署 Shell 脚本（deploy-backend.sh / deploy-frontend.sh）
 ├── uniapp/                        # uni-app 移动端（H5 / 微信小程序）
 │   ├── .env / .env.example / .env.production
-│   ├── index.html / manifest.json / pages.json / uni.scss
-│   ├── package.json / package-lock.json / tsconfig.json / shims-uni.d.ts
+│   ├── index.html / package.json / package-lock.json / tsconfig.json / shims-uni.d.ts
 │   ├── vite.config.ts
 │   └── src/
+│       ├── manifest.json / pages.json / uni.scss / env.d.ts
+│       ├── api/                   # 移动端 API 接口层
 │       ├── pages/                 # 主包页面：首页、工作台、消息、我的
 │       ├── pages-sub/             # 子包：系统管理、监控、IM、AI 管理、个人中心
-│       ├── components/            # 70+ 通用/业务组件
+│       ├── components/            # 通用与业务组件
 │       ├── composables/           # useH5ListPageNav、useChatKeyboardInset 等
+│       ├── constants/             # 常量定义（TabBar 配置、图标映射等）
 │       ├── store/                 # Pinia stores
-│       ├── utils/                 # api-base、nav-history、webSocket 等
+│       ├── utils/                 # api-base、nav-history、webSocket、security-config 等
 │       ├── config/                # 路由/请求等配置
 │       ├── plugins/               # uView/luch-request 等插件接入
 │       ├── custom-tab-bar/        # 自定义底部导航
 │       ├── styles/                # 全局样式
-│       ├── static/                # 静态资源（图片、字体等）
+│       ├── types/                 # TypeScript 类型定义
+│       ├── static/                # 静态资源（图片、图标等）
 │       ├── App.vue / main.ts
 ├── sql/
-│   ├── admin_platform.sql         # 本地全量脚本（wu-admin，MySQL 8）+ 附录
-│   ├── admin_platform_mysql56.sql # 生产空库全量（wuadmin，MySQL 5.6）
-│   └── migration/                 # 版本增量与迁移 SQL 脚本（addN.sql等）
+│   ├── admin_platform_prod.sql    # 生产全量脚本（wuadmin，MySQL 8）+ 附录
+│   ├── admin_platform_dev.sql     # 本地全量脚本（wu-admin，MySQL 8）+ 附录
+│   ├── admin_platform_mysql56.sql # 生产空库全量（wuadmin，MySQL 5.6，legacy）
+│   └── migration/                 # 版本增量与迁移 SQL 脚本（dev/ prod/）
 └── data/                          # 本地上传目录（git 忽略）
 ```
 
@@ -407,7 +440,8 @@ com.admin.server/
 
 | 脚本 | 用途 | 目标库 |
 |------|------|--------|
-| `admin_platform.sql` | 本地全量（Part A 建表 + Part B 初始数据 + 附录补丁） | `wu-admin`（MySQL 8） |
+| `admin_platform_prod.sql` | 生产全量（Part A 建表 + Part B 初始数据 + 附录补丁） | `wuadmin`（MySQL 8） |
+| `admin_platform_dev.sql` | 本地全量（Part A 建表 + Part B 初始数据 + 附录补丁） | `wu-admin`（MySQL 8） |
 | `admin_platform_mysql56.sql` | 生产空库全量（`VARCHAR(191)` 等 5.6 适配） | `wuadmin`（MySQL 5.6+） |
 | `addN.sql` / `addN_wuadmin.sql` | 发版增量补丁 | 本地/生产 |
 | `disable_devtool_off.sql` | 临时关闭前端反调试 | — |
@@ -423,7 +457,7 @@ com.admin.server/
 | `spring.datasource.*` | prod 库 `wuadmin`，dev 库 `wu-admin` |
 | `spring.redis.database` | `1`；密码仅写在 `application-prod.yml` |
 | `sa-token.timeout` | 缺省 86400s，运行时由系统配置「会话配置」覆盖 |
-| `file.storage.local-path` | 上传目录 `./data/uploads` |
+| `file.storage.local-path` | dev: `./data/uploads`；**prod: `/www/server/wuadmin/data/uploads`**（与 Nginx alias 一致，自动创建） |
 | `knife4j.enable` | 建议 `false`（4.5.0 + springdoc 2.8 兼容性） |
 | `springdoc.api-docs.path` | `/v3/api-docs`（生产 `application-prod.yml` 关闭） |
 
@@ -440,7 +474,7 @@ com.admin.server/
 |------|------|---------------------|
 | `.env` | 本地开发 | `http://127.0.0.1:8080/api` |
 | `.env.production` | H5 生产打包 | **`/api`**（同域 Nginx 反代） |
-| `.env.production` | 小程序生产 | 另设 `VITE_API_PRODUCTION_ORIGIN=https://app.wushij.online` |
+| `.env.production` | 小程序生产 | 另设 `VITE_API_PRODUCTION_ORIGIN=https://app.wushij.com` |
 
 > **切勿**用含局域网 IP 的 `.env` 直接 `build:h5` 上传服务器，会被 Vite 编译进 JS。
 
@@ -597,9 +631,18 @@ cd backend && mvn clean package -DskipTests
 
 | 产物 | 路径 | 部署方式 |
 |------|------|----------|
-| PC 前端 | `frontend/dist/` | 上传至 `wushij.online` 根目录 |
-| 移动端 H5 | `uniapp/dist/build/h5/` | 上传至 `app.wushij.online` 根目录 |
-| 后端 jar | `backend/target/backend.jar` | `java -jar backend.jar`，工作目录 `C:\wu-admin` |
+| PC 前端 | `frontend/dist/` | 上传至 `wushij.com` 根目录 |
+| 移动端 H5 | `uniapp/dist/build/h5/` | 上传至 `app.wushij.com` 根目录 |
+| 后端 jar | `backend/target/backend.jar` | 上传至 `/www/server/wuadmin/backend.jar` 并重启 |
+
+### 上传目录（Linux 生产）
+
+后端、Nginx **必须共用同一路径** `/www/server/wuadmin/data/uploads/`（与 jar 同目录，**后端会自动创建**，无需手动 mkdir）：
+
+| 组件 | 路径 |
+|------|------|
+| `application-prod.yml` | `/www/server/wuadmin/data/uploads` |
+| Nginx `alias`（两站点） | `/www/server/wuadmin/data/uploads/` |
 
 ### 生产默认连接
 
@@ -607,7 +650,7 @@ cd backend && mvn clean package -DskipTests
 |----|-----|------|
 | MySQL 库/用户/密码 | `wuadmin` / `wuadmin` / `root` | `application-prod.yml`，部署前修改 |
 | Redis 密码 | `root`（db=1） | 同上 |
-| CORS | 须改为实际域名 | 示例：`https://wushij.online,https://www.wushij.online,https://app.wushij.online` |
+| CORS | 须改为实际域名 | 示例：`https://wushij.com,https://www.wushij.com,https://app.wushij.com` |
 
 ### Nginx 核心配置（最小可用版）
 
@@ -620,9 +663,9 @@ location @spa {
     rewrite ^ /index.html break;
 }
 
-# 上传文件 Nginx 直出（须在 /api/ 反代之前）
+# 上传文件 Nginx 直出（须在 /api/ 反代之前；与 application-prod.yml local-path 一致）
 location ^~ /api/files/ {
-    alias C:/wu-admin/data/uploads/;
+    alias /www/server/wuadmin/data/uploads/;
     expires 7d;
     add_header Cache-Control "public, max-age=604800";
 }
@@ -649,15 +692,15 @@ location ~* \.(js|css|woff2?|ttf|png|jpg|gif|svg|ico)$ {
 }
 ```
 
-完整限流/SSL/双站点配置模板见 `docs/根域名配置文件.txt`、`docs/移动端子域名配置文件.txt`。
-
 ### 部署 checklist
 
-1. `mvn clean package -DskipTests` → 上传 jar → **重启**
-2. `npm run build` → 上传 `dist/` → 强刷
-3. `npm run build:h5`（读 `.env.production`）→ 上传 H5
-4. Nginx 粘贴模板 → `nginx -t` → 重载
-5. 自测：`GET https://域名/api/auth/config` 返回 JSON；上传文件后 `GET /api/files/...` 为 200
+1. 创建上传目录并赋权（见上）→ 部署新 jar 并重启
+2. `mysql -u wuadmin -p wuadmin < sql/admin_platform_prod.sql` → 初始化空库
+3. `mvn clean package -DskipTests` → 上传 jar → **重启**
+4. `npm run build` → 上传 `dist/` → 强刷
+5. `npm run build:h5`（读 `.env.production`）→ 上传 H5
+6. Nginx 粘贴模板 → `nginx -t` → 重载
+7. 自测：`GET https://域名/api/auth/config` 返回 JSON；上传头像后 `GET /api/files/...` 为 200
 
 > 仅改 Nginx → 重载即可；改 Java/YAML → 重打 jar 重启；仅改前端 → 覆盖 dist/H5 强刷。
 
@@ -676,6 +719,9 @@ A：已修复为统一返回「账号或密码错误」。若仍为旧版，更�
 **Q：本地 Redis 报 AUTH 失败？**
 A：本地用 `dev` profile（`SPRING_PROFILES_ACTIVE=dev`），本地 Redis 勿设密码。生产密码仅写在 `application-prod.yml`。
 
+**Q：头像/文件上传成功但访问 404？**
+A：后端 `local-path` 与 Nginx `alias` 路径不一致。Linux 生产统一用 `/www/server/wuadmin/data/uploads/`，改 Nginx 两处 alias 后 reload，部署新 jar 重启。
+
 **Q：H5 部署后请求局域网 IP 或 SSL 错误？**
 A：生产包误用 `.env` 局域网 IP 打包。用 `.env.production`（`VITE_API_BASE_URL=/api`）重新 `build:h5` 上传并强刷。
 
@@ -685,7 +731,7 @@ A：升级含浅栈导航的前端后强刷。依赖 `localStorage` 父级映射
 ### 菜单与权限
 
 **Q：登录后菜单为空或 403？**
-A：确认已导入 `admin_platform.sql` 或为角色分配菜单，**重新登录**。修改菜单/角色后也需重新登录。
+A：确认已导入 `admin_platform_prod.sql` / `admin_platform_dev.sql` 或为角色分配菜单，**重新登录**。修改菜单/角色后也需重新登录。
 
 **Q：缓存/服务监控菜单不显示？**
 A：极旧库执行附录 → 重启 → 重新登录。角色需分配 `monitor:cache:list`（菜单）和 `monitor:cache:query`（查询权限）。
@@ -787,7 +833,7 @@ A：网格拉原图 URL（非缩略图），大 PNG 下载慢。确认 Nginx `lo
 A：极旧库执行附录 → 重新登录。MySQL 5.6 生产用 `admin_platform_mysql56.sql`。
 
 **Q：如何升级已有库？**
-A：极旧库执行 `admin_platform.sql` 文末附录（~990 行）；后续 `add1.sql` → `add2.sql` … 顺序补跑。**切勿**对已有表跑全文。
+A：极旧库执行 `admin_platform_prod.sql` / `admin_platform_dev.sql` 文末附录（~990 行）；后续按 `sql/migration/` 序号补跑。**切勿**对已有表跑全文。
 
 **Q：字典多了好几个「××（副本）」？**
 A：误点「复制类型」所致，删除多余副本并刷新缓存。
@@ -797,17 +843,19 @@ A：开发环境重启 Vite；生产需 `Knife4jIframeHeaderFilter`。`knife4j.e
 
 ---
 
-## 📄 相关文档
+## 🔗 源码仓库
 
-| 类别 | 文档 |
+| 平台 | 仓库地址 |
 |------|------|
-| 🚀 部署配置 | `docs/根域名配置文件.txt` · `docs/移动端子域名配置文件.txt` · `docs/nginx配置文件.txt` |
-| 📋 项目分析 | `docs/项目分析.txt` · `docs/项目审查报告.md` |
-| 🔒 安全审计 | `docs/安全防护与限流专项审计.txt` |
 | 🐙 GitHub | <https://github.com/wushij/wu-admin> |
+| 🔴 Gitee | <https://gitee.com/wusj17/wu-admin> |
 
 ---
 
-## 📜 许可证
+## 📜 开源协议
 
-本项目仅供学习与内部使用。生产部署前请修改默认密码、数据库与 Redis 等敏感配置。
+本项目采用 [Apache-2.0 License](LICENSE) 开源协议。
+
+- 允许免费用于个人学习、学术研究以及商业项目二次开发；
+- 衍生修改或二次分发请保留原项目的版权声明、许可条款与免责声明；
+- 生产环境部署上线前请务必修改默认密码、JWT 密钥以及数据库/Redis 等敏感配置。

@@ -59,6 +59,18 @@ public final class ServiceTestFixtures {
         return menu;
     }
 
+    /** 带名称与类型的菜单（type 1目录/2菜单/3按钮），用于菜单知识生成测试 */
+    public static MenuDO menu(long id, long parentId, int status, int type, String name) {
+        MenuDO menu = new MenuDO();
+        menu.setId(id);
+        menu.setParentId(parentId);
+        menu.setStatus(status);
+        menu.setType(type);
+        menu.setName(name);
+        menu.setSort((int) id);
+        return menu;
+    }
+
     public static DeptDO dept(long id, long parentId, String name) {
         DeptDO dept = new DeptDO();
         dept.setId(id);

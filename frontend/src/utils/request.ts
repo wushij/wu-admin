@@ -6,7 +6,7 @@ import { isApiSuccessCode } from '@/utils/api-response'
 import { getErrorMessage, markErrorToastShown } from '@/utils/axiosError'
 import { useUserStore } from '@/store/user'
 import { generateNonce, getTimestamp, encryptSm4, decryptSm4, signHmacSm3 } from '@/utils/crypto'
-import { getSecurityConfig, getClientId, requestSessionSignKey } from '@/utils/security-config'
+import { getSecurityConfig, getClientId, requestSessionSignKey, clearSignKeys } from '@/utils/security-config'
 
 export type { ApiResult } from '@/types/api'
 export { getErrorMessage, isErrorToastShown } from '@/utils/axiosError'
@@ -65,8 +65,39 @@ const service: AxiosInstance = axios.create({
   },
 })
 
+function isSignKeyExpiredMessage(text?: string): boolean {
+  if (!text) return false
+  return text.includes('签名密钥') || text.includes('签名验证失败') || text.includes('X-Signature')
+}
+
+async function retryRequestWithNewSignKey(cfg: any): Promise<any> {
+  cfg._isRetrySign = true
+  clearSignKeys()
+  try {
+    await requestSessionSignKey(service)
+    if (cfg._rawBody !== undefined) {
+      cfg.data = cfg._rawBody
+    }
+    return service(cfg)
+  } catch (err) {
+    return Promise.reject(err)
+  }
+}
+
 service.interceptors.request.use(
   async (config) => {
+    // Axios 会把 null body 序列化为字面量字符串 "null"（typeof null === 'object'），
+    // 而前端签名逻辑对 null 判定为空串 "" -> 导致网关验签失败 403。
+    if (config.data === null) {
+      config.data = undefined
+    }
+    const customCfg = config as InternalAxiosRequestConfig & { _rawBody?: any; _isRetrySign?: boolean }
+    if (customCfg._rawBody === undefined) {
+      customCfg._rawBody = config.data
+    } else {
+      config.data = customCfg._rawBody
+    }
+
     // 自动植入时间戳、Nonce、ClientId 防重放 Request Headers
     const timestamp = getTimestamp()
     const nonce = generateNonce()
@@ -180,7 +211,7 @@ service.interceptors.response.use(
       return res
     }
 
-    const cfg = response.config as InternalAxiosRequestConfig & { silent403?: boolean }
+    const cfg = response.config as InternalAxiosRequestConfig & { silent403?: boolean; _isRetrySign?: boolean }
     const text = resolveBodyMessage(message)
 
     if (code === 401) {
@@ -194,6 +225,10 @@ service.interceptors.response.use(
     }
 
     if (code === 403) {
+      // 🔐 自动静默恢复：签名密钥过期时自动重新协商并发起一次重试
+      if (isSignKeyExpiredMessage(text) && !cfg._isRetrySign && !cfg.url?.includes('/auth/session-sign-init')) {
+        return retryRequestWithNewSignKey(cfg)
+      }
       if (!cfg?.silent403) {
         showForbiddenOnce(text || '权限不足，无法操作')
       }
@@ -233,7 +268,7 @@ service.interceptors.response.use(
       }
 
       const { status } = error.response
-      const cfg = error.config as InternalAxiosRequestConfig & { silent403?: boolean }
+      const cfg = error.config as InternalAxiosRequestConfig & { silent403?: boolean; _isRetrySign?: boolean }
       const text = getErrorMessage(error) || error.message || '请求失败'
 
       // 🔐 静默排除：如果是初始化会话签名密钥失败，一律静默 Reject 不弹窗
@@ -249,6 +284,10 @@ service.interceptors.response.use(
           clearSessionAndRedirectLogin()
         }
       } else if (status === 403) {
+        // 🔐 自动静默恢复：签名密钥过期时自动重新协商并发起一次重试
+        if (isSignKeyExpiredMessage(text) && !cfg?._isRetrySign && !cfg?.url?.includes('/auth/session-sign-init')) {
+          return retryRequestWithNewSignKey(cfg)
+        }
         if (!cfg?.silent403) {
           showForbiddenOnce(text || '权限不足，无法访问')
         }
@@ -277,11 +316,11 @@ export const get = <T = unknown>(url: string, params?: object, config?: AxiosReq
 }
 
 export const post = <T = unknown>(url: string, data?: unknown, config?: AxiosRequestConfig) => {
-  return service.post(url, data, config) as Promise<ApiResult<T>>
+  return service.post(url, data === null ? undefined : data, config) as Promise<ApiResult<T>>
 }
 
 export const put = <T = unknown>(url: string, data?: unknown, config?: AxiosRequestConfig) => {
-  return service.put(url, data, config) as Promise<ApiResult<T>>
+  return service.put(url, data === null ? undefined : data, config) as Promise<ApiResult<T>>
 }
 
 export const del = <T = unknown>(url: string, config?: AxiosRequestConfig) => {

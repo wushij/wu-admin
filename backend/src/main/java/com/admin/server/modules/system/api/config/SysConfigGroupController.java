@@ -22,13 +22,24 @@ import jakarta.annotation.Resource;
 import java.util.List;
 import java.util.Map;
 
+import cn.hutool.core.util.StrUtil;
+import cn.hutool.json.JSONObject;
+import cn.hutool.json.JSONUtil;
+import com.admin.server.modules.system.framework.security.SystemPermissionService;
+import com.admin.server.modules.system.service.config.SystemConfigHelper;
+
 @Tag(name = "系统配置")
 @RestController
 @RequestMapping("/system/config-group")
 public class SysConfigGroupController {
 
+    private static final String MASK_PLACEHOLDER = "••••••••••••••••••••••••••••";
+
     @Resource
     private SysConfigGroupService configGroupService;
+
+    @Resource
+    private SystemPermissionService ss;
 
     @Resource
     private PayServiceFactory payServiceFactory;
@@ -46,7 +57,12 @@ public class SysConfigGroupController {
     @Operation(summary = "配置分组列表")
     @PreAuthorize("@ss.hasRead('system:config:list')")
     public CommonResult<List<SysConfigGroupDO>> list() {
-        return CommonResult.success(configGroupService.listAll());
+        List<SysConfigGroupDO> list = configGroupService.listAll();
+        if (ss.hasPermission("system:config:update")) {
+            return CommonResult.success(list);
+        }
+        List<SysConfigGroupDO> maskedList = list.stream().map(this::maskConfigGroup).toList();
+        return CommonResult.success(maskedList);
     }
 
     @GetMapping("/{groupCode}")
@@ -57,7 +73,91 @@ public class SysConfigGroupController {
         if (row == null) {
             throw new BusinessException(404, "配置分组不存在");
         }
-        return CommonResult.success(row);
+        if (ss.hasPermission("system:config:update")) {
+            return CommonResult.success(row);
+        }
+        return CommonResult.success(maskConfigGroup(row));
+    }
+
+    private SysConfigGroupDO maskConfigGroup(SysConfigGroupDO row) {
+        if (row == null || StrUtil.isBlank(row.getConfigValue()) || !JSONUtil.isTypeJSON(row.getConfigValue())) {
+            return row;
+        }
+        // 复制新实例，避免污染底层缓存
+        SysConfigGroupDO masked = new SysConfigGroupDO();
+        masked.setId(row.getId());
+        masked.setGroupCode(row.getGroupCode());
+        masked.setGroupName(row.getGroupName());
+        masked.setRemark(row.getRemark());
+        masked.setCreateTime(row.getCreateTime());
+        masked.setUpdateTime(row.getUpdateTime());
+
+        JSONObject json = JSONUtil.parseObj(row.getConfigValue());
+        String code = row.getGroupCode();
+        if (SystemConfigHelper.GROUP_SMS.equals(code)) {
+            maskJsonField(json, "accessKeyId");
+            maskJsonField(json, "accessKeySecret");
+            maskJsonField(json, "tencentAppId");
+        } else if (SystemConfigHelper.GROUP_PAYMENT.equals(code)) {
+            JSONObject wx = json.getJSONObject("wechatPay");
+            if (wx != null) {
+                maskJsonField(wx, "mchId");
+                maskJsonField(wx, "appId");
+                maskJsonField(wx, "apiV3Key");
+                maskJsonField(wx, "privateKey");
+                maskJsonField(wx, "certSerialNo");
+            }
+            JSONObject alipay = json.getJSONObject("alipay");
+            if (alipay != null) {
+                maskJsonField(alipay, "appId");
+                maskJsonField(alipay, "privateKey");
+                maskJsonField(alipay, "publicKey");
+            }
+        } else if (SystemConfigHelper.GROUP_EMAIL.equals(code)) {
+            maskJsonField(json, "username");
+            maskJsonField(json, "password");
+        } else if (SystemConfigHelper.GROUP_THIRD_PARTY.equals(code)) {
+            JSONObject wechat = json.getJSONObject("wechat");
+            if (wechat != null) {
+                maskJsonField(wechat, "appId");
+                maskJsonField(wechat, "appSecret");
+            }
+            JSONObject alipay = json.getJSONObject("alipay");
+            if (alipay != null) {
+                maskJsonField(alipay, "appId");
+                maskJsonField(alipay, "privateKey");
+                maskJsonField(alipay, "publicKey");
+            }
+            JSONObject github = json.getJSONObject("github");
+            if (github != null) {
+                maskJsonField(github, "clientId");
+                maskJsonField(github, "clientSecret");
+            }
+            JSONObject google = json.getJSONObject("google");
+            if (google != null) {
+                maskJsonField(google, "clientId");
+                maskJsonField(google, "clientSecret");
+            }
+        } else if (SystemConfigHelper.GROUP_SECURITY.equals(code)) {
+            maskJsonField(json, "sm4SecretKey");
+            maskJsonField(json, "sm3SignKey");
+        } else if (SystemConfigHelper.GROUP_FILE.equals(code)) {
+            maskJsonField(json, "accessKey");
+            maskJsonField(json, "secretKey");
+            maskJsonField(json, "accessKeyId");
+            maskJsonField(json, "accessKeySecret");
+        }
+        masked.setConfigValue(json.toString());
+        return masked;
+    }
+
+    private void maskJsonField(JSONObject json, String field) {
+        if (json.containsKey(field)) {
+            String val = json.getStr(field);
+            if (StrUtil.isNotBlank(val)) {
+                json.set(field, MASK_PLACEHOLDER);
+            }
+        }
     }
 
     @PutMapping("/{groupCode}")
@@ -209,5 +309,57 @@ public class SysConfigGroupController {
         wrapper.orderByDesc(com.admin.server.modules.trade.dal.dataobject.email.EmailLogDO::getCreateTime);
         Page<com.admin.server.modules.trade.dal.dataobject.email.EmailLogDO> result = emailLogService.page(new Page<>(pageNo, pageSize), wrapper);
         return CommonResult.success(PageResult.of(result.getRecords(), result.getTotal()));
+    }
+
+    @Operation(summary = "删除短信发送记录")
+    @DeleteMapping("/sms-logs/{id}")
+    @PreAuthorize("@ss.hasPermission('system:config:update')")
+    public CommonResult<Boolean> deleteSmsLog(@PathVariable Long id) {
+        smsLogService.removeById(id);
+        return CommonResult.success(true);
+    }
+
+    @Operation(summary = "批量删除短信发送记录")
+    @DeleteMapping("/sms-logs/batch")
+    @PreAuthorize("@ss.hasPermission('system:config:update')")
+    public CommonResult<Boolean> deleteBatchSmsLogs(@RequestBody List<Long> ids) {
+        if (ids != null && !ids.isEmpty()) {
+            smsLogService.removeByIds(ids);
+        }
+        return CommonResult.success(true);
+    }
+
+    @Operation(summary = "清空短信发送记录")
+    @DeleteMapping("/sms-logs/clean")
+    @PreAuthorize("@ss.hasPermission('system:config:update')")
+    public CommonResult<Boolean> cleanSmsLogs() {
+        smsLogService.remove(new LambdaQueryWrapper<>());
+        return CommonResult.success(true);
+    }
+
+    @Operation(summary = "删除邮件发送记录")
+    @DeleteMapping("/email-logs/{id}")
+    @PreAuthorize("@ss.hasPermission('system:config:update')")
+    public CommonResult<Boolean> deleteEmailLog(@PathVariable Long id) {
+        emailLogService.removeById(id);
+        return CommonResult.success(true);
+    }
+
+    @Operation(summary = "批量删除邮件发送记录")
+    @DeleteMapping("/email-logs/batch")
+    @PreAuthorize("@ss.hasPermission('system:config:update')")
+    public CommonResult<Boolean> deleteBatchEmailLogs(@RequestBody List<Long> ids) {
+        if (ids != null && !ids.isEmpty()) {
+            emailLogService.removeByIds(ids);
+        }
+        return CommonResult.success(true);
+    }
+
+    @Operation(summary = "清空邮件发送记录")
+    @DeleteMapping("/email-logs/clean")
+    @PreAuthorize("@ss.hasPermission('system:config:update')")
+    public CommonResult<Boolean> cleanEmailLogs() {
+        emailLogService.remove(new LambdaQueryWrapper<>());
+        return CommonResult.success(true);
     }
 }

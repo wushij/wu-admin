@@ -65,6 +65,7 @@
     </scroll-view>
 
     <FabButton v-if="canCreate" @click="goCreateType" />
+    <AppDialogHost />
   </view>
 </template>
 
@@ -82,6 +83,8 @@ import DictTag from '@/components/common/DictTag/index.vue'
 import FabButton from '@/components/common/FabButton/index.vue'
 import SegmentTabs from '@/components/common/SegmentTabs/index.vue'
 import PermissionBlock from '@/components/common/PermissionBlock/index.vue'
+import AppDialogHost from '@/components/common/AppDialogHost/index.vue'
+import { showConfirm, showActionSheet, type ActionSheetItem } from '@/utils/app-dialog'
 import { usePageList } from '@/composables/usePageList'
 import { useModulePermission } from '@/composables/useModulePermission'
 import { reloadDictTypes } from '@/composables/useDict'
@@ -130,37 +133,38 @@ function goDataList(item: DictTypeVO) {
   })
 }
 
-function onTypeMenu(item: DictTypeVO) {
-  const actions: string[] = ['查看字典项']
-  if (canUpdate.value) actions.push('编辑类型')
-  if (canCopy.value) actions.push('复制类型')
-  if (canDelete.value) actions.push('删除类型')
-  uni.showActionSheet({
-    itemList: actions,
-    success: async (res) => {
-      const action = actions[res.tapIndex]
-      if (action === '查看字典项') goDataList(item)
-      else if (action === '编辑类型') editType(item.id)
-      else if (action === '复制类型') {
-        await copyDictType(item.id)
-        uni.showToast({ title: '已复制', icon: 'success' })
-        await refresh({ silent: true })
-      } else if (action === '删除类型') {
-        const n = item.dataCount ?? 0
-        uni.showModal({
-          title: '删除字典类型',
-          content: `确定删除「${item.dictName}」？将同时删除其下 ${n} 条字典数据。`,
-          confirmColor: '#f56c6c',
-          success: async (r) => {
-            if (!r.confirm) return
-            await deleteDictType(item.id)
-            uni.showToast({ title: '已删除', icon: 'success' })
-            await refresh({ silent: true })
-          },
-        })
-      }
-    },
-  })
+async function onTypeMenu(item: DictTypeVO) {
+  const actions: ActionSheetItem[] = [{ label: '查看字典项' }]
+  if (canUpdate.value) actions.push({ label: '编辑类型' })
+  if (canCopy.value) actions.push({ label: '复制类型' })
+  if (canDelete.value) actions.push({ label: '删除类型', danger: true })
+
+  try {
+    const tapIndex = await showActionSheet({
+      title: item.dictName || '字典类型操作',
+      items: actions,
+    })
+    const action = actions[tapIndex]?.label
+    if (action === '查看字典项') goDataList(item)
+    else if (action === '编辑类型') editType(item.id)
+    else if (action === '复制类型') {
+      await copyDictType(item.id)
+      uni.showToast({ title: '已复制', icon: 'success' })
+      await refresh({ silent: true })
+    } else if (action === '删除类型') {
+      const n = item.dataCount ?? 0
+      const { confirmed } = await showConfirm({
+        title: '删除字典类型',
+        content: `确定删除「${item.dictName}」？将同时删除其下 ${n} 条字典数据。`,
+        confirmText: '删除',
+        tone: 'danger',
+      })
+      if (!confirmed) return
+      await deleteDictType(item.id)
+      uni.showToast({ title: '已删除', icon: 'success' })
+      await refresh({ silent: true })
+    }
+  } catch {}
 }
 
 function goCreateType() {

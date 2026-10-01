@@ -62,7 +62,19 @@ export const useUserStore = defineStore('user', () => {
       await getUserInfo()
     } catch (error) {
       logger.error('刷新用户信息失败:', error)
-      logout()
+      const msg = error instanceof Error ? error.message : String(error || '')
+      // 满足以下任一条件均视为会话已失效，必须清理本地 Storage，打破死锁状态：
+      // 1. 明确的未授权或登录已过期错误
+      // 2. 要求具备登录态（会话密钥初始化在 Token 失效时的报错）
+      // 3. 冷启动恢复场景下（内存中尚无有效 userId）获取用户信息失败
+      const isSessionInvalid =
+        msg.includes('未授权') ||
+        msg.includes('登录已过期') ||
+        msg.includes('具备登录态') ||
+        userInfo.value.userId == null
+      if (isSessionInvalid) {
+        logout()
+      }
       throw error
     }
   }

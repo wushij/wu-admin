@@ -22,6 +22,10 @@ public interface UserAnnounceMapper extends BaseMapper<UserAnnounceDO> {
     @Select("SELECT user_id FROM sys_user_announce WHERE announce_id = #{announceId}")
     List<Long> selectUserIdsByAnnounceId(@Param("announceId") Long announceId);
 
+    /** 反查某用户已收到的通知 ID（发布时投递进 sys_user_announce 的即为该用户可见范围） */
+    @Select("SELECT announce_id FROM sys_user_announce WHERE user_id = #{userId}")
+    List<Long> selectAnnounceIdsByUserId(@Param("userId") Long userId);
+
     /**
      * 批量新增用户-通知关联。仅写入发布时设置的字段（user_id、announce_id、is_read、create_time），
      * read_time 保持 NULL（未读时无阅读时间），与逐条 insert 行为一致。

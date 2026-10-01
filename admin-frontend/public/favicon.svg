@@ -1,6 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
-  <!-- 三层同色阶、弱对比：小尺寸标签栏下更接近「一整块深蓝黑叠层」 -->
-  <path fill="#334155" d="M4 9 16 3l12 6-12 6L4 9Z"/>
-  <path fill="#1e293b" d="M4 15 16 9l12 6-12 6L4 15Z"/>
-  <path fill="#0f172a" d="M4 21 16 15l12 6-12 6L4 21Z"/>
-</svg>

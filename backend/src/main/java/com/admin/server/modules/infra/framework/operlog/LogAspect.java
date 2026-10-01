@@ -90,7 +90,7 @@ public class LogAspect {
 
             if (controllerLog.isSaveResponseData() && jsonResult != null) {
                 String result = objectMapper.writeValueAsString(jsonResult);
-                operLog.setJsonResult(truncate(result, 2000));
+                operLog.setJsonResult(truncate(maskSensitive(result), 2000));
             }
 
             if (e != null) {
@@ -153,11 +153,22 @@ public class LogAspect {
         }
     }
 
+    private static final java.util.regex.Pattern SENSITIVE_JSON_PATTERN = java.util.regex.Pattern.compile(
+            "(\"(?:password|oldPassword|newPassword|confirmPassword|secret|secretKey|accessKey|accessKeySecret|privateKey|publicKey|apiV3Key|clientSecret|appSecret|sm4SecretKey|sm3SignKey|token|apiKey|certSerialNo)\"\\s*:\\s*)\"[^\"]*\"",
+            java.util.regex.Pattern.CASE_INSENSITIVE
+    );
+
+    private static final java.util.regex.Pattern SENSITIVE_ESCAPED_JSON_PATTERN = java.util.regex.Pattern.compile(
+            "(\\\\\"(?:password|oldPassword|newPassword|confirmPassword|secret|secretKey|accessKey|accessKeySecret|privateKey|publicKey|apiV3Key|clientSecret|appSecret|sm4SecretKey|sm3SignKey|token|apiKey|certSerialNo)\\\\\"\s*:\\s*\\\\\")[^\\\\\"]*(\\\\\")",
+            java.util.regex.Pattern.CASE_INSENSITIVE
+    );
+
     private String maskSensitive(String json) {
         if (json == null) {
             return null;
         }
-        return json.replaceAll("(\"password\"\\s*:\\s*)\"[^\"]*\"", "$1\"******\"");
+        String masked = SENSITIVE_ESCAPED_JSON_PATTERN.matcher(json).replaceAll("$1******$2");
+        return SENSITIVE_JSON_PATTERN.matcher(masked).replaceAll("$1\"******\"");
     }
 
     private boolean isFilterObject(Object obj) {

@@ -15,7 +15,7 @@
               </el-select>
             </el-form-item>
             <el-form-item label="AccessKeyId">
-              <el-input v-model="draft.accessKeyId" name="sms-access-key-id" autocomplete="off" placeholder="阿里云 AccessKeyId / 腾讯云 SecretId" :disabled="!canEdit" />
+              <el-input v-model="draft.accessKeyId" name="sms-access-key-id" type="password" show-password autocomplete="new-password" placeholder="阿里云 AccessKeyId / 腾讯云 SecretId" :disabled="!canEdit" />
             </el-form-item>
             <el-form-item label="AccessKeySecret">
               <el-input v-model="draft.accessKeySecret" name="sms-access-key-secret" type="password" show-password autocomplete="new-password" placeholder="阿里云 AccessKeySecret / 腾讯云 SecretKey" :disabled="!canEdit" />
@@ -24,7 +24,7 @@
               <el-input v-model="draft.signName" name="sms-sign-name" autocomplete="off" placeholder="控制台已审核的短信签名" :disabled="!canEdit" />
             </el-form-item>
             <el-form-item v-if="draft.provider === 'tencent'" label="腾讯云 AppId">
-              <el-input v-model="draft.tencentAppId" name="sms-tencent-app-id" autocomplete="off" placeholder="SmsSdkAppId" :disabled="!canEdit" />
+              <el-input v-model="draft.tencentAppId" name="sms-tencent-app-id" type="password" show-password autocomplete="new-password" placeholder="SmsSdkAppId" :disabled="!canEdit" />
             </el-form-item>
             <el-form-item v-if="draft.provider === 'aliyunAuth'" label="验证码有效期">
               <el-input-number v-model="draft.codeExpireMinutes" :min="1" :max="30" :disabled="!canEdit" />
@@ -87,6 +87,15 @@
               </template>
             </el-table-column>
             <el-table-column prop="createTime" label="时间" min-width="150" show-overflow-tooltip />
+            <el-table-column label="操作" width="60" fixed="right">
+              <template #default="{ row }">
+                <el-popconfirm title="确定删除该条记录吗？" @confirm="$emit('deleteSmsLog', row.id)">
+                  <template #reference>
+                    <el-button link type="danger" size="small" :disabled="!canEdit">删除</el-button>
+                  </template>
+                </el-popconfirm>
+              </template>
+            </el-table-column>
           </el-table>
           <el-empty v-else description="暂无发送记录" :image-size="64" />
         </el-card>
@@ -117,5 +126,6 @@ const testSmsTemplate = defineModel<string>('testSmsTemplate', { required: true 
 defineEmits<{
   testSms: []
   showAllSmsLogs: []
+  deleteSmsLog: [id: number | string]
 }>()
 </script>

@@ -18,13 +18,13 @@ public interface TicketService {
     PageResult<TicketDO> page(PageParam pageParam, String title, String status,
                                String priority, Long assigneeUserId, Long currentUserId);
 
-    TicketDO getDetail(Long id);
+    TicketDO getDetail(Long id, Long currentUserId);
 
     Long create(TicketCreateReqVO reqVO, Long currentUserId);
 
     void update(TicketUpdateReqVO reqVO, Long currentUserId);
 
-    void delete(Long id);
+    void delete(Long id, Long currentUserId);
 
     PageResult<TicketDO> recyclePage(PageParam pageParam, String title, String status, String priority);
 
@@ -34,13 +34,13 @@ public interface TicketService {
 
     void transition(TicketTransitionReqVO reqVO, Long currentUserId);
 
-    List<TicketCommentDO> listComments(Long ticketId);
+    List<TicketCommentDO> listComments(Long ticketId, Long currentUserId);
 
     Long createComment(TicketCommentCreateReqVO reqVO, Long currentUserId);
 
-    List<TicketAttachmentDO> listAttachments(Long ticketId);
+    List<TicketAttachmentDO> listAttachments(Long ticketId, Long currentUserId);
 
     Long uploadAttachment(Long ticketId, MultipartFile file, Long currentUserId) throws IOException;
 
-    TicketAttachmentDO getAttachmentForDownload(Long id);
+    TicketAttachmentDO getAttachmentForDownload(Long id, Long currentUserId);
 }

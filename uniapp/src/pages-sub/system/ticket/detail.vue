@@ -107,6 +107,7 @@ import { getDictLabel, getDictOptions, preloadDicts } from '@/composables/useDic
 import { showConfirm, showActionSheet } from '@/utils/app-dialog'
 import { DICT_TYPE } from '@/constants/dict'
 import { formatDateTime } from '@/utils/format'
+import { navigateToFallback } from '@/utils/navigate-back'
 import type { TicketCommentVO, TicketVO } from '@/types/system'
 
 const ticket = ref<TicketVO | null>(null)
@@ -201,7 +202,9 @@ async function onDelete() {
   if (!confirmed) return
   await deleteTicket(ticketId.value)
   uni.showToast({ title: '已删除', icon: 'success' })
-  setTimeout(() => uni.navigateBack(), 400)
+  setTimeout(() => {
+    navigateToFallback('/pages-sub/system/ticket/index')
+  }, 400)
 }
 
 onMounted(() => {

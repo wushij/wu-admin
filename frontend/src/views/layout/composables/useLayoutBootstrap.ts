@@ -16,12 +16,10 @@ export function useLayoutBootstrap(options: {
   onMounted(async () => {
     options.initTheme()
 
-    if (!userStore.menus || userStore.menus.length === 0) {
-      try {
-        await userStore.getUserInfo()
-      } catch (error) {
-        console.error('获取用户信息失败', error)
-      }
+    try {
+      await userStore.getUserInfo()
+    } catch (error) {
+      console.error('获取用户信息失败', error)
     }
     options.loadMessages()
     messageStore.initWebSocket()

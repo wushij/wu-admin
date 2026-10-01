@@ -66,6 +66,7 @@ const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
 
 .segment-tabs-scroll {
   width: 100%;
+  height: 92rpx;
   margin-bottom: 24rpx;
   white-space: nowrap;
 }

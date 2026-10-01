@@ -30,6 +30,7 @@ public class SystemConfigHelper {
     public static final String GROUP_PAYMENT = "payment";
     public static final String GROUP_SMS = "sms";
     public static final String GROUP_EMAIL = "email";
+    public static final String GROUP_AI = "ai";
     public static final String CAPTCHA_TYPE_IMAGE = "image";
     public static final String CAPTCHA_TYPE_SLIDER = "slider";
     public static final String CAPTCHA_TYPE_SMS = "sms";
@@ -88,6 +89,18 @@ public class SystemConfigHelper {
         return getGroupJson(GROUP_SITE).getStr("copyright", "");
     }
 
+    public boolean isIcpEnabled() {
+        return getGroupJson(GROUP_SITE).getBool("icpEnabled", true);
+    }
+
+    public String getIcpNumber() {
+        return getGroupJson(GROUP_SITE).getStr("icpNumber", "粤ICP备XXXXXXXX号-1");
+    }
+
+    public String getIcpUrl() {
+        return getGroupJson(GROUP_SITE).getStr("icpUrl", "https://beian.miit.gov.cn");
+    }
+
     // ---------- 会话 ----------
     public int getTokenExpireHours() {
         int hours = getGroupJson(GROUP_SESSION).getInt("tokenExpireHours", 24);
@@ -96,6 +109,23 @@ public class SystemConfigHelper {
 
     public long getTokenExpirationMs() {
         return getTokenExpireHours() * 3600_000L;
+    }
+
+    /**
+     * 会话签名密钥（SM3 签名 / SM4 加密）在 Redis 中的有效期，单位：小时。
+     * 默认 24 小时，与会话 Token 有效期（tokenExpireHours）保持完全一致的单位与设计。
+     * 范围 1～120 小时（即 1 小时 ～ 5 天）。
+     */
+    public int getSessionSignExpireHours() {
+        int hours = getGroupJson(GROUP_SESSION).getInt("sessionSignExpireHours", 24);
+        return Math.max(1, Math.min(hours, 120));
+    }
+
+    /**
+     * 会话签名密钥在 Redis 中的实际 TTL（分钟），由小时换算而来，供底层存储使用。
+     */
+    public long getSessionSignTtlMinutes() {
+        return (long) getSessionSignExpireHours() * 60;
     }
 
     // ---------- 文件 ----------
@@ -144,6 +174,11 @@ public class SystemConfigHelper {
     /** 短信发送：同一 IP 每日上限（0 表示不限制） */
     public int getSmsPerIpDaily() {
         return clampDaily(getGroupJson(GROUP_RATE_LIMIT).getInt("smsPerIpDaily", 30));
+    }
+
+    /** AI 对话：单用户每分钟请求次数上限（0 表示不限制），归属限流分组 */
+    public int getAiChatPerUserMinute() {
+        return clampRate(getGroupJson(GROUP_RATE_LIMIT).getInt("aiChatPerUserMinute", 8));
     }
 
     private int clampRate(int n) {
@@ -582,6 +617,9 @@ public class SystemConfigHelper {
         site.put("loginWelcome", getLoginWelcome());
         site.put("registerTitle", getRegisterTitle());
         site.put("copyright", getCopyright());
+        site.put("icpEnabled", isIcpEnabled());
+        site.put("icpNumber", getIcpNumber());
+        site.put("icpUrl", getIcpUrl());
         result.put("site", site);
 
         JSONObject loginJson = getGroupJson(GROUP_LOGIN);
@@ -624,6 +662,69 @@ public class SystemConfigHelper {
 
         result.put("security", security);
 
+        Map<String, Object> ai = new HashMap<>();
+        ai.put("assistantEnabled", isAiAssistantEnabled());
+        result.put("ai", ai);
+
         return result;
+    }
+
+    // ---------- AI 助手 ----------
+
+    /** AI 助手悬浮小窗/全局 AI 功能开关（true 开启，false 关闭） */
+    public boolean isAiAssistantEnabled() {
+        return getGroupJson(GROUP_AI).getBool("assistantEnabled", true);
+    }
+
+    /** AI 助手全局项目知识块（Markdown，注入 system 提示词），未配置时返回空串 */
+    public String getAiGlobalKnowledge() {
+        return getGroupJson(GROUP_AI).getStr("globalKnowledge", "");
+    }
+
+    /** AI 助手回答边界策略：focus(聚焦本系统，默认) / open(开放问答) */
+    public String getAiAnswerScope() {
+        String scope = getGroupJson(GROUP_AI).getStr("answerScope", "focus");
+        return "open".equalsIgnoreCase(scope) ? "open" : "focus";
+    }
+
+    /** AI 对话：单用户每日 token 兜底配额（0 表示不限制），未命中角色规则时生效 */
+    public long getAiTokensPerUserDaily() {
+        return clampTokenQuota(getGroupJson(GROUP_AI).getLong("tokensPerUserDaily", 100000L));
+    }
+
+    /**
+     * AI 对话：角色级每日 token 配额映射 roleId -&gt; tokensDaily（已 clamp）。
+     * 配置缺失或解析异常时返回空映射，由调用方回退兜底配额。
+     */
+    public Map<Long, Long> getAiRoleTokenQuotas() {
+        Map<Long, Long> result = new HashMap<>();
+        try {
+            JSONArray arr = getGroupJson(GROUP_AI).getJSONArray("roleTokenQuotas");
+            if (arr == null) {
+                return result;
+            }
+            for (int i = 0; i < arr.size(); i++) {
+                JSONObject item = arr.getJSONObject(i);
+                if (item == null) {
+                    continue;
+                }
+                Long roleId = item.getLong("roleId");
+                if (roleId == null || roleId <= 0) {
+                    continue;
+                }
+                result.put(roleId, clampTokenQuota(item.getLong("tokensDaily", 0L)));
+            }
+        } catch (Exception e) {
+            return new HashMap<>();
+        }
+        return result;
+    }
+
+    /** token 配额收敛：非正数归零（表示不限制），上限 1000 万 */
+    private long clampTokenQuota(long n) {
+        if (n <= 0) {
+            return 0L;
+        }
+        return Math.min(n, 10_000_000L);
     }
 }

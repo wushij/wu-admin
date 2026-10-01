@@ -25,6 +25,7 @@ export interface SessionSignResult {
   sm4Key?: string
   /** 临时密钥有效期（分钟） */
   ttlMinutes?: number
+  ttlHours?: number
 }
 
 export function getSliderChallenge(scene: string = 'login') {

@@ -60,12 +60,39 @@ export function resetSecurityConfig(): void {
   // 只清除会话密钥，保留签名/加密开关：
   // 开关来自 /auth/config 且只加载一次，若一并清空，
   // 退出后重新登录会因开关丢失而不再附加 X-Signature，导致后端 403
+  clearSignKeys()
+}
+
+let refreshTimer: ReturnType<typeof setTimeout> | null = null
+
+function stopHeartbeatTimer(): void {
+  if (refreshTimer) {
+    clearTimeout(refreshTimer)
+    refreshTimer = null
+  }
+}
+
+function startHeartbeatTimer(httpInstance: any): void {
+  stopHeartbeatTimer()
+  // 每 20 分钟自动静默刷新一次签名密钥，防止 Redis Key 过期
+  refreshTimer = setTimeout(() => {
+    clearSignKeys()
+    requestSessionSignKey(httpInstance).catch(() => {})
+  }, 20 * 60 * 1000)
+}
+
+/**
+ * 仅清除会话密钥材料（签名密钥失效自愈时调用）。
+ * 保留签名/加密开关，并清空 Promise 缓存，允许 requestSessionSignKey 重新发起协商。
+ */
+export function clearSignKeys(): void {
+  stopHeartbeatTimer()
   securityConfig = {
     sm4EncryptEnabled: securityConfig.sm4EncryptEnabled,
     sm3SignEnabled: securityConfig.sm3SignEnabled,
     sm2SignEnabled: securityConfig.sm2SignEnabled,
   }
-  // 同时清空 Promise 缓存，确保登出后重新登录可获取新密钥
+  // 同时清空 Promise 缓存，确保下次调用可重新获取新密钥
   sessionSignPromise = null
 }
 
@@ -97,17 +124,20 @@ export function requestSessionSignKey(httpInstance: any): Promise<any> {
       const res = (await httpInstance.post('/auth/session-sign-init', undefined, {
         params: { clientId: getClientId() }
       })) as any
-      if (res.data?.enabled) {
+      const payload = res?.data ?? res
+      if (payload?.enabled) {
         setSecurityConfig({
-          sm3SignKey: res.data.sm3SignKey,
-          sm4Key: res.data.sm4Key,
+          sm3SignKey: payload.sm3SignKey,
+          sm4Key: payload.sm4Key,
         })
+        startHeartbeatTimer(httpInstance)
       }
       // 成功后不清空 Promise，保持为已 resolved 的缓存，防止后续调用重复发请求
       return res
     } catch (err) {
       // 失败时清空 Promise，允许下次重试
       sessionSignPromise = null
+      stopHeartbeatTimer()
       throw err
     }
   })()

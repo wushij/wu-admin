@@ -5,6 +5,7 @@ import com.admin.server.modules.ticket.api.ticket.vo.TicketCommentCreateReqVO;
 import com.admin.server.modules.ticket.api.ticket.vo.TicketCreateReqVO;
 import com.admin.server.modules.ticket.api.ticket.vo.TicketTransitionReqVO;
 import com.admin.server.modules.system.dal.dataobject.notice.NoticeDO;
+import com.admin.server.modules.ticket.dal.dataobject.ticket.TicketAttachmentDO;
 import com.admin.server.modules.ticket.dal.dataobject.ticket.TicketCommentDO;
 import com.admin.server.modules.ticket.dal.dataobject.ticket.TicketDO;
 import com.admin.server.modules.system.dal.mysql.notice.NoticeMapper;
@@ -133,9 +134,10 @@ class TicketServiceImplTest {
     }
 
     @Test
-    @DisplayName("transition：非负责人且无流转权限时拒绝")
+    @DisplayName("transition：可见但非负责人且无流转权限时拒绝")
     void transition_forbiddenForOthers() {
-        TicketDO ticket = ServiceTestFixtures.ticket(1L, 99L, "OPEN");
+        // assigneeUserId = 0 表示全员工单，任何人可见；此处用户既非负责人也无流转权限
+        TicketDO ticket = ServiceTestFixtures.ticket(1L, 0L, "OPEN");
         when(ticketMapper.selectById(1L)).thenReturn(ticket);
         when(permissionService.hasRole(10L, "super_admin")).thenReturn(false);
         when(permissionService.hasPermission(10L, "system:ticket:transition")).thenReturn(false);
@@ -145,6 +147,59 @@ class TicketServiceImplTest {
 
         assertEquals(403, ex.getCode());
         verify(ticketMapper, never()).updateById(any(TicketDO.class));
+    }
+
+    @Test
+    @DisplayName("transition：越权流转他人工单直接拒绝")
+    void transition_deniedForInaccessibleTicket() {
+        // 工单分配给 99，当前用户 10 既非创建人也非处理人，且不是全员工单
+        when(ticketMapper.selectById(1L)).thenReturn(ServiceTestFixtures.ticket(1L, 99L, "OPEN"));
+
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> ticketService.transition(transitionReq(1L, "IN_PROGRESS"), 10L));
+
+        assertEquals(403, ex.getCode());
+        assertTrue(ex.getMessage().contains("无权访问"));
+        verify(ticketMapper, never()).updateById(any(TicketDO.class));
+    }
+
+    @Test
+    @DisplayName("getDetail：越权读取他人工单抛 403")
+    void getDetail_deniedForForeignTicket() {
+        when(ticketMapper.selectById(1L)).thenReturn(ServiceTestFixtures.ticket(1L, 99L, "OPEN"));
+
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> ticketService.getDetail(1L, 10L));
+
+        assertEquals(403, ex.getCode());
+        assertTrue(ex.getMessage().contains("无权访问"));
+    }
+
+    @Test
+    @DisplayName("listComments：越权读取他人工单评论抛 403")
+    void listComments_deniedForForeignTicket() {
+        when(ticketMapper.selectById(1L)).thenReturn(ServiceTestFixtures.ticket(1L, 99L, "OPEN"));
+
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> ticketService.listComments(1L, 10L));
+
+        assertEquals(403, ex.getCode());
+        verify(ticketCommentMapper, never()).selectList(any());
+    }
+
+    @Test
+    @DisplayName("getAttachmentForDownload：越权下载他人工单附件抛 403")
+    void downloadAttachment_deniedForForeignTicket() {
+        TicketAttachmentDO attachment = new TicketAttachmentDO();
+        attachment.setId(7L);
+        attachment.setTicketId(1L);
+        when(ticketAttachmentMapper.selectById(7L)).thenReturn(attachment);
+        when(ticketMapper.selectById(1L)).thenReturn(ServiceTestFixtures.ticket(1L, 99L, "OPEN"));
+
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> ticketService.getAttachmentForDownload(7L, 10L));
+
+        assertEquals(403, ex.getCode());
     }
 
     @Test

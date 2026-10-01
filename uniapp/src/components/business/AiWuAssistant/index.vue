@@ -6,67 +6,103 @@
     :class="{ 'is-streaming': aiWuStore.streaming }"
     @click="aiWuStore.openPanel()"
   >
-    <view class="aiwu-ball__halo" />
-    <view class="aiwu-ball__icon-inner">
-      <view class="aiwu-ball__wand">
-        <svg viewBox="0 0 1024 1024" width="22" height="22" fill="#ffffff">
-          <path fill="#ffffff" d="M512 64h64v192h-64zm0 576h64v192h-64zM160 480v-64h192v64zm576 0v-64h192v64zM249.856 199.04l45.248-45.184L430.848 289.6 385.6 334.848 249.856 199.104zM657.152 606.4l45.248-45.248 135.744 135.744-45.248 45.248zM114.048 923.2 68.8 877.952l316.8-316.8 45.248 45.248zM702.4 334.848 657.152 289.6l135.744-135.744 45.248 45.248z"/>
-        </svg>
-      </view>
-    </view>
+    <view class="aurora-pulse-ring" />
+    <AiCompassIcon :size="28" :dark="true" :spin="true" class="ball-compass" />
+    <view v-if="aiWuStore.streaming" class="streaming-ping" />
   </view>
 
   <!-- 对话抽屉 -->
-  <view v-if="aiWuStore.panelVisible" class="aiwu-mask" @click="aiWuStore.closePanel()" @touchmove.stop.prevent />
-  <view class="aiwu-drawer" :class="{ 'is-open': aiWuStore.panelVisible }">
+  <view v-if="aiWuStore.panelVisible" class="aiwu-mask" @click="handleMaskClick" @touchmove.stop.prevent />
+  <view class="aiwu-drawer" :class="{ 'is-open': aiWuStore.panelVisible }" @click="handleBlankClick" @touchmove.stop>
     <!-- 头部 -->
-    <view class="aiwu-header">
+    <view class="aiwu-header" @touchmove.stop.prevent>
       <view class="aiwu-header__left">
         <view class="aiwu-header__avatar">
-          <svg viewBox="0 0 1024 1024" width="18" height="18" fill="#ffffff">
-            <path fill="#ffffff" d="M512 64h64v192h-64zm0 576h64v192h-64zM160 480v-64h192v64zm576 0v-64h192v64zM249.856 199.04l45.248-45.184L430.848 289.6 385.6 334.848 249.856 199.104zM657.152 606.4l45.248-45.248 135.744 135.744-45.248 45.248zM114.048 923.2 68.8 877.952l316.8-316.8 45.248 45.248zM702.4 334.848 657.152 289.6l135.744-135.744 45.248 45.248z"/>
-          </svg>
+          <AiCompassIcon :size="24" :dark="true" :spin="true" />
         </view>
         <view class="aiwu-header__title">
           <text class="title">AI wu助手</text>
-          <text class="subtitle">{{ aiWuStore.currentModel ? (aiWuStore.currentModel.modelName || aiWuStore.currentModel.name) : '智能问答' }}</text>
+          <text class="subtitle">系统专属智能副驾 · 贴心指引答疑</text>
         </view>
       </view>
       <view class="aiwu-header__actions">
-        <view class="model-picker-wrap">
-          <view class="aiwu-header__btn model" @click.stop="toggleModelMenu">
-            <text class="model-name">{{ aiWuStore.currentModel ? (aiWuStore.currentModel.modelName || aiWuStore.currentModel.name) : '选择模型' }}</text>
-            <text class="arrow" :class="{ 'is-open': modelMenuVisible }">▾</text>
+        <view class="header-toolbar" role="toolbar">
+          <view
+            class="header-btn"
+            :class="{ 'is-active': historyVisible }"
+            title="历史对话"
+            @click.stop="toggleHistory"
+          >
+            <IconFont name="clock-o" :size="26" color="#f1f5f9" />
           </view>
-          <!-- 内嵌模型选择浮框 (留在当前界面切换，不触发全屏 mask 关闭) -->
-          <view v-if="modelMenuVisible" class="model-dropdown-popover" @click.stop>
-            <view
-              v-for="m in aiWuStore.models"
-              :key="m.id"
-              class="popover-item"
-              :class="{ 'is-active': m.id === aiWuStore.selectedModelId }"
-              @click.stop="selectModel(m.id)"
-            >
-              <text class="popover-name">{{ m.modelName || m.name }}</text>
-              <text v-if="m.id === aiWuStore.selectedModelId" class="popover-check">✓</text>
-            </view>
+          <view class="header-toolbar-sep" />
+          <view
+            class="header-btn"
+            title="新对话"
+            @click.stop="handleClear"
+          >
+            <svg viewBox="0 0 1024 1024" width="13" height="13" fill="#f1f5f9">
+              <path d="M480 480V208a32 32 0 1 1 64 0v272h272a32 32 0 1 1 0 64H544v272a32 32 0 1 1-64 0V544H208a32 32 0 1 1 0-64h272z" />
+            </svg>
+          </view>
+          <view class="header-toolbar-sep" />
+          <view
+            class="header-btn header-btn--close"
+            title="关闭"
+            @click.stop="aiWuStore.closePanel()"
+          >
+            <svg viewBox="0 0 1024 1024" width="12" height="12" fill="#f1f5f9">
+              <path d="M292.7 236.1a32 32 0 0 0-45.3 45.3L466.7 512 247.4 731.3a32 32 0 0 0 45.3 45.3L512 557.3l219.3 219.3a32 32 0 0 0 45.3-45.3L557.3 512l219.3-219.3a32 32 0 0 0-45.3-45.3L512 466.7 292.7 236.1z" />
+            </svg>
           </view>
         </view>
-        <view class="aiwu-header__btn plus" title="新对话" @click="handleClear">
-          <text class="plus-txt">+</text>
+      </view>
+    </view>
+
+    <!-- 历史对话浮层 -->
+    <view v-if="historyVisible" class="aiwu-history" @click.stop>
+      <view class="aiwu-history__head">
+        <view class="aiwu-history__head-title">
+          <IconFont name="clock-o" :size="30" color="#0f172a" />
+          <text>历史对话</text>
+          <text v-if="conversations.length" class="count">{{ conversations.length }}</text>
         </view>
-        <view class="aiwu-header__btn close" title="关闭" @click="aiWuStore.closePanel()">
+        <view class="aiwu-history__close" @click="historyVisible = false">
           <text>✕</text>
         </view>
       </view>
+      <scroll-view scroll-y class="aiwu-history__body">
+        <view
+          v-for="conv in conversations"
+          :key="conv.conversationId"
+          class="aiwu-history__item"
+          :class="{ 'is-active': conv.conversationId === aiWuStore.conversationId }"
+          @click="handleRestore(conv.conversationId)"
+        >
+          <view class="item-icon">
+            <IconFont name="chat-o" :size="28" color="#6366f1" />
+          </view>
+          <view class="item-main">
+            <text class="item-title">{{ conv.title }}</text>
+            <text class="item-meta">{{ formatConvTime(conv.lastTime) }} · {{ conv.messageCount || 0 }} 轮对话</text>
+          </view>
+          <text v-if="conv.conversationId === aiWuStore.conversationId" class="item-tag">当前</text>
+          <text v-else class="item-arrow">›</text>
+        </view>
+        <view v-if="!historyLoading && conversations.length === 0" class="aiwu-history__empty">
+          <IconFont name="chat-o" :size="64" color="#cbd5e1" />
+          <text class="empty-title">还没有历史对话</text>
+          <text class="empty-desc">和 AI wu助手聊聊，记录会自动保存在这里</text>
+        </view>
+      </scroll-view>
     </view>
 
     <!-- 消息区 -->
     <scroll-view
       class="aiwu-body"
       scroll-y
-      :scroll-into-view="scrollIntoId"
-      scroll-with-animation
+      :scroll-top="scrollTop"
+      :scroll-into-view="scrollIntoViewId"
       @scroll="onBodyScroll"
     >
       <!-- 欢迎屏（与 PC 100% 对齐） -->
@@ -74,14 +110,12 @@
         <view class="welcome-hero">
           <view class="welcome-avatar-glow" />
           <view class="welcome-avatar">
-            <svg viewBox="0 0 1024 1024" width="28" height="28" fill="#ffffff">
-              <path fill="#ffffff" d="M512 64h64v192h-64zm0 576h64v192h-64zM160 480v-64h192v64zm576 0v-64h192v64zM249.856 199.04l45.248-45.184L430.848 289.6 385.6 334.848 249.856 199.104zM657.152 606.4l45.248-45.248 135.744 135.744-45.248 45.248zM114.048 923.2 68.8 877.952l316.8-316.8 45.248 45.248zM702.4 334.848 657.152 289.6l135.744-135.744 45.248 45.248z"/>
-            </svg>
+            <AiCompassIcon :size="38" :dark="true" :spin="true" />
           </view>
         </view>
         <text class="welcome-title">你好，我是 AI wu助手</text>
         <text class="welcome-desc">
-          {{ aiWuStore.modelsLoaded && aiWuStore.models.length === 0 ? '暂无可用模型，请联系管理员配置' : '我是你的全能 AI 伙伴，有什么可以帮你的吗？' }}
+          {{ aiWuStore.modelsLoaded && aiWuStore.models.length === 0 ? '暂无可用模型，请联系管理员配置' : '我是本系统的智能助手，熟悉各功能模块与操作路径，有问题尽管问我～' }}
         </text>
 
         <view class="quick-section">
@@ -118,9 +152,7 @@
         :class="msg.role === 'user' ? 'is-user' : 'is-ai'"
       >
         <view v-if="msg.role === 'assistant'" class="aiwu-avatar ai">
-          <svg viewBox="0 0 1024 1024" width="14" height="14" fill="#ffffff">
-            <path fill="#ffffff" d="M512 64h64v192h-64zm0 576h64v192h-64zM160 480v-64h192v64zm576 0v-64h192v64zM249.856 199.04l45.248-45.184L430.848 289.6 385.6 334.848 249.856 199.104zM657.152 606.4l45.248-45.248 135.744 135.744-45.248 45.248zM114.048 923.2 68.8 877.952l316.8-316.8 45.248 45.248zM702.4 334.848 657.152 289.6l135.744-135.744 45.248 45.248z"/>
-          </svg>
+          <AiCompassIcon :size="18" :dark="true" :spin="false" />
         </view>
         <view class="aiwu-bubble" :class="{ 'is-error': msg.error }">
           <view v-if="msg.streaming && !msg.content" class="aiwu-typing">
@@ -163,11 +195,16 @@
           <text>{{ userInitial }}</text>
         </view>
       </view>
+      <!-- L3 工具调用状态提示 -->
+      <view v-if="aiWuStore.streaming && aiWuStore.statusHint" class="aiwu-tool-status">
+        <text>{{ aiWuStore.statusHint }}</text>
+      </view>
+
       <view id="aiwu-bottom-anchor" class="aiwu-anchor" />
     </scroll-view>
 
     <!-- 输入区 -->
-    <view class="aiwu-footer">
+    <view class="aiwu-footer" @touchmove.stop.prevent>
       <view class="aiwu-input-wrap">
         <textarea
           v-model="inputText"
@@ -209,24 +246,27 @@ import { ref, computed, nextTick, watch, onUnmounted } from 'vue'
 import IconFont from '@/components/common/IconFont/index.vue'
 import { useAiWuStore } from '@/store/aiWu'
 import { useUserStore } from '@/store/user'
+import { useAppStore } from '@/store/app'
 import { renderMarkdown } from '@/utils/chat-markdown'
 import { hasToken } from '@/utils/auth'
+import { listConversations, type AiConversationVO } from '@/api/ai'
+import AiCompassIcon from './AiCompassIcon.vue'
 
 const QUICK_QUESTIONS = [
   {
     icon: 'chat-o',
-    text: '介绍一下这个管理系统',
-    desc: '快速了解系统架构与核心功能模块',
+    text: '这个系统有哪些功能模块？',
+    desc: '按你的权限梳理可用功能与入口',
   },
   {
     icon: 'notes-o',
-    text: '帮我写一段周报总结',
-    desc: '梳理本周工作要点与项目进展现状',
+    text: '怎么修改登录密码？',
+    desc: '获取本系统真实操作路径指引',
   },
   {
     icon: 'clock-o',
-    text: '如何提高工作效率？',
-    desc: '获取数字化办公与时间管理实用建议',
+    text: '我是什么角色，属于哪个部门？',
+    desc: '查看当前账号的角色与组织信息',
   },
 ] as const
 
@@ -238,48 +278,56 @@ isH5 = true
 
 const aiWuStore = useAiWuStore()
 const userStore = useUserStore()
+const appStore = useAppStore()
 
-const showFloatBall = computed(() => hasToken() || !!userStore.userInfo?.userId)
+const showFloatBall = computed(() => (hasToken() || !!userStore.userInfo?.userId) && appStore.aiAssistantEnabled)
 
 const userAvatar = computed(() => userStore.userInfo?.avatar || '')
 const userInitial = computed(() => (userStore.userInfo?.nickname || 'U').slice(0, 1))
 
 const inputText = ref('')
-const scrollIntoId = ref('')
+const scrollTop = ref(0)
+const scrollIntoViewId = ref('')
+let savedScrollY = 0
 
-const modelMenuVisible = ref(false)
+const historyVisible = ref(false)
 
-function toggleModelMenu() {
-  if (aiWuStore.streaming) return
-  if (!aiWuStore.modelsLoaded) {
-    aiWuStore.loadModels()
-  }
-  if (!aiWuStore.models || aiWuStore.models.length === 0) {
-    uni.showToast({ title: '暂无可切换模型', icon: 'none' })
-    return
-  }
-  modelMenuVisible.value = !modelMenuVisible.value
+function handleMaskClick() {
+  aiWuStore.closePanel()
 }
 
-function selectModel(id: number) {
-  aiWuStore.selectedModelId = id
-  modelMenuVisible.value = false
-  const model = aiWuStore.models.find((m) => m.id === id)
-  if (model) {
-    uni.showToast({ title: `已切换至 ${model.modelName || model.name}`, icon: 'none' })
-  }
+function handleBlankClick() {
+  // 保持空白区域点击
 }
 
 watch(
   () => aiWuStore.panelVisible,
   (visible) => {
-    if (!visible) modelMenuVisible.value = false
-    // 抽屉打开时锁定页面滚动，防止内层滚到边界后穿透滚动外层页面
+    if (!visible) {
+      historyVisible.value = false
+    }
+    // 抽屉打开时强力锁定外层 Body 滚动，彻底防止 H5 下流式渲染与输入导致的页面位移
     // #ifdef H5
-    document.documentElement.style.overflow = visible ? 'hidden' : ''
-    document.body.style.overflow = visible ? 'hidden' : ''
+    if (visible) {
+      savedScrollY = window.scrollY || document.documentElement.scrollTop || 0
+      document.documentElement.style.overflow = 'hidden'
+      document.body.style.overflow = 'hidden'
+      document.body.style.position = 'fixed'
+      document.body.style.top = `-${savedScrollY}px`
+      document.body.style.width = '100%'
+      document.body.style.touchAction = 'none'
+    } else {
+      document.documentElement.style.overflow = ''
+      document.body.style.overflow = ''
+      document.body.style.position = ''
+      document.body.style.top = ''
+      document.body.style.width = ''
+      document.body.style.touchAction = ''
+      window.scrollTo(0, savedScrollY)
+    }
     // #endif
   },
+  { immediate: true },
 )
 
 // 面板开着时组件被卸载（如切页）需解除页面滚动锁定
@@ -287,22 +335,45 @@ onUnmounted(() => {
   // #ifdef H5
   document.documentElement.style.overflow = ''
   document.body.style.overflow = ''
+  document.body.style.position = ''
+  document.body.style.top = ''
+  document.body.style.width = ''
+  document.body.style.touchAction = ''
   // #endif
 })
 
-function scrollToBottom() {
-  scrollIntoId.value = ''
+function scrollToBottom(force = true) {
+  if (force) {
+    nearBottom.value = true
+  }
   nextTick(() => {
-    scrollIntoId.value = 'aiwu-bottom-anchor'
+    scrollIntoViewId.value = ''
+    nextTick(() => {
+      scrollIntoViewId.value = 'aiwu-bottom-anchor'
+    })
+    scrollTop.value = scrollTop.value === 999999 ? 999998 : 999999
+
+    // #ifdef H5
+    const el = document.querySelector('.aiwu-body') as HTMLElement
+    if (el && (force || nearBottom.value)) {
+      el.scrollTop = el.scrollHeight
+    }
+    // #endif
   })
 }
 
-// 用户是否贴近底部（scroll-view 无法直接量高，靠 @scroll 事件实时计算）
+// 用户是否贴近底部（scroll-view 靠 @scroll 事件实时计算）
 const nearBottom = ref(true)
 
 function onBodyScroll(e: { detail: { scrollTop: number; scrollHeight: number } }) {
   const { scrollTop, scrollHeight } = e.detail
-  // 视口高度约占屏 60%，用 rpx 换算不可靠，直接用窗口高度估算
+  // #ifdef H5
+  const el = document.querySelector('.aiwu-body') as HTMLElement
+  if (el) {
+    nearBottom.value = el.scrollHeight - el.scrollTop - el.clientHeight < 120
+    return
+  }
+  // #endif
   const viewH = uni.getWindowInfo().windowHeight * 0.6
   nearBottom.value = scrollHeight - scrollTop - viewH < 120
 }
@@ -311,31 +382,36 @@ function onBodyScroll(e: { detail: { scrollTop: number; scrollHeight: number } }
 watch(
   () => aiWuStore.messages.length,
   () => {
-    nearBottom.value = true
-    scrollToBottom()
+    scrollToBottom(true)
   },
 )
 
-// 流式增量：用户往上滚阅后不再强制拉回底部
+// 流式增量：仅在跟随模式下向上推动
 watch(
   () => aiWuStore.messages[aiWuStore.messages.length - 1]?.content,
   () => {
-    if (aiWuStore.streaming && nearBottom.value) scrollToBottom()
+    if (aiWuStore.streaming && nearBottom.value) {
+      scrollToBottom(false)
+    }
   },
 )
 
-// 流式结束：若仍在跟随模式则滚到完整回答底部
+// 流式结束：滚到完整回答底部
 watch(
   () => aiWuStore.streaming,
   (val) => {
-    if (!val && nearBottom.value) scrollToBottom()
+    if (!val) {
+      scrollToBottom(true)
+    }
   },
 )
 
 watch(
   () => aiWuStore.panelVisible,
   (visible) => {
-    if (visible) scrollToBottom()
+    if (visible) {
+      scrollToBottom(true)
+    }
   },
 )
 
@@ -343,17 +419,73 @@ async function handleSend() {
   const text = inputText.value.trim()
   if (!text || aiWuStore.streaming) return
   inputText.value = ''
+  scrollToBottom(true)
   await aiWuStore.send(text)
+  scrollToBottom(true)
 }
 
 function sendQuick(q: string) {
   if (aiWuStore.streaming || (aiWuStore.modelsLoaded && aiWuStore.models.length === 0)) return
+  scrollToBottom(true)
   aiWuStore.send(q)
+  scrollToBottom(true)
 }
 
 function handleClear() {
   if (aiWuStore.messages.length === 0) return
   aiWuStore.clear()
+}
+
+// ---------- 历史对话 ----------
+const historyLoading = ref(false)
+const conversations = ref<AiConversationVO[]>([])
+
+async function toggleHistory() {
+  historyVisible.value = !historyVisible.value
+  if (!historyVisible.value) return
+  modelMenuVisible.value = false
+  historyLoading.value = true
+  try {
+    const res = await listConversations()
+    conversations.value = res.data || []
+  } finally {
+    historyLoading.value = false
+  }
+}
+
+async function handleRestore(conversationId: string) {
+  if (aiWuStore.streaming) {
+    uni.showToast({ title: '回答生成中，请稍后切换', icon: 'none' })
+    return
+  }
+  if (conversationId === aiWuStore.conversationId) {
+    historyVisible.value = false
+    return
+  }
+  const ok = await aiWuStore.restoreConversation(conversationId)
+  if (ok) {
+    historyVisible.value = false
+    scrollToBottom()
+  } else {
+    uni.showToast({ title: '该会话暂无可恢复的记录', icon: 'none' })
+  }
+}
+
+/** 会话时间友好化：今天 HH:mm / 昨天 / MM-DD */
+function formatConvTime(time?: string): string {
+  if (!time) return ''
+  const date = new Date(time.replace(' ', 'T'))
+  if (Number.isNaN(date.getTime())) return time
+  const now = new Date()
+  if (sameDay(date, now)) {
+    return `今天 ${pad(date.getHours())}:${pad(date.getMinutes())}`
+  }
+  const yesterday = new Date(now)
+  yesterday.setDate(now.getDate() - 1)
+  if (sameDay(date, yesterday)) {
+    return `昨天 ${pad(date.getHours())}:${pad(date.getMinutes())}`
+  }
+  return `${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
 }
 
 const copiedId = ref<string | number | null>(null)
@@ -376,8 +508,6 @@ function copyMessage(content: string, id: string | number) {
 }
 </script>
 
-<!-- v-html 产物不带 data-v 属性，uni-app 会给组件内所有 style 块强制加 scoped，
-     Markdown 正文样式统一挂在 App.vue 引入的 chat-markdown-global.scss 全局样式中 -->
 <style lang="scss" scoped>
 /* ---------- 悬浮球 ---------- */
 .aiwu-ball {
@@ -391,63 +521,61 @@ function copyMessage(content: string, id: string | number) {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-  border: 2rpx solid rgba(255, 255, 255, 0.18);
-  box-shadow: 0 12rpx 36rpx rgba(15, 23, 42, 0.5);
-  transition: transform 0.25s, background-color 0.25s;
+  background: linear-gradient(145deg, #101c38, #0c1222) !important;
+  border: 3rpx solid rgba(22, 119, 255, 0.5) !important;
+  box-shadow: 0 10rpx 32rpx rgba(22, 119, 255, 0.35), 0 0 20rpx rgba(114, 46, 209, 0.25);
+  transition: transform 0.25s, box-shadow 0.25s;
 
-  &__icon-inner {
-    position: relative;
-    z-index: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  &__close {
-    font-size: 36rpx;
-    color: #ffffff;
-    font-weight: 700;
-  }
-
-  &__wand {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  &.is-open {
-    background: linear-gradient(135deg, #334155 0%, #0f172a 100%);
-    box-shadow: 0 8rpx 24rpx rgba(15, 23, 42, 0.4);
-  }
-
-  &__halo {
-    position: absolute;
-    inset: 0;
-    border-radius: 50%;
-    background: inherit;
-    animation: aiwu-pulse 2.6s ease-out infinite;
-    pointer-events: none;
-  }
-
-  &.is-open &__halo {
-    animation: none;
-  }
-
-  &.is-streaming &__halo {
-    animation-duration: 1.2s;
+  &:active {
+    transform: scale(0.92);
   }
 }
 
-@keyframes aiwu-pulse {
+.aurora-pulse-ring {
+  position: absolute;
+  inset: -8rpx;
+  border-radius: 50%;
+  border: 2rpx solid rgba(64, 150, 255, 0.55);
+  animation: auroraPulse 2.8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  pointer-events: none;
+}
+
+.streaming-ping {
+  position: absolute;
+  top: 4rpx;
+  right: 4rpx;
+  width: 18rpx;
+  height: 18rpx;
+  border-radius: 50%;
+  background: #52c41a;
+  box-shadow: 0 0 14rpx #52c41a;
+  animation: pingDot 1.2s ease-in-out infinite alternate;
+  z-index: 2;
+}
+
+@keyframes auroraPulse {
   0% {
-    transform: scale(1);
-    opacity: 0.55;
+    transform: scale(0.95);
+    opacity: 0.8;
   }
-  70%,
-  100% {
-    transform: scale(1.5);
+  50% {
+    transform: scale(1.18);
     opacity: 0;
+  }
+  100% {
+    transform: scale(0.95);
+    opacity: 0;
+  }
+}
+
+@keyframes pingDot {
+  from {
+    opacity: 0.4;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1.2);
   }
 }
 
@@ -479,160 +607,117 @@ function copyMessage(content: string, id: string | number) {
   }
 }
 
-/* ---------- 头部 ---------- */
-/* ---------- 头部 (石墨黑 100% 对齐 PC 图 2) ---------- */
+/* ---------- 头部 (100% 对齐 PC) ---------- */
 .aiwu-header {
   flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12rpx;
+  gap: 16rpx;
   padding: 24rpx 28rpx;
-  background: #0f172a;
+  background: linear-gradient(145deg, #101c38 0%, #0c1222 100%);
+  border-bottom: 2rpx solid rgba(22, 119, 255, 0.2);
+  box-shadow: 0 4rpx 18rpx rgba(0, 0, 0, 0.25);
 
   &__left {
     display: flex;
     align-items: center;
     gap: 16rpx;
     min-width: 0;
+    flex: 1;
   }
 
   &__avatar {
+    position: relative;
     width: 64rpx;
     height: 64rpx;
-    border-radius: 20rpx;
-    background: rgba(255, 255, 255, 0.12);
-    border: 2rpx solid rgba(255, 255, 255, 0.15);
+    border-radius: 50%;
+    background: linear-gradient(145deg, #101c38, #0c1222);
+    border: 2rpx solid rgba(22, 119, 255, 0.45);
+    box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.3), 0 0 14rpx rgba(22, 119, 255, 0.2);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 32rpx;
     flex-shrink: 0;
   }
 
   &__title {
     display: flex;
     flex-direction: column;
+    gap: 4rpx;
     min-width: 0;
 
     .title {
-      font-size: 28rpx;
-      font-weight: 600;
-      color: #fff;
+      font-size: 30rpx;
+      font-weight: 700;
+      color: #f8fafc;
+      letter-spacing: 0.5rpx;
     }
 
     .subtitle {
-      font-size: 20rpx;
-      color: rgba(255, 255, 255, 0.8);
-      max-width: 220rpx;
+      font-size: 21rpx;
+      color: #94a3b8;
+      max-width: 260rpx;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
     }
   }
-
-.model-picker-wrap {
-  position: relative;
-}
-
-.model-dropdown-popover {
-  position: absolute;
-  top: calc(100% + 12rpx);
-  right: 0;
-  z-index: 1010;
-  min-width: 280rpx;
-  max-width: 400rpx;
-  background: #1e293b;
-  border: 2rpx solid rgba(255, 255, 255, 0.16);
-  border-radius: 20rpx;
-  box-shadow: 0 16rpx 40rpx rgba(15, 23, 42, 0.6);
-  padding: 10rpx 0;
-  overflow: hidden;
-
-  .popover-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 16rpx;
-    padding: 18rpx 24rpx;
-    font-size: 24rpx;
-    color: #cbd5e1;
-    transition: background 0.2s;
-
-    &:active {
-      background: rgba(255, 255, 255, 0.1);
-    }
-
-    &.is-active {
-      color: #6366f1;
-      font-weight: 600;
-      background: rgba(99, 102, 241, 0.15);
-    }
-
-    .popover-name {
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    .popover-check {
-      font-size: 24rpx;
-      color: #6366f1;
-      font-weight: 700;
-    }
-  }
-}
 
   &__actions {
     display: flex;
     align-items: center;
-    gap: 12rpx;
     flex-shrink: 0;
   }
+}
 
-  &__btn {
-    height: 52rpx;
-    padding: 0 18rpx;
-    border-radius: 14rpx;
-    background: rgba(255, 255, 255, 0.12);
-    border: 2rpx solid rgba(255, 255, 255, 0.15);
-    display: flex;
-    align-items: center;
-    gap: 6rpx;
-    font-size: 22rpx;
-    color: #fff;
+/* 顶部操作工具栏胶囊 (与 PC 100% 一致) */
+.header-toolbar {
+  display: inline-flex;
+  align-items: center;
+  gap: 6rpx;
+  padding: 6rpx 10rpx;
+  border-radius: 999rpx;
+  background: rgba(15, 23, 42, 0.75);
+  border: 2rpx solid rgba(59, 130, 246, 0.35);
+  box-shadow: inset 0 2rpx 0 rgba(255, 255, 255, 0.12), 0 4rpx 16rpx rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
 
-    &.close {
-      width: 52rpx;
-      padding: 0;
-      justify-content: center;
-    }
+.header-toolbar-sep {
+  width: 2rpx;
+  height: 24rpx;
+  margin: 0 2rpx;
+  background: rgba(255, 255, 255, 0.15);
+  flex-shrink: 0;
+}
 
-    &.plus {
-      width: 52rpx;
-      padding: 0;
-      justify-content: center;
-      .plus-txt {
-        font-size: 32rpx;
-        line-height: 1;
-        font-weight: 500;
-      }
-    }
+.header-btn {
+  width: 52rpx;
+  height: 52rpx;
+  border-radius: 50%;
+  background: transparent;
+  color: #f1f5f9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
 
-    &.model {
-      max-width: 380rpx;
-    }
+  &:active {
+    background: rgba(59, 130, 246, 0.3);
+    transform: scale(0.92);
+  }
 
-    .model-name {
-      max-width: 320rpx;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
+  &.is-active {
+    background: linear-gradient(135deg, #1677ff 0%, #3b82f6 100%);
+    color: #ffffff;
+    box-shadow: 0 0 16rpx rgba(37, 99, 235, 0.6);
+  }
 
-    .arrow {
-      opacity: 0.8;
-    }
+  &--close:active {
+    background: rgba(239, 68, 68, 0.3);
+    color: #fca5a5;
   }
 }
 
@@ -644,6 +729,169 @@ function copyMessage(content: string, id: string | number) {
   overscroll-behavior: contain;
   padding: 24rpx;
   box-sizing: border-box;
+}
+
+/* ---------- 历史对话浮层 ---------- */
+.aiwu-history {
+  position: absolute;
+  top: 112rpx;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  background: #f8fafc;
+
+  &__head {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 28rpx 32rpx 20rpx;
+    border-bottom: 2rpx solid rgba(226, 232, 240, 0.8);
+  }
+
+  &__head-title {
+    display: flex;
+    align-items: center;
+    gap: 12rpx;
+
+    text {
+      font-size: 30rpx;
+      font-weight: 700;
+      color: #0f172a;
+    }
+
+    .count {
+      min-width: 36rpx;
+      height: 34rpx;
+      padding: 0 12rpx;
+      border-radius: 17rpx;
+      background: rgba(99, 102, 241, 0.12);
+      color: #6366f1;
+      font-size: 22rpx;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+  }
+
+  &__close {
+    width: 52rpx;
+    height: 52rpx;
+    border-radius: 14rpx;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #94a3b8;
+    font-size: 30rpx;
+
+    &:active {
+      background: rgba(148, 163, 184, 0.15);
+    }
+  }
+
+  &__body {
+    flex: 1;
+    min-height: 0;
+    padding: 16rpx 24rpx 32rpx;
+    box-sizing: border-box;
+  }
+
+  &__item {
+    display: flex;
+    align-items: center;
+    gap: 20rpx;
+    padding: 22rpx 24rpx;
+    margin-bottom: 14rpx;
+    border: 2rpx solid transparent;
+    border-radius: 20rpx;
+    background: #ffffff;
+    box-shadow: 0 4rpx 14rpx rgba(15, 23, 42, 0.03);
+
+    &:active {
+      background: #f1f5f9;
+    }
+
+    &.is-active {
+      background: rgba(99, 102, 241, 0.08);
+      border-color: rgba(99, 102, 241, 0.3);
+    }
+
+    .item-icon {
+      width: 60rpx;
+      height: 60rpx;
+      border-radius: 18rpx;
+      background: rgba(99, 102, 241, 0.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .item-main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 6rpx;
+      min-width: 0;
+    }
+
+    .item-title {
+      font-size: 27rpx;
+      font-weight: 600;
+      color: #1e293b;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .item-meta {
+      font-size: 21rpx;
+      color: #94a3b8;
+    }
+
+    .item-tag {
+      flex-shrink: 0;
+      padding: 4rpx 14rpx;
+      border-radius: 12rpx;
+      background: #6366f1;
+      color: #fff;
+      font-size: 20rpx;
+      font-weight: 600;
+    }
+
+    .item-arrow {
+      flex-shrink: 0;
+      font-size: 40rpx;
+      color: #cbd5e1;
+      font-weight: 300;
+    }
+  }
+
+  &__empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 120rpx 40rpx;
+    gap: 12rpx;
+
+    .empty-title {
+      margin-top: 12rpx;
+      font-size: 27rpx;
+      font-weight: 600;
+      color: #94a3b8;
+    }
+
+    .empty-desc {
+      font-size: 22rpx;
+      color: #cbd5e1;
+      text-align: center;
+    }
+  }
 }
 
 .aiwu-anchor {
@@ -662,28 +910,43 @@ function copyMessage(content: string, id: string | number) {
 .welcome-hero {
   position: relative;
   margin-bottom: 24rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .welcome-avatar-glow {
   position: absolute;
-  inset: -12rpx;
-  border-radius: 40rpx;
-  background: #0f172a;
-  opacity: 0.45;
+  inset: -14rpx;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(37, 99, 235, 0.45) 0%, rgba(114, 46, 209, 0.25) 55%, transparent 75%);
   filter: blur(16rpx);
+  animation: pulse-glow 3s infinite alternate ease-in-out;
+}
+
+@keyframes pulse-glow {
+  0% {
+    transform: scale(0.92);
+    opacity: 0.35;
+  }
+  100% {
+    transform: scale(1.15);
+    opacity: 0.65;
+  }
 }
 
 .welcome-avatar {
   position: relative;
   z-index: 1;
-  width: 104rpx;
-  height: 104rpx;
-  border-radius: 32rpx;
-  background: #0f172a;
+  width: 112rpx;
+  height: 112rpx;
+  border-radius: 50%;
+  background: linear-gradient(145deg, #101c38, #0c1222);
+  border: 2rpx solid rgba(22, 119, 255, 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 12rpx 32rpx rgba(15, 23, 42, 0.4);
+  box-shadow: 0 12rpx 36rpx rgba(22, 119, 255, 0.35), 0 0 20rpx rgba(114, 46, 209, 0.25);
 }
 
 .welcome-title {
@@ -746,11 +1009,10 @@ function copyMessage(content: string, id: string | number) {
   }
 
   &-icon {
-    width: 64rpx;
-    height: 64rpx;
-    border-radius: 20rpx;
-    background: #f8fafc;
-    border: 2rpx solid #e2e8f0;
+    width: 52rpx;
+    height: 52rpx;
+    background: transparent;
+    border: none;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -797,7 +1059,7 @@ function copyMessage(content: string, id: string | number) {
 .aiwu-avatar {
   width: 52rpx;
   height: 52rpx;
-  border-radius: 16rpx;
+  border-radius: 50%;
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -806,17 +1068,21 @@ function copyMessage(content: string, id: string | number) {
   overflow: hidden;
 
   &.ai {
-    background: #0f172a;
+    background: linear-gradient(145deg, #101c38, #0c1222);
+    border: 2rpx solid rgba(22, 119, 255, 0.45);
+    box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.25);
+    color: #fff;
   }
 
   &.user {
+    border-radius: 50%;
     background: #e2e8f0;
     color: #475569;
     font-weight: 600;
   }
 
   &.user-img {
-    border-radius: 16rpx;
+    border-radius: 50%;
   }
 }
 
@@ -882,6 +1148,23 @@ function copyMessage(content: string, id: string | number) {
   &.is-copied {
     color: #16a34a;
     border-color: rgba(22, 163, 74, 0.35);
+  }
+}
+
+/* L3 工具调用状态提示 */
+.aiwu-tool-status {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  margin: 4rpx 0 8rpx 66rpx;
+  padding: 8rpx 20rpx;
+  border-radius: 14rpx;
+  background: rgba(99, 102, 241, 0.1);
+
+  text {
+    font-size: 22rpx;
+    color: #6366f1;
+    font-weight: 500;
   }
 }
 

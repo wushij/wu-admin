@@ -1,6 +1,7 @@
 {
   "name": "uniapp",
   "version": "0.0.0",
+  "license": "Apache-2.0",
   "scripts": {
     "dev:custom": "uni -p",
     "dev:h5": "uni",

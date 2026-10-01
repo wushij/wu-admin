@@ -16,12 +16,12 @@ app:
   security:
     cookie-secure: true
   cors:
-    allowed-origins: "https://wushij.online,https://www.wushij.online,https://app.wushij.online"
+    allowed-origins: "https://wushij.com,https://www.wushij.com,https://app.wushij.com"
 
-# 生产环境上传目录：固定绝对路径，与 nginx 的 alias C:/wu-admin/data/uploads/ 保持一致，不受启动目录影响
+# 生产环境上传目录：与宝塔 Java 项目同目录，www 用户可写；Nginx alias 须保持一致
 file:
   storage:
-    local-path: C:/wu-admin/data/uploads
+    local-path: /www/server/wuadmin/data/uploads
 
 # 生产环境关闭接口文档（避免暴露 API 结构；开发环境 dev 仍继承主配置的 enabled: true）
 springdoc:

@@ -21,7 +21,7 @@
       >
         <el-menu-item index="/dashboard" class="menu-item-dashboard">
           <span class="dashboard-menu-icon">
-            <el-icon><component :is="ElementPlusIconsVue.Odometer" /></el-icon>
+            <el-icon><component :is="ElementPlusIconsVue.ElementPlus" /></el-icon>
           </span>
           <template #title><span>工作台</span></template>
         </el-menu-item>

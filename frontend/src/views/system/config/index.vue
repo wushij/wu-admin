@@ -61,6 +61,7 @@
             v-model:test-sms-template="testSmsTemplate"
             :recent-sms-logs="recentSmsLogs" :sms-status-text="smsStatusText" :sms-status-tag-type="smsStatusTagType"
             @test-sms="handleTestSms" @show-all-sms-logs="handleShowAllSmsLogs"
+            @delete-sms-log="handleDeleteSmsLog"
           />
         </el-tab-pane>
         <el-tab-pane label="邮件配置" name="email">
@@ -72,10 +73,14 @@
             :email-status-tag-type="emailStatusTagType"
             @test-email="handleTestEmail"
             @show-all-email-logs="handleShowAllEmailLogs"
+            @delete-email-log="handleDeleteEmailLog"
           />
         </el-tab-pane>
         <el-tab-pane label="安全配置" name="security">
           <SecurityConfigTab :draft="draft.security" :can-edit="canEdit" v-model:forbid-concurrent-login="forbidConcurrentLogin" />
+        </el-tab-pane>
+        <el-tab-pane label="AI 助手" name="ai">
+          <AiConfigTab :draft="draft.ai" :can-edit="canEdit" :role-options="roleOptions" />
         </el-tab-pane>
       </el-tabs>
 
@@ -105,26 +110,41 @@
     </el-dialog>
 
     <!-- 短信记录弹窗 -->
-    <el-dialog v-model="showSmsLogsModal" title="短信发送记录" width="860px" :lock-scroll="false" @opened="loadSmsLogs">
+    <el-dialog v-model="showSmsLogsModal" title="短信发送记录" width="920px" :lock-scroll="false" @opened="loadSmsLogs">
       <div class="sms-logs-toolbar">
-        <el-input v-model="smsLogsSearch.phone" placeholder="手机号" clearable style="width: 180px" @keyup.enter="handleSearchSmsLogs" />
-        <el-select v-model="smsLogsSearch.status" placeholder="发送状态" clearable style="width: 120px">
+        <el-input v-model="smsLogsSearch.phone" placeholder="手机号" clearable style="width: 170px" @keyup.enter="handleSearchSmsLogs" />
+        <el-select v-model="smsLogsSearch.status" placeholder="发送状态" clearable style="width: 110px">
           <el-option label="成功" :value="1" /><el-option label="失败" :value="2" /><el-option label="发送中" :value="0" />
         </el-select>
         <el-button type="primary" @click="handleSearchSmsLogs">搜索</el-button>
         <el-button @click="handleResetSmsLogsSearch">重置</el-button>
+        <div style="flex: 1" />
+        <el-button type="danger" plain :disabled="!selectedSmsLogIds.length" @click="handleBatchDeleteSmsLogs">
+          批量删除 {{ selectedSmsLogIds.length ? `(${selectedSmsLogIds.length})` : '' }}
+        </el-button>
+        <el-button type="danger" plain @click="handleCleanSmsLogs">清空记录</el-button>
       </div>
-      <el-table v-loading="smsLogsLoading" :data="smsLogsData" size="small" stripe max-height="420">
-        <el-table-column prop="phone" label="手机号" width="120" />
-        <el-table-column prop="content" label="验证码" width="90" />
+      <el-table v-loading="smsLogsLoading" :data="smsLogsData" size="small" stripe max-height="420" @selection-change="handleSmsSelectionChange">
+        <el-table-column type="selection" width="45" align="center" />
+        <el-table-column prop="phone" label="手机号" width="118" />
+        <el-table-column prop="content" label="验证码" width="88" />
         <el-table-column prop="provider" label="服务商" width="88" />
-        <el-table-column label="状态" width="80">
+        <el-table-column label="状态" width="76">
           <template #default="{ row }">
             <el-tag :type="smsStatusTagType(row.status)" size="small">{{ smsStatusText(row.status) }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="resultMsg" label="结果信息" min-width="140" show-overflow-tooltip />
-        <el-table-column prop="createTime" label="发送时间" width="168" />
+        <el-table-column prop="resultMsg" label="结果信息" min-width="130" show-overflow-tooltip />
+        <el-table-column prop="createTime" label="发送时间" width="156" />
+        <el-table-column label="操作" width="60" fixed="right">
+          <template #default="{ row }">
+            <el-popconfirm title="确定删除该条记录吗？" @confirm="handleDeleteSmsLog(row.id)">
+              <template #reference>
+                <el-button link type="danger" size="small">删除</el-button>
+              </template>
+            </el-popconfirm>
+          </template>
+        </el-table-column>
       </el-table>
       <div class="sms-logs-pagination">
         <el-pagination
@@ -137,26 +157,41 @@
     </el-dialog>
 
     <!-- 邮件记录弹窗 -->
-    <el-dialog v-model="showEmailLogsModal" title="邮件发送记录" width="880px" :lock-scroll="false" @opened="loadEmailLogs">
+    <el-dialog v-model="showEmailLogsModal" title="邮件发送记录" width="940px" :lock-scroll="false" @opened="loadEmailLogs">
       <div class="sms-logs-toolbar">
-        <el-input v-model="emailLogsSearch.email" placeholder="接收邮箱" clearable style="width: 200px" @keyup.enter="handleSearchEmailLogs" />
-        <el-select v-model="emailLogsSearch.status" placeholder="发送状态" clearable style="width: 120px">
+        <el-input v-model="emailLogsSearch.email" placeholder="接收邮箱" clearable style="width: 190px" @keyup.enter="handleSearchEmailLogs" />
+        <el-select v-model="emailLogsSearch.status" placeholder="发送状态" clearable style="width: 110px">
           <el-option label="成功" :value="1" /><el-option label="失败" :value="2" />
         </el-select>
         <el-button type="primary" @click="handleSearchEmailLogs">搜索</el-button>
         <el-button @click="handleResetEmailLogsSearch">重置</el-button>
+        <div style="flex: 1" />
+        <el-button type="danger" plain :disabled="!selectedEmailLogIds.length" @click="handleBatchDeleteEmailLogs">
+          批量删除 {{ selectedEmailLogIds.length ? `(${selectedEmailLogIds.length})` : '' }}
+        </el-button>
+        <el-button type="danger" plain @click="handleCleanEmailLogs">清空记录</el-button>
       </div>
-      <el-table v-loading="emailLogsLoading" :data="emailLogsData" size="small" stripe max-height="420">
-        <el-table-column prop="email" label="接收邮箱" width="180" show-overflow-tooltip />
-        <el-table-column prop="subject" label="邮件主题" min-width="160" show-overflow-tooltip />
-        <el-table-column prop="content" label="验证码/摘要" width="110" show-overflow-tooltip />
-        <el-table-column label="状态" width="80">
+      <el-table v-loading="emailLogsLoading" :data="emailLogsData" size="small" stripe max-height="420" @selection-change="handleEmailSelectionChange">
+        <el-table-column type="selection" width="45" align="center" />
+        <el-table-column prop="email" label="接收邮箱" width="170" show-overflow-tooltip />
+        <el-table-column prop="subject" label="邮件主题" min-width="140" show-overflow-tooltip />
+        <el-table-column prop="content" label="验证码/摘要" width="100" show-overflow-tooltip />
+        <el-table-column label="状态" width="76">
           <template #default="{ row }">
             <el-tag :type="emailStatusTagType(row.status)" size="small">{{ emailStatusText(row.status) }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="resultMsg" label="结果明细" min-width="140" show-overflow-tooltip />
-        <el-table-column prop="createTime" label="发送时间" width="168" />
+        <el-table-column prop="resultMsg" label="结果明细" min-width="130" show-overflow-tooltip />
+        <el-table-column prop="createTime" label="发送时间" width="156" />
+        <el-table-column label="操作" width="60" fixed="right">
+          <template #default="{ row }">
+            <el-popconfirm title="确定删除该条记录吗？" @confirm="handleDeleteEmailLog(row.id)">
+              <template #reference>
+                <el-button link type="danger" size="small">删除</el-button>
+              </template>
+            </el-popconfirm>
+          </template>
+        </el-table-column>
       </el-table>
       <div class="sms-logs-pagination">
         <el-pagination
@@ -175,7 +210,7 @@ import { computed, watch, onMounted } from 'vue'
 import ModulePageIcon from '@/components/ModulePageIcon.vue'
 import { MODULE_PAGE_ICON } from '@/constants/module-page-icons'
 
-const configTabCount = 11
+const configTabCount = 12
 import SiteConfigTab from './components/SiteConfigTab.vue'
 import SessionConfigTab from './components/SessionConfigTab.vue'
 import FileConfigTab from './components/FileConfigTab.vue'
@@ -187,6 +222,7 @@ import PaymentConfigTab from './components/PaymentConfigTab.vue'
 import SmsConfigTab from './components/SmsConfigTab.vue'
 import EmailConfigTab from './components/EmailConfigTab.vue'
 import SecurityConfigTab from './components/SecurityConfigTab.vue'
+import AiConfigTab from './components/AiConfigTab.vue'
 import { useConfigDraft } from './composables/useConfigDraft'
 import { usePaymentTest } from './composables/usePaymentTest'
 import { useSmsTest } from './composables/useSmsTest'
@@ -215,12 +251,14 @@ const {
   loadRecentSmsLogs, handleTestSms, handleShowAllSmsLogs,
   loadSmsLogs, handleSearchSmsLogs, handleResetSmsLogsSearch, handleSmsLogsSizeChange,
   syncTemplateFromConfig,
+  selectedSmsLogIds, handleSmsSelectionChange, handleDeleteSmsLog, handleBatchDeleteSmsLogs, handleCleanSmsLogs,
 } = useSmsTest(() => isDirty.value, () => draft.sms.provider)
 
 const {
   emailTesting, recentEmailLogs, showEmailLogsModal, emailLogsLoading, emailLogsData, emailLogsPagination, emailLogsSearch,
   emailStatusText, emailStatusTagType, loadRecentEmailLogs, handleTestEmail, handleShowAllEmailLogs, loadEmailLogs,
   handleSearchEmailLogs, handleResetEmailLogsSearch, handleEmailLogsSizeChange,
+  selectedEmailLogIds, handleEmailSelectionChange, handleDeleteEmailLog, handleBatchDeleteEmailLogs, handleCleanEmailLogs,
 } = useEmailTest(() => isDirty.value)
 
 watch(activeTab, (tab) => {

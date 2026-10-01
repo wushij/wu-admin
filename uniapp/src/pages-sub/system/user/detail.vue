@@ -256,7 +256,7 @@ import { formatLoginLockRemain, buildUnlockLoginConfirm, canUnlockLoginLock, has
 import { showConfirm } from '@/utils/app-dialog'
 import type { UserVO } from '@/types/user'
 import { appendNavFromParam } from '@/utils/nav-from'
-import { registerPageShallowFallback, installH5ShallowStackTrapIfNeeded } from '@/utils/navigate-back'
+import { registerPageShallowFallback, installH5ShallowStackTrapIfNeeded, navigateToFallback } from '@/utils/navigate-back'
 import { pinNavParent } from '@/utils/nav-history'
 import { scheduleSyncH5BackButton } from '@/store/h5-back-button'
 
@@ -354,7 +354,9 @@ async function onDelete() {
   try {
     await deleteUser(userId.value)
     uni.showToast({ title: '已删除', icon: 'success' })
-    setTimeout(() => uni.navigateBack(), 400)
+    setTimeout(() => {
+      navigateToFallback(USER_LIST_URL)
+    }, 400)
   } catch (e) {
     console.error(e)
   }

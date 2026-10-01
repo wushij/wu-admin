@@ -2,6 +2,7 @@ import { ref, reactive, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { useUserStore } from '@/store/user'
+import { useSiteStore } from '@/store/site'
 import { getCaptcha, getConfig, sendSmsCode, sendEmailCode } from '@/api/system/auth'
 import type { LoginForm } from '@/types/api'
 import { getErrorMessage } from '@/utils/axiosError'
@@ -186,6 +187,11 @@ export function useLoginForm() {
         if (config.site.platformName) sitePlatformName.value = config.site.platformName
         if (config.site.platformSubtitle) sitePlatformSubtitle.value = config.site.platformSubtitle
         if (config.site.loginWelcome) siteLoginWelcome.value = config.site.loginWelcome
+        const siteStore = useSiteStore()
+        siteStore.siteConfig = {
+          ...siteStore.siteConfig,
+          ...config.site,
+        }
       }
       rebuildFormRules()
     } catch (error) {

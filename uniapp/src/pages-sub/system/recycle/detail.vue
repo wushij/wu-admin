@@ -85,6 +85,7 @@ import { resolveRecycleDetailItem } from '@/utils/recycle-detail-cache'
 import { formatRecycleFieldValue, isRecycleTagField } from '@/utils/recycle-field'
 import { resolveRecycleRowThumb } from '@/utils/recycle-thumb'
 import { showConfirm } from '@/utils/app-dialog'
+import { navigateToFallback } from '@/utils/navigate-back'
 
 const { hasPerm } = usePermission()
 
@@ -138,7 +139,9 @@ async function onRestore() {
   if (!ok.confirmed) return
   await mod.restore(id)
   uni.showToast({ title: '已恢复', icon: 'success' })
-  setTimeout(() => uni.navigateBack(), 400)
+  setTimeout(() => {
+    navigateToFallback('/pages-sub/system/recycle/index')
+  }, 400)
 }
 
 async function onDelete() {
@@ -154,7 +157,9 @@ async function onDelete() {
   if (!ok.confirmed) return
   await mod.deletePermanent(id)
   uni.showToast({ title: '已清除', icon: 'success' })
-  setTimeout(() => uni.navigateBack(), 400)
+  setTimeout(() => {
+    navigateToFallback('/pages-sub/system/recycle/index')
+  }, 400)
 }
 
 onLoad(async (options) => {

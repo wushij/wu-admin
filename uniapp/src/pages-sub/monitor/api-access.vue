@@ -142,19 +142,17 @@
             />
             <view class="filter-group">
               <text class="filter-group__label">请求方法</text>
-              <scroll-view scroll-x class="filter-scroll" :show-scrollbar="false">
-                <view class="filter-row">
-                  <text
-                    v-for="item in methodFilterOptions"
-                    :key="item.value || 'all'"
-                    class="filter-chip"
-                    :class="{ 'filter-chip--active': logFilters.method === item.value }"
-                    @click="setMethodFilter(item.value)"
-                  >
-                    {{ item.label }}
-                  </text>
-                </view>
-              </scroll-view>
+              <view class="filter-row filter-row--wrap">
+                <text
+                  v-for="item in methodFilterOptions"
+                  :key="item.value || 'all'"
+                  class="filter-chip"
+                  :class="{ 'filter-chip--active': logFilters.method === item.value }"
+                  @click="setMethodFilter(item.value)"
+                >
+                  {{ item.label }}
+                </text>
+              </view>
             </view>
             <view class="filter-group">
               <text class="filter-group__label">请求状态</text>
@@ -172,7 +170,7 @@
             </view>
             <view v-if="userFilterOptions.length > 1" class="filter-group">
               <text class="filter-group__label">用户</text>
-              <scroll-view scroll-x class="filter-scroll" :show-scrollbar="false">
+              <scroll-view v-if="userFilterOptions.length <= 6" scroll-x class="filter-scroll" :show-scrollbar="false">
                 <view class="filter-row">
                   <text
                     v-for="item in userFilterOptions"
@@ -185,6 +183,19 @@
                   </text>
                 </view>
               </scroll-view>
+              <picker
+                v-else
+                mode="selector"
+                :range="userFilterOptions"
+                range-key="label"
+                :value="selectedUserIndex"
+                @change="onUserPickerChange"
+              >
+                <view class="filter-picker-select">
+                  <text class="filter-picker-select__text">{{ selectedUserLabel }}</text>
+                  <text class="filter-picker-select__arrow">▾</text>
+                </view>
+              </picker>
             </view>
             <view class="filter-actions">
               <button class="filter-actions__btn" @click="resetLogFilters">重置</button>
@@ -399,6 +410,24 @@ function setMethodFilter(value: string | null) {
 function setSuccessFilter(value: number | null) {
   logFilters.value.success = value
   applyLogFilters()
+}
+
+const selectedUserIndex = computed(() => {
+  const idx = userFilterOptions.value.findIndex((item) => item.value === logFilters.value.userId)
+  return idx >= 0 ? idx : 0
+})
+
+const selectedUserLabel = computed(() => {
+  const found = userFilterOptions.value.find((item) => item.value === logFilters.value.userId)
+  return found ? found.label : '全部用户'
+})
+
+function onUserPickerChange(e: any) {
+  const index = Number(e.detail.value)
+  const option = userFilterOptions.value[index]
+  if (option) {
+    setUserFilter(option.value)
+  }
 }
 
 function setUserFilter(value: number | null) {
@@ -663,7 +692,32 @@ onPullDownRefresh(async () => {
 
 .filter-scroll {
   width: 100%;
+  height: 64rpx;
   white-space: nowrap;
+}
+
+.filter-picker-select {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 64rpx;
+  padding: 0 28rpx;
+  border-radius: 32rpx;
+  background: $color-bg-muted;
+  border: 1px solid $color-border-light;
+  box-sizing: border-box;
+}
+
+.filter-picker-select__text {
+  font-size: $font-size-sm;
+  color: $color-text-primary;
+  font-weight: $font-weight-semibold;
+}
+
+.filter-picker-select__arrow {
+  font-size: 24rpx;
+  color: $color-text-secondary;
+  margin-left: 12rpx;
 }
 
 .filter-row {

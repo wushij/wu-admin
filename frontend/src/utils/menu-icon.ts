@@ -13,7 +13,7 @@ const LEGACY_ICON_MAP: Record<string, string> = {
   'tree-table': 'Menu',
   tree: 'OfficeBuilding',
   document: 'Document',
-  dashboard: 'Odometer',
+  dashboard: 'ElementPlus',
   monitor: 'Monitor',
   'data-line': 'DataLine',
   suitcase: 'Suitcase',

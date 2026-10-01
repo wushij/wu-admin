@@ -1,4 +1,5 @@
 import { get, post, put, del } from '@/utils/request'
+import type { AxiosRequestConfig } from 'axios'
 import type { PageQuery, PageResult } from '@/types/api'
 import type { FileRecord } from '@/api/system/file/index'
 import type {
@@ -191,8 +192,8 @@ export function createChatGroup(data: CreateGroupPayload) {
   return post<ChatGroup>('/system/chat/group/create', data)
 }
 
-export function getChatGroups() {
-  return get<ChatGroup[]>('/system/chat/group/list')
+export function getChatGroups(config: AxiosRequestConfig = {}) {
+  return get<ChatGroup[]>('/system/chat/group/list', undefined, config)
 }
 
 export function sendGroupMessage(groupId: number, data: ChatSendPayload) {
