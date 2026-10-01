@@ -13,8 +13,8 @@ LOG_DIR="data/logs"
 PID_FILE="data/backend.pid"
 
 # 1. 检查环境变量设置（生产环境安全最佳实践）
-export SPRING_MAIL_USERNAME="${SPRING_MAIL_USERNAME:-974473458@qq.com}"
-export SPRING_MAIL_PASSWORD="${SPRING_MAIL_PASSWORD:-cqjvfpulydqwbegh}"
+export SPRING_MAIL_USERNAME="${SPRING_MAIL_USERNAME:-}"
+export SPRING_MAIL_PASSWORD="${SPRING_MAIL_PASSWORD:-}"
 
 echo "=========================================="
 echo "🚀 开始打包并部署 ${APP_NAME}..."

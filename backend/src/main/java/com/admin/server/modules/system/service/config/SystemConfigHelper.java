@@ -94,7 +94,7 @@ public class SystemConfigHelper {
     }
 
     public String getIcpNumber() {
-        return getGroupJson(GROUP_SITE).getStr("icpNumber", "粤ICP备2026045343号-1");
+        return getGroupJson(GROUP_SITE).getStr("icpNumber", "粤ICP备XXXXXXXX号-1");
     }
 
     public String getIcpUrl() {
@@ -479,11 +479,11 @@ public class SystemConfigHelper {
     }
 
     public String getEmailUsername() {
-        return getGroupJson(GROUP_EMAIL).getStr("username", "974473458@qq.com");
+        return getGroupJson(GROUP_EMAIL).getStr("username", "");
     }
 
     public String getEmailPassword() {
-        return getGroupJson(GROUP_EMAIL).getStr("password", "cqjvfpulydqwbegh");
+        return getGroupJson(GROUP_EMAIL).getStr("password", "");
     }
 
     public String getEmailFromName() {

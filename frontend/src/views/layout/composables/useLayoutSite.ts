@@ -6,7 +6,7 @@ export function useLayoutSite() {
   const sitePlatformSubtitle = ref('统一运维 · 高效管控')
   const siteCopyright = ref('')
   const siteIcpEnabled = ref(true)
-  const siteIcpNumber = ref('粤ICP备2026045343号-1')
+  const siteIcpNumber = ref('')
   const siteIcpUrl = ref('https://beian.miit.gov.cn')
 
   async function loadSiteConfig() {

@@ -20,7 +20,7 @@ const DEFAULTS = {
     registerTitle: 'Sign Up',
     copyright: '',
     icpEnabled: true,
-    icpNumber: '粤ICP备2026045343号-1',
+    icpNumber: '粤ICP备XXXXXXXX号-1',
     icpUrl: 'https://beian.miit.gov.cn'
   },
   session: { tokenExpireHours: 24, sessionSignExpireHours: 24 },
@@ -93,7 +93,7 @@ const DEFAULTS = {
   email: {
     enabled: true, provider: 'qq',
     host: 'smtp.qq.com', port: 465,
-    username: '974473458@qq.com', password: 'cqjvfpulydqwbegh',
+    username: '', password: '',
     fromName: 'wu-admin 系统团队',
     authEnabled: true, securityType: 'SSL',
     connectionTimeoutMs: 5000, timeoutMs: 5000, writeTimeoutMs: 5000,

@@ -320,85 +320,9 @@
   to { opacity: 1; transform: translateY(0); }
 }
 
-.test-account-box {
-  margin-top: 16px;
-  padding: 8px 16px;
-  background: rgba(255, 255, 255, 0.06);
-  border: none;
-  border-radius: 20px;
-  cursor: pointer;
-  transition: all 0.25s ease;
-  user-select: none;
-  white-space: nowrap;
-}
-
-.test-account-box:hover {
-  background: rgba(255, 255, 255, 0.12);
-  box-shadow: 0 4px 20px rgba(99, 102, 241, 0.22);
-  transform: translateY(-1px);
-}
-
-.test-account-inner {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  font-size: 12px;
-  line-height: 1;
-  white-space: nowrap;
-}
-
-.test-account-tag {
-  display: inline-flex;
-  align-items: center;
-  padding: 2px 7px;
-  background: rgba(99, 102, 241, 0.35);
-  color: #c7d2fe;
-  border-radius: 4px;
-  font-weight: 600;
-  font-size: 11px;
-  flex-shrink: 0;
-  white-space: nowrap;
-}
-
-.test-account-info {
-  color: rgba(255, 255, 255, 0.88);
-  text-align: center;
-  font-size: 12px;
-  white-space: nowrap;
-}
-
-.test-account-info code {
-  color: #67e8f9;
-  background: rgba(0, 0, 0, 0.3);
-  padding: 1px 5px;
-  border-radius: 4px;
-  font-family: monospace;
-  font-size: 12px;
-  margin: 0 2px;
-}
-
-.test-account-btn {
-  color: #93c5fd;
-  font-weight: 600;
-  font-size: 12px;
-  flex-shrink: 0;
-  text-decoration: none !important;
-  border-bottom: none !important;
-  white-space: nowrap;
-  transition: color 0.2s;
-}
-
-.test-account-box:hover .test-account-btn {
-  color: #60a5fa;
-  text-decoration: none !important;
-  border-bottom: none !important;
-}
-
 @media (max-width: 768px) {
   .auth-form-wrapper { max-width: 100%; }
   .auth-glass-form { padding: 28px 20px; }
-  .test-account-inner { flex-wrap: wrap; }
 }
 
 @media (max-width: 480px) {

@@ -6,14 +6,9 @@
     :class="{ 'is-streaming': aiWuStore.streaming }"
     @click="aiWuStore.openPanel()"
   >
-    <view class="aiwu-ball__halo" />
-    <view class="aiwu-ball__icon-inner">
-      <view class="aiwu-ball__wand">
-        <svg viewBox="0 0 1024 1024" width="22" height="22" fill="#ffffff">
-          <path fill="#ffffff" d="M512 64h64v192h-64zm0 576h64v192h-64zM160 480v-64h192v64zm576 0v-64h192v64zM249.856 199.04l45.248-45.184L430.848 289.6 385.6 334.848 249.856 199.104zM657.152 606.4l45.248-45.248 135.744 135.744-45.248 45.248zM114.048 923.2 68.8 877.952l316.8-316.8 45.248 45.248zM702.4 334.848 657.152 289.6l135.744-135.744 45.248 45.248z"/>
-        </svg>
-      </view>
-    </view>
+    <view class="aurora-pulse-ring" />
+    <AiCompassIcon :size="28" :dark="true" :spin="true" class="ball-compass" />
+    <view v-if="aiWuStore.streaming" class="streaming-ping" />
   </view>
 
   <!-- 对话抽屉 -->
@@ -22,53 +17,44 @@
     <!-- 头部 -->
     <view class="aiwu-header" @touchmove.stop.prevent>
       <view class="aiwu-header__left">
-        <view class="aiwu-header__avatar" @click.stop="toggleHistory">
-          <svg viewBox="0 0 1024 1024" width="18" height="18" fill="#ffffff">
-            <path fill="#ffffff" d="M512 64h64v192h-64zm0 576h64v192h-64zM160 480v-64h192v64zm576 0v-64h192v64zM249.856 199.04l45.248-45.184L430.848 289.6 385.6 334.848 249.856 199.104zM657.152 606.4l45.248-45.248 135.744 135.744-45.248 45.248zM114.048 923.2 68.8 877.952l316.8-316.8 45.248 45.248zM702.4 334.848 657.152 289.6l135.744-135.744 45.248 45.248z"/>
-          </svg>
-          <view class="aiwu-header__avatar-badge">
-            <IconFont name="clock-o" :size="20" color="#0f172a" />
-          </view>
+        <view class="aiwu-header__avatar">
+          <AiCompassIcon :size="24" :dark="true" :spin="true" />
         </view>
         <view class="aiwu-header__title">
           <text class="title">AI wu助手</text>
-          <text class="subtitle">{{ aiWuStore.currentModel ? (aiWuStore.currentModel.modelName || aiWuStore.currentModel.name) : '智能问答' }}</text>
+          <text class="subtitle">系统专属智能副驾 · 贴心指引答疑</text>
         </view>
       </view>
       <view class="aiwu-header__actions">
-        <view class="model-picker-wrap">
-          <view class="aiwu-header__btn model" :class="{ 'is-active': modelMenuVisible }" @click.stop="toggleModelMenu">
-            <text class="model-name">{{ aiWuStore.currentModel ? (aiWuStore.currentModel.modelName || aiWuStore.currentModel.name) : '选择模型' }}</text>
-            <svg class="arrow-svg" :class="{ 'is-open': modelMenuVisible }" viewBox="0 0 1024 1024" width="10" height="10" fill="currentColor">
-              <path d="M840.4 300H183.6c-19.7 0-30.7 22.7-18.7 38.3l328.4 424.7c11.6 15 34.6 15 46.2 0l328.4-424.7c12.1-15.6 1.1-38.3-17.5-38.3z" />
+        <view class="header-toolbar" role="toolbar">
+          <view
+            class="header-btn"
+            :class="{ 'is-active': historyVisible }"
+            title="历史对话"
+            @click.stop="toggleHistory"
+          >
+            <IconFont name="clock-o" :size="26" color="#f1f5f9" />
+          </view>
+          <view class="header-toolbar-sep" />
+          <view
+            class="header-btn"
+            title="新对话"
+            @click.stop="handleClear"
+          >
+            <svg viewBox="0 0 1024 1024" width="13" height="13" fill="#f1f5f9">
+              <path d="M480 480V208a32 32 0 1 1 64 0v272h272a32 32 0 1 1 0 64H544v272a32 32 0 1 1-64 0V544H208a32 32 0 1 1 0-64h272z" />
             </svg>
           </view>
-          <!-- 内嵌模型选择浮框 (留在当前界面切换，不触发全屏 mask 关闭) -->
-          <view v-if="modelMenuVisible" class="model-dropdown-popover" @click.stop>
-            <view class="popover-arrow" />
-            <view
-              v-for="m in aiWuStore.models"
-              :key="m.id"
-              class="popover-item"
-              :class="{ 'is-active': m.id === aiWuStore.selectedModelId }"
-              @click.stop="selectModel(m.id)"
-            >
-              <text class="popover-name">{{ m.modelName || m.name }}</text>
-              <svg v-if="m.id === aiWuStore.selectedModelId" class="popover-check" viewBox="0 0 1024 1024" width="14" height="14" fill="currentColor">
-                <path d="M406.656 706.944 195.84 496.256a32 32 0 1 0-45.248 45.248l256 256 512-512a32 32 0 0 0-45.248-45.248L406.592 706.944z" />
-              </svg>
-            </view>
+          <view class="header-toolbar-sep" />
+          <view
+            class="header-btn header-btn--close"
+            title="关闭"
+            @click.stop="aiWuStore.closePanel()"
+          >
+            <svg viewBox="0 0 1024 1024" width="12" height="12" fill="#f1f5f9">
+              <path d="M292.7 236.1a32 32 0 0 0-45.3 45.3L466.7 512 247.4 731.3a32 32 0 0 0 45.3 45.3L512 557.3l219.3 219.3a32 32 0 0 0 45.3-45.3L557.3 512l219.3-219.3a32 32 0 0 0-45.3-45.3L512 466.7 292.7 236.1z" />
+            </svg>
           </view>
-        </view>
-        <view class="aiwu-header__btn plus" title="新对话" @click="handleClear">
-          <svg viewBox="0 0 1024 1024" width="13" height="13" fill="currentColor">
-            <path d="M480 480V208a32 32 0 1 1 64 0v272h272a32 32 0 1 1 0 64H544v272a32 32 0 1 1-64 0V544H208a32 32 0 1 1 0-64h272z" />
-          </svg>
-        </view>
-        <view class="aiwu-header__btn close" title="关闭" @click="aiWuStore.closePanel()">
-          <svg viewBox="0 0 1024 1024" width="12" height="12" fill="currentColor">
-            <path d="M292.7 236.1a32 32 0 0 0-45.3 45.3L466.7 512 247.4 731.3a32 32 0 0 0 45.3 45.3L512 557.3l219.3 219.3a32 32 0 0 0 45.3-45.3L557.3 512l219.3-219.3a32 32 0 0 0-45.3-45.3L512 466.7 292.7 236.1z" />
-          </svg>
         </view>
       </view>
     </view>
@@ -124,9 +110,7 @@
         <view class="welcome-hero">
           <view class="welcome-avatar-glow" />
           <view class="welcome-avatar">
-            <svg viewBox="0 0 1024 1024" width="28" height="28" fill="#ffffff">
-              <path fill="#ffffff" d="M512 64h64v192h-64zm0 576h64v192h-64zM160 480v-64h192v64zm576 0v-64h192v64zM249.856 199.04l45.248-45.184L430.848 289.6 385.6 334.848 249.856 199.104zM657.152 606.4l45.248-45.248 135.744 135.744-45.248 45.248zM114.048 923.2 68.8 877.952l316.8-316.8 45.248 45.248zM702.4 334.848 657.152 289.6l135.744-135.744 45.248 45.248z"/>
-            </svg>
+            <AiCompassIcon :size="38" :dark="true" :spin="true" />
           </view>
         </view>
         <text class="welcome-title">你好，我是 AI wu助手</text>
@@ -168,9 +152,7 @@
         :class="msg.role === 'user' ? 'is-user' : 'is-ai'"
       >
         <view v-if="msg.role === 'assistant'" class="aiwu-avatar ai">
-          <svg viewBox="0 0 1024 1024" width="14" height="14" fill="#ffffff">
-            <path fill="#ffffff" d="M512 64h64v192h-64zm0 576h64v192h-64zM160 480v-64h192v64zm576 0v-64h192v64zM249.856 199.04l45.248-45.184L430.848 289.6 385.6 334.848 249.856 199.104zM657.152 606.4l45.248-45.248 135.744 135.744-45.248 45.248zM114.048 923.2 68.8 877.952l316.8-316.8 45.248 45.248zM702.4 334.848 657.152 289.6l135.744-135.744 45.248 45.248z"/>
-          </svg>
+          <AiCompassIcon :size="18" :dark="true" :spin="false" />
         </view>
         <view class="aiwu-bubble" :class="{ 'is-error': msg.error }">
           <view v-if="msg.streaming && !msg.content" class="aiwu-typing">
@@ -268,6 +250,7 @@ import { useAppStore } from '@/store/app'
 import { renderMarkdown } from '@/utils/chat-markdown'
 import { hasToken } from '@/utils/auth'
 import { listConversations, type AiConversationVO } from '@/api/ai'
+import AiCompassIcon from './AiCompassIcon.vue'
 
 const QUICK_QUESTIONS = [
   {
@@ -307,49 +290,20 @@ const scrollTop = ref(0)
 const scrollIntoViewId = ref('')
 let savedScrollY = 0
 
-const modelMenuVisible = ref(false)
 const historyVisible = ref(false)
 
 function handleMaskClick() {
-  if (modelMenuVisible.value) {
-    modelMenuVisible.value = false
-    return
-  }
   aiWuStore.closePanel()
 }
 
 function handleBlankClick() {
-  if (modelMenuVisible.value) {
-    modelMenuVisible.value = false
-  }
-}
-
-function toggleModelMenu() {
-  if (aiWuStore.streaming) return
-  if (!aiWuStore.modelsLoaded) {
-    aiWuStore.loadModels()
-  }
-  if (!aiWuStore.models || aiWuStore.models.length === 0) {
-    uni.showToast({ title: '暂无可切换模型', icon: 'none' })
-    return
-  }
-  modelMenuVisible.value = !modelMenuVisible.value
-}
-
-function selectModel(id: number) {
-  aiWuStore.selectedModelId = id
-  modelMenuVisible.value = false
-  const model = aiWuStore.models.find((m) => m.id === id)
-  if (model) {
-    uni.showToast({ title: `已切换至 ${model.modelName || model.name}`, icon: 'none' })
-  }
+  // 保持空白区域点击
 }
 
 watch(
   () => aiWuStore.panelVisible,
   (visible) => {
     if (!visible) {
-      modelMenuVisible.value = false
       historyVisible.value = false
     }
     // 抽屉打开时强力锁定外层 Body 滚动，彻底防止 H5 下流式渲染与输入导致的页面位移
@@ -523,9 +477,6 @@ function formatConvTime(time?: string): string {
   const date = new Date(time.replace(' ', 'T'))
   if (Number.isNaN(date.getTime())) return time
   const now = new Date()
-  const pad = (n: number) => String(n).padStart(2, '0')
-  const sameDay = (a: Date, b: Date) =>
-    a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
   if (sameDay(date, now)) {
     return `今天 ${pad(date.getHours())}:${pad(date.getMinutes())}`
   }
@@ -557,8 +508,6 @@ function copyMessage(content: string, id: string | number) {
 }
 </script>
 
-<!-- v-html 产物不带 data-v 属性，uni-app 会给组件内所有 style 块强制加 scoped，
-     Markdown 正文样式统一挂在 App.vue 引入的 chat-markdown-global.scss 全局样式中 -->
 <style lang="scss" scoped>
 /* ---------- 悬浮球 ---------- */
 .aiwu-ball {
@@ -572,63 +521,61 @@ function copyMessage(content: string, id: string | number) {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-  border: 2rpx solid rgba(255, 255, 255, 0.18);
-  box-shadow: 0 12rpx 36rpx rgba(15, 23, 42, 0.5);
-  transition: transform 0.25s, background-color 0.25s;
+  background: linear-gradient(145deg, #101c38, #0c1222) !important;
+  border: 3rpx solid rgba(22, 119, 255, 0.5) !important;
+  box-shadow: 0 10rpx 32rpx rgba(22, 119, 255, 0.35), 0 0 20rpx rgba(114, 46, 209, 0.25);
+  transition: transform 0.25s, box-shadow 0.25s;
 
-  &__icon-inner {
-    position: relative;
-    z-index: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  &__close {
-    font-size: 36rpx;
-    color: #ffffff;
-    font-weight: 700;
-  }
-
-  &__wand {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  &.is-open {
-    background: linear-gradient(135deg, #334155 0%, #0f172a 100%);
-    box-shadow: 0 8rpx 24rpx rgba(15, 23, 42, 0.4);
-  }
-
-  &__halo {
-    position: absolute;
-    inset: 0;
-    border-radius: 50%;
-    background: inherit;
-    animation: aiwu-pulse 2.6s ease-out infinite;
-    pointer-events: none;
-  }
-
-  &.is-open &__halo {
-    animation: none;
-  }
-
-  &.is-streaming &__halo {
-    animation-duration: 1.2s;
+  &:active {
+    transform: scale(0.92);
   }
 }
 
-@keyframes aiwu-pulse {
+.aurora-pulse-ring {
+  position: absolute;
+  inset: -8rpx;
+  border-radius: 50%;
+  border: 2rpx solid rgba(64, 150, 255, 0.55);
+  animation: auroraPulse 2.8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  pointer-events: none;
+}
+
+.streaming-ping {
+  position: absolute;
+  top: 4rpx;
+  right: 4rpx;
+  width: 18rpx;
+  height: 18rpx;
+  border-radius: 50%;
+  background: #52c41a;
+  box-shadow: 0 0 14rpx #52c41a;
+  animation: pingDot 1.2s ease-in-out infinite alternate;
+  z-index: 2;
+}
+
+@keyframes auroraPulse {
   0% {
-    transform: scale(1);
-    opacity: 0.55;
+    transform: scale(0.95);
+    opacity: 0.8;
   }
-  70%,
-  100% {
-    transform: scale(1.5);
+  50% {
+    transform: scale(1.18);
     opacity: 0;
+  }
+  100% {
+    transform: scale(0.95);
+    opacity: 0;
+  }
+}
+
+@keyframes pingDot {
+  from {
+    opacity: 0.4;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1.2);
   }
 }
 
@@ -660,214 +607,117 @@ function copyMessage(content: string, id: string | number) {
   }
 }
 
-/* ---------- 头部 ---------- */
-/* ---------- 头部 (石墨黑 100% 对齐 PC 图 2) ---------- */
+/* ---------- 头部 (100% 对齐 PC) ---------- */
 .aiwu-header {
   flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12rpx;
+  gap: 16rpx;
   padding: 24rpx 28rpx;
-  background: #0f172a;
+  background: linear-gradient(145deg, #101c38 0%, #0c1222 100%);
+  border-bottom: 2rpx solid rgba(22, 119, 255, 0.2);
+  box-shadow: 0 4rpx 18rpx rgba(0, 0, 0, 0.25);
 
   &__left {
     display: flex;
     align-items: center;
     gap: 16rpx;
     min-width: 0;
+    flex: 1;
   }
 
   &__avatar {
     position: relative;
     width: 64rpx;
     height: 64rpx;
-    border-radius: 20rpx;
-    background: rgba(255, 255, 255, 0.12);
-    border: 2rpx solid rgba(255, 255, 255, 0.15);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 32rpx;
-    flex-shrink: 0;
-
-    &:active {
-      background: rgba(255, 255, 255, 0.22);
-    }
-  }
-
-  /* 头像右下角小时钟角标：提示可点击查看历史对话 */
-  &__avatar-badge {
-    position: absolute;
-    right: -8rpx;
-    bottom: -8rpx;
-    width: 30rpx;
-    height: 30rpx;
     border-radius: 50%;
-    background: #ffffff;
+    background: linear-gradient(145deg, #101c38, #0c1222);
+    border: 2rpx solid rgba(22, 119, 255, 0.45);
+    box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.3), 0 0 14rpx rgba(22, 119, 255, 0.2);
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 4rpx 10rpx rgba(0, 0, 0, 0.25);
+    flex-shrink: 0;
   }
 
   &__title {
     display: flex;
     flex-direction: column;
+    gap: 4rpx;
     min-width: 0;
 
     .title {
-      font-size: 28rpx;
-      font-weight: 600;
-      color: #fff;
+      font-size: 30rpx;
+      font-weight: 700;
+      color: #f8fafc;
+      letter-spacing: 0.5rpx;
     }
 
     .subtitle {
-      font-size: 20rpx;
-      color: rgba(255, 255, 255, 0.8);
-      max-width: 220rpx;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-  }
-
-.model-picker-wrap {
-  position: relative;
-}
-
-.model-dropdown-popover {
-  position: absolute;
-  top: calc(100% + 14rpx);
-  right: 0;
-  z-index: 1010;
-  min-width: 320rpx;
-  max-width: 440rpx;
-  background: rgba(30, 41, 59, 0.95);
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  border-radius: 20rpx;
-  box-shadow: 0 16rpx 48rpx rgba(15, 23, 42, 0.7);
-  padding: 10rpx 0;
-  overflow: hidden;
-  animation: popover-fade 0.2s ease-out;
-
-  .popover-arrow {
-    position: absolute;
-    top: -10rpx;
-    right: 32rpx;
-    width: 0;
-    height: 0;
-    border-left: 10rpx solid transparent;
-    border-right: 10rpx solid transparent;
-    border-bottom: 10rpx solid rgba(255, 255, 255, 0.16);
-  }
-
-  .popover-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 16rpx;
-    padding: 20rpx 26rpx;
-    font-size: 24rpx;
-    color: rgba(255, 255, 255, 0.82);
-    transition: background 0.18s;
-
-    &:active {
-      background: rgba(255, 255, 255, 0.08);
-    }
-
-    &.is-active {
-      color: #818cf8;
-      font-weight: 600;
-      background: linear-gradient(135deg, rgba(99, 102, 241, 0.25) 0%, rgba(99, 102, 241, 0.12) 100%);
-    }
-
-    .popover-name {
-      flex: 1;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    .popover-check {
-      color: #818cf8;
-      flex-shrink: 0;
-    }
-  }
-}
-
-@keyframes popover-fade {
-  from {
-    opacity: 0;
-    transform: translateY(-8rpx);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-  &__actions {
-    display: flex;
-    align-items: center;
-    gap: 12rpx;
-    flex-shrink: 0;
-  }
-
-  &__btn {
-    height: 52rpx;
-    padding: 0 20rpx;
-    border-radius: 26rpx;
-    background: rgba(255, 255, 255, 0.08);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8rpx;
-    font-size: 22rpx;
-    color: rgba(255, 255, 255, 0.9);
-    transition: all 0.2s ease;
-
-    &:active {
-      background: rgba(255, 255, 255, 0.18);
-      transform: scale(0.92);
-    }
-
-    &.is-active {
-      background: rgba(99, 102, 241, 0.25);
-      border-color: rgba(129, 140, 248, 0.45);
-      color: #a5b4fc;
-    }
-
-    &.close,
-    &.plus {
-      width: 52rpx;
-      height: 52rpx;
-      padding: 0;
-      border-radius: 50%;
-    }
-
-    &.model {
-      max-width: 360rpx;
-    }
-
-    .model-name {
+      font-size: 21rpx;
+      color: #94a3b8;
       max-width: 260rpx;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
-      font-weight: 500;
     }
+  }
 
-    .arrow-svg {
-      transition: transform 0.25s ease;
-      opacity: 0.75;
-      flex-shrink: 0;
+  &__actions {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+  }
+}
 
-      &.is-open {
-        transform: rotate(180deg);
-      }
-    }
+/* 顶部操作工具栏胶囊 (与 PC 100% 一致) */
+.header-toolbar {
+  display: inline-flex;
+  align-items: center;
+  gap: 6rpx;
+  padding: 6rpx 10rpx;
+  border-radius: 999rpx;
+  background: rgba(15, 23, 42, 0.75);
+  border: 2rpx solid rgba(59, 130, 246, 0.35);
+  box-shadow: inset 0 2rpx 0 rgba(255, 255, 255, 0.12), 0 4rpx 16rpx rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.header-toolbar-sep {
+  width: 2rpx;
+  height: 24rpx;
+  margin: 0 2rpx;
+  background: rgba(255, 255, 255, 0.15);
+  flex-shrink: 0;
+}
+
+.header-btn {
+  width: 52rpx;
+  height: 52rpx;
+  border-radius: 50%;
+  background: transparent;
+  color: #f1f5f9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+
+  &:active {
+    background: rgba(59, 130, 246, 0.3);
+    transform: scale(0.92);
+  }
+
+  &.is-active {
+    background: linear-gradient(135deg, #1677ff 0%, #3b82f6 100%);
+    color: #ffffff;
+    box-shadow: 0 0 16rpx rgba(37, 99, 235, 0.6);
+  }
+
+  &--close:active {
+    background: rgba(239, 68, 68, 0.3);
+    color: #fca5a5;
   }
 }
 
@@ -1060,28 +910,43 @@ function copyMessage(content: string, id: string | number) {
 .welcome-hero {
   position: relative;
   margin-bottom: 24rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .welcome-avatar-glow {
   position: absolute;
-  inset: -12rpx;
-  border-radius: 40rpx;
-  background: #0f172a;
-  opacity: 0.45;
+  inset: -14rpx;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(37, 99, 235, 0.45) 0%, rgba(114, 46, 209, 0.25) 55%, transparent 75%);
   filter: blur(16rpx);
+  animation: pulse-glow 3s infinite alternate ease-in-out;
+}
+
+@keyframes pulse-glow {
+  0% {
+    transform: scale(0.92);
+    opacity: 0.35;
+  }
+  100% {
+    transform: scale(1.15);
+    opacity: 0.65;
+  }
 }
 
 .welcome-avatar {
   position: relative;
   z-index: 1;
-  width: 104rpx;
-  height: 104rpx;
-  border-radius: 32rpx;
-  background: #0f172a;
+  width: 112rpx;
+  height: 112rpx;
+  border-radius: 50%;
+  background: linear-gradient(145deg, #101c38, #0c1222);
+  border: 2rpx solid rgba(22, 119, 255, 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 12rpx 32rpx rgba(15, 23, 42, 0.4);
+  box-shadow: 0 12rpx 36rpx rgba(22, 119, 255, 0.35), 0 0 20rpx rgba(114, 46, 209, 0.25);
 }
 
 .welcome-title {
@@ -1144,11 +1009,10 @@ function copyMessage(content: string, id: string | number) {
   }
 
   &-icon {
-    width: 64rpx;
-    height: 64rpx;
-    border-radius: 20rpx;
-    background: #f8fafc;
-    border: 2rpx solid #e2e8f0;
+    width: 52rpx;
+    height: 52rpx;
+    background: transparent;
+    border: none;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1195,7 +1059,7 @@ function copyMessage(content: string, id: string | number) {
 .aiwu-avatar {
   width: 52rpx;
   height: 52rpx;
-  border-radius: 16rpx;
+  border-radius: 50%;
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -1204,17 +1068,21 @@ function copyMessage(content: string, id: string | number) {
   overflow: hidden;
 
   &.ai {
-    background: #0f172a;
+    background: linear-gradient(145deg, #101c38, #0c1222);
+    border: 2rpx solid rgba(22, 119, 255, 0.45);
+    box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.25);
+    color: #fff;
   }
 
   &.user {
+    border-radius: 50%;
     background: #e2e8f0;
     color: #475569;
     font-weight: 600;
   }
 
   &.user-img {
-    border-radius: 16rpx;
+    border-radius: 50%;
   }
 }
 

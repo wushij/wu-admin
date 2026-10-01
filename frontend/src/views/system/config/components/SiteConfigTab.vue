@@ -20,7 +20,7 @@
       <span class="form-item-tip">开启后将在网站登录页、注册页及系统底部显示ICP备案号</span>
     </el-form-item>
     <el-form-item v-if="draft.icpEnabled" label="ICP备案号">
-      <el-input v-model="draft.icpNumber" maxlength="60" placeholder="例如：粤ICP备2026045343号-1" :disabled="!canEdit" />
+      <el-input v-model="draft.icpNumber" maxlength="60" placeholder="例如：粤ICP备XXXXXXXX号-1" :disabled="!canEdit" />
     </el-form-item>
     <el-form-item v-if="draft.icpEnabled" label="工信部链接">
       <el-input v-model="draft.icpUrl" maxlength="120" placeholder="默认：https://beian.miit.gov.cn" :disabled="!canEdit" />

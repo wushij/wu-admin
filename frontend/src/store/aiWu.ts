@@ -53,11 +53,9 @@ export const useAiWuStore = defineStore('aiWu', () => {
       const res = await listChatModels()
       models.value = res.data || []
       modelsLoaded.value = true
-      // 默认选中 isDefault 模型，其次第一个
-      if (selectedModelId.value == null || !models.value.some((m) => m.id === selectedModelId.value)) {
-        const def = models.value.find((m) => m.isDefault === 1) || models.value[0]
-        selectedModelId.value = def ? def.id : null
-      }
+      // 始终优先选用后台设定的默认模型 isDefault === 1，若无则取首个
+      const def = models.value.find((m) => m.isDefault === 1) || models.value[0]
+      selectedModelId.value = def ? def.id : null
     } catch {
       modelsLoaded.value = true
     }
@@ -65,7 +63,7 @@ export const useAiWuStore = defineStore('aiWu', () => {
 
   function togglePanel() {
     panelVisible.value = !panelVisible.value
-    if (panelVisible.value && !modelsLoaded.value) {
+    if (panelVisible.value) {
       loadModels()
     }
   }

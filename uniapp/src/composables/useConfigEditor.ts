@@ -43,7 +43,7 @@ const SITE_DEFAULTS: SiteAdminConfig = {
   registerTitle: 'Sign Up',
   copyright: '',
   icpEnabled: true,
-  icpNumber: '粤ICP备2026045343号-1',
+  icpNumber: '粤ICP备XXXXXXXX号-1',
   icpUrl: 'https://beian.miit.gov.cn',
 }
 
@@ -90,8 +90,8 @@ const EMAIL_DEFAULTS: EmailAdminConfig = {
   provider: 'qq',
   host: 'smtp.qq.com',
   port: 465,
-  username: '974473458@qq.com',
-  password: 'cqjvfpulydqwbegh',
+  username: '',
+  password: '',
   fromName: 'wu-admin 系统团队',
   authEnabled: true,
   securityType: 'SSL',

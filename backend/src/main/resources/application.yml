@@ -64,8 +64,8 @@ spring:
   mail:
     host: ${SPRING_MAIL_HOST:smtp.qq.com}
     port: ${SPRING_MAIL_PORT:465}
-    username: ${SPRING_MAIL_USERNAME:974473458@qq.com}
-    password: ${SPRING_MAIL_PASSWORD:cqjvfpulydqwbegh}
+    username: ${SPRING_MAIL_USERNAME:}
+    password: ${SPRING_MAIL_PASSWORD:}
     protocol: smtp
     default-encoding: UTF-8
     properties:

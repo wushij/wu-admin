@@ -276,6 +276,7 @@ import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'elem
 import ModulePageIcon from '@/components/ModulePageIcon.vue'
 import { MODULE_PAGE_ICON } from '@/constants/module-page-icons'
 import { useUserStore } from '@/store/user'
+import { useAiWuStore } from '@/store/aiWu'
 import {
   pageAiModel,
   createAiModel,
@@ -509,6 +510,7 @@ async function handleSetDefault(row: AiModelVO) {
   await setDefaultAiModel(row.id)
   ElMessage.success('设置成功')
   loadData()
+  useAiWuStore().loadModels()
 }
 
 async function toggleStatus(row: AiModelVO, enabled: boolean) {

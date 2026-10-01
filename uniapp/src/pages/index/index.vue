@@ -134,9 +134,16 @@ async function initDashboard() {
   if (hasInitialized) return
   hasInitialized = true
   if (userStore.token && !userStore.userInfo.permissions?.length) {
-    await userStore.ensureUserLoaded().catch(() => {})
+    try {
+      await userStore.ensureUserLoaded()
+    } catch {
+      // 若加载失败且已注销会话，不继续发起后续数据请求
+      if (!userStore.token) return
+    }
   }
-  await refresh()
+  if (userStore.token) {
+    await refresh()
+  }
 }
 
 onMounted(() => {

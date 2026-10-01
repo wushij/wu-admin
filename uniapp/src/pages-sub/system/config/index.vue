@@ -18,7 +18,7 @@
           <switch :checked="siteDraft.icpEnabled" :disabled="!canEdit" color="#6366f1" @change="siteDraft.icpEnabled = $event.detail.value" />
         </FormCell>
         <template v-if="siteDraft.icpEnabled">
-          <FormCell v-model="siteDraft.icpNumber" label="ICP备案号" editable boxed placeholder="粤ICP备2026045343号-1" :disabled="!canEdit" />
+          <FormCell v-model="siteDraft.icpNumber" label="ICP备案号" editable boxed placeholder="粤ICP备XXXXXXXX号-1" :disabled="!canEdit" />
           <FormCell v-model="siteDraft.icpUrl" label="工信部链接" editable boxed placeholder="https://beian.miit.gov.cn" :disabled="!canEdit" last />
         </template>
       </view>
@@ -215,14 +215,14 @@
         <CollapsePanel title="微信支付">
           <view class="form-panel form-panel--flat">
             <FormCell label="启用" switch-cell><switch :checked="paymentDraft.wechatPay.enabled" :disabled="!canEdit" @change="onPaySwitch('wechatPay', 'enabled', $event)" /></FormCell>
-            <FormCell v-model="paymentDraft.wechatPay.mchId" label="商户号" editable boxed :disabled="!canEdit" />
-            <FormCell v-model="paymentDraft.wechatPay.appId" label="AppID" editable boxed :disabled="!canEdit" />
+            <FormCell v-model="paymentDraft.wechatPay.mchId" label="商户号" editable boxed password :disabled="!canEdit" />
+            <FormCell v-model="paymentDraft.wechatPay.appId" label="AppID" editable boxed password :disabled="!canEdit" />
             <FormCell v-model="paymentDraft.wechatPay.apiV3Key" label="APIv3 密钥" editable boxed password :disabled="!canEdit" />
             <view class="config-textarea">
               <text class="config-textarea__label">商户私钥</text>
-              <textarea v-model="paymentDraft.wechatPay.privateKey" class="config-textarea__input" :disabled="!canEdit" />
+              <textarea v-model="paymentDraft.wechatPay.privateKey" class="config-textarea__input config-textarea__mask" :disabled="!canEdit" />
             </view>
-            <FormCell v-model="paymentDraft.wechatPay.certSerialNo" label="证书序列号" editable boxed :disabled="!canEdit" />
+            <FormCell v-model="paymentDraft.wechatPay.certSerialNo" label="证书序列号" editable boxed password :disabled="!canEdit" />
             <FormCell v-model="paymentDraft.wechatPay.notifyUrl" label="回调地址" editable boxed :disabled="!canEdit" last />
             <text class="config-hint config-hint--inline">须公网 HTTPS，对应 POST /api/pay/notify/wechat</text>
             <button v-if="canEdit && paymentDraft.wechatPay.enabled" class="config-test-btn" :loading="paymentTesting" @click="sendTestPayment('wechat')">测试微信支付</button>
@@ -231,14 +231,14 @@
         <CollapsePanel title="支付宝支付">
           <view class="form-panel form-panel--flat">
             <FormCell label="启用" switch-cell><switch :checked="paymentDraft.alipay.enabled" :disabled="!canEdit" @change="onPaySwitch('alipay', 'enabled', $event)" /></FormCell>
-            <FormCell v-model="paymentDraft.alipay.appId" label="AppID" editable boxed :disabled="!canEdit" />
+            <FormCell v-model="paymentDraft.alipay.appId" label="AppID" editable boxed password :disabled="!canEdit" />
             <view class="config-textarea">
               <text class="config-textarea__label">应用私钥</text>
-              <textarea v-model="paymentDraft.alipay.privateKey" class="config-textarea__input" :disabled="!canEdit" />
+              <textarea v-model="paymentDraft.alipay.privateKey" class="config-textarea__input config-textarea__mask" :disabled="!canEdit" />
             </view>
             <view class="config-textarea">
               <text class="config-textarea__label">支付宝公钥</text>
-              <textarea v-model="paymentDraft.alipay.publicKey" class="config-textarea__input" :disabled="!canEdit" />
+              <textarea v-model="paymentDraft.alipay.publicKey" class="config-textarea__input config-textarea__mask" :disabled="!canEdit" />
             </view>
             <FormCell label="签名类型" clickable boxed arrow @click="pickAlipaySign">
               <text class="picker-value">{{ paymentDraft.alipay.signType }}</text>
@@ -268,10 +268,10 @@
             <FormCell label="短信服务商" clickable boxed arrow @click="pickProvider">
               <text class="picker-value">{{ providerLabel }}</text>
             </FormCell>
-            <FormCell v-model="smsDraft.accessKeyId" label="AccessKeyId" editable boxed :disabled="!canEdit" />
+            <FormCell v-model="smsDraft.accessKeyId" label="AccessKeyId" editable boxed password :disabled="!canEdit" />
             <FormCell v-model="smsDraft.accessKeySecret" label="AccessKeySecret" editable boxed password :disabled="!canEdit" />
             <FormCell v-model="smsDraft.signName" label="签名" editable boxed :disabled="!canEdit" />
-            <FormCell v-if="smsDraft.provider === 'tencent'" v-model="smsDraft.tencentAppId" label="腾讯云 AppId" editable boxed :disabled="!canEdit" />
+            <FormCell v-if="smsDraft.provider === 'tencent'" v-model="smsDraft.tencentAppId" label="腾讯云 AppId" editable boxed password :disabled="!canEdit" />
             <FormCell v-if="smsDraft.provider === 'aliyunAuth'" label="验证码有效期(分钟)">
               <NumberStepper v-model="smsDraft.codeExpireMinutes" :min="1" :max="30" :disabled="!canEdit" />
             </FormCell>
@@ -338,7 +338,7 @@
             <FormCell label="邮件服务商" clickable boxed arrow @click="pickEmailProvider">
               <text class="picker-value">{{ emailProviderLabel }}</text>
             </FormCell>
-            <FormCell v-model="emailDraft.username" label="发件邮箱账号" editable boxed placeholder="如 wu@gmail.com" :disabled="!canEdit" />
+            <FormCell v-model="emailDraft.username" label="发件邮箱账号" editable boxed password placeholder="如 wu@gmail.com" :disabled="!canEdit" />
             <FormCell v-model="emailDraft.password" label="SMTP 授权码" editable boxed placeholder="秘钥/授权码" password :disabled="!canEdit" />
             <FormCell v-model="emailDraft.host" label="SMTP 服务器" editable boxed placeholder="如 smtp.qq.com" :disabled="!canEdit" />
             <FormCell label="SMTP 端口">
@@ -1483,5 +1483,9 @@ $config-cell-padding-x: 24rpx;
   color: $color-text-secondary;
   border-radius: $radius-md;
   font-size: $font-size-base;
+}
+
+.config-textarea__mask {
+  -webkit-text-security: disc;
 }
 </style>

@@ -3,35 +3,54 @@
     <!-- 头部 -->
     <div class="panel-header">
       <div class="header-left">
-        <el-tooltip content="历史对话" placement="bottom">
-          <button class="ai-avatar" type="button" @click="toggleHistory">
-            <el-icon :size="18"><MagicStick /></el-icon>
-            <span class="avatar-badge">
-              <el-icon :size="10"><Clock /></el-icon>
-            </span>
-          </button>
-        </el-tooltip>
+        <div class="ai-avatar">
+          <AiCompassIcon :size="24" :dark="true" :spin="true" />
+        </div>
         <div class="header-title">
           <div class="title">AI wu助手</div>
-          <div class="subtitle">{{ aiWuStore.currentModel ? aiWuStore.currentModel.name : '智能问答' }}</div>
+          <div class="subtitle">系统专属智能副驾 · 贴心指引答疑</div>
         </div>
       </div>
       <div class="header-actions">
-        <el-select
-          v-if="aiWuStore.models.length > 1"
-          v-model="aiWuStore.selectedModelId"
-          size="small"
-          class="model-select"
-          :disabled="aiWuStore.streaming"
-          placeholder="选择模型"
-        >
-          <el-option v-for="m in aiWuStore.models" :key="m.id" :label="m.modelName || m.name" :value="m.id" />
-        </el-select>
-        <el-tooltip content="新对话" placement="bottom">
-          <button class="icon-btn" type="button" title="新对话" @click="handleClear">
-            <el-icon :size="15"><Plus /></el-icon>
-          </button>
-        </el-tooltip>
+        <div class="header-toolbar" role="toolbar" aria-label="操作">
+          <el-tooltip :content="historyVisible ? '收起历史会话' : '历史对话记录'" placement="bottom">
+            <button
+              class="header-btn"
+              :class="{ 'is-active': historyVisible }"
+              type="button"
+              aria-label="历史对话记录"
+              @click="toggleHistory"
+            >
+              <el-icon :size="15"><Clock /></el-icon>
+            </button>
+          </el-tooltip>
+
+          <span class="header-toolbar-sep" aria-hidden="true" />
+
+          <el-tooltip content="开启新会话" placement="bottom">
+            <button
+              class="header-btn"
+              type="button"
+              aria-label="新对话"
+              @click="handleClear"
+            >
+              <el-icon :size="15"><Plus /></el-icon>
+            </button>
+          </el-tooltip>
+
+          <span class="header-toolbar-sep" aria-hidden="true" />
+
+          <el-tooltip content="收起面板" placement="bottom">
+            <button
+              class="header-btn header-btn--close"
+              type="button"
+              aria-label="收起"
+              @click="aiWuStore.closePanel()"
+            >
+              <el-icon :size="15"><Close /></el-icon>
+            </button>
+          </el-tooltip>
+        </div>
       </div>
     </div>
 
@@ -89,7 +108,7 @@
         <div class="welcome-hero">
           <div class="welcome-avatar-glow" />
           <div class="welcome-avatar">
-            <el-icon :size="28"><MagicStick /></el-icon>
+            <AiCompassIcon :size="38" :dark="true" :spin="true" />
           </div>
         </div>
         <div class="welcome-title">你好，我是 AI wu助手</div>
@@ -131,7 +150,7 @@
         :class="msg.role === 'user' ? 'is-user' : 'is-ai'"
       >
         <div v-if="msg.role === 'assistant'" class="msg-avatar ai">
-          <el-icon :size="14"><MagicStick /></el-icon>
+          <AiCompassIcon :size="18" :dark="true" :spin="false" />
         </div>
         <div class="bubble" :class="{ 'is-error': msg.error }">
           <!-- 等待首字节：三点跳动 -->
@@ -214,7 +233,6 @@
 <script setup lang="ts">
 import { ref, computed, nextTick, watch, onMounted } from 'vue'
 import {
-  MagicStick,
   Plus,
   User,
   Promotion,
@@ -233,6 +251,7 @@ import { useAiWuStore } from '@/store/aiWu'
 import { useUserStore } from '@/store/user'
 import { listConversations, type AiConversationVO } from '@/api/ai'
 import AiWuMarkdown from './AiWuMarkdown.vue'
+import AiCompassIcon from './AiCompassIcon.vue'
 
 const QUICK_QUESTIONS = [
   {
@@ -432,11 +451,12 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  padding: 14px 16px;
-  background: linear-gradient(135deg, var(--theme-primary, #6366f1) 0%, var(--theme-logo-end, var(--theme-primary, #8b5cf6)) 100%);
+  gap: 12px;
+  padding: 12px 16px;
+  background: linear-gradient(145deg, #101c38 0%, #0c1222 100%);
+  border-bottom: 1px solid rgba(22, 119, 255, 0.2);
   color: #fff;
-  box-shadow: 0 4px 16px rgba(var(--theme-primary-rgb, 99, 102, 241), 0.15);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.25);
 }
 
 .header-left {
@@ -444,50 +464,28 @@ onMounted(() => {
   align-items: center;
   gap: 10px;
   min-width: 0;
+  flex: 1;
 }
 
 .ai-avatar {
   position: relative;
   width: 36px;
   height: 36px;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  background: rgba(255, 255, 255, 0.22);
-  backdrop-filter: blur(8px);
-  color: #fff;
+  border-radius: 50%;
+  border: 1.5px solid rgba(22, 119, 255, 0.45);
+  background: linear-gradient(145deg, #101c38, #0c1222);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3), 0 0 10px rgba(22, 119, 255, 0.2);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  cursor: pointer;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.25s ease;
 
   &:hover {
-    background: rgba(255, 255, 255, 0.35);
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
-
-    .avatar-badge {
-      transform: scale(1.1);
-    }
+    transform: scale(1.06);
+    border-color: rgba(64, 150, 255, 0.85);
+    box-shadow: 0 0 16px rgba(22, 119, 255, 0.4);
   }
-}
-
-/* 头像右下角小时钟角标：提示可点击查看历史 */
-.avatar-badge {
-  position: absolute;
-  right: -4px;
-  bottom: -4px;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: #fff;
-  color: var(--theme-primary, #6366f1);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
-  transition: transform 0.2s;
 }
 
 /* ---------- 历史对话浮层 ---------- */
@@ -695,65 +693,91 @@ onMounted(() => {
 
 .header-title {
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 
   .title {
-    font-size: 14px;
+    font-size: 15px;
     font-weight: 700;
     line-height: 1.3;
     letter-spacing: 0.3px;
+    color: #f8fafc;
+    white-space: nowrap;
   }
 
   .subtitle {
     font-size: 11px;
-    opacity: 0.85;
+    color: #94a3b8;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    max-width: 120px;
+    max-width: 200px;
   }
 }
 
 .header-actions {
   display: flex;
   align-items: center;
-  gap: 6px;
   flex-shrink: 0;
 }
 
-.model-select {
-  width: 165px;
-
-  :deep(.el-select__wrapper) {
-    background: rgba(255, 255, 255, 0.2);
-    box-shadow: none !important;
-    border-radius: 8px;
-    backdrop-filter: blur(4px);
-  }
-
-  :deep(.el-select__selected-item),
-  :deep(.el-select__caret) {
-    color: #fff;
-    font-size: 12px;
-    font-weight: 500;
-  }
+/* 顶部操作工具栏胶囊 */
+.header-toolbar {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 5px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.75);
+  border: 1px solid rgba(59, 130, 246, 0.35);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 2px 8px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
-.icon-btn {
-  width: 30px;
-  height: 30px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 9px;
+.header-toolbar-sep {
+  width: 1px;
+  height: 14px;
+  margin: 0 1px;
   background: rgba(255, 255, 255, 0.15);
-  color: #fff;
-  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.header-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: transparent;
+  border: none;
+  color: #f1f5f9;
   display: flex;
   align-items: center;
   justify-content: center;
+  cursor: pointer;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 
   &:hover {
-    background: rgba(255, 255, 255, 0.3);
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+    background: rgba(59, 130, 246, 0.3);
+    color: #ffffff;
+    box-shadow: 0 0 10px rgba(59, 130, 246, 0.45);
+    transform: scale(1.08);
+  }
+
+  &:active {
+    transform: scale(0.94);
+  }
+
+  &.is-active {
+    background: linear-gradient(135deg, #1677ff 0%, #3b82f6 100%);
+    color: #ffffff;
+    box-shadow: 0 0 12px rgba(37, 99, 235, 0.6);
+  }
+
+  &--close:hover {
+    background: rgba(239, 68, 68, 0.25);
+    color: #fca5a5;
+    box-shadow: 0 0 10px rgba(239, 68, 68, 0.4);
   }
 }
 
@@ -792,41 +816,49 @@ onMounted(() => {
 
 .welcome-hero {
   position: relative;
-  margin-bottom: 14px;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .welcome-avatar-glow {
   position: absolute;
-  inset: -6px;
-  border-radius: 22px;
-  background: linear-gradient(135deg, var(--theme-primary, #6366f1) 0%, var(--theme-logo-end, var(--theme-primary, #8b5cf6)) 100%);
-  opacity: 0.35;
-  filter: blur(10px);
+  inset: -8px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(37, 99, 235, 0.45) 0%, rgba(114, 46, 209, 0.25) 55%, transparent 75%);
+  filter: blur(12px);
   animation: pulse-glow 3s infinite alternate ease-in-out;
 }
 
 @keyframes pulse-glow {
   0% {
-    transform: scale(0.95);
-    opacity: 0.25;
+    transform: scale(0.92);
+    opacity: 0.35;
   }
   100% {
-    transform: scale(1.1);
-    opacity: 0.45;
+    transform: scale(1.15);
+    opacity: 0.65;
   }
 }
 
 .welcome-avatar {
   position: relative;
-  width: 58px;
-  height: 58px;
-  border-radius: 20px;
-  background: linear-gradient(135deg, var(--theme-primary, #6366f1) 0%, var(--theme-logo-end, var(--theme-primary, #8b5cf6)) 100%);
-  color: #fff;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: linear-gradient(145deg, #101c38, #0c1222);
+  border: 1.6px solid rgba(22, 119, 255, 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 8px 24px rgba(var(--theme-primary-rgb, 99, 102, 241), 0.35);
+  box-shadow: 0 8px 24px rgba(22, 119, 255, 0.35), 0 0 16px rgba(114, 46, 209, 0.25);
+  transition: transform 0.3s ease;
+
+  &:hover {
+    transform: scale(1.05);
+    border-color: rgba(64, 150, 255, 0.85);
+  }
 }
 
 .welcome-title {
@@ -899,15 +931,15 @@ onMounted(() => {
 }
 
 .quick-card-icon {
-  width: 32px;
-  height: 32px;
-  border-radius: 10px;
-  background: var(--theme-primary-muted, rgba(99, 102, 241, 0.1));
+  width: 28px;
+  height: 28px;
+  background: transparent;
+  border: none;
   color: var(--theme-primary, #6366f1);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 16px;
+  font-size: 18px;
   flex-shrink: 0;
   transition: all 0.2s;
 }
@@ -955,16 +987,18 @@ onMounted(() => {
   width: 28px;
   height: 28px;
   margin-top: 2px;
-  border-radius: 10px;
+  border-radius: 50%;
   flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
 
   &.ai {
-    background: linear-gradient(135deg, var(--theme-primary, #6366f1) 0%, var(--theme-logo-end, var(--theme-primary, #8b5cf6)) 100%);
+    background: linear-gradient(145deg, #101c38, #0c1222);
+    border: 1px solid rgba(22, 119, 255, 0.45);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
     color: #fff;
   }
 
@@ -977,6 +1011,7 @@ onMounted(() => {
     width: 100%;
     height: 100%;
     object-fit: cover;
+    border-radius: 50%;
   }
 }
 

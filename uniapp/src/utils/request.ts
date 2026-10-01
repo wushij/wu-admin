@@ -242,6 +242,17 @@ http.interceptors.response.use(
       return Promise.reject(new Error(message || '操作过于频繁'))
     }
 
+    // 🔐 对会话签名初始化接口做静默过滤与登录态过期自愈：
+    // 若客户端本地有 Token 却收到具备登录态要求或 401，说明服务端 Token 已失效，触发清理与重定向
+    const reqUrl = (response.config?.url || '') as string
+    if (reqUrl.includes('/auth/session-sign-init')) {
+      if (getToken() && (message?.includes('具备登录态') || message?.includes('登录已过期') || code === 401)) {
+        uni.showToast({ title: '登录已过期', icon: 'none' })
+        clearSessionAndRedirectLogin()
+      }
+      return Promise.reject(new Error(message || '获取签名密钥失败'))
+    }
+
     const msg = message || '请求失败'
     showGlobalErrorToast(msg)
     const err = new Error(msg)
@@ -267,6 +278,10 @@ http.interceptors.response.use(
 
     const url = (error as any)?.config?.url || ''
     if (url.includes('/auth/session-sign-init')) {
+      if (error?.statusCode === 401 && getToken()) {
+        uni.showToast({ title: '登录已过期', icon: 'none' })
+        clearSessionAndRedirectLogin()
+      }
       return Promise.reject(error)
     }
 

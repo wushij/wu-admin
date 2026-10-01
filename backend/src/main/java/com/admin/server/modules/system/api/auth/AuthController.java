@@ -96,7 +96,8 @@ public class AuthController {
     public CommonResult<Map<String, Object>> sessionSignInit(
             @RequestParam(value = "clientId") String clientId,
             @RequestParam(value = "uuid", required = false) String uuid,
-            @RequestParam(value = "code", required = false) String code) {
+            @RequestParam(value = "code", required = false) String code,
+            HttpServletRequest request) {
         // 校验 clientId 格式，防止 Redis key 注入
         if (StrUtil.isBlank(clientId)
                 || clientId.length() < CLIENT_ID_MIN_LEN
@@ -114,6 +115,11 @@ public class AuthController {
         // 人机与身份防刷检查：未登录且未提供有效人机校验时，严禁下发密钥
         boolean isLoggedIn = StpUtil.isLogin();
         if (!isLoggedIn) {
+            String token = com.admin.server.framework.security.core.AuthTokenResolver.resolve(request);
+            if (StrUtil.isNotBlank(token)) {
+                // 客户端携带有 Token 凭据发起初始化，但服务端会话已过期/被踢，直接返回 401 触发客户端自动登出
+                throw new BusinessException(401, "登录已过期，请重新登录");
+            }
             if (StrUtil.isBlank(uuid) || StrUtil.isBlank(code)) {
                 throw new BusinessException(400, "获取签名密钥须提供人机校验凭证或具备登录态");
             }

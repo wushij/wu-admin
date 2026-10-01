@@ -1,6 +1,6 @@
 import { ref, reactive } from 'vue'
-import { ElMessage } from 'element-plus'
-import { testEmail as apiTestEmail, getRecentEmailLogs, getEmailLogs } from '@/api/system/config'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { testEmail as apiTestEmail, getRecentEmailLogs, getEmailLogs, deleteEmailLog, deleteBatchEmailLogs, cleanEmailLogs } from '@/api/system/config'
 import { getErrorMessage } from '@/utils/axiosError'
 import type { EmailLogRecord } from '@/types/config'
 
@@ -96,6 +96,68 @@ export function useEmailTest(isDirty: () => boolean) {
     loadEmailLogs()
   }
 
+  const selectedEmailLogIds = ref<(number | string)[]>([])
+
+  function handleEmailSelectionChange(rows: EmailLogRecord[]) {
+    selectedEmailLogIds.value = rows.map((r) => r.id).filter(Boolean) as (number | string)[]
+  }
+
+  async function handleDeleteEmailLog(id: number | string) {
+    try {
+      await deleteEmailLog(id)
+      ElMessage.success('删除成功')
+      await Promise.all([
+        loadRecentEmailLogs(),
+        showEmailLogsModal.value ? loadEmailLogs() : Promise.resolve(),
+      ])
+    } catch (e) {
+      ElMessage.error(getErrorMessage(e) || '删除失败')
+    }
+  }
+
+  async function handleBatchDeleteEmailLogs() {
+    if (!selectedEmailLogIds.value.length) return
+    try {
+      await ElMessageBox.confirm(`确定删除选中的 ${selectedEmailLogIds.value.length} 条邮件记录吗？`, '批量删除确认', {
+        type: 'warning',
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+      })
+      await deleteBatchEmailLogs(selectedEmailLogIds.value)
+      ElMessage.success('批量删除成功')
+      selectedEmailLogIds.value = []
+      await Promise.all([
+        loadRecentEmailLogs(),
+        loadEmailLogs(),
+      ])
+    } catch (e) {
+      if (e !== 'cancel') {
+        ElMessage.error(getErrorMessage(e) || '批量删除失败')
+      }
+    }
+  }
+
+  async function handleCleanEmailLogs() {
+    try {
+      await ElMessageBox.confirm('确定要清空全部邮件发送记录吗？该操作不可恢复！', '清空警告', {
+        type: 'warning',
+        confirmButtonText: '清空',
+        cancelButtonText: '取消',
+      })
+      await cleanEmailLogs()
+      ElMessage.success('已清空全部邮件记录')
+      selectedEmailLogIds.value = []
+      await Promise.all([
+        loadRecentEmailLogs(),
+        loadEmailLogs(),
+      ])
+    } catch (e) {
+      if (e !== 'cancel') {
+        ElMessage.error(getErrorMessage(e) || '清空失败')
+      }
+    }
+  }
+
   return {
     emailTesting,
     recentEmailLogs,
@@ -113,5 +175,10 @@ export function useEmailTest(isDirty: () => boolean) {
     handleSearchEmailLogs,
     handleResetEmailLogsSearch,
     handleEmailLogsSizeChange,
+    selectedEmailLogIds,
+    handleEmailSelectionChange,
+    handleDeleteEmailLog,
+    handleBatchDeleteEmailLogs,
+    handleCleanEmailLogs,
   }
 }

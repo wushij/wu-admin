@@ -91,6 +91,12 @@ export async function bootstrapSession(refreshUser: () => Promise<void>) {
   try {
     await refreshUser()
   } catch {
-    /* refreshUser 内部会 logout */
+    // 若会话加载失败且 Token 已被清理，且当前位于受保护页面，自动跳转至登录页
+    if (!hasToken()) {
+      const currentRoute = getCurrentRoute()
+      if (!currentRoute || !isWhiteRoute(currentRoute)) {
+        uni.reLaunch({ url: '/pages/login/index' })
+      }
+    }
   }
 }

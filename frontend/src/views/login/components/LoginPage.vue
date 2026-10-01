@@ -191,15 +191,6 @@
               登 录
             </el-button>
           </el-form-item>
-
-          <div class="test-account-box" title="点击可填入体验账号" @click="fillTestAccount">
-            <div class="test-account-inner">
-              <span class="test-account-tag">体验账号</span>
-              <span class="test-account-info">
-                账号 <code>zhangsan</code> 密码 <code>zhangsan123</code>
-              </span>
-            </div>
-          </div>
         </el-form>
       </div>
     </div>
@@ -253,13 +244,6 @@ const {
   onSliderSuccess,
   goRegister,
 } = useLoginForm()
-
-function fillTestAccount() {
-  switchLoginMode('account')
-  formData.username = 'zhangsan'
-  formData.password = 'zhangsan123'
-  submitAttempted.value = false
-}
 </script>
 
 <style scoped src="./login-form.css"></style>

@@ -5,14 +5,17 @@
 ### 企业级后台 · RBAC 权限 · PC + 移动端一体
 
 [![GitHub Repo](https://img.shields.io/badge/GitHub-wushij%2Fwu--admin-181717?style=flat-square&logo=github)](https://github.com/wushij/wu-admin)
+[![Gitee Repo](https://img.shields.io/badge/Gitee-wusj17%2Fwu--admin-C71D23?style=flat-square&logo=gitee)](https://gitee.com/wusj17/wu-admin)
 [![Online Demo](https://img.shields.io/badge/Demo-wushij.com-0078D4?style=flat-square&logo=googlechrome)](https://wushij.com)
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5+-6DB33F?style=flat-square&logo=springboot)](https://spring.io/projects/spring-boot)
 [![Vue 3](https://img.shields.io/badge/Vue-3.4+-4FC08D?style=flat-square&logo=vuedotjs)](https://vuejs.org)
 [![MySQL](https://img.shields.io/badge/MySQL-8.0+-4479A1?style=flat-square&logo=mysql)](https://www.mysql.com)
 [![Redis](https://img.shields.io/badge/Redis-7.x-DC382D?style=flat-square&logo=redis)](https://redis.io)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg?style=flat-square)](LICENSE)
 
 <p align="center">
-  <a href="https://github.com/wushij"><b>🔗 GitHub 主页</b></a> &nbsp;•&nbsp;
+  <a href="https://github.com/wushij/wu-admin"><b>🔗 GitHub</b></a> &nbsp;•&nbsp;
+  <a href="https://gitee.com/wusj17/wu-admin"><b>🔴 Gitee</b></a> &nbsp;•&nbsp;
   <a href="https://wushij.com"><b>🌐 在线演示</b></a> &nbsp;•&nbsp;
   <a href="https://app.wushij.com"><b>📱 移动端 H5</b></a> &nbsp;•&nbsp;
   <a href="#-快速开始"><b>🚀 快速开始</b></a> &nbsp;•&nbsp;
@@ -26,7 +29,7 @@
 
 **Admin Platform（Wu-Admin）** 是一套基于 **Vue 3 + Spring Boot** 的企业级后台管理系统，配套 **uni-app 移动端（H5 / 微信小程序）**。覆盖 RBAC 权限、工单审批、企业 IM、AI 智能助手、系统监控大屏、代码生成、支付/短信集成等场景，已部署上线运行。
 
-> 🔗 **在线体验**：PC 端 <https://wushij.com> · 移动端 H5 <https://app.wushij.com> · 体验账号 `lisi` / `lisi123`
+> 🔗 **在线体验**：PC 端 <https://wushij.com> · 移动端 H5 <https://app.wushij.com> · 体验账号 `zhangsan` / `zhangsan123`
 
 ---
 
@@ -42,7 +45,8 @@
 - [测试与 CI](#-测试与-ci)
 - [构建与部署](#-构建与部署)
 - [常见问题](#-常见问题)
-- [相关文档](#-相关文档)
+- [源码仓库](#-源码仓库)
+- [开源协议](#-开源协议)
 
 ---
 
@@ -688,8 +692,6 @@ location ~* \.(js|css|woff2?|ttf|png|jpg|gif|svg|ico)$ {
 }
 ```
 
-完整限流/SSL/双站点配置模板见 `docs/wushij.com域名配置文件-linux.txt`、`docs/app.wushij.com域名配置文件-linux.txt`、`docs/nginx配置文件.txt`。
-
 ### 部署 checklist
 
 1. 创建上传目录并赋权（见上）→ 部署新 jar 并重启
@@ -841,17 +843,19 @@ A：开发环境重启 Vite；生产需 `Knife4jIframeHeaderFilter`。`knife4j.e
 
 ---
 
-## 📄 相关文档
+## 🔗 源码仓库
 
-| 类别 | 文档 |
+| 平台 | 仓库地址 |
 |------|------|
-| 🚀 部署配置 | `docs/wushij.com域名配置文件-linux.txt` · `docs/app.wushij.com域名配置文件-linux.txt` · `docs/nginx配置文件.txt` |
-| 📋 项目分析 | `docs/项目分析.txt` · `docs/项目审查报告.md` |
-| 🔒 安全审计 | `docs/安全防护与限流专项审计.txt` |
 | 🐙 GitHub | <https://github.com/wushij/wu-admin> |
+| 🔴 Gitee | <https://gitee.com/wusj17/wu-admin> |
 
 ---
 
-## 📜 许可证
+## 📜 开源协议
 
-本项目仅供学习与内部使用。生产部署前请修改默认密码、数据库与 Redis 等敏感配置。
+本项目采用 [Apache-2.0 License](LICENSE) 开源协议。
+
+- 允许免费用于个人学习、学术研究以及商业项目二次开发；
+- 衍生修改或二次分发请保留原项目的版权声明、许可条款与免责声明；
+- 生产环境部署上线前请务必修改默认密码、JWT 密钥以及数据库/Redis 等敏感配置。

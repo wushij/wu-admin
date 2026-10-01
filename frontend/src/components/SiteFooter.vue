@@ -19,7 +19,7 @@
         rel="noopener noreferrer"
         title="点击跳转至工业和信息化部政务服务平台"
       >
-        {{ icpNumber || '粤ICP备2026045343号-1' }}
+        {{ icpNumber }}
       </a>
     </div>
   </footer>
@@ -48,7 +48,7 @@ const props = withDefaults(
 )
 
 const showIcp = computed(() => {
-  return props.icpEnabled !== false && Boolean(props.icpNumber || '粤ICP备2026045343号-1')
+  return props.icpEnabled !== false && Boolean(props.icpNumber)
 })
 
 const displayCopyright = computed(() => {

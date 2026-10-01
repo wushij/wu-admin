@@ -10,7 +10,7 @@ export const useAppStore = defineStore('app', () => {
   const registerTitle = ref('注册账号')
   const copyright = ref('')
   const icpEnabled = ref(true)
-  const icpNumber = ref('粤ICP备2026045343号-1')
+  const icpNumber = ref('')
   const icpUrl = ref('https://beian.miit.gov.cn')
   const aiAssistantEnabled = ref(true)
   const configLoaded = ref(false)
