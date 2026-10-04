@@ -42,8 +42,8 @@ const SITE_DEFAULTS: SiteAdminConfig = {
   loginWelcome: 'Welcome',
   registerTitle: 'Sign Up',
   copyright: '',
-  icpEnabled: true,
-  icpNumber: '粤ICP备XXXXXXXX号-1',
+  icpEnabled: false,
+  icpNumber: '',
   icpUrl: 'https://beian.miit.gov.cn',
 }
 

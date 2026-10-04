@@ -5,7 +5,7 @@
  * - 会话凭证：Sa-Token 走 httpOnly Cookie，fetch 显式 credentials: 'include'
  * - 防重放头：复用 crypto/security-config 工具函数手动补齐 X-Timestamp/X-Nonce/X-Client-Id/X-Signature
  */
-import service, { get } from '@/utils/request'
+import service, { get, del } from '@/utils/request'
 import { generateNonce, getTimestamp, signHmacSm3 } from '@/utils/crypto'
 import { getClientId, getSecurityConfig, requestSessionSignKey } from '@/utils/security-config'
 import type { AiModelVO } from '@/api/system/ai-model'
@@ -68,6 +68,16 @@ export function listConversations() {
 /** 指定会话的问答序列（恢复续聊） */
 export function getConversationHistory(conversationId: string) {
   return get<AiChatHistoryItemVO[]>('/ai/chat/history', { conversationId })
+}
+
+/** 删除指定历史会话（仅本人） */
+export function deleteConversation(conversationId: string) {
+  return del<boolean>(`/ai/chat/conversations/${encodeURIComponent(conversationId)}`)
+}
+
+/** 清空我的所有历史会话（仅本人） */
+export function clearAllConversations() {
+  return del<boolean>('/ai/chat/conversations/clean')
 }
 
 /**
@@ -140,11 +150,15 @@ export async function streamChat(
   let eventName = ''
   let dataLines: string[] = []
   let finished = false
+  let hasReceivedContent = false
 
   const dispatch = () => {
     if (dataLines.length === 0 && !eventName) return
     const data = dataLines.join('\n')
     if (eventName === 'delta') {
+      if (data) {
+        hasReceivedContent = true
+      }
       callbacks.onDelta(data)
     } else if (eventName === 'status') {
       // L3 工具调用状态提示，解析 message 字段；失败则忽略
@@ -194,12 +208,31 @@ export async function streamChat(
     dispatch()
     // 流被服务端直接关闭且未发 done/error 事件时，按完成兜底
     if (!finished) {
+      finished = true
       callbacks.onDone(null)
     }
   } catch (err) {
     if ((err as Error)?.name === 'AbortError') return
-    if (!finished) {
-      callbacks.onError('连接中断，请稍后再试')
+    // 尝试解析 buffer 里残留的数据
+    if (buffer) {
+      const remaining = buffer.split('\n')
+      for (let raw of remaining) {
+        let line = raw.endsWith('\r') ? raw.slice(0, -1) : raw
+        if (line.startsWith('event:')) {
+          eventName = line.slice(6).trim()
+        } else if (line.startsWith('data:')) {
+          dataLines.push(line.slice(5).replace(/^ /, ''))
+        }
+      }
+      dispatch()
     }
+    if (finished) return
+    // 核心修复：若已经正常接收到了 AI 的回答内容，连接断开属于流末尾的自然关闭，直接按完成处理，绝不污染正文
+    if (hasReceivedContent) {
+      finished = true
+      callbacks.onDone(null)
+      return
+    }
+    callbacks.onError('连接中断，请稍后再试')
   }
 }

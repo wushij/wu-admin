@@ -101,4 +101,23 @@ public class AiChatLogServiceImpl extends ServiceImpl<AiChatLogMapper, AiChatLog
         }
         return result;
     }
+
+    @Override
+    public void deleteConversation(Long userId, String conversationId) {
+        if (userId == null || userId <= 0 || StrUtil.isBlank(conversationId)) {
+            return;
+        }
+        remove(new LambdaQueryWrapper<AiChatLogDO>()
+                .eq(AiChatLogDO::getUserId, userId)
+                .eq(AiChatLogDO::getConversationId, conversationId));
+    }
+
+    @Override
+    public void cleanUserConversations(Long userId) {
+        if (userId == null || userId <= 0) {
+            return;
+        }
+        remove(new LambdaQueryWrapper<AiChatLogDO>()
+                .eq(AiChatLogDO::getUserId, userId));
+    }
 }

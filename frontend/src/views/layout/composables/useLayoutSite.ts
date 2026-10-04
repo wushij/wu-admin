@@ -5,7 +5,7 @@ export function useLayoutSite() {
   const sitePlatformName = ref('Admin Platform')
   const sitePlatformSubtitle = ref('统一运维 · 高效管控')
   const siteCopyright = ref('')
-  const siteIcpEnabled = ref(true)
+  const siteIcpEnabled = ref(false)
   const siteIcpNumber = ref('')
   const siteIcpUrl = ref('https://beian.miit.gov.cn')
 

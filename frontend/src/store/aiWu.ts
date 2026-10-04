@@ -7,6 +7,7 @@ import {
   type AiChatMessage,
   type AiChatUsage,
 } from '@/api/ai'
+import { ElMessage } from 'element-plus'
 import type { AiModelVO } from '@/api/system/ai-model'
 
 export interface AiWuMessage {
@@ -126,7 +127,7 @@ export const useAiWuStore = defineStore('aiWu', () => {
             assistantMsg.content = message
             assistantMsg.error = true
           } else {
-            assistantMsg.content += `\n\n[${message}]`
+            ElMessage.warning(message)
           }
           finish()
         },

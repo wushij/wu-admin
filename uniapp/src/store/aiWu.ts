@@ -131,7 +131,7 @@ export const useAiWuStore = defineStore('aiWu', () => {
             assistantMsg.content = message
             assistantMsg.error = true
           } else {
-            assistantMsg.content += `\n\n[${message}]`
+            uni.showToast({ title: message, icon: 'none' })
           }
           finish()
         },

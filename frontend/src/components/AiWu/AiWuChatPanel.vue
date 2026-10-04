@@ -63,22 +63,36 @@
             <span>历史对话</span>
             <span v-if="conversations.length" class="history-count">{{ conversations.length }}</span>
           </div>
-          <button class="history-close" type="button" title="关闭" @click="historyVisible = false">
-            <el-icon :size="14"><Close /></el-icon>
-          </button>
+          <div class="history-head-tools">
+            <el-tooltip v-if="conversations.length" content="清空所有记录" placement="bottom" :show-after="300">
+              <button
+                class="history-tool-btn is-danger"
+                type="button"
+                aria-label="清空所有记录"
+                @click="handleClearAll"
+              >
+                <el-icon :size="14"><Delete /></el-icon>
+              </button>
+            </el-tooltip>
+            <button class="history-tool-btn" type="button" title="关闭" aria-label="关闭" @click="historyVisible = false">
+              <el-icon :size="14"><Close /></el-icon>
+            </button>
+          </div>
         </div>
         <div v-loading="historyLoading" class="history-body">
           <template v-if="conversations.length">
-            <button
+            <div
               v-for="conv in conversations"
               :key="conv.conversationId"
               class="history-item"
               :class="{ 'is-active': conv.conversationId === aiWuStore.conversationId }"
-              type="button"
+              role="button"
+              tabindex="0"
               @click="handleRestore(conv.conversationId)"
+              @keydown.enter.prevent="handleRestore(conv.conversationId)"
             >
               <div class="history-item-icon">
-                <el-icon :size="14"><ChatDotRound /></el-icon>
+                <el-icon :size="15"><ChatDotRound /></el-icon>
               </div>
               <div class="history-item-main">
                 <div class="history-item-title">{{ conv.title }}</div>
@@ -88,9 +102,29 @@
                   <span>{{ conv.messageCount || 0 }} 轮对话</span>
                 </div>
               </div>
-              <span v-if="conv.conversationId === aiWuStore.conversationId" class="history-item-tag">当前</span>
-              <el-icon v-else class="history-item-arrow" :size="13"><ArrowRight /></el-icon>
-            </button>
+              <div class="history-item-tail" @click.stop>
+                <span v-if="conv.conversationId === aiWuStore.conversationId" class="history-item-tag">当前</span>
+                <div class="history-action-slot">
+                  <el-icon
+                    v-if="conv.conversationId !== aiWuStore.conversationId"
+                    class="history-item-arrow"
+                    :size="13"
+                  >
+                    <ArrowRight />
+                  </el-icon>
+                  <el-tooltip content="删除此对话" placement="top" :show-after="300">
+                    <button
+                      class="history-item-del-btn"
+                      type="button"
+                      aria-label="删除此对话"
+                      @click.stop="handleDelete(conv)"
+                    >
+                      <el-icon :size="13"><Delete /></el-icon>
+                    </button>
+                  </el-tooltip>
+                </div>
+              </div>
+            </div>
           </template>
           <div v-else-if="!historyLoading" class="history-empty">
             <el-icon :size="34"><ChatDotRound /></el-icon>
@@ -244,12 +278,13 @@ import {
   ChatDotRound,
   ArrowRight,
   Clock,
-  Close
+  Close,
+  Delete
 } from '@element-plus/icons-vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { useAiWuStore } from '@/store/aiWu'
 import { useUserStore } from '@/store/user'
-import { listConversations, type AiConversationVO } from '@/api/ai'
+import { listConversations, deleteConversation, clearAllConversations, type AiConversationVO } from '@/api/ai'
 import AiWuMarkdown from './AiWuMarkdown.vue'
 import AiCompassIcon from './AiCompassIcon.vue'
 
@@ -378,6 +413,69 @@ async function handleRestore(conversationId: string) {
     scrollToBottom()
   } else {
     ElMessage.warning('该会话暂无可恢复的记录')
+  }
+}
+
+async function handleDelete(conv: AiConversationVO) {
+  if (aiWuStore.streaming && conv.conversationId === aiWuStore.conversationId) {
+    ElMessage.warning('回答生成中，请稍后再操作')
+    return
+  }
+  try {
+    await ElMessageBox.confirm(
+      `确定删除历史对话「${conv.title || '此会话'}」吗？删除后不可恢复。`,
+      '删除确认',
+      {
+        confirmButtonText: '确定删除',
+        cancelButtonText: '取消',
+        confirmButtonClass: 'el-button--danger',
+        type: 'warning'
+      }
+    )
+  } catch {
+    return
+  }
+
+  try {
+    await deleteConversation(conv.conversationId)
+    conversations.value = conversations.value.filter((item) => item.conversationId !== conv.conversationId)
+    ElMessage.success('已删除该历史对话')
+    // 若删除的恰好是当前正在显示的会话，清空面板并重置会话
+    if (conv.conversationId === aiWuStore.conversationId) {
+      aiWuStore.clear()
+    }
+  } catch {
+    ElMessage.error('删除会话失败，请重试')
+  }
+}
+
+async function handleClearAll() {
+  if (aiWuStore.streaming) {
+    ElMessage.warning('回答生成中，请稍后再操作')
+    return
+  }
+  try {
+    await ElMessageBox.confirm(
+      '确定清空全部历史对话吗？清空后所有会话记录都将永久删除。',
+      '清空确认',
+      {
+        confirmButtonText: '确定清空',
+        cancelButtonText: '取消',
+        confirmButtonClass: 'el-button--danger',
+        type: 'warning'
+      }
+    )
+  } catch {
+    return
+  }
+
+  try {
+    await clearAllConversations()
+    conversations.value = []
+    ElMessage.success('已清空所有历史对话')
+    aiWuStore.clear()
+  } catch {
+    ElMessage.error('清空历史对话失败，请重试')
   }
 }
 
@@ -546,9 +644,72 @@ onMounted(() => {
   }
 }
 
-.history-close {
-  width: 26px;
-  height: 26px;
+.history-layer {
+  position: absolute;
+  top: 64px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  background: #f8fafc;
+  border-radius: 0 0 20px 20px;
+}
+
+.history-slide-enter-active,
+.history-slide-leave-active {
+  transition: opacity 0.2s ease, transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.history-slide-enter-from,
+.history-slide-leave-to {
+  opacity: 0;
+  transform: translateY(-8px);
+}
+
+.history-head {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: #ffffff;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.85);
+}
+
+.history-head-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #0f172a;
+
+  .history-count {
+    min-width: 20px;
+    height: 18px;
+    padding: 0 6px;
+    border-radius: 9px;
+    background: rgba(148, 163, 184, 0.16);
+    color: #475569;
+    font-size: 11px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+.history-head-tools {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.history-tool-btn {
+  width: 28px;
+  height: 28px;
   border: none;
   border-radius: 8px;
   background: transparent;
@@ -557,21 +718,27 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s;
+  transition: all 0.18s ease;
 
   &:hover {
     background: rgba(148, 163, 184, 0.15);
-    color: #475569;
+    color: #334155;
+  }
+
+  &.is-danger:hover {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
   }
 }
 
 .history-body {
   flex: 1;
   overflow-y: auto;
-  padding: 10px 12px 14px;
+  padding: 12px 14px 16px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
+  background: #f8fafc;
 
   &::-webkit-scrollbar {
     width: 5px;
@@ -584,43 +751,59 @@ onMounted(() => {
 }
 
 .history-item {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-  border: 1px solid transparent;
-  border-radius: 12px;
-  background: transparent;
+  gap: 12px;
+  padding: 11px 12px;
+  border: 1px solid rgba(226, 232, 240, 0.85);
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.03);
   cursor: pointer;
   text-align: left;
-  transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 
   &:hover {
-    background: rgba(248, 250, 252, 1);
-    border-color: rgba(226, 232, 240, 0.9);
+    background: #ffffff;
+    border-color: rgba(203, 213, 225, 0.95);
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
+    transform: translateY(-1px);
 
     .history-item-arrow {
+      opacity: 0;
+      transform: scale(0.7);
+    }
+
+    .history-item-del-btn {
       opacity: 1;
-      transform: translateX(2px);
+      pointer-events: auto;
     }
   }
 
   &.is-active {
-    background: var(--theme-primary-muted, rgba(99, 102, 241, 0.08));
-    border-color: var(--theme-primary-muted-strong, rgba(99, 102, 241, 0.3));
+    border-color: var(--theme-primary, #6366f1);
+    background: #ffffff;
+    box-shadow: 0 0 0 1px var(--theme-primary, #6366f1), 0 3px 10px rgba(99, 102, 241, 0.08);
+
+    .history-item-icon {
+      background: var(--theme-primary, #6366f1);
+      color: #ffffff;
+    }
   }
 }
 
 .history-item-icon {
-  width: 30px;
-  height: 30px;
+  width: 32px;
+  height: 32px;
   border-radius: 10px;
-  background: var(--theme-primary-muted, rgba(99, 102, 241, 0.1));
-  color: var(--theme-primary, #6366f1);
+  background: #f1f5f9;
+  color: #475569;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  transition: all 0.2s ease;
 }
 
 .history-item-main {
@@ -629,9 +812,9 @@ onMounted(() => {
 }
 
 .history-item-title {
-  font-size: 13px;
+  font-size: 13.5px;
   font-weight: 600;
-  color: #1e293b;
+  color: #0f172a;
   line-height: 1.35;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -639,7 +822,7 @@ onMounted(() => {
 }
 
 .history-item-meta {
-  margin-top: 2px;
+  margin-top: 3px;
   font-size: 11px;
   color: #94a3b8;
   display: flex;
@@ -647,25 +830,63 @@ onMounted(() => {
   gap: 4px;
 
   .meta-dot {
-    opacity: 0.6;
+    opacity: 0.5;
   }
 }
 
-.history-item-tag {
+.history-item-tail {
   flex-shrink: 0;
-  padding: 2px 8px;
-  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.history-item-tag {
+  padding: 2px 7px;
+  border-radius: 6px;
   background: var(--theme-primary, #6366f1);
   color: #fff;
   font-size: 10px;
   font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.history-action-slot {
+  position: relative;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .history-item-arrow {
-  flex-shrink: 0;
+  position: absolute;
   color: #cbd5e1;
-  opacity: 0.5;
-  transition: all 0.2s;
+  transition: opacity 0.18s ease, transform 0.18s ease;
+  pointer-events: none;
+}
+
+.history-item-del-btn {
+  position: absolute;
+  inset: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #94a3b8;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: all 0.18s ease;
+
+  &:hover {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+    transform: scale(1.08);
+  }
 }
 
 .history-empty {

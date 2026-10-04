@@ -15,6 +15,16 @@ public final class ClientIpUtils {
     }
 
     public static String resolve(HttpServletRequest request) {
+        // 若经过 Cloudflare 代理，优先使用 CF 官方权威客户端 IP
+        String cfIp = request.getHeader("CF-Connecting-IP");
+        if (StringUtils.hasText(cfIp)) {
+            int comma = cfIp.indexOf(',');
+            String first = comma > 0 ? cfIp.substring(0, comma).trim() : cfIp.trim();
+            if (!first.isEmpty()) {
+                return stripIpv6Prefix(first);
+            }
+        }
+
         String xff = request.getHeader("X-Forwarded-For");
         if (StringUtils.hasText(xff)) {
             String[] parts = xff.split(",");

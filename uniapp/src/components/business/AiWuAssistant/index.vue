@@ -67,8 +67,19 @@
           <text>历史对话</text>
           <text v-if="conversations.length" class="count">{{ conversations.length }}</text>
         </view>
-        <view class="aiwu-history__close" @click="historyVisible = false">
-          <text>✕</text>
+        <view class="aiwu-history__head-tools">
+          <view
+            v-if="conversations.length"
+            class="aiwu-history__clear-btn"
+            hover-class="aiwu-history__clear-btn--hover"
+            :hover-stop-propagation="true"
+            @click.stop="handleClearAll"
+          >
+            <text>清空</text>
+          </view>
+          <view class="aiwu-history__close" @click="historyVisible = false">
+            <text>✕</text>
+          </view>
         </view>
       </view>
       <scroll-view scroll-y class="aiwu-history__body">
@@ -86,10 +97,24 @@
             <text class="item-title">{{ conv.title }}</text>
             <text class="item-meta">{{ formatConvTime(conv.lastTime) }} · {{ conv.messageCount || 0 }} 轮对话</text>
           </view>
-          <text v-if="conv.conversationId === aiWuStore.conversationId" class="item-tag">当前</text>
-          <text v-else class="item-arrow">›</text>
+          <view class="item-tail">
+            <text v-if="conv.conversationId === aiWuStore.conversationId" class="item-tag">当前</text>
+            <view
+              class="item-del-btn"
+              hover-class="item-del-btn--hover"
+              :hover-stop-propagation="true"
+              @click.stop="handleDelete(conv)"
+            >
+              <text class="item-del-text">删除</text>
+            </view>
+            <text v-if="conv.conversationId !== aiWuStore.conversationId" class="item-arrow">›</text>
+          </view>
         </view>
-        <view v-if="!historyLoading && conversations.length === 0" class="aiwu-history__empty">
+        <view v-if="historyLoading && conversations.length === 0" class="aiwu-history__empty">
+          <text class="empty-title">加载中…</text>
+          <text class="empty-desc">正在获取历史对话记录</text>
+        </view>
+        <view v-else-if="!historyLoading && conversations.length === 0" class="aiwu-history__empty">
           <IconFont name="chat-o" :size="64" color="#cbd5e1" />
           <text class="empty-title">还没有历史对话</text>
           <text class="empty-desc">和 AI wu助手聊聊，记录会自动保存在这里</text>
@@ -239,6 +264,34 @@
       </view>
     </view>
   </view>
+
+  <!-- 全局绝对置顶二次确认弹窗 (z-index: 99999，完全置于抽屉与遮罩之上) -->
+  <view
+    v-if="confirmState.visible"
+    class="aiwu-confirm-mask"
+    @click="confirmState.visible = false"
+    @touchmove.stop.prevent
+  >
+    <view class="aiwu-confirm-card" @click.stop>
+      <view class="aiwu-confirm-icon">
+        <text class="warn-icon">!</text>
+      </view>
+      <view class="aiwu-confirm-title">{{ confirmState.title }}</view>
+      <view class="aiwu-confirm-desc">{{ confirmState.content }}</view>
+      <view class="aiwu-confirm-actions">
+        <button class="aiwu-confirm-btn aiwu-confirm-btn--cancel" @click="confirmState.visible = false">
+          取消
+        </button>
+        <button
+          class="aiwu-confirm-btn"
+          :class="confirmState.isDanger ? 'aiwu-confirm-btn--danger' : 'aiwu-confirm-btn--primary'"
+          @click="onConfirmAction"
+        >
+          {{ confirmState.confirmText }}
+        </button>
+      </view>
+    </view>
+  </view>
 </template>
 
 <script setup lang="ts">
@@ -249,7 +302,7 @@ import { useUserStore } from '@/store/user'
 import { useAppStore } from '@/store/app'
 import { renderMarkdown } from '@/utils/chat-markdown'
 import { hasToken } from '@/utils/auth'
-import { listConversations, type AiConversationVO } from '@/api/ai'
+import { listConversations, deleteConversation, clearAllConversations, type AiConversationVO } from '@/api/ai'
 import AiCompassIcon from './AiCompassIcon.vue'
 
 const QUICK_QUESTIONS = [
@@ -443,7 +496,6 @@ const conversations = ref<AiConversationVO[]>([])
 async function toggleHistory() {
   historyVisible.value = !historyVisible.value
   if (!historyVisible.value) return
-  modelMenuVisible.value = false
   historyLoading.value = true
   try {
     const res = await listConversations()
@@ -451,6 +503,97 @@ async function toggleHistory() {
   } finally {
     historyLoading.value = false
   }
+}
+
+// ---------- 二次确认置顶弹窗 ----------
+const confirmState = ref<{
+  visible: boolean
+  title: string
+  content: string
+  confirmText: string
+  isDanger: boolean
+  onConfirm: () => Promise<void> | void
+}>({
+  visible: false,
+  title: '',
+  content: '',
+  confirmText: '确定',
+  isDanger: true,
+  onConfirm: () => {},
+})
+
+function openConfirm(options: {
+  title: string
+  content: string
+  confirmText?: string
+  isDanger?: boolean
+  onConfirm: () => Promise<void> | void
+}) {
+  confirmState.value = {
+    visible: true,
+    title: options.title,
+    content: options.content,
+    confirmText: options.confirmText || '确定',
+    isDanger: options.isDanger ?? true,
+    onConfirm: options.onConfirm,
+  }
+}
+
+async function onConfirmAction() {
+  const cb = confirmState.value.onConfirm
+  confirmState.value.visible = false
+  if (cb) {
+    await cb()
+  }
+}
+
+async function handleDelete(conv: AiConversationVO) {
+  if (aiWuStore.streaming && conv.conversationId === aiWuStore.conversationId) {
+    uni.showToast({ title: '回答生成中，请稍后再操作', icon: 'none' })
+    return
+  }
+  const brief = (conv.title || '此会话').trim().slice(0, 18)
+  openConfirm({
+    title: '删除会话确认',
+    content: `确定删除历史对话「${brief}」吗？删除后将无法恢复。`,
+    confirmText: '删除',
+    isDanger: true,
+    onConfirm: async () => {
+      try {
+        await deleteConversation(conv.conversationId)
+        conversations.value = conversations.value.filter((item) => item.conversationId !== conv.conversationId)
+        uni.showToast({ title: '已删除该历史对话', icon: 'success' })
+        if (conv.conversationId === aiWuStore.conversationId) {
+          aiWuStore.clear()
+        }
+      } catch {
+        uni.showToast({ title: '删除会话失败，请重试', icon: 'none' })
+      }
+    },
+  })
+}
+
+async function handleClearAll() {
+  if (aiWuStore.streaming) {
+    uni.showToast({ title: '回答生成中，请稍后再操作', icon: 'none' })
+    return
+  }
+  openConfirm({
+    title: '清空历史确认',
+    content: '确定清空全部历史对话吗？清空后所有会话记录都将永久删除。',
+    confirmText: '清空全部',
+    isDanger: true,
+    onConfirm: async () => {
+      try {
+        await clearAllConversations()
+        conversations.value = []
+        uni.showToast({ title: '已清空所有历史对话', icon: 'success' })
+        aiWuStore.clear()
+      } catch {
+        uni.showToast({ title: '清空失败，请重试', icon: 'none' })
+      }
+    },
+  })
 }
 
 async function handleRestore(conversationId: string) {
@@ -477,6 +620,9 @@ function formatConvTime(time?: string): string {
   const date = new Date(time.replace(' ', 'T'))
   if (Number.isNaN(date.getTime())) return time
   const now = new Date()
+  const pad = (n: number) => String(n).padStart(2, '0')
+  const sameDay = (a: Date, b: Date) =>
+    a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
   if (sameDay(date, now)) {
     return `今天 ${pad(date.getHours())}:${pad(date.getMinutes())}`
   }
@@ -778,15 +924,40 @@ function copyMessage(content: string, id: string | number) {
     }
   }
 
+  &__head-tools {
+    display: flex;
+    align-items: center;
+    gap: 12rpx;
+  }
+
+  &__clear-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8rpx 20rpx;
+    border-radius: 999rpx;
+    font-size: 24rpx;
+    font-weight: 500;
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.08);
+    transition: all 0.2s ease;
+
+    &:active,
+    &--hover {
+      background: rgba(239, 68, 68, 0.18);
+      transform: scale(0.96);
+    }
+  }
+
   &__close {
-    width: 52rpx;
-    height: 52rpx;
-    border-radius: 14rpx;
+    width: 56rpx;
+    height: 56rpx;
+    border-radius: 16rpx;
     display: flex;
     align-items: center;
     justify-content: center;
     color: #94a3b8;
-    font-size: 30rpx;
+    font-size: 32rpx;
 
     &:active {
       background: rgba(148, 163, 184, 0.15);
@@ -853,8 +1024,14 @@ function copyMessage(content: string, id: string | number) {
       color: #94a3b8;
     }
 
-    .item-tag {
+    .item-tail {
       flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: 12rpx;
+    }
+
+    .item-tag {
       padding: 4rpx 14rpx;
       border-radius: 12rpx;
       background: #6366f1;
@@ -863,11 +1040,35 @@ function copyMessage(content: string, id: string | number) {
       font-weight: 600;
     }
 
+    .item-del-btn {
+      padding: 6rpx 18rpx;
+      border-radius: 999rpx;
+      background: rgba(239, 68, 68, 0.08);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.18s ease;
+
+      &:active,
+      &--hover {
+        background: rgba(239, 68, 68, 0.22);
+        transform: scale(0.95);
+      }
+
+      .item-del-text {
+        font-size: 22rpx;
+        font-weight: 500;
+        color: #ef4444;
+        line-height: 1.2;
+        pointer-events: none;
+      }
+    }
+
     .item-arrow {
-      flex-shrink: 0;
-      font-size: 40rpx;
+      font-size: 36rpx;
       color: #cbd5e1;
       font-weight: 300;
+      line-height: 1;
     }
   }
 
@@ -1267,6 +1468,132 @@ function copyMessage(content: string, id: string | number) {
     height: 20rpx;
     border-radius: 4rpx;
     background: #fff;
+  }
+}
+
+/* ---------- 全局绝对置顶二次确认弹窗 (z-index: 99999) ---------- */
+.aiwu-confirm-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40rpx;
+  box-sizing: border-box;
+}
+
+.aiwu-confirm-card {
+  width: 100%;
+  max-width: 580rpx;
+  background: #ffffff;
+  border-radius: 32rpx;
+  padding: 44rpx 36rpx 36rpx;
+  box-sizing: border-box;
+  box-shadow: 0 24rpx 60rpx rgba(15, 23, 42, 0.35);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  animation: confirmPop 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes confirmPop {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.aiwu-confirm-icon {
+  width: 88rpx;
+  height: 88rpx;
+  border-radius: 50%;
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 24rpx;
+
+  .warn-icon {
+    font-size: 46rpx;
+    font-weight: 700;
+    line-height: 1;
+  }
+}
+
+.aiwu-confirm-title {
+  font-size: 32rpx;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 14rpx;
+}
+
+.aiwu-confirm-desc {
+  font-size: 26rpx;
+  color: #64748b;
+  line-height: 1.5;
+  margin-bottom: 40rpx;
+  padding: 0 12rpx;
+}
+
+.aiwu-confirm-actions {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  width: 100%;
+}
+
+.aiwu-confirm-btn {
+  flex: 1;
+  height: 80rpx;
+  border-radius: 40rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28rpx;
+  font-weight: 600;
+  border: none;
+  line-height: 1;
+
+  &::after {
+    border: none;
+  }
+
+  &--cancel {
+    background: #f1f5f9;
+    color: #475569;
+
+    &:active {
+      background: #e2e8f0;
+    }
+  }
+
+  &--danger {
+    background: #ef4444;
+    color: #ffffff;
+    box-shadow: 0 6rpx 20rpx rgba(239, 68, 68, 0.35);
+
+    &:active {
+      background: #dc2626;
+    }
+  }
+
+  &--primary {
+    background: #6366f1;
+    color: #ffffff;
+
+    &:active {
+      background: #4f46e5;
+    }
   }
 }
 </style>

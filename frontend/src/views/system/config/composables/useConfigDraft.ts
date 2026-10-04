@@ -19,8 +19,8 @@ const DEFAULTS = {
     loginWelcome: 'Welcome',
     registerTitle: 'Sign Up',
     copyright: '',
-    icpEnabled: true,
-    icpNumber: '粤ICP备XXXXXXXX号-1',
+    icpEnabled: false,
+    icpNumber: '',
     icpUrl: 'https://beian.miit.gov.cn'
   },
   session: { tokenExpireHours: 24, sessionSignExpireHours: 24 },
@@ -207,7 +207,7 @@ export function useConfigDraft() {
 
   const canEdit = computed(() => (userStore.userInfo?.permissions || []).includes('system:config:update'))
   const activeTab = ref('site')
-  const loading = ref(false)
+  const loading = ref(true)
   const saving = ref(false)
   const roleOptions = ref<RoleOption[]>([])
   const userOptions = ref<UserOption[]>([])

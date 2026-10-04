@@ -24,7 +24,7 @@ export const useSiteStore = defineStore('site', () => {
     loginWelcome: 'Welcome',
     registerTitle: 'Sign Up',
     copyright: '',
-    icpEnabled: true,
+    icpEnabled: false,
     icpNumber: '',
     icpUrl: 'https://beian.miit.gov.cn'
   })

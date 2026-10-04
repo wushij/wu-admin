@@ -12,7 +12,9 @@ import com.admin.server.modules.ai.service.AiModelService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.MediaType;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -71,5 +73,27 @@ public class AiChatController {
     public CommonResult<List<AiChatHistoryItemVO>> history(@RequestParam String conversationId) {
         Long userId = SecurityUtils.getLoginUserIdOrZero();
         return CommonResult.success(aiChatLogService.listHistory(userId, conversationId));
+    }
+
+    @DeleteMapping("/conversations/clean")
+    @Operation(summary = "清空我的所有历史会话（仅本人）")
+    public CommonResult<Boolean> cleanConversations() {
+        Long userId = SecurityUtils.getLoginUserIdOrZero();
+        if (userId <= 0) {
+            return CommonResult.error(401, "请先登录");
+        }
+        aiChatLogService.cleanUserConversations(userId);
+        return CommonResult.success(true);
+    }
+
+    @DeleteMapping("/conversations/{conversationId}")
+    @Operation(summary = "删除指定历史会话（仅本人）")
+    public CommonResult<Boolean> deleteConversation(@PathVariable String conversationId) {
+        Long userId = SecurityUtils.getLoginUserIdOrZero();
+        if (userId <= 0) {
+            return CommonResult.error(401, "请先登录");
+        }
+        aiChatLogService.deleteConversation(userId, conversationId);
+        return CommonResult.success(true);
     }
 }

@@ -27,4 +27,10 @@ public interface AiChatLogService {
 
     /** 指定会话的问答序列（时间正序，仅本人，用于恢复续聊） */
     List<AiChatHistoryItemVO> listHistory(Long userId, String conversationId);
+
+    /** 删除指定历史会话（仅本人） */
+    void deleteConversation(Long userId, String conversationId);
+
+    /** 清空当前用户的所有历史会话（仅本人） */
+    void cleanUserConversations(Long userId);
 }
