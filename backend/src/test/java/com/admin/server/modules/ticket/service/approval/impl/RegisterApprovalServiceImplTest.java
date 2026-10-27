@@ -6,11 +6,9 @@ import com.admin.server.modules.system.dal.dataobject.notice.NoticeDO;
 import com.admin.server.modules.system.dal.dataobject.user.UserDO;
 import com.admin.server.modules.ticket.dal.mysql.approval.ApprovalFormMapper;
 import com.admin.server.modules.ticket.dal.mysql.approval.ApprovalRecordMapper;
-import com.admin.server.modules.system.dal.mysql.notice.NoticeMapper;
-import com.admin.server.modules.system.dal.mysql.permission.RoleMapper;
-import com.admin.server.modules.system.dal.mysql.permission.UserRoleMapper;
-import com.admin.server.modules.system.dal.mysql.user.UserMapper;
-import com.admin.server.modules.system.dal.mysql.user.UserPostMapper;
+import com.admin.server.modules.system.service.notice.NoticeService;
+import com.admin.server.modules.system.service.permission.PermissionService;
+import com.admin.server.modules.system.service.user.UserService;
 import com.admin.server.modules.system.service.config.SystemConfigHelper;
 import com.admin.server.testsupport.MybatisLambdaTestBase;
 import com.admin.server.testsupport.MybatisMockMatchers;
@@ -37,15 +35,11 @@ class RegisterApprovalServiceImplTest extends MybatisLambdaTestBase {
     @Mock
     private ApprovalRecordMapper approvalRecordMapper;
     @Mock
-    private UserMapper userMapper;
+    private UserService userService;
     @Mock
-    private RoleMapper roleMapper;
+    private PermissionService permissionService;
     @Mock
-    private UserRoleMapper userRoleMapper;
-    @Mock
-    private UserPostMapper userPostMapper;
-    @Mock
-    private NoticeMapper noticeMapper;
+    private NoticeService noticeService;
     @Mock
     private SystemConfigHelper systemConfigHelper;
 
@@ -69,28 +63,21 @@ class RegisterApprovalServiceImplTest extends MybatisLambdaTestBase {
     @Test
     @DisplayName("applyApprovalResult：审批通过激活用户")
     void applyApprovalResult_approve() {
-        UserDO user = ServiceTestFixtures.user(10L, "pending", 2);
         ApprovalFormDO form = ServiceTestFixtures.approvalForm(1L, 10L, "SUBMITTED");
-        when(userMapper.selectById(10L)).thenReturn(user);
 
         registerApprovalService.applyApprovalResult(form, "APPROVE");
 
-        verify(userMapper).updateById(argThat((UserDO u) -> u.getStatus() == 1));
-        verify(userMapper, never()).deleteById(anyLong());
+        verify(userService).handleRegisterAudit(10L, true);
     }
 
     @Test
     @DisplayName("applyApprovalResult：审批拒绝删除用户及关联")
     void applyApprovalResult_reject() {
-        UserDO user = ServiceTestFixtures.user(10L, "pending", 2);
         ApprovalFormDO form = ServiceTestFixtures.approvalForm(1L, 10L, "SUBMITTED");
-        when(userMapper.selectById(10L)).thenReturn(user);
 
         registerApprovalService.applyApprovalResult(form, "REJECT");
 
-        verify(userRoleMapper).deleteByUserId(10L);
-        verify(userPostMapper).deleteByUserId(10L);
-        verify(userMapper).deleteById(10L);
+        verify(userService).handleRegisterAudit(10L, false);
     }
 
     @Test
@@ -110,7 +97,7 @@ class RegisterApprovalServiceImplTest extends MybatisLambdaTestBase {
         UserDO user = ServiceTestFixtures.user(5L, "newbie", 2);
         when(approvalFormMapper.selectCount(MybatisMockMatchers.anyLambdaQueryWrapper())).thenReturn(0L);
         when(systemConfigHelper.getRegisterAuditorUserIds()).thenReturn(List.of());
-        when(roleMapper.selectOne(MybatisMockMatchers.anyLambdaQueryWrapper())).thenReturn(null);
+        when(permissionService.getUserIdsByRoleCode("super_admin")).thenReturn(List.of());
 
         doAnswer(inv -> {
             ApprovalFormDO form = inv.getArgument(0);
@@ -123,7 +110,7 @@ class RegisterApprovalServiceImplTest extends MybatisLambdaTestBase {
         verify(approvalFormMapper).insert(argThat((ApprovalFormDO f) ->
                 "REGISTER".equals(f.getFormType()) && f.getApplicantUserId() == 5L));
         verify(approvalRecordMapper).insert(any(ApprovalRecordDO.class));
-        verify(noticeMapper).insert(any(NoticeDO.class));
+        verify(noticeService).sendNotice(any(NoticeDO.class));
     }
 
     @Test

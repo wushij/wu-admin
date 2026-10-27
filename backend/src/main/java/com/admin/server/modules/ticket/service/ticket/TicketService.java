@@ -43,4 +43,10 @@ public interface TicketService {
     Long uploadAttachment(Long ticketId, MultipartFile file, Long currentUserId) throws IOException;
 
     TicketAttachmentDO getAttachmentForDownload(Long id, Long currentUserId);
+
+    /** 判断工单是否存在（未删除） */
+    boolean exists(Long id);
+
+    /** 统计指派给指定用户的未完结工单数量（状态为 OPEN 或 IN_PROGRESS） */
+    long countAssignedOpenTickets(Long assigneeUserId);
 }

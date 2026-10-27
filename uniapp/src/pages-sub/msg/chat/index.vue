@@ -132,19 +132,19 @@ import { onPullDownRefresh, onShow } from '@dcloudio/uni-app'
 
 import { canCreateChatGroup } from '@/api/message'
 
-import SegmentTabs from '@/components/common/SegmentTabs/index.vue'
+import SegmentTabs from '@/components/base/SegmentTabs/index.vue'
 
-import SearchBar from '@/components/common/SearchBar/index.vue'
+import SearchBar from '@/components/base/SearchBar/index.vue'
 
-import ListRow from '@/components/common/ListRow/index.vue'
+import ListRow from '@/components/base/ListRow/index.vue'
 
-import ChatAvatar from '@/components/business/ChatAvatar/index.vue'
+import ChatAvatar from '@/components/business/chat/ChatAvatar/index.vue'
 
-import EmptyState from '@/components/common/EmptyState/index.vue'
+import EmptyState from '@/components/base/EmptyState/index.vue'
 
-import { useChatSessions } from '@/composables/useChatSessions'
+import { useChatSessions } from '@/composables/chat/useChatSessions'
 
-import { formatListTime } from '@/utils/format'
+import { formatListTime } from '@/utils/display/format'
 
 
 

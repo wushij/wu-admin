@@ -1,4 +1,4 @@
-import { get } from '@/utils/request'
+import { get } from '@/core/http'
 import type { ServerInfo } from '@/types/system'
 
 export function getServerInfo() {

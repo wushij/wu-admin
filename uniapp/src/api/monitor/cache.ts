@@ -1,4 +1,4 @@
-import { get, del } from '@/utils/request'
+import { get, del } from '@/core/http'
 
 import type { CacheInfo, CacheKeysResult, CacheStats, CacheValueDetail } from '@/types/system'
 

@@ -1,6 +1,7 @@
 package com.admin.server.modules.system.service.dashboard.impl;
 
 import cn.hutool.json.JSONUtil;
+import com.admin.server.modules.system.dal.dataobject.dashboard.DashboardStatsRowDO;
 import com.admin.server.modules.system.dal.dataobject.loginlog.LoginLogDO;
 import com.admin.server.modules.system.dal.dataobject.user.UserDO;
 import com.admin.server.modules.system.dal.mysql.dashboard.DashboardMapper;
@@ -10,7 +11,6 @@ import com.admin.server.modules.system.service.config.SystemConfigHelper;
 import com.admin.server.modules.system.service.config.SysConfigGroupService;
 import com.admin.server.modules.system.service.dashboard.DashboardService;
 import com.admin.server.modules.system.service.dashboard.vo.RecentLoginVO;
-import com.admin.server.modules.system.service.dashboard.vo.DashboardStatsRow;
 import com.admin.server.modules.infra.service.file.SysFileService;
 import com.admin.server.modules.message.service.ChatService;
 import com.admin.server.modules.infra.service.monitor.OnlineUserService;
@@ -71,7 +71,7 @@ public class DashboardServiceImpl implements DashboardService {
         Map<String, Object> stats = new HashMap<>();
         putConfigFields(stats);
 
-        DashboardStatsRow row = loadAggregateStatsRow(todayStart, yesterdayStart);
+        DashboardStatsRowDO row = loadAggregateStatsRow(todayStart, yesterdayStart);
         putAggregateFields(stats, row);
         putLoginStatsFresh(stats, todayStart, yesterdayStart);
         putFileCountFresh(stats);
@@ -133,14 +133,14 @@ public class DashboardServiceImpl implements DashboardService {
         setWithTtl(bucket, (count == null ? 0L : count) + 1, 7, TimeUnit.DAYS);
     }
 
-    private DashboardStatsRow loadAggregateStatsRow(LocalDateTime todayStart, LocalDateTime yesterdayStart) {
+    private DashboardStatsRowDO loadAggregateStatsRow(LocalDateTime todayStart, LocalDateTime yesterdayStart) {
         String cacheKey = STATS_AGGREGATE_CACHE_KEY + ":" + LocalDate.now();
         RBucket<String> cacheBucket = redissonClient.getBucket(cacheKey);
         String cached = cacheBucket.get();
         if (cached != null) {
-            return JSONUtil.toBean(cached, DashboardStatsRow.class);
+            return JSONUtil.toBean(cached, DashboardStatsRowDO.class);
         }
-        DashboardStatsRow row = dashboardMapper.selectAggregateStats(
+        DashboardStatsRowDO row = dashboardMapper.selectAggregateStats(
                 todayStart,
                 yesterdayStart,
                 LocalDateTime.now());
@@ -152,7 +152,7 @@ public class DashboardServiceImpl implements DashboardService {
         systemConfigHelper.fillDashboardConfigFields(stats);
     }
 
-    private void putAggregateFields(Map<String, Object> stats, DashboardStatsRow row) {
+    private void putAggregateFields(Map<String, Object> stats, DashboardStatsRowDO row) {
         stats.put("userCount", longVal(row.getUserCount()));
         stats.put("roleCount", longVal(row.getRoleCount()));
         stats.put("menuCount", longVal(row.getMenuCount()));

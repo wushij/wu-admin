@@ -20,12 +20,12 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
-import MonitorPanel from '@/components/common/MonitorPanel/index.vue'
-import DetailRow from '@/components/common/DetailRow/index.vue'
-import ListLoading from '@/components/common/ListLoading/index.vue'
-import EmptyState from '@/components/common/EmptyState/index.vue'
+import MonitorPanel from '@/components/layout/MonitorPanel/index.vue'
+import DetailRow from '@/components/base/DetailRow/index.vue'
+import ListLoading from '@/components/base/ListLoading/index.vue'
+import EmptyState from '@/components/base/EmptyState/index.vue'
 import { getCacheValue } from '@/api/monitor/cache'
-import { formatCacheTtl, formatCacheValue } from '@/composables/useCacheMonitor'
+import { formatCacheTtl, formatCacheValue } from '@/composables/monitor/useCacheMonitor'
 import type { CacheValueDetail } from '@/types/system'
 
 const loading = ref(true)

@@ -1,4 +1,4 @@
-import { get } from '@/utils/request'
+import { get } from '@/core/http'
 
 /** 工作台统计（与后端 DashboardStatsVO 对齐） */
 export interface DashboardStats {

@@ -1,6 +1,6 @@
 package com.admin.server.modules.system.dal.mysql.dashboard;
 
-import com.admin.server.modules.system.service.dashboard.vo.DashboardStatsRow;
+import com.admin.server.modules.system.dal.dataobject.dashboard.DashboardStatsRowDO;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
@@ -37,9 +37,9 @@ public interface DashboardMapper {
             "  (SELECT COUNT(*) FROM sys_job WHERE deleted = 0) AS job_total_count,",
             "  (SELECT COUNT(*) FROM sys_job WHERE deleted = 0 AND status = 1) AS job_running_count"
     })
-    DashboardStatsRow selectAggregateStats(@Param("todayStart") LocalDateTime todayStart,
-                                           @Param("yesterdayStart") LocalDateTime yesterdayStart,
-                                           @Param("now") LocalDateTime now);
+    DashboardStatsRowDO selectAggregateStats(@Param("todayStart") LocalDateTime todayStart,
+                                             @Param("yesterdayStart") LocalDateTime yesterdayStart,
+                                             @Param("now") LocalDateTime now);
 
     @Select("SELECT COUNT(*) FROM sys_job WHERE deleted = 0")
     long countJobTotal();

@@ -23,19 +23,57 @@ export interface SecurityEventPageQuery extends PageQuery {
 }
 
 export interface RiskSubjectVO {
+  /** 主体标识，形如 user:12 / ip:1.2.3.4 */
   principal: string
+  /** 主体类型：user / ip */
+  principalType: 'user' | 'ip'
+  /** 主体自身标识：用户 ID 或 IP */
+  principalId: string
+  /** 关联的真实 IP */
+  ipaddr?: string | null
+  /** 滑动窗口内累计风险分 */
   riskScore: number
+  /** 风险等级 0～4 */
+  riskLevel: number
+  /** 风险等级文案 */
+  riskLevelText: string
   blocked: boolean
   remainingSeconds: number
   reason: string
+  /** 最近一次触发风险的时间 */
+  lastEventTime?: string | null
+  /** 窗口内事件次数 */
+  eventCount: number
+}
+
+export interface RiskSubjectPageQuery extends PageQuery {
+  keyword?: string
+  level?: number
+  blocked?: boolean
 }
 
 export interface SecurityStatsVO {
   todayTotal: number
   todayBlocked: number
+  /** 今日自动封禁次数（action=FORBIDDEN） */
+  todayForbidden: number
+  /** 今日警告次数（action=WARNING） */
+  todayWarning: number
+  /** 今日挑战次数（action=CHALLENGE） */
+  todayChallenge: number
   todayUaBlock: number
   todayReplayBlock: number
+  /** 今日蜜罐诱捕命中次数 */
+  todayHoneypot: number
+  /** 今日越权探测次数 */
+  todayPermissionDenied: number
   activeBlockedCount: number
+  /** 当前存在风险分的主体总数 */
+  activeRiskCount: number
+  /** 风险等级分布：等级文案 → 数量 */
+  riskLevelDistribution: Record<string, number>
+  /** 风险分最高的主体 */
+  topRiskSubjects: RiskSubjectVO[]
 }
 
 /**
@@ -53,18 +91,42 @@ export function getSecurityStats() {
 }
 
 /**
- * 获取当前被封禁的风险名单
+ * 获取当前处于封禁中的风险名单（不分页，供大盘使用）
  */
 export function getRiskList() {
   return get<RiskSubjectVO[]>('/system/security/risk-list')
 }
 
 /**
- * 一键解除风险封禁
+ * 分页查询风险主体，包含未封禁但存在风险分的主体
  */
-export function unblockRiskSubject(principal: string) {
+export function getRiskSubjects(params: RiskSubjectPageQuery) {
+  return get<PageResult<RiskSubjectVO>>('/system/security/risk-subjects', params)
+}
+
+/**
+ * 查询风险主体最近的安全事件
+ */
+export function getRiskSubjectEvents(principal: string, limit = 20) {
+  return get<SecurityEventVO[]>('/system/security/risk-subject/events', { principal, limit })
+}
+
+/**
+ * 查询风险主体当前分数与等级
+ */
+export function getRiskSubjectScore(principal: string) {
+  return get<{ principal: string; score: number; level: number; levelText: string }>(
+    '/system/security/risk-subject/score',
+    { principal }
+  )
+}
+
+/**
+ * 解除风险封禁
+ */
+export function unblockRiskSubject(principal: string, resetRisk = true) {
   return post<boolean>('/system/security/unblock', null, {
-    params: { principal }
+    params: { principal, resetRisk }
   })
 }
 

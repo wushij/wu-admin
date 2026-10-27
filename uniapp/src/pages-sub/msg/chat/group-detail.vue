@@ -95,13 +95,13 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
-import SegmentTabs from '@/components/common/SegmentTabs/index.vue'
-import ListLoading from '@/components/common/ListLoading/index.vue'
-import EmptyState from '@/components/common/EmptyState/index.vue'
-import AppDialogHost from '@/components/common/AppDialogHost/index.vue'
-import UserAvatar from '@/components/business/UserAvatar/index.vue'
-import { useGroupDetail } from '@/composables/useGroupDetail'
-import { formatDateTime } from '@/utils/format'
+import SegmentTabs from '@/components/base/SegmentTabs/index.vue'
+import ListLoading from '@/components/base/ListLoading/index.vue'
+import EmptyState from '@/components/base/EmptyState/index.vue'
+import AppDialogHost from '@/components/base/AppDialogHost/index.vue'
+import UserAvatar from '@/components/business/shared/UserAvatar/index.vue'
+import { useGroupDetail } from '@/composables/chat/useGroupDetail'
+import { formatDateTime } from '@/utils/display/format'
 
 const {
   loading,

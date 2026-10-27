@@ -1,7 +1,7 @@
 package com.admin.server.modules.ai.dal.mysql;
 
-import com.admin.server.modules.ai.api.vo.AiConversationVO;
 import com.admin.server.modules.ai.dal.dataobject.AiChatLogDO;
+import com.admin.server.modules.ai.dal.dataobject.AiConversationDO;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
@@ -29,5 +29,5 @@ public interface AiChatLogMapper extends BaseMapper<AiChatLogDO> {
             ORDER BY lastTime DESC
             LIMIT #{limit}
             """)
-    List<AiConversationVO> selectConversations(@Param("userId") Long userId, @Param("limit") int limit);
+    List<AiConversationDO> selectConversations(@Param("userId") Long userId, @Param("limit") int limit);
 }

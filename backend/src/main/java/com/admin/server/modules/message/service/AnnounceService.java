@@ -12,8 +12,8 @@ import com.admin.server.modules.system.dal.dataobject.user.UserDO;
 import com.admin.server.modules.message.dal.mysql.AnnounceMapper;
 import com.admin.server.modules.message.dal.mysql.AnnounceSendLogMapper;
 import com.admin.server.modules.message.dal.mysql.UserAnnounceMapper;
-import com.admin.server.modules.system.dal.mysql.user.UserMapper;
 import com.admin.server.modules.system.service.permission.PermissionService;
+import com.admin.server.modules.system.service.user.UserService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -46,7 +46,7 @@ public class AnnounceService {
     @Resource
     private AnnounceSendLogMapper sendLogMapper;
     @Resource
-    private UserMapper userMapper;
+    private UserService userService;
     @Resource
     private MessageWebSocketHandler webSocketHandler;
     @Resource
@@ -164,7 +164,7 @@ public class AnnounceService {
     public void create(AnnounceDO entity) {
         Long uid = SecurityUtils.getLoginUserId();
         entity.setCreateBy(uid);
-        UserDO user = userMapper.selectById(uid);
+        UserDO user = userService.getDetail(uid);
         if (user != null) {
             entity.setCreateName(user.getNickname());
         }
@@ -323,7 +323,7 @@ public class AnnounceService {
     private List<Long> resolveTargetUserIds(AnnounceDO announce) {
         Integer targetType = announce.getTargetType() == null ? 3 : announce.getTargetType();
         if (targetType == 3) {
-            return userMapper.selectList(new LambdaQueryWrapper<UserDO>().eq(UserDO::getStatus, 1))
+            return userService.getEnabledUserList()
                     .stream().map(UserDO::getId).collect(Collectors.toList());
         }
         List<Long> ids = parseTargetIds(announce.getTargetIds());
@@ -331,14 +331,11 @@ public class AnnounceService {
             return ids;
         }
         if (targetType == 2) {
-            Set<Long> set = new HashSet<>();
-            for (Long deptId : ids) {
-                userMapper.selectList(new LambdaQueryWrapper<UserDO>()
-                        .eq(UserDO::getDeptId, deptId)
-                        .eq(UserDO::getStatus, 1))
-                        .forEach(u -> set.add(u.getId()));
-            }
-            return new ArrayList<>(set);
+            return userService.getUserListByDeptIds(ids).stream()
+                    .filter(u -> u != null && u.getStatus() != null && u.getStatus() == 1)
+                    .map(UserDO::getId)
+                    .distinct()
+                    .collect(Collectors.toList());
         }
         return List.of();
     }
@@ -382,6 +379,14 @@ public class AnnounceService {
         if (announce == null || announce.getCreateBy() == null) {
             return null;
         }
-        return userMapper.selectById(announce.getCreateBy());
+        return userService.getDetail(announce.getCreateBy());
+    }
+
+    /** 获取最新发布的公告列表（前 limit 条，供 AI 工具或仪表盘调用） */
+    public List<AnnounceDO> getLatestPublishedList(int limit) {
+        return announceMapper.selectList(new LambdaQueryWrapper<AnnounceDO>()
+                .eq(AnnounceDO::getStatus, 1)
+                .orderByDesc(AnnounceDO::getCreateTime)
+                .last("LIMIT " + limit));
     }
 }

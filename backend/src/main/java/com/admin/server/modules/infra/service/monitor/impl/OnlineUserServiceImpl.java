@@ -10,8 +10,8 @@ import com.admin.server.common.util.IpLocationUtils;
 import com.admin.server.modules.infra.api.monitor.vo.OnlineUserVO;
 import com.admin.server.modules.system.dal.dataobject.dept.DeptDO;
 import com.admin.server.modules.system.dal.dataobject.user.UserDO;
-import com.admin.server.modules.system.dal.mysql.dept.DeptMapper;
-import com.admin.server.modules.system.dal.mysql.user.UserMapper;
+import com.admin.server.modules.system.service.dept.DeptService;
+import com.admin.server.modules.system.service.user.UserService;
 import com.admin.server.modules.infra.service.monitor.OnlineUserService;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
@@ -51,9 +51,9 @@ public class OnlineUserServiceImpl implements OnlineUserService {
     @Resource
     private TokenService tokenService;
     @Resource
-    private UserMapper userMapper;
+    private UserService userService;
     @Resource
-    private DeptMapper deptMapper;
+    private DeptService deptService;
     @Resource
     private DynamicConfigProvider dynamicConfigProvider;
 
@@ -90,9 +90,9 @@ public class OnlineUserServiceImpl implements OnlineUserService {
         detail.setLoginTime(now);
         detail.setLastAccessTime(now);
 
-        UserDO user = userMapper.selectById(userId);
+        UserDO user = userService.getDetail(userId);
         if (user != null && user.getDeptId() != null) {
-            DeptDO dept = deptMapper.selectById(user.getDeptId());
+            DeptDO dept = deptService.getById(user.getDeptId());
             if (dept != null) {
                 detail.setDeptName(dept.getName());
             }
@@ -251,7 +251,7 @@ public class OnlineUserServiceImpl implements OnlineUserService {
         vo.setTokenId(String.valueOf(userId));
 
         OnlineDetail detail = loadDetail(userId);
-        UserDO user = userMapper.selectById(userId);
+        UserDO user = userService.getDetail(userId);
 
         String loginName = detail != null && StringUtils.hasText(detail.getUsername())
                 ? detail.getUsername()

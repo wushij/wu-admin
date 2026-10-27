@@ -2168,7 +2168,7 @@ UPDATE sys_menu SET icon = 'Reading' WHERE id = 220;
 UPDATE sys_menu SET icon = 'Calendar' WHERE id = 120 OR path = '/log';
 UPDATE sys_menu SET icon = 'AiModel' WHERE id = 200 OR path = '/ai/model';
 UPDATE sys_menu SET icon = 'Odometer' WHERE id = 187 OR path = '/monitor/server';
-UPDATE sys_menu SET icon = 'Lock' WHERE id IN (129, 230) OR path = '/system/security-log';
+UPDATE sys_menu SET icon = 'Lock' WHERE id = 230 OR path = '/system/security-log';
 UPDATE sys_menu SET icon = 'Workflow' WHERE id = 8 OR path = '/workflow';
 UPDATE sys_menu SET sort = 5 WHERE id = 130;
 UPDATE sys_menu SET sort = 6 WHERE id = 163;

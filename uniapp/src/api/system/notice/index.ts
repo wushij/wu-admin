@@ -1,4 +1,4 @@
-import { get, put, del } from '@/utils/request'
+import { get, put, del } from '@/core/http'
 import type { NoticeVO } from '@/types/message'
 
 export function getMyNoticeList() {

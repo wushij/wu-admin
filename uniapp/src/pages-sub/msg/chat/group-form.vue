@@ -42,10 +42,10 @@
 
 <script setup lang="ts">
 import { onLoad } from '@dcloudio/uni-app'
-import ListLoading from '@/components/common/ListLoading/index.vue'
-import UserAvatar from '@/components/business/UserAvatar/index.vue'
-import { useGroupForm } from '@/composables/useGroupForm'
-import { useEditPageGuard } from '@/composables/useEditPageGuard'
+import ListLoading from '@/components/base/ListLoading/index.vue'
+import UserAvatar from '@/components/business/shared/UserAvatar/index.vue'
+import { useGroupForm } from '@/composables/chat/useGroupForm'
+import { useEditPageGuard } from '@/composables/base/useEditPageGuard'
 
 const {
   loading,

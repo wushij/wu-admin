@@ -246,12 +246,12 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
-import IconFont from '@/components/common/IconFont/index.vue'
-import ModuleIcon from '@/components/common/ModuleIcon/index.vue'
-import PasswordEyeIcon from '@/components/common/PasswordEyeIcon/index.vue'
-import PageFooter from '@/components/common/PageFooter/index.vue'
-import SliderCaptcha from '@/components/business/SliderCaptcha/index.vue'
-import { usePasswordForm } from '@/composables/usePasswordForm'
+import IconFont from '@/components/base/IconFont/index.vue'
+import ModuleIcon from '@/components/base/ModuleIcon/index.vue'
+import PasswordEyeIcon from '@/components/base/PasswordEyeIcon/index.vue'
+import PageFooter from '@/components/base/PageFooter/index.vue'
+import SliderCaptcha from '@/components/business/shared/SliderCaptcha/index.vue'
+import { usePasswordForm } from '@/composables/profile/usePasswordForm'
 
 const showOldPassword = ref(false)
 const showNewPassword = ref(false)

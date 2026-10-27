@@ -40,679 +40,135 @@
       </view>
 
       <!-- 文件 -->
-      <view v-else-if="tab === 'file'" class="config-file-wrap">
-        <ConfigSectionCard title="存储引擎">
-          <view class="form-panel form-panel--flat">
-            <view class="storage-engine-grid">
-              <view
-                v-for="engine in storageEngineOptions"
-                :key="engine.type"
-                class="storage-engine"
-                :class="{ 'storage-engine--active': storageEngine === engine.type }"
-                @click="selectStorageEngine(engine.type)"
-              >
-                <view class="storage-engine__head">
-                  <text class="storage-engine__name">{{ engine.name }}</text>
-                  <text v-if="storageActiveType === engine.type" class="storage-engine__badge">当前生效</text>
-                </view>
-                <text class="storage-engine__desc">{{ engine.desc }}</text>
-              </view>
-            </view>
-            <view class="storage-status">
-              <text class="storage-status__label">当前生效引擎</text>
-              <text class="storage-status__value">{{ storageActiveLabel }}</text>
-              <text
-                class="storage-status__health"
-                :class="storageHealthy ? 'storage-status__health--ok' : 'storage-status__health--bad'"
-              >
-                {{ storageHealthy ? '连接正常' : '连接异常' }}
-              </text>
-            </view>
-          </view>
-        </ConfigSectionCard>
-
-        <ConfigSectionCard :title="`${storageSelectedLabel}参数`">
-          <view class="form-panel form-panel--flat">
-            <template v-if="storageEngine === 'local'">
-              <FormCell v-model="storageForm.localPath" label="存储根目录" editable boxed :disabled="!canEdit" placeholder="./data/uploads" />
-              <FormCell v-model="storageForm.localDomain" label="外网访问域名" editable boxed :disabled="!canEdit" placeholder="选填，如 https://files.example.com" last />
-            </template>
-            <template v-else-if="storageEngine === 'minio'">
-              <FormCell v-model="storageForm.minioEndpoint" label="服务端点" editable boxed :disabled="!canEdit" placeholder="http://127.0.0.1:9000" />
-              <FormCell v-model="storageForm.minioBucket" label="存储桶" editable boxed :disabled="!canEdit" placeholder="wu-admin" />
-              <FormCell v-model="storageForm.minioAccessKey" label="AccessKey" editable boxed :disabled="!canEdit" />
-              <FormCell
-                v-model="storageForm.minioSecretKey"
-                label="SecretKey"
-                editable
-                boxed
-                password
-                :disabled="!canEdit"
-                :placeholder="storageForm.minioSecretKeyConfigured ? '已配置，留空保持不变' : '请输入 SecretKey'"
-              />
-              <FormCell v-model="storageForm.minioDomain" label="外网访问域名" editable boxed :disabled="!canEdit" placeholder="选填" last />
-            </template>
-            <template v-else-if="storageEngine === 'cos'">
-              <FormCell v-model="storageForm.cosRegion" label="地域" editable boxed :disabled="!canEdit" placeholder="ap-guangzhou" />
-              <FormCell v-model="storageForm.cosBucket" label="存储桶" editable boxed :disabled="!canEdit" />
-              <FormCell v-model="storageForm.cosSecretId" label="SecretId" editable boxed :disabled="!canEdit" />
-              <FormCell
-                v-model="storageForm.cosSecretKey"
-                label="SecretKey"
-                editable
-                boxed
-                password
-                :disabled="!canEdit"
-                :placeholder="storageForm.cosSecretKeyConfigured ? '已配置，留空保持不变' : '请输入 SecretKey'"
-              />
-              <FormCell v-model="storageForm.cosDomain" label="CDN 加速域名" editable boxed :disabled="!canEdit" placeholder="选填" last />
-            </template>
-            <template v-else>
-              <FormCell v-model="storageForm.ossEndpoint" label="地域节点" editable boxed :disabled="!canEdit" placeholder="oss-cn-hangzhou.aliyuncs.com" />
-              <FormCell v-model="storageForm.ossBucket" label="存储空间" editable boxed :disabled="!canEdit" />
-              <FormCell v-model="storageForm.ossAccessKeyId" label="AccessKey ID" editable boxed :disabled="!canEdit" />
-              <FormCell
-                v-model="storageForm.ossAccessKeySecret"
-                label="AccessKey Secret"
-                editable
-                boxed
-                password
-                :disabled="!canEdit"
-                :placeholder="storageForm.ossAccessKeySecretConfigured ? '已配置，留空保持不变' : '请输入 AccessKey Secret'"
-              />
-              <FormCell v-model="storageForm.ossDomain" label="自定义域名" editable boxed :disabled="!canEdit" placeholder="选填" last />
-            </template>
-          </view>
-          <view v-if="canEdit" class="storage-actions">
-            <button class="storage-action-btn" :loading="storageTesting" @click="testStorageConnection">测试连通性</button>
-            <button class="storage-action-btn storage-action-btn--primary" :loading="storageSaving" @click="saveStorageConfig">保存并热重载</button>
-          </view>
-        </ConfigSectionCard>
-
-        <ConfigSectionCard title="上传策略">
-          <view class="form-panel form-panel--file form-panel--flat">
-            <FormCell label="单文件上限">
-              <NumberStepper v-model="fileDraft.maxSizeMb" :min="1" :max="platformMaxFileMb" :disabled="!canEdit" />
-              <text class="config-unit">MB（最高 {{ platformMaxFileMb }}）</text>
-            </FormCell>
-            <FormCell label="允许扩展名" class="form-cell--stacked" last>
-              <textarea
-                v-model="fileDraft.allowedExtensions"
-                class="config-boxed-textarea"
-                :disabled="!canEdit"
-                placeholder="逗号分隔，如 jpg,png,pdf"
-              />
-            </FormCell>
-          </view>
-        </ConfigSectionCard>
-      </view>
+      <FileConfigPanel
+        v-else-if="tab === 'file'"
+        :file-draft="fileDraft"
+        :can-edit="canEdit"
+        :storage-form="storageForm"
+        :storage-engine="storageEngine"
+        :storage-active-type="storageActiveType"
+        :storage-healthy="storageHealthy"
+        :storage-saving="storageSaving"
+        :storage-testing="storageTesting"
+        :storage-engine-options="storageEngineOptions"
+        :storage-active-label="storageActiveLabel"
+        :storage-selected-label="storageSelectedLabel"
+        :platform-max-file-mb="platformMaxFileMb"
+        :select-storage-engine="selectStorageEngine"
+        :test-storage-connection="testStorageConnection"
+        :save-storage-config="saveStorageConfig"
+      />
 
       <!-- 限流 -->
-      <view v-else-if="tab === 'rateLimit'" class="form-panel form-panel--rate">
-        <FormCell label="验证码(次/分/IP)">
-          <NumberStepper v-model="rateDraft.captchaPerIpMinute" :min="0" :max="200" :disabled="!canEdit" />
-        </FormCell>
-        <FormCell label="登录(次/分/IP)">
-          <NumberStepper v-model="rateDraft.loginPerIpMinute" :min="0" :max="200" :disabled="!canEdit" />
-        </FormCell>
-        <FormCell label="注册(次/分/IP)">
-          <NumberStepper v-model="rateDraft.registerPerIpMinute" :min="0" :max="200" :disabled="!canEdit" />
-        </FormCell>
-        <text class="config-section">应用层滑动窗口（兜底限流）</text>
-        <FormCell label="业务 API(次/分/IP)">
-          <NumberStepper
-            :model-value="rateDraft.apiPerIpMinute ?? 240"
-            :min="0"
-            :max="2000"
-            :disabled="!canEdit"
-            @update:model-value="rateDraft.apiPerIpMinute = $event"
-          />
-        </FormCell>
-        <FormCell label="认证接口(次/分/IP)">
-          <NumberStepper
-            :model-value="rateDraft.authPerIpMinute ?? 60"
-            :min="0"
-            :max="600"
-            :disabled="!canEdit"
-            @update:model-value="rateDraft.authPerIpMinute = $event"
-          />
-        </FormCell>
-        <FormCell label="文件访问(次/分/IP)">
-          <NumberStepper
-            :model-value="rateDraft.filesPerIpMinute ?? 600"
-            :min="0"
-            :max="5000"
-            :disabled="!canEdit"
-            @update:model-value="rateDraft.filesPerIpMinute = $event"
-          />
-        </FormCell>
-        <text class="config-section">短信发送防刷</text>
-        <FormCell label="短信(次/分/IP)">
-          <NumberStepper v-model="rateDraft.smsPerIpMinute" :min="0" :max="200" :disabled="!canEdit" />
-        </FormCell>
-        <FormCell label="同号发送间隔(秒)">
-          <NumberStepper v-model="rateDraft.smsSendIntervalSeconds" :min="30" :max="300" :disabled="!canEdit" />
-        </FormCell>
-        <FormCell label="同号每日上限(次)">
-          <NumberStepper v-model="rateDraft.smsPerPhoneDaily" :min="0" :max="500" :disabled="!canEdit" />
-        </FormCell>
-        <FormCell label="同IP每日上限(次)">
-          <NumberStepper v-model="rateDraft.smsPerIpDaily" :min="0" :max="500" :disabled="!canEdit" />
-        </FormCell>
-        <text class="config-section">AI 对话限流</text>
-        <FormCell label="AI对话(次/分/用户)" last>
-          <NumberStepper v-model="rateDraft.aiChatPerUserMinute" :min="0" :max="200" :disabled="!canEdit" />
-        </FormCell>
-      </view>
+      <RateLimitConfigPanel
+        v-else-if="tab === 'rateLimit'"
+        :rate-draft="rateDraft"
+        :can-edit="canEdit"
+      />
 
       <!-- 登录 -->
-      <view v-else-if="tab === 'login'" class="form-panel">
-        <FormCell label="登录人机校检" switch-cell>
-          <switch :checked="loginDraft.captchaEnabled" :disabled="!canEdit" @change="onLoginSwitch('captchaEnabled', $event)" />
-        </FormCell>
-        <FormCell v-if="loginDraft.captchaEnabled" label="验证码类型">
-          <ConfigRadioGroup
-            v-model="loginDraft.captchaType"
-            :options="captchaTypeOptions"
-            :disabled="!canEdit"
-          />
-        </FormCell>
-        <FormCell label="短信验证码登录" switch-cell>
-          <switch :checked="loginDraft.smsLoginEnabled" :disabled="!canEdit" @change="onLoginSwitch('smsLoginEnabled', $event)" />
-        </FormCell>
-        <FormCell v-if="loginDraft.smsLoginEnabled" label="发送前滑块验证" switch-cell>
-          <switch :checked="loginDraft.smsLoginSliderCaptchaEnabled" :disabled="!canEdit" @change="onLoginSwitch('smsLoginSliderCaptchaEnabled', $event)" />
-        </FormCell>
-        <view v-if="loginDraft.smsLoginEnabled && !smsDraft.enabled" class="config-warn">
-          <text>请先在「短信」中开启短信功能，否则无法保存</text>
-        </view>
-        <FormCell label="邮箱验证码登录" switch-cell>
-          <switch :checked="loginDraft.emailLoginEnabled" :disabled="!canEdit" @change="onLoginSwitch('emailLoginEnabled', $event)" />
-        </FormCell>
-        <FormCell v-if="loginDraft.emailLoginEnabled" label="邮箱发送前滑块" switch-cell>
-          <switch :checked="loginDraft.emailLoginSliderCaptchaEnabled" :disabled="!canEdit" @change="onLoginSwitch('emailLoginSliderCaptchaEnabled', $event)" />
-        </FormCell>
-        <view v-if="loginDraft.emailLoginEnabled && !emailDraft.enabled" class="config-warn">
-          <text>请先在「邮件」中开启邮件功能，否则无法保存</text>
-        </view>
-        <FormCell label="记住我" switch-cell>
-          <switch :checked="loginDraft.rememberMe" :disabled="!canEdit" @change="onLoginSwitch('rememberMe', $event)" />
-        </FormCell>
-        <FormCell label="账号最大重试">
-          <NumberStepper v-model="loginDraft.maxRetryCount" :min="1" :max="20" :disabled="!canEdit" />
-        </FormCell>
-        <FormCell label="IP 最大重试">
-          <NumberStepper v-model="loginDraft.maxRetryCountIp" :min="1" :max="50" :disabled="!canEdit" />
-        </FormCell>
-        <FormCell label="锁定时长" last>
-          <view class="config-control-row">
-            <NumberStepper v-model="loginDraft.lockTime" :min="1" :max="120" :disabled="!canEdit" />
-            <text class="config-unit">分钟</text>
-          </view>
-        </FormCell>
-      </view>
+      <LoginConfigPanel
+        v-else-if="tab === 'login'"
+        :login-draft="loginDraft"
+        :sms-draft="smsDraft"
+        :email-draft="emailDraft"
+        :can-edit="canEdit"
+        :captcha-type-options="captchaTypeOptions"
+        :on-login-switch="onLoginSwitch"
+      />
 
       <!-- 注册 -->
-      <view v-else-if="tab === 'register'" class="form-panel">
-        <FormCell label="开放注册" switch-cell>
-          <switch :checked="registerDraft.enabled" :disabled="!canEdit" @change="onRegisterSwitch('enabled', $event)" />
-        </FormCell>
-        <FormCell label="注册验证码" switch-cell>
-          <switch :checked="registerDraft.captchaEnabled" :disabled="!canEdit || !registerDraft.enabled" @change="onRegisterSwitch('captchaEnabled', $event)" />
-        </FormCell>
-        <FormCell v-if="registerDraft.enabled && registerDraft.captchaEnabled" label="验证码类型">
-          <ConfigRadioGroup
-            v-model="registerDraft.captchaType"
-            :options="captchaTypeOptions"
-            :disabled="!canEdit"
-          />
-        </FormCell>
-        <FormCell label="密码最小长度">
-          <NumberStepper v-model="registerDraft.minPasswordLength" :min="6" :max="32" :disabled="!canEdit || !registerDraft.enabled" />
-        </FormCell>
-        <FormCell label="默认角色" clickable boxed arrow @click="pickDefaultRole">
-          <text class="picker-value">{{ defaultRoleLabel }}</text>
-        </FormCell>
-        <FormCell label="注册需审核" switch-cell :last="!registerDraft.needAudit">
-          <switch :checked="registerDraft.needAudit" :disabled="!canEdit || !registerDraft.enabled" @change="onRegisterSwitch('needAudit', $event)" />
-        </FormCell>
-        <FormCell
-          v-if="registerDraft.needAudit"
-          label="审核人"
-          clickable
-          boxed
-          arrow
-          last
-          @click="pickRegisterAuditors"
-        >
-          <text class="picker-value">{{ registerAuditorLabel }}</text>
-        </FormCell>
-      </view>
+      <RegisterConfigPanel
+        v-else-if="tab === 'register'"
+        :register-draft="registerDraft"
+        :can-edit="canEdit"
+        :captcha-type-options="captchaTypeOptions"
+        :default-role-label="defaultRoleLabel"
+        :register-auditor-label="registerAuditorLabel"
+        :on-register-switch="onRegisterSwitch"
+        :pick-default-role="pickDefaultRole"
+        :pick-register-auditors="pickRegisterAuditors"
+      />
 
       <!-- 第三方 -->
-      <view v-else-if="tab === 'thirdParty'" class="config-collapse-wrap">
-        <CollapsePanel title="微信登录">
-          <view class="form-panel form-panel--flat">
-            <FormCell label="启用" switch-cell><switch :checked="thirdDraft.wechat.enabled" :disabled="!canEdit" @change="onThirdSwitch('wechat', 'enabled', $event)" /></FormCell>
-            <FormCell v-model="thirdDraft.wechat.appId" label="AppID" editable boxed :disabled="!canEdit" />
-            <FormCell v-model="thirdDraft.wechat.appSecret" label="AppSecret" editable boxed password :disabled="!canEdit" last />
-          </view>
-        </CollapsePanel>
-        <CollapsePanel title="支付宝登录">
-          <view class="form-panel form-panel--flat">
-            <FormCell label="启用" switch-cell><switch :checked="thirdDraft.alipay.enabled" :disabled="!canEdit" @change="onThirdSwitch('alipay', 'enabled', $event)" /></FormCell>
-            <FormCell v-model="thirdDraft.alipay.appId" label="AppID" editable boxed :disabled="!canEdit" />
-            <view class="config-textarea">
-              <text class="config-textarea__label">应用私钥</text>
-              <textarea v-model="thirdDraft.alipay.privateKey" class="config-textarea__input" :disabled="!canEdit" />
-            </view>
-            <view class="config-textarea">
-              <text class="config-textarea__label">支付宝公钥</text>
-              <textarea v-model="thirdDraft.alipay.publicKey" class="config-textarea__input" :disabled="!canEdit" />
-            </view>
-          </view>
-        </CollapsePanel>
-        <CollapsePanel title="GitHub 登录">
-          <view class="form-panel form-panel--flat">
-            <FormCell label="启用" switch-cell><switch :checked="thirdDraft.github.enabled" :disabled="!canEdit" @change="onThirdSwitch('github', 'enabled', $event)" /></FormCell>
-            <FormCell v-model="thirdDraft.github.clientId" label="Client ID" editable boxed :disabled="!canEdit" />
-            <FormCell v-model="thirdDraft.github.clientSecret" label="Client Secret" editable boxed password :disabled="!canEdit" last />
-          </view>
-        </CollapsePanel>
-        <CollapsePanel title="Google 登录">
-          <view class="form-panel form-panel--flat">
-            <FormCell label="启用" switch-cell><switch :checked="thirdDraft.google.enabled" :disabled="!canEdit" @change="onThirdSwitch('google', 'enabled', $event)" /></FormCell>
-            <FormCell v-model="thirdDraft.google.clientId" label="Client ID" editable boxed :disabled="!canEdit" />
-            <FormCell v-model="thirdDraft.google.clientSecret" label="Client Secret" editable boxed password :disabled="!canEdit" />
-            <FormCell v-model="thirdDraft.google.redirectUri" label="重定向 URI" editable boxed :disabled="!canEdit" last />
-            <text class="config-hint config-hint--inline">须在 Google Cloud 控制台配置相同重定向 URI</text>
-          </view>
-        </CollapsePanel>
-      </view>
+      <ThirdPartyConfigPanel
+        v-else-if="tab === 'thirdParty'"
+        :third-draft="thirdDraft"
+        :can-edit="canEdit"
+        :on-third-switch="onThirdSwitch"
+      />
 
       <!-- 支付 -->
-      <view v-else-if="tab === 'payment'" class="config-collapse-wrap">
-        <CollapsePanel title="微信支付">
-          <view class="form-panel form-panel--flat">
-            <FormCell label="启用" switch-cell><switch :checked="paymentDraft.wechatPay.enabled" :disabled="!canEdit" @change="onPaySwitch('wechatPay', 'enabled', $event)" /></FormCell>
-            <FormCell v-model="paymentDraft.wechatPay.mchId" label="商户号" editable boxed password :disabled="!canEdit" />
-            <FormCell v-model="paymentDraft.wechatPay.appId" label="AppID" editable boxed password :disabled="!canEdit" />
-            <FormCell v-model="paymentDraft.wechatPay.apiV3Key" label="APIv3 密钥" editable boxed password :disabled="!canEdit" />
-            <view class="config-textarea">
-              <text class="config-textarea__label">商户私钥</text>
-              <textarea v-model="paymentDraft.wechatPay.privateKey" class="config-textarea__input config-textarea__mask" :disabled="!canEdit" />
-            </view>
-            <FormCell v-model="paymentDraft.wechatPay.certSerialNo" label="证书序列号" editable boxed password :disabled="!canEdit" />
-            <FormCell v-model="paymentDraft.wechatPay.notifyUrl" label="回调地址" editable boxed :disabled="!canEdit" last />
-            <text class="config-hint config-hint--inline">须公网 HTTPS，对应 POST /api/pay/notify/wechat</text>
-            <button v-if="canEdit && paymentDraft.wechatPay.enabled" class="config-test-btn" :loading="paymentTesting" @click="sendTestPayment('wechat')">测试微信支付</button>
-          </view>
-        </CollapsePanel>
-        <CollapsePanel title="支付宝支付">
-          <view class="form-panel form-panel--flat">
-            <FormCell label="启用" switch-cell><switch :checked="paymentDraft.alipay.enabled" :disabled="!canEdit" @change="onPaySwitch('alipay', 'enabled', $event)" /></FormCell>
-            <FormCell v-model="paymentDraft.alipay.appId" label="AppID" editable boxed password :disabled="!canEdit" />
-            <view class="config-textarea">
-              <text class="config-textarea__label">应用私钥</text>
-              <textarea v-model="paymentDraft.alipay.privateKey" class="config-textarea__input config-textarea__mask" :disabled="!canEdit" />
-            </view>
-            <view class="config-textarea">
-              <text class="config-textarea__label">支付宝公钥</text>
-              <textarea v-model="paymentDraft.alipay.publicKey" class="config-textarea__input config-textarea__mask" :disabled="!canEdit" />
-            </view>
-            <FormCell label="签名类型" clickable boxed arrow @click="pickAlipaySign">
-              <text class="picker-value">{{ paymentDraft.alipay.signType }}</text>
-            </FormCell>
-            <FormCell label="网关环境" clickable boxed arrow @click="pickAlipayGateway">
-              <text class="picker-value">{{ alipayGatewayLabel }}</text>
-            </FormCell>
-            <FormCell v-model="paymentDraft.alipay.notifyUrl" label="回调地址" editable boxed :disabled="!canEdit" />
-            <FormCell v-model="paymentDraft.alipay.returnUrl" label="同步跳转" editable boxed :disabled="!canEdit" last />
-            <text class="config-hint config-hint--inline">须公网 HTTPS，对应 POST /api/pay/notify/alipay</text>
-            <button v-if="canEdit && paymentDraft.alipay.enabled" class="config-test-btn" :loading="paymentTesting" @click="sendTestPayment('alipay')">测试支付宝</button>
-          </view>
-        </CollapsePanel>
-        <view class="config-info">
-          <text>填写后务必点击页底「保存全部」。</text>
-          <text>测试订单金额固定 0.01 元，保存配置后再生成订单。</text>
-        </view>
-      </view>
+      <PaymentConfigPanel
+        v-else-if="tab === 'payment'"
+        :payment-draft="paymentDraft"
+        :can-edit="canEdit"
+        :payment-testing="paymentTesting"
+        :alipay-gateway-label="alipayGatewayLabel"
+        :on-pay-switch="onPaySwitch"
+        :pick-alipay-sign="pickAlipaySign"
+        :pick-alipay-gateway="pickAlipayGateway"
+        :send-test-payment="sendTestPayment"
+      />
 
       <!-- 短信 -->
-      <view v-else-if="tab === 'sms'" class="config-sms-wrap">
-        <ConfigSectionCard title="基础配置">
-          <view class="form-panel form-panel--flat">
-            <FormCell label="启用短信" switch-cell>
-              <switch :checked="smsDraft.enabled" :disabled="!canEdit" @change="onSmsSwitch('enabled', $event)" />
-            </FormCell>
-            <FormCell label="短信服务商" clickable boxed arrow @click="pickProvider">
-              <text class="picker-value">{{ providerLabel }}</text>
-            </FormCell>
-            <FormCell v-model="smsDraft.accessKeyId" label="AccessKeyId" editable boxed password :disabled="!canEdit" />
-            <FormCell v-model="smsDraft.accessKeySecret" label="AccessKeySecret" editable boxed password :disabled="!canEdit" />
-            <FormCell v-model="smsDraft.signName" label="签名" editable boxed :disabled="!canEdit" />
-            <FormCell v-if="smsDraft.provider === 'tencent'" v-model="smsDraft.tencentAppId" label="腾讯云 AppId" editable boxed password :disabled="!canEdit" />
-            <FormCell v-if="smsDraft.provider === 'aliyunAuth'" label="验证码有效期(分钟)">
-              <NumberStepper v-model="smsDraft.codeExpireMinutes" :min="1" :max="30" :disabled="!canEdit" />
-            </FormCell>
-          </view>
-        </ConfigSectionCard>
-
-        <ConfigSectionCard title="模板配置">
-          <view class="form-panel form-panel--flat">
-            <template v-if="smsDraft.provider === 'aliyunAuth'">
-              <FormCell v-model="smsDraft.templateVerifyCode" label="登录/注册" editable boxed :disabled="!canEdit" />
-              <FormCell v-model="smsDraft.templateModifyPhone" label="修改绑定手机" editable boxed :disabled="!canEdit" />
-              <FormCell v-model="smsDraft.templateResetPassword" label="重置密码" editable boxed :disabled="!canEdit" />
-              <FormCell v-model="smsDraft.templateBindPhone" label="绑定新手机" editable boxed :disabled="!canEdit" />
-              <FormCell v-model="smsDraft.templateVerifyBindPhone" label="验证绑定手机" editable boxed :disabled="!canEdit" last />
-            </template>
-            <template v-else>
-              <FormCell v-model="smsDraft.templateVerifyCode" label="验证码模板 ID" editable boxed :disabled="!canEdit" />
-              <FormCell v-model="smsDraft.templateResetPassword" label="重置密码模板 ID" editable boxed :disabled="!canEdit" last />
-            </template>
-          </view>
-        </ConfigSectionCard>
-
-        <ConfigSectionCard v-if="canEdit" title="测试发送">
-          <view class="form-panel form-panel--flat">
-            <FormCell v-if="smsDraft.provider === 'aliyunAuth'" label="模板" clickable boxed arrow @click="pickTestTemplate">
-              <text class="picker-value">{{ testTemplateLabel }}</text>
-            </FormCell>
-            <view class="sms-test__row">
-              <input v-model="testSmsPhone" class="sms-test__input" type="number" :maxlength="11" placeholder="11 位手机号" />
-              <button class="sms-test__btn" :loading="smsTesting" @click="sendTestSms">发送</button>
-            </view>
-            <text class="config-hint config-hint--inline">将发送随机 6 位验证码，用于测试配置是否正确</text>
-          </view>
-        </ConfigSectionCard>
-
-        <ConfigSectionCard title="发送记录">
-          <template #extra>
-            <text class="sms-logs__more" @click="openSmsLogs">查看全部</text>
-          </template>
-          <view class="sms-logs-list">
-            <ListCard v-for="log in recentSmsLogs" :key="log.id || `${log.phone}-${log.createTime}`">
-              <view class="list-card__top">
-                <text class="list-card__title">{{ log.phone }}</text>
-                <DictTag :label="smsStatusText(log.status)" :effect="log.status === 1 ? 'success' : log.status === 2 ? 'danger' : 'warning'" />
-              </view>
-              <text class="list-card__sub">验证码 {{ log.content || '—' }} · {{ log.createTime || '—' }}</text>
-            </ListCard>
-            <EmptyState v-if="!recentSmsLogs.length" title="暂无发送记录" icon="contact-o" />
-          </view>
-        </ConfigSectionCard>
-
-        <view class="config-info">
-          <text>填写密钥与模板后请点击页底「保存全部」，保存后再测试发送。</text>
-        </view>
-      </view>
+      <SmsConfigPanel
+        v-else-if="tab === 'sms'"
+        :sms-draft="smsDraft"
+        :can-edit="canEdit"
+        :sms-testing="smsTesting"
+        :provider-label="providerLabel"
+        :test-template-label="testTemplateLabel"
+        v-model:test-sms-phone="testSmsPhone"
+        :recent-sms-logs="recentSmsLogs"
+        :on-sms-switch="onSmsSwitch"
+        :pick-provider="pickProvider"
+        :pick-test-template="pickTestTemplate"
+        :send-test-sms="sendTestSms"
+        :open-sms-logs="openSmsLogs"
+        :sms-status-text="smsStatusText"
+      />
 
       <!-- 邮件 -->
-      <view v-else-if="tab === 'email'" class="config-security-wrap">
-        <ConfigSectionCard title="SMTP 基础配置">
-          <view class="form-panel form-panel--flat">
-            <FormCell label="启用邮件服务" switch-cell>
-              <switch :checked="emailDraft.enabled" :disabled="!canEdit" @change="emailDraft.enabled = $event.detail.value" />
-            </FormCell>
-            <FormCell label="邮件服务商" clickable boxed arrow @click="pickEmailProvider">
-              <text class="picker-value">{{ emailProviderLabel }}</text>
-            </FormCell>
-            <FormCell v-model="emailDraft.username" label="发件邮箱账号" editable boxed password placeholder="如 wu@gmail.com" :disabled="!canEdit" />
-            <FormCell v-model="emailDraft.password" label="SMTP 授权码" editable boxed placeholder="秘钥/授权码" password :disabled="!canEdit" />
-            <FormCell v-model="emailDraft.host" label="SMTP 服务器" editable boxed placeholder="如 smtp.qq.com" :disabled="!canEdit" />
-            <FormCell label="SMTP 端口">
-              <NumberStepper v-model="emailDraft.port" :min="1" :max="65535" :disabled="!canEdit" />
-            </FormCell>
-            <FormCell label="加密传输方式" clickable boxed arrow @click="pickEmailSecurityType">
-              <text class="picker-value">{{ emailSecurityLabel }}</text>
-            </FormCell>
-            <FormCell label="SMTP 认证" switch-cell>
-              <switch :checked="emailDraft.authEnabled" :disabled="!canEdit" @change="emailDraft.authEnabled = $event.detail.value" />
-            </FormCell>
-            <FormCell v-model="emailDraft.fromName" label="发件人显示名称" editable boxed placeholder="如 wu-admin 系统团队" :disabled="!canEdit" last />
-          </view>
-        </ConfigSectionCard>
-
-        <ConfigSectionCard title="高级网络与超时配置">
-          <view class="form-panel form-panel--flat">
-            <FormCell label="连接超时(ms)">
-              <NumberStepper v-model="emailDraft.connectionTimeoutMs" :min="1000" :max="30000" :step="1000" :disabled="!canEdit" />
-            </FormCell>
-            <FormCell label="读取超时(ms)">
-              <NumberStepper v-model="emailDraft.timeoutMs" :min="1000" :max="30000" :step="1000" :disabled="!canEdit" />
-            </FormCell>
-            <FormCell label="写入超时(ms)">
-              <NumberStepper v-model="emailDraft.writeTimeoutMs" :min="1000" :max="30000" :step="1000" :disabled="!canEdit" />
-            </FormCell>
-            <FormCell label="默认字符编码" clickable boxed arrow @click="pickEmailEncoding">
-              <text class="picker-value">{{ emailEncodingLabel }}</text>
-            </FormCell>
-            <FormCell label="Debug 日志" switch-cell last>
-              <switch :checked="emailDraft.debug" :disabled="!canEdit" @change="emailDraft.debug = $event.detail.value" />
-            </FormCell>
-          </view>
-        </ConfigSectionCard>
-
-        <ConfigSectionCard title="验证码与防刷规则">
-          <view class="form-panel form-panel--flat">
-            <FormCell label="验证码有效期">
-              <NumberStepper v-model="emailDraft.codeExpireMinutes" :min="1" :max="30" :disabled="!canEdit" />
-              <text class="config-unit">分钟</text>
-            </FormCell>
-            <FormCell label="验证码长度">
-              <NumberStepper v-model="emailDraft.codeLength" :min="4" :max="8" :disabled="!canEdit" />
-              <text class="config-unit">位</text>
-            </FormCell>
-            <FormCell label="防刷间隔">
-              <NumberStepper v-model="emailDraft.sendIntervalSeconds" :min="10" :max="300" :disabled="!canEdit" />
-              <text class="config-unit">秒</text>
-            </FormCell>
-            <FormCell label="单箱每日上限" last>
-              <NumberStepper v-model="emailDraft.dailyLimitPerEmail" :min="1" :max="100" :disabled="!canEdit" />
-              <text class="config-unit">次</text>
-            </FormCell>
-          </view>
-        </ConfigSectionCard>
-
-        <ConfigSectionCard title="测试发送邮件">
-          <view class="form-panel form-panel--flat">
-            <view class="sms-test__row">
-              <input v-model="testEmailTo" class="sms-test__input" placeholder="请输入接收测试邮箱" />
-              <button class="sms-test__btn" :disabled="!canEdit || emailTesting" @click="sendTestEmailAction">
-                {{ emailTesting ? '发送中...' : '测试发送' }}
-              </button>
-            </view>
-            <text class="config-hint config-hint--inline">发送测试报文到该邮箱，验证 SMTP 配置与安全端口连通性</text>
-          </view>
-        </ConfigSectionCard>
-
-        <ConfigSectionCard title="发送记录">
-          <template #extra>
-            <text class="sms-logs__more" @click="openEmailLogs">查看全部</text>
-          </template>
-          <view class="sms-logs-list">
-            <ListCard v-for="log in recentEmailLogs" :key="log.id || `${log.email}-${log.createTime}`">
-              <view class="list-card__top">
-                <text class="list-card__title">{{ log.email }}</text>
-                <DictTag :label="emailStatusText(log.status)" :effect="log.status === 1 ? 'success' : log.status === 2 ? 'danger' : 'warning'" />
-              </view>
-              <text class="list-card__sub">{{ log.subject || '系统邮件' }} · {{ log.createTime || '—' }}</text>
-            </ListCard>
-            <EmptyState v-if="!recentEmailLogs.length" title="暂无发送记录" icon="contact-o" />
-          </view>
-        </ConfigSectionCard>
-      </view>
+      <EmailConfigPanel
+        v-else-if="tab === 'email'"
+        :email-draft="emailDraft"
+        :can-edit="canEdit"
+        :email-testing="emailTesting"
+        v-model:test-email-to="testEmailTo"
+        :email-provider-label="emailProviderLabel"
+        :email-security-label="emailSecurityLabel"
+        :email-encoding-label="emailEncodingLabel"
+        :recent-email-logs="recentEmailLogs"
+        :pick-email-provider="pickEmailProvider"
+        :pick-email-security-type="pickEmailSecurityType"
+        :pick-email-encoding="pickEmailEncoding"
+        :send-test-email-action="sendTestEmailAction"
+        :open-email-logs="openEmailLogs"
+        :email-status-text="emailStatusText"
+      />
 
       <!-- 安全 -->
-      <view v-else-if="tab === 'security'" class="config-security-wrap">
-        <ConfigSectionCard title="前端安全">
-          <view class="form-panel form-panel--flat">
-            <FormCell
-              label="禁止前端调试"
-              hint="开启后将限制打开开发者工具，需刷新页面生效"
-              switch-cell
-              last
-            >
-              <switch :checked="securityDraft.disableDevtool" :disabled="!canEdit" @change="onSecuritySwitch('disableDevtool', $event)" />
-            </FormCell>
-          </view>
-        </ConfigSectionCard>
-        <ConfigSectionCard title="会话安全">
-          <view class="form-panel form-panel--flat">
-            <FormCell
-              label="禁止多端同时在线"
-              hint="开启后，同一账号再次登录会先踢掉之前的会话"
-              switch-cell
-              last
-            >
-              <switch :checked="forbidConcurrentLogin" :disabled="!canEdit" @change="onForbidConcurrentChange" />
-            </FormCell>
-          </view>
-        </ConfigSectionCard>
-        <ConfigSectionCard title="API 安全防线与防重放">
-          <view class="form-panel form-panel--flat">
-            <FormCell
-              label="SM2 密码加密"
-              hint="是否启用登录/注册/重置密码非对称加密传输（国密 SM2 椭圆公钥加密，默认开启）"
-              switch-cell
-            >
-              <switch :checked="securityDraft.sm2EncryptEnabled ?? true" :disabled="!canEdit" @change="onSecuritySwitch('sm2EncryptEnabled', $event)" />
-            </FormCell>
-            <FormCell
-              label="SM4 数据加密"
-              hint="是否启用接口请求/响应数据加密（国密 SM4-GCM 认证加密，IV[12] + 密文 + Tag[16]）"
-              switch-cell
-            >
-              <switch :checked="securityDraft.sm4EncryptEnabled" :disabled="!canEdit" @change="onSecuritySwitch('sm4EncryptEnabled', $event)" />
-            </FormCell>
-            <FormCell
-              label="数字签名验签"
-              hint="是否启用接口签名验签（国密 HMAC-SM3 高性能签名防篡改）"
-              switch-cell
-            >
-              <switch :checked="securityDraft.sm2SignEnabled" :disabled="!canEdit" @change="onSecuritySwitch('sm2SignEnabled', $event)" />
-            </FormCell>
-            <FormCell
-              label="时间戳校验"
-              hint="校验请求时间，防止过期请求（5分钟时间窗口）"
-              switch-cell
-            >
-              <switch :checked="securityDraft.timestampEnabled ?? true" :disabled="!canEdit" @change="onSecuritySwitch('timestampEnabled', $event)" />
-            </FormCell>
-            <FormCell
-              label="Nonce 校验"
-              hint="校验随机数，防止高频重放攻击（Redis 查重）"
-              switch-cell
-              last
-            >
-              <switch :checked="securityDraft.nonceEnabled ?? true" :disabled="!canEdit" @change="onSecuritySwitch('nonceEnabled', $event)" />
-            </FormCell>
-          </view>
-        </ConfigSectionCard>
-        <ConfigSectionCard title="风险分自动封禁">
-          <view class="form-panel form-panel--flat">
-            <FormCell
-              label="临时封禁阈值"
-              hint="风险分达到后临时封禁 1 小时，默认 80"
-            >
-              <NumberStepper
-                :model-value="securityDraft.riskBlockScore ?? 80"
-                :min="20"
-                :max="1000"
-                :disabled="!canEdit"
-                @update:model-value="securityDraft.riskBlockScore = $event"
-              />
-            </FormCell>
-            <FormCell
-              label="24 小时封禁阈值"
-              hint="风险分达到后封禁 24 小时，必须高于临时封禁阈值，默认 120"
-              last
-            >
-              <NumberStepper
-                :model-value="securityDraft.riskBanScore ?? 120"
-                :min="40"
-                :max="2000"
-                :disabled="!canEdit"
-                @update:model-value="securityDraft.riskBanScore = $event"
-              />
-            </FormCell>
-          </view>
-        </ConfigSectionCard>
-        <view class="config-info">
-          <text>保存全部后立即生效：接口安全开关即时作用于全部 REST 接口；时间戳与 Nonce 建议保持开启。</text>
-        </view>
-      </view>
+      <SecurityConfigPanel
+        v-else-if="tab === 'security'"
+        :security-draft="securityDraft"
+        :can-edit="canEdit"
+        :forbid-concurrent-login="forbidConcurrentLogin"
+        :on-security-switch="onSecuritySwitch"
+        :on-forbid-concurrent-change="onForbidConcurrentChange"
+      />
 
       <!-- AI 助手 -->
-      <view v-else-if="tab === 'ai'" class="form-panel">
-        <FormCell label="AI 助手" hint="关闭后，PC端与移动端的悬浮小窗将不再显示" switch-cell>
-          <switch :checked="aiDraft.assistantEnabled !== false" :disabled="!canEdit" @change="aiDraft.assistantEnabled = $event.detail.value" />
-        </FormCell>
-        <FormCell label="回答边界" last>
-          <ConfigRadioGroup v-model="aiDraft.answerScope" :options="answerScopeOptions" :disabled="!canEdit" />
-        </FormCell>
-
-        <view class="ai-quota-card">
-          <view class="ai-quota-card__header">
-            <text class="ai-quota-card__title">Token 每日配额设置</text>
-            <text class="ai-quota-card__sub">限制每位用户或不同角色每天可消耗的最大 AI Token 数量</text>
-          </view>
-
-          <!-- 默认每用户每日配额 -->
-          <view class="ai-quota-section">
-            <view class="ai-quota-section__head">
-              <text class="ai-quota-section__title">每用户默认每日配额</text>
-              <text class="ai-quota-section__desc">未配置单独角色规则的用户，统一套用此额度</text>
-            </view>
-            <FormCell label="默认配额" last>
-              <NumberStepper v-model="aiDraft.tokensPerUserDaily" :min="0" :max="10000000" :step="10000" width="280rpx" :disabled="!canEdit" />
-            </FormCell>
-            <view class="ai-quota-default-tag">
-              <text v-if="aiDraft.tokensPerUserDaily === 0" class="tag-text tag-text--success">默认生效：无限制</text>
-              <text v-else class="tag-text tag-text--info">默认生效：{{ aiDraft.tokensPerUserDaily ? aiDraft.tokensPerUserDaily.toLocaleString() : 0 }} Tokens/天</text>
-            </view>
-          </view>
-
-          <!-- 角色差异化配额 -->
-          <view class="ai-quota-section ai-quota-section--border">
-            <view class="ai-quota-section__head ai-quota-section__head--row">
-              <view class="ai-quota-section__titles">
-                <text class="ai-quota-section__title">角色差异化配额</text>
-                <text class="ai-quota-section__desc">针对特定角色设置专属配额</text>
-              </view>
-              <view v-if="canEdit && aiDraft.roleTokenQuotas.length < 50" class="ai-quota-add-btn" @click="addQuotaRow">
-                <text>+ 添加规则</text>
-              </view>
-            </view>
-
-            <view v-if="aiDraft.roleTokenQuotas.length === 0" class="ai-quota-empty">
-              <text class="ai-quota-empty__text">暂无单独配置的角色规则，全员套用默认配额</text>
-            </view>
-
-            <view v-for="(row, idx) in aiDraft.roleTokenQuotas" :key="idx" class="ai-quota-row">
-              <view class="ai-quota-row__header">
-                <text class="ai-quota-row__index">规则 #{{ idx + 1 }}</text>
-                <text v-if="canEdit" class="ai-quota-row__del-btn" @click="removeQuotaRow(idx)">删除</text>
-              </view>
-              <FormCell label="目标角色" clickable arrow @click="pickQuotaRole(idx)">
-                <text class="picker-value">{{ quotaRoleLabel(row.roleId) }}</text>
-              </FormCell>
-              <FormCell label="每日 Token 配额" last>
-                <NumberStepper v-model="row.tokensDaily" :min="0" :max="10000000" :step="10000" width="280rpx" :disabled="!canEdit" />
-              </FormCell>
-              <view class="ai-quota-row__tag">
-                <text v-if="row.tokensDaily === 0" class="tag-text tag-text--success">生效规则：无限制</text>
-                <text v-else class="tag-text tag-text--info">生效规则：{{ row.tokensDaily ? row.tokensDaily.toLocaleString() : 0 }} Tokens/天</text>
-              </view>
-            </view>
-
-            <view class="ai-quota-hint">
-              <text class="ai-quota-hint__text">💡 多角色用户自动按最高配额生效；配额 0 表示该角色不设限制。</text>
-            </view>
-          </view>
-        </view>
-      </view>
+      <AiConfigPanel
+        v-else-if="tab === 'ai'"
+        :ai-draft="aiDraft"
+        :can-edit="canEdit"
+        :answer-scope-options="answerScopeOptions"
+        :quota-role-label="quotaRoleLabel"
+        :pick-quota-role="pickQuotaRole"
+        :add-quota-row="addQuotaRow"
+        :remove-quota-row="removeQuotaRow"
+      />
     </scroll-view>
 
     <view v-if="canEdit && !loading" class="config-page-footer">
@@ -746,27 +202,31 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
 import { onPullDownRefresh, onShow } from '@dcloudio/uni-app'
-import ModuleDarkHero from '@/components/common/ModuleDarkHero/index.vue'
-import SegmentTabs from '@/components/common/SegmentTabs/index.vue'
-import ListLoading from '@/components/common/ListLoading/index.vue'
-import FormCell from '@/components/common/FormCell/index.vue'
-import ListCard from '@/components/common/ListCard/index.vue'
-import DictTag from '@/components/common/DictTag/index.vue'
-import EmptyState from '@/components/common/EmptyState/index.vue'
-import PermissionBlock from '@/components/common/PermissionBlock/index.vue'
-import CollapsePanel from '@/components/common/CollapsePanel/index.vue'
-import ConfigSectionCard from '@/components/common/ConfigSectionCard/index.vue'
-import NumberStepper from '@/components/common/NumberStepper/index.vue'
-import ConfigRadioGroup from '@/components/common/ConfigRadioGroup/index.vue'
-import AppDialogHost from '@/components/common/AppDialogHost/index.vue'
-import { useConfigEditor } from '@/composables/useConfigEditor'
-import { useUnsavedLeaveGuard } from '@/composables/useUnsavedLeaveGuard'
-import { useModulePermission } from '@/composables/useModulePermission'
+import ModuleDarkHero from '@/components/layout/ModuleDarkHero/index.vue'
+import SegmentTabs from '@/components/base/SegmentTabs/index.vue'
+import ListLoading from '@/components/base/ListLoading/index.vue'
+import FormCell from '@/components/base/FormCell/index.vue'
+import PermissionBlock from '@/components/base/PermissionBlock/index.vue'
+import NumberStepper from '@/components/base/NumberStepper/index.vue'
+import AppDialogHost from '@/components/base/AppDialogHost/index.vue'
+import FileConfigPanel from './components/FileConfigPanel.vue'
+import RateLimitConfigPanel from './components/RateLimitConfigPanel.vue'
+import LoginConfigPanel from './components/LoginConfigPanel.vue'
+import RegisterConfigPanel from './components/RegisterConfigPanel.vue'
+import ThirdPartyConfigPanel from './components/ThirdPartyConfigPanel.vue'
+import PaymentConfigPanel from './components/PaymentConfigPanel.vue'
+import SmsConfigPanel from './components/SmsConfigPanel.vue'
+import EmailConfigPanel from './components/EmailConfigPanel.vue'
+import SecurityConfigPanel from './components/SecurityConfigPanel.vue'
+import AiConfigPanel from './components/AiConfigPanel.vue'
+import { useConfigEditor } from '@/composables/system/useConfigEditor'
+import { useUnsavedLeaveGuard } from '@/composables/base/useUnsavedLeaveGuard'
+import { useModulePermission } from '@/composables/base/useModulePermission'
 import type { EmailAdminConfig, StorageEngineType } from '@/types/config-types'
 import { showActionSheet, showConfirm } from '@/utils/app-dialog'
-import { appendNavFromParam } from '@/utils/nav-from'
-import { consumePagePickerResult, clearPagePickerResult } from '@/utils/page-picker-result'
-import { setUserSelectMultiIds } from '@/utils/user-select-multi-init'
+import { appendNavFromParam } from '@/utils/nav/nav-from'
+import { consumePagePickerResult, clearPagePickerResult } from '@/utils/nav/page-picker-result'
+import { setUserSelectMultiIds } from '@/utils/tree/user-select-multi-init'
 
 const { allowed, hasPerm } = useModulePermission('system:config:list')
 const canEdit = computed(() => hasPerm('system:config:update'))
@@ -1138,23 +598,6 @@ onPullDownRefresh(async () => {
   align-items: stretch;
 }
 
-.config-boxed-textarea {
-  width: 100%;
-  min-height: 160rpx;
-  padding: 16rpx 20rpx;
-  border: 1px solid $color-border-light;
-  border-radius: $radius-md;
-  background: $color-bg-card;
-  font-size: $font-size-sm;
-  line-height: 1.55;
-  box-sizing: border-box;
-  color: $color-text-primary;
-}
-
-.config-boxed-textarea::placeholder {
-  color: $color-text-placeholder;
-}
-
 .config-page :deep(.form-panel--rate .form-cell) {
   padding-right: 12rpx;
 }
@@ -1181,19 +624,6 @@ onPullDownRefresh(async () => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.config-control-row {
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 12rpx;
-  width: 100%;
-  flex-wrap: nowrap;
-}
-
-.config-control-row--end {
-  justify-content: flex-end;
 }
 
 .config-unit {
@@ -1240,39 +670,6 @@ onPullDownRefresh(async () => {
   flex-shrink: 0;
 }
 
-$config-label-width: 240rpx;
-$config-label-width-rate: 280rpx;
-$config-cell-gap: 20rpx;
-$config-cell-padding-x: 24rpx;
-
-.config-security-wrap {
-  padding-bottom: 8rpx;
-}
-
-.config-security-wrap :deep(.form-cell__label-wrap) {
-  width: $config-label-width-rate;
-  flex: 1;
-  min-width: 0;
-}
-
-.config-security-wrap :deep(.form-cell--switch) {
-  align-items: flex-start;
-}
-
-.config-security-wrap :deep(.form-cell--switch .form-cell__body) {
-  flex: none;
-  padding-top: 6rpx;
-}
-
-.config-security-wrap :deep(.form-cell__hint) {
-  display: block;
-  margin-top: 8rpx;
-  font-size: $font-size-xs;
-  color: $color-text-secondary;
-  line-height: 1.5;
-  white-space: normal;
-}
-
 .config-page :deep(.form-panel) {
   margin-top: 0;
 }
@@ -1287,8 +684,7 @@ $config-cell-padding-x: 24rpx;
   box-shadow: none;
 }
 
-.config-collapse-wrap,
-.config-sms-wrap {
+.config-collapse-wrap {
   padding-bottom: 8rpx;
 }
 
@@ -1329,287 +725,12 @@ $config-cell-padding-x: 24rpx;
   min-height: 0;
 }
 
-.config-section {
-  display: block;
-  padding: 24rpx 24rpx 12rpx;
-  font-size: $font-size-base;
-  font-weight: $font-weight-semibold;
-  color: $color-text-primary;
-  background: $color-bg-muted;
-  border-top: 1px solid $color-border-light;
-}
-
-.config-section:first-child {
-  border-top: none;
-}
-
-.config-hint {
-  display: block;
-  padding: 0 32rpx 20rpx;
-  font-size: $font-size-xs;
-  color: $color-text-secondary;
-  line-height: 1.55;
-  background: $color-bg-muted;
-}
-
-.config-warn {
-  margin: 0 24rpx 16rpx;
-  padding: 16rpx 20rpx;
-  border-radius: $radius-md;
-  background: rgba(230, 162, 60, 0.12);
-  border: 1px solid rgba(230, 162, 60, 0.22);
-  font-size: $font-size-xs;
-  color: $color-warning;
-  line-height: 1.55;
-}
-
-.config-hint--inline {
-  display: block;
-  padding: 0 32rpx 20rpx;
-  background: $color-bg-card;
-}
-
-.ai-quota-card {
-  margin: 24rpx;
-  border-radius: $radius-lg;
-  background: $color-bg-card;
-  border: 1px solid $color-border-light;
-  overflow: hidden;
-  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.03);
-}
-
-.ai-quota-card__header {
-  padding: 24rpx 28rpx;
-  background: $color-bg-muted;
-  border-bottom: 1px solid $color-border-light;
-}
-
-.ai-quota-card__title {
-  display: block;
-  font-size: $font-size-base;
-  font-weight: $font-weight-bold;
-  color: $color-text-primary;
-  margin-bottom: 4rpx;
-}
-
-.ai-quota-card__sub {
-  display: block;
-  font-size: $font-size-xs;
-  color: $color-text-secondary;
-}
-
-.ai-quota-section {
-  padding: 20rpx 0;
-}
-
-.ai-quota-default-tag {
-  margin: 8rpx 28rpx 0;
-  padding: 10rpx 20rpx;
-  background: $color-bg-muted;
-  border-radius: $radius-sm;
-}
-
-.ai-quota-section--border {
-  border-top: 1px solid $color-border-light;
-}
-
-.ai-quota-section__head {
-  padding: 0 28rpx 16rpx;
-}
-
-.ai-quota-section__head--row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.ai-quota-section__titles {
-  flex: 1;
-}
-
-.ai-quota-section__title {
-  display: block;
-  font-size: $font-size-sm;
-  font-weight: $font-weight-semibold;
-  color: $color-text-primary;
-}
-
-.ai-quota-section__desc {
-  display: block;
-  font-size: $font-size-xs;
-  color: $color-text-secondary;
-  margin-top: 2rpx;
-}
-
-.ai-quota-add-btn {
-  padding: 8rpx 20rpx;
-  border-radius: $radius-sm;
-  background: rgba(99, 102, 241, 0.1);
-  color: $color-primary;
-  font-size: $font-size-xs;
-  font-weight: $font-weight-semibold;
-}
-
-.ai-quota-empty {
-  margin: 12rpx 28rpx;
-  padding: 32rpx 20rpx;
-  text-align: center;
-  background: $color-bg-muted;
-  border-radius: $radius-md;
-}
-
-.ai-quota-empty__text {
-  font-size: $font-size-xs;
-  color: $color-text-secondary;
-}
-
-.ai-quota-row {
-  margin: 16rpx 24rpx;
-  border: 1px solid $color-border-light;
-  border-radius: $radius-md;
-  background: $color-bg-card;
-  overflow: hidden;
-}
-
-.ai-quota-row__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14rpx 24rpx;
-  background: $color-bg-muted;
-  border-bottom: 1px solid $color-border-light;
-}
-
-.ai-quota-row__index {
-  font-size: $font-size-xs;
-  font-weight: $font-weight-semibold;
-  color: $color-text-regular;
-}
-
-.ai-quota-row__del-btn {
-  padding: 4rpx 16rpx;
-  font-size: $font-size-xs;
-  color: #ef4444;
-  background: rgba(239, 68, 68, 0.08);
-  border: 1px solid rgba(239, 68, 68, 0.3);
-  border-radius: 999rpx;
-  line-height: 1.4;
-}
-
-.ai-quota-row__tag {
-  padding: 10rpx 24rpx;
-  background: $color-bg-muted;
-  border-top: 1px solid $color-border-light;
-}
-
-.tag-text {
-  font-size: $font-size-xs;
-}
-
-.tag-text--success {
-  color: $color-success;
-}
-
-.tag-text--info {
-  color: $color-text-secondary;
-}
-
-.ai-quota-hint {
-  margin: 16rpx 24rpx 8rpx;
-  padding: 16rpx 20rpx;
-  background: $color-bg-muted;
-  border-radius: $radius-md;
-}
-
-.ai-quota-hint__text {
-  font-size: $font-size-xs;
-  color: $color-text-secondary;
-  line-height: 1.5;
-}
-
-.config-info {
-  margin-top: 8rpx;
-  padding: 20rpx 24rpx;
-  border-radius: $radius-md;
-  background: rgba(99, 102, 241, 0.08);
-  border: 1px solid rgba(99, 102, 241, 0.18);
-  font-size: $font-size-xs;
-  color: $color-text-secondary;
-  line-height: 1.65;
-
-  text {
-    display: block;
-  }
-}
-
-.config-textarea {
-  padding: 20rpx 32rpx 24rpx;
-  border-bottom: 1px solid $color-border-light;
-  background: $color-bg-card;
-}
-
-.config-textarea__label {
-  display: block;
-  margin-bottom: 12rpx;
-  font-size: $font-size-md;
-  color: $color-text-primary;
-  font-weight: $font-weight-semibold;
-}
-
-.config-textarea__input {
-  width: 100%;
-  min-height: 180rpx;
-  padding: 20rpx;
-  border-radius: $radius-md;
-  background: $color-bg-muted;
-  border: 1px solid $color-border-light;
-  font-size: $font-size-sm;
-  line-height: 1.55;
-  box-sizing: border-box;
-}
-
 .config-test-btn {
   margin: 16rpx 32rpx;
   background: $color-primary;
   color: #fff;
   border-radius: $radius-md;
   font-size: $font-size-base;
-}
-
-.sms-test__row {
-  display: flex;
-  gap: 16rpx;
-  padding: 8rpx 32rpx 16rpx;
-}
-
-.sms-test__input {
-  flex: 1;
-  height: 72rpx;
-  padding: 0 20rpx;
-  border-radius: $radius-sm;
-  background: $color-bg-muted;
-  font-size: $font-size-base;
-}
-
-.sms-test__btn {
-  flex-shrink: 0;
-  height: 72rpx;
-  line-height: 72rpx;
-  padding: 0 28rpx;
-  border-radius: $radius-sm;
-  background: $color-primary;
-  color: #fff;
-  font-size: $font-size-base;
-}
-
-.sms-logs-list {
-  padding: 8rpx 0 16rpx;
-}
-
-.sms-logs__more {
-  font-size: $font-size-sm;
-  color: $color-primary;
-  padding-right: 8rpx;
 }
 
 .pay-modal {
@@ -1661,119 +782,4 @@ $config-cell-padding-x: 24rpx;
   font-size: $font-size-base;
 }
 
-.config-textarea__mask {
-  -webkit-text-security: disc;
-}
-
-.config-file-wrap {
-  padding-bottom: 8rpx;
-}
-
-.storage-engine-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16rpx;
-  padding: 24rpx;
-}
-
-.storage-engine {
-  padding: 20rpx;
-  border: 1px solid $color-border-light;
-  border-radius: $radius-md;
-  background: $color-bg-card;
-  transition: all 0.2s ease;
-}
-
-.storage-engine--active {
-  border-color: #6366f1;
-  background: rgba(99, 102, 241, 0.06);
-  box-shadow: 0 0 0 2rpx rgba(99, 102, 241, 0.12);
-}
-
-.storage-engine__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8rpx;
-}
-
-.storage-engine__name {
-  font-size: $font-size-sm;
-  font-weight: $font-weight-semibold;
-  color: $color-text-primary;
-}
-
-.storage-engine__badge {
-  flex-shrink: 0;
-  padding: 2rpx 10rpx;
-  border-radius: 999rpx;
-  background: #6366f1;
-  color: #fff;
-  font-size: 18rpx;
-  line-height: 1.6;
-}
-
-.storage-engine__desc {
-  display: block;
-  margin-top: 8rpx;
-  font-size: $font-size-xs;
-  color: $color-text-secondary;
-  line-height: 1.5;
-}
-
-.storage-status {
-  display: flex;
-  align-items: center;
-  gap: 12rpx;
-  padding: 0 24rpx 24rpx;
-  font-size: $font-size-xs;
-  color: $color-text-secondary;
-}
-
-.storage-status__value {
-  color: $color-text-primary;
-  font-weight: $font-weight-semibold;
-}
-
-.storage-status__health {
-  margin-left: auto;
-  padding: 4rpx 14rpx;
-  border-radius: 999rpx;
-  font-size: 20rpx;
-}
-
-.storage-status__health--ok {
-  color: #16a34a;
-  background: rgba(22, 163, 74, 0.1);
-}
-
-.storage-status__health--bad {
-  color: #dc2626;
-  background: rgba(220, 38, 38, 0.1);
-}
-
-.storage-actions {
-  display: flex;
-  gap: 16rpx;
-  padding: 0 24rpx 24rpx;
-}
-
-.storage-action-btn {
-  flex: 1;
-  height: 72rpx;
-  line-height: 72rpx;
-  border-radius: $radius-md;
-  background: $color-bg-muted;
-  color: $color-text-regular;
-  font-size: $font-size-sm;
-}
-
-.storage-action-btn::after {
-  border: none;
-}
-
-.storage-action-btn--primary {
-  background: $color-primary;
-  color: #fff;
-}
 </style>

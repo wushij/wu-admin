@@ -23,4 +23,7 @@ public interface LoginLogService {
     void delete(Long id);
 
     void clear();
+
+    /** 统计指定时间之后的登录次数（status 为 null 查全部，0 成功，1 失败） */
+    long countByStartTime(java.time.LocalDateTime startTime, Integer status);
 }

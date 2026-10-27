@@ -28,9 +28,9 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import AppBrandLogo from '@/components/common/AppBrandLogo/index.vue'
+import AppBrandLogo from '@/components/business/mine/AppBrandLogo/index.vue'
 import { useAppStore } from '@/store/app'
-import { getAppVersionName } from '@/utils/app-version'
+import { getAppVersionName } from '@/utils/display/app-version'
 
 const appStore = useAppStore()
 const versionName = getAppVersionName()

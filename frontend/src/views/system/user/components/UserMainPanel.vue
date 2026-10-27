@@ -1,32 +1,43 @@
 <template>
-  <el-card class="search-card module-search-card" shadow="never">
-    <el-form :model="queryParams" inline class="module-search-form">
+  <div class="user-main-container">
+    <el-card class="search-card module-search-card" shadow="never">
+    <el-form :model="queryParams" inline class="module-search-form user-search-form">
       <el-form-item label="用户名">
-        <el-input v-model="queryParams.username" placeholder="请输入用户名" clearable />
+        <el-input
+          v-model="queryParams.username"
+          placeholder="请输入用户名"
+          clearable
+          style="width: 140px"
+        />
       </el-form-item>
       <el-form-item label="手机号">
-        <el-input v-model="queryParams.mobile" placeholder="请输入手机号" clearable />
+        <el-input
+          v-model="queryParams.mobile"
+          placeholder="请输入手机号"
+          clearable
+          style="width: 140px"
+        />
       </el-form-item>
       <el-form-item label="状态">
         <el-select
           v-model="statusFilter"
           placeholder="请选择状态"
           clearable
-          style="width: 150px"
+          style="width: 110px"
         >
           <el-option label="启用" value="1" />
           <el-option label="禁用" value="0" />
           <el-option label="锁定" value="locked" />
         </el-select>
       </el-form-item>
-      <el-form-item>
+      <el-form-item class="user-search-form__actions">
         <el-button type="primary" :icon="Search" @click="$emit('query')">搜索</el-button>
         <el-button :icon="RefreshIcon" @click="$emit('reset-query')">重置</el-button>
       </el-form-item>
     </el-form>
   </el-card>
 
-  <el-card>
+  <el-card class="user-table-card table-card" shadow="never">
     <template #header>
       <div class="card-header">
         <span>用户列表</span>
@@ -141,6 +152,7 @@
       @current-change="$emit('load')"
     />
   </el-card>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -174,6 +186,20 @@ defineEmits<{
 </script>
 
 <style scoped>
+.module-search-form.user-search-form.el-form--inline {
+  gap: 10px 12px;
+}
+
+.user-search-form {
+  :deep(.el-form-item) {
+    flex: 0 0 auto;
+  }
+
+  .user-search-form__actions {
+    flex: 0 0 auto;
+  }
+}
+
 :deep(.dropdown-item-danger) {
   color: #f56c6c !important;
 }
@@ -209,5 +235,39 @@ defineEmits<{
 
 .user-name-cell__lock--ip {
   color: #f56c6c;
+}
+
+.user-main-container {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  gap: 16px;
+  height: 100%;
+}
+
+.user-table-card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+
+  :deep(.el-card__body) {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+  }
+
+  :deep(.el-table) {
+    flex: 1;
+  }
+
+  .table-pagination,
+  :deep(.el-pagination) {
+    margin-top: auto !important;
+    padding-top: 16px;
+    justify-content: flex-start !important;
+  }
 }
 </style>

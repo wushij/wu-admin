@@ -15,8 +15,7 @@ import com.admin.server.common.util.UserDisplayNames;
 import com.admin.server.modules.system.dal.dataobject.user.UserDO;
 import com.admin.server.modules.ticket.dal.mysql.approval.ApprovalFormMapper;
 import com.admin.server.modules.ticket.dal.mysql.approval.ApprovalRecordMapper;
-import com.admin.server.modules.system.dal.mysql.notice.NoticeMapper;
-import com.admin.server.modules.system.dal.mysql.user.UserMapper;
+import com.admin.server.modules.system.service.user.UserService;
 import com.admin.server.modules.ticket.service.approval.ApprovalFormService;
 import com.admin.server.modules.ticket.service.approval.RegisterApprovalService;
 import com.admin.server.modules.system.service.config.SystemConfigHelper;
@@ -42,9 +41,7 @@ public class ApprovalFormServiceImpl implements ApprovalFormService {
     @Resource
     private ApprovalRecordMapper approvalRecordMapper;
     @Resource
-    private UserMapper userMapper;
-    @Resource
-    private NoticeMapper noticeMapper;
+    private UserService userService;
     @Resource
     private PermissionService permissionService;
     @Resource
@@ -121,20 +118,16 @@ public class ApprovalFormServiceImpl implements ApprovalFormService {
 
     @Override
     public List<ApprovalApproverOptionVO> listApproverOptions(Long currentUserId) {
-        LambdaQueryWrapper<UserDO> wrapper = new LambdaQueryWrapper<UserDO>()
-                .eq(UserDO::getStatus, 1)
-                .select(UserDO::getId, UserDO::getUsername, UserDO::getNickname)
-                .orderByAsc(UserDO::getUsername);
-        if (currentUserId != null && currentUserId > 0) {
-            wrapper.ne(UserDO::getId, currentUserId);
-        }
-        return userMapper.selectList(wrapper).stream().map(user -> {
-            ApprovalApproverOptionVO vo = new ApprovalApproverOptionVO();
-            vo.setId(user.getId());
-            vo.setUsername(user.getUsername());
-            vo.setNickname(user.getNickname());
-            return vo;
-        }).collect(Collectors.toList());
+        return userService.getEnabledUserList().stream()
+                .filter(user -> currentUserId == null || !Objects.equals(user.getId(), currentUserId))
+                .sorted(Comparator.comparing(UserDO::getUsername, Comparator.nullsLast(String::compareTo)))
+                .map(user -> {
+                    ApprovalApproverOptionVO vo = new ApprovalApproverOptionVO();
+                    vo.setId(user.getId());
+                    vo.setUsername(user.getUsername());
+                    vo.setNickname(user.getNickname());
+                    return vo;
+                }).collect(Collectors.toList());
     }
 
     @Override
@@ -343,20 +336,14 @@ public class ApprovalFormServiceImpl implements ApprovalFormService {
         notice.setBizType(bizType);
         notice.setBizId(bizId);
         notice.setReadStatus(0);
-        noticeMapper.insert(notice);
+        noticeService.sendNotice(notice);
     }
 
     private void deleteRelatedNotices(Long formId, boolean physical) {
         if (formId == null || formId <= 0) {
             return;
         }
-        if (physical) {
-            noticeMapper.deletePhysicalByBiz(NOTICE_BIZ_TYPE_APPROVAL, formId);
-            return;
-        }
-        noticeMapper.delete(new LambdaQueryWrapper<NoticeDO>()
-                .eq(NoticeDO::getBizType, NOTICE_BIZ_TYPE_APPROVAL)
-                .eq(NoticeDO::getBizId, formId));
+        noticeService.deleteNoticeByBiz(NOTICE_BIZ_TYPE_APPROVAL, formId, physical);
     }
 
     private void fillUserName(List<ApprovalFormDO> forms) {
@@ -367,9 +354,9 @@ public class ApprovalFormServiceImpl implements ApprovalFormService {
         if (userIds.isEmpty()) {
             return;
         }
-        List<UserDO> users = userMapper.selectByIds(userIds);
+        List<UserDO> users = userService.getUserList(userIds);
         Map<Long, String> userMap = (users != null ? users : Collections.<UserDO>emptyList()).stream()
-                .collect(Collectors.toMap(UserDO::getId, UserDisplayNames::of, (a, b) -> a));
+                .collect(Collectors.toMap(UserDO::getId, u -> UserDisplayNames.of(u.getNickname(), u.getUsername()), (a, b) -> a));
         forms.forEach(form -> {
             form.setApplicantName(resolveApplicantName(form, userMap));
             form.setApproverName(userMap.getOrDefault(form.getApproverUserId(), "-"));
@@ -421,9 +408,28 @@ public class ApprovalFormServiceImpl implements ApprovalFormService {
         if (userIds.isEmpty()) {
             return;
         }
-        List<UserDO> users = userMapper.selectByIds(userIds);
+        List<UserDO> users = userService.getUserList(userIds);
         Map<Long, String> userMap = (users != null ? users : Collections.<UserDO>emptyList()).stream()
-                .collect(Collectors.toMap(UserDO::getId, UserDisplayNames::of, (a, b) -> a));
+                .collect(Collectors.toMap(UserDO::getId, u -> UserDisplayNames.of(u.getNickname(), u.getUsername()), (a, b) -> a));
         records.forEach(record -> record.setOperatorName(userMap.getOrDefault(record.getOperatorUserId(), "-")));
+    }
+
+    @Override
+    public boolean exists(Long id) {
+        if (id == null || id <= 0) {
+            return false;
+        }
+        return approvalFormMapper.selectById(id) != null;
+    }
+
+    @Override
+    public long countPendingApproval(Long approverUserId) {
+        if (approverUserId == null || approverUserId <= 0) {
+            return 0L;
+        }
+        Long count = approvalFormMapper.selectCount(new LambdaQueryWrapper<ApprovalFormDO>()
+                .eq(ApprovalFormDO::getApproverUserId, approverUserId)
+                .eq(ApprovalFormDO::getStatus, "SUBMITTED"));
+        return count != null ? count : 0L;
     }
 }

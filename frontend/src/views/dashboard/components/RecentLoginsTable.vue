@@ -70,12 +70,13 @@ function formatLoginTime(t: string | undefined) {
 .section-icon {
   width: 32px;
   height: 32px;
-  background: linear-gradient(135deg, var(--theme-primary, #111827) 0%, var(--theme-primary-hover, #374151) 100%);
+  background: #eff6ff;
+  border: 1px solid #dbeafe;
   border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
+  color: #2563eb;
 }
 
 .section-title {

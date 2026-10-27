@@ -62,11 +62,11 @@
 
 <script setup lang="ts">
 import { onLoad } from '@dcloudio/uni-app'
-import ListLoading from '@/components/common/ListLoading/index.vue'
-import PageFooter from '@/components/common/PageFooter/index.vue'
-import IconFont from '@/components/common/IconFont/index.vue'
-import { useRoleMenuAssign } from '@/composables/useRoleMenuAssign'
-import { useUnsavedLeaveGuard } from '@/composables/useUnsavedLeaveGuard'
+import ListLoading from '@/components/base/ListLoading/index.vue'
+import PageFooter from '@/components/base/PageFooter/index.vue'
+import IconFont from '@/components/base/IconFont/index.vue'
+import { useRoleMenuAssign } from '@/composables/system/useRoleMenuAssign'
+import { useUnsavedLeaveGuard } from '@/composables/base/useUnsavedLeaveGuard'
 
 const {
   loading,

@@ -1,4 +1,4 @@
-import type { WsPushMessage } from '@/utils/webSocket'
+import type { WsPushMessage } from '@/core/ws'
 
 export interface ActiveChatTarget {
   type: 'user' | 'group'

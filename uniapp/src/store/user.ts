@@ -2,12 +2,12 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { login, getInfo, logout as logoutApi, sessionSignInit } from '@/api/system/auth'
 import type { LoginForm, MenuTreeNode, AuthInfo } from '@/types/api'
-import { getToken, setToken, removeToken } from '@/utils/auth'
+import { getToken, setToken, removeToken } from '@/core/auth'
 import { useMessageStore } from '@/store/message'
-import { logger } from '@/utils/logger'
-import { resetMonitorBackground } from '@/composables/useMonitorBackground'
-import { setSecurityConfig, getClientId, requestSessionSignKey, resetSecurityConfig } from '@/utils/security-config'
-import http from '@/utils/request'
+import { logger } from '@/core/logger'
+import { resetMonitorBackground } from '@/composables/monitor/useMonitorBackground'
+import { setSecurityConfig, getClientId, requestSessionSignKey, resetSecurityConfig } from '@/utils/security/security-config'
+import http from '@/core/http'
 
 export type UserInfo = Partial<
   Pick<AuthInfo, 'userId' | 'username' | 'nickname' | 'avatar' | 'roles' | 'permissions'>

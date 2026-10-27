@@ -146,18 +146,19 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
 import { onPullDownRefresh } from '@dcloudio/uni-app'
-import ModuleDarkHero from '@/components/common/ModuleDarkHero/index.vue'
-import ListFooter from '@/components/common/ListFooter/index.vue'
-import EmptyState from '@/components/common/EmptyState/index.vue'
-import ListCard from '@/components/common/ListCard/index.vue'
-import DictTag from '@/components/common/DictTag/index.vue'
-import FabButton from '@/components/common/FabButton/index.vue'
-import SegmentTabs from '@/components/common/SegmentTabs/index.vue'
-import AppDialogHost from '@/components/common/AppDialogHost/index.vue'
-import { useAppDialogBackPress } from '@/composables/useAppDialogBackPress'
-import { usePageList } from '@/composables/usePageList'
-import { useListPageShowRefresh } from '@/composables/useListPageShowRefresh'
-import { useModulePermission } from '@/composables/useModulePermission'
+import ModuleDarkHero from '@/components/layout/ModuleDarkHero/index.vue'
+import PermissionBlock from '@/components/base/PermissionBlock/index.vue'
+import ListFooter from '@/components/base/ListFooter/index.vue'
+import EmptyState from '@/components/base/EmptyState/index.vue'
+import ListCard from '@/components/base/ListCard/index.vue'
+import DictTag from '@/components/base/DictTag/index.vue'
+import FabButton from '@/components/base/FabButton/index.vue'
+import SegmentTabs from '@/components/base/SegmentTabs/index.vue'
+import AppDialogHost from '@/components/base/AppDialogHost/index.vue'
+import { useAppDialogBackPress } from '@/composables/base/useAppDialogBackPress'
+import { usePageList } from '@/composables/base/usePageList'
+import { useListPageShowRefresh } from '@/composables/base/useListPageShowRefresh'
+import { useModulePermission } from '@/composables/base/useModulePermission'
 import { showConfirm } from '@/utils/app-dialog'
 import { showSuccessToast } from '@/utils/app-toast'
 import {
@@ -169,8 +170,8 @@ import {
   runJob,
   cleanJobLogs,
 } from '@/api/monitor/job'
-import { formatDateTime } from '@/utils/format'
-import { formatJobDuration, jobLogStatusEffect, jobLogStatusLabel } from '@/utils/job-log'
+import { formatDateTime } from '@/utils/display/format'
+import { formatJobDuration, jobLogStatusEffect, jobLogStatusLabel } from '@/utils/display/job-log'
 import type { JobOverview, SysJob, SysJobLog } from '@/types/system'
 
 const overview = ref<JobOverview | null>(null)

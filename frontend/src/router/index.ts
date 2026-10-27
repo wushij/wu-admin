@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory, RouteRecordRaw } from 'vue-router'
 import { useUserStore } from '@/store/user'
 import { useSiteStore } from '@/store/site'
-import { hasMenuPermission } from '@/directives/permission'
+import { hasMenuPermission } from '@/utils/permission'
 
 const routes: RouteRecordRaw[] = [
   {

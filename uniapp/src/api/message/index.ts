@@ -1,4 +1,4 @@
-import { get, post, put, del } from '@/utils/request'
+import { get, post, put, del } from '@/core/http'
 import { uploadFile } from '@/utils/upload'
 import type { PageQuery, PageResult } from '@/types/api'
 import type { FileRecord } from '@/api/system/file/index'

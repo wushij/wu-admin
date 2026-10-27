@@ -1,7 +1,7 @@
-import { isApiSuccessCode } from '@/utils/api-response'
-import { getToken, removeToken } from '@/utils/auth'
+import { isApiSuccessCode } from '@/core/api-response'
+import { getToken, removeToken } from '@/core/auth'
 import type { ApiResult } from '@/types/api'
-import { resolveApiBaseUrl } from '@/utils/api-base'
+import { resolveApiBaseUrl } from '@/core/api-base'
 
 const BASE_URL = resolveApiBaseUrl()
 

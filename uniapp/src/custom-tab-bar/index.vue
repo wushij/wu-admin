@@ -28,7 +28,7 @@
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia'
-import IconFont from '@/components/common/IconFont/index.vue'
+import IconFont from '@/components/base/IconFont/index.vue'
 import { TAB_BAR_ITEMS } from '@/constants/tabBar'
 import { useTabBarStore } from '@/store/tabBar'
 import { useMessageStore } from '@/store/message'

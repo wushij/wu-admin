@@ -1,4 +1,4 @@
-import { get, put, post } from '@/utils/request'
+import { get, put, post } from '@/core/http'
 import { uploadFile } from '@/utils/upload'
 import type {
   UserProfile,

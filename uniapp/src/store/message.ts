@@ -7,7 +7,7 @@ import {
   ensureMessageWebSocketConnected,
   onMessageWebSocket,
   type WsPushMessage,
-} from '@/utils/webSocket'
+} from '@/core/ws'
 import {
   resolvePushTitle,
   shouldNotifyChat,
@@ -17,7 +17,7 @@ import {
 } from '@/utils/message-push'
 import type { ChatGroup } from '@/types/message'
 import { useUserStore } from '@/store/user'
-import { logger } from '@/utils/logger'
+import { logger } from '@/core/logger'
 
 export type { ActiveChatTarget } from '@/utils/message-push'
 

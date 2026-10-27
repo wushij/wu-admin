@@ -899,7 +899,9 @@ UPDATE `sys_menu` SET `icon` = 'Compass' WHERE `id` = 210 OR `path` = '/ai';    
 UPDATE `sys_menu` SET `icon` = 'AiModel' WHERE `id` = 200 OR `path` = '/ai/model';                     -- AI 模型配置 -> 现代AI智能星芒 AiModel
 UPDATE `sys_menu` SET `icon` = 'Reading' WHERE `id` = 220 OR `path` = '/ai/knowledge';                 -- AI 知识库 -> 专业图书阅读 Reading
 UPDATE `sys_menu` SET `icon` = 'Odometer' WHERE `id` = 187 OR `path` = '/monitor/server';              -- 服务监控 -> 实时负载仪表盘 Odometer
-UPDATE `sys_menu` SET `icon` = 'Lock' WHERE `id` IN (129, 230) OR `path` = '/system/security-log';    -- 安全风控 -> 经典安全锁 Lock
+DELETE FROM `sys_role_menu` WHERE `menu_id` = 129;
+DELETE FROM `sys_menu` WHERE `id` = 129;
+UPDATE `sys_menu` SET `icon` = 'Lock' WHERE `id` = 230 OR `path` = '/system/security-log';    -- 安全风控 -> 经典安全锁 Lock
 UPDATE `sys_menu` SET `icon` = 'Workflow' WHERE `id` = 8 OR `path` = '/workflow';                      -- 流程中心 -> 工作流分支流转 Workflow
 
 -- 5. 系统管理子菜单逻辑排序优化（重排为高频直观顺序：1用户->2角色->3菜单->4组织->5字典->6回收->7配置）

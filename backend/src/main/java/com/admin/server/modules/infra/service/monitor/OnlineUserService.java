@@ -1,11 +1,12 @@
 package com.admin.server.modules.infra.service.monitor;
 
+import com.admin.server.framework.web.core.OnlineUserTouchApi;
 import com.admin.server.modules.infra.api.monitor.vo.OnlineUserVO;
 
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
 
-public interface OnlineUserService {
+public interface OnlineUserService extends OnlineUserTouchApi {
 
     void recordLoginSession(Long userId, String username, String nickname, HttpServletRequest request);
 

@@ -2,8 +2,9 @@ package com.admin.server.modules.system.service.notice.impl;
 
 import com.admin.server.common.exception.BusinessException;
 import com.admin.server.modules.system.dal.dataobject.notice.NoticeDO;
-import com.admin.server.modules.ticket.dal.mysql.approval.ApprovalFormMapper;
 import com.admin.server.modules.system.dal.mysql.notice.NoticeMapper;
+import com.admin.server.modules.ticket.service.approval.ApprovalFormService;
+import com.admin.server.modules.ticket.service.ticket.TicketService;
 import com.admin.server.testsupport.MybatisLambdaTestBase;
 import com.admin.server.testsupport.MybatisMockMatchers;
 import org.junit.jupiter.api.DisplayName;
@@ -28,7 +29,9 @@ class NoticeServiceImplTest extends MybatisLambdaTestBase {
     @Mock
     private NoticeMapper noticeMapper;
     @Mock
-    private ApprovalFormMapper approvalFormMapper;
+    private ApprovalFormService approvalFormService;
+    @Mock
+    private TicketService ticketService;
 
     @InjectMocks
     private NoticeServiceImpl noticeService;
@@ -54,7 +57,7 @@ class NoticeServiceImplTest extends MybatisLambdaTestBase {
         orphan.setBizType("APPROVAL");
         orphan.setBizId(99L);
         when(noticeMapper.selectList(MybatisMockMatchers.anyLambdaQueryWrapper())).thenReturn(List.of(orphan));
-        when(approvalFormMapper.selectById(99L)).thenReturn(null);
+        when(approvalFormService.exists(99L)).thenReturn(false);
 
         assertEquals(0L, noticeService.unreadCount(USER_ID));
     }
@@ -84,7 +87,7 @@ class NoticeServiceImplTest extends MybatisLambdaTestBase {
         orphan.setBizType("APPROVAL");
         orphan.setBizId(99L);
         when(noticeMapper.selectList(MybatisMockMatchers.anyLambdaQueryWrapper())).thenReturn(List.of(orphan));
-        when(approvalFormMapper.selectById(99L)).thenReturn(null);
+        when(approvalFormService.exists(99L)).thenReturn(false);
 
         assertTrue(noticeService.myList(USER_ID).isEmpty());
     }

@@ -336,22 +336,34 @@ wu-admin/
 ├── .github/workflows/ci.yml       # GitHub Actions CI（mvn test + npm typecheck/test）
 ├── backend/                       # Spring Boot 后端
 │   ├── pom.xml
-│   ├── data/                      # 开发态上传目录（git 忽略）
+│   ├── data/                      # 本地开发态上传与数据目录（git 忽略）
 │   └── src/
 │       ├── main/java/com/admin/server/
-│       │   ├── RbacServerApplication.java
-│       │   ├── common/            # 通用层：CommonResult、BusinessException、工具类（含可信代理 IP 解析）
-│       │   ├── framework/         # 框架层：安全、存储、MyBatis、Redis、Filter、WebSocket
-│       │   │   ├── security/      # Sa-Token 鉴权、@RequirePermission AOP、SM2/SM4-GCM、反爬风控
-│       │   │   ├── storage/       # 多引擎文件存储（local / MinIO / COS / OSS）与统一流式访问
-│       │   │   └── web/           # 统一异常、Token 解析、安全响应头
-│       │   └── modules/           # 业务模块（系统、基础设施、支付、工单审批、即时通讯、AI 等）
-│       │       ├── system/        # 系统管理、核心认证、组织数据权限、安全风控
-│       │       ├── infra/         # 基础设施（文件、生成、任务监控、日志、回收站、导出）
-│       │       ├── trade/         # 支付、短信、邮件三方集成
-│       │       ├── ticket/        # 工单与审批流管理
-│       │       ├── message/       # 站内消息与即时聊天 IM
-│       │       └── ai/            # AI wu助手（流式对话、模型配置、知识库 RAG、对话日志）
+│       │   ├── WuAdminApplication.java  # Spring Boot 启动主入口
+│       │   ├── common/            # 通用层：通用结果、异常定义、通用工具（零业务依赖）
+│       │   │   ├── core/          # CommonResult、PageParam、PageResult
+│       │   │   ├── exception/     # BusinessException、ErrorCode、GlobalErrorCode
+│       │   │   ├── mybatis/       # 通用 MyBatis 拓展基类
+│       │   │   └── util/          # 可信代理 IP 解析、Bean 映射、加解密工具类等
+│       │   ├── framework/         # 技术基础设施层（技术组件封装，可抽独立 Starter）
+│       │   │   ├── config/        # 异步线程池、Sa-Token Cookie、跨域、密码等基础配置
+│       │   │   ├── export/        # EasyExcel / CSV 通用导出引擎
+│       │   │   ├── log/           # @Log 操作审计注解与 AOP 切面
+│       │   │   ├── mybatis/       # MyBatis-Plus 配置（分页插件、审计字段自动填充、BaseDO 基类）
+│       │   │   ├── openapi/       # Knife4j / Springdoc OpenAPI 配置与安全拦截
+│       │   │   ├── quartz/        # Quartz 定时任务调度框架
+│       │   │   ├── redis/         # RedisTemplate 序列化配置与缓存操作
+│       │   │   ├── security/      # Sa-Token 鉴权、国密 SM2/SM4-GCM、蜜罐路径防御、反爬风控
+│       │   │   ├── storage/       # 多引擎存储路由门面（local / MinIO / COS / OSS）与流式访问
+│       │   │   ├── web/           # 全局异常捕获、Token 提取解析、安全响应头等 Web 支撑
+│       │   │   └── websocket/     # WebSocket 连接鉴权与实时消息推送
+│       │   └── modules/           # 业务模块层（按高内聚业务领域垂直拆分，内聚四层架构）
+│       │       ├── system/        # 系统管理（用户/角色/菜单/组织/岗位/字典/配置/安全风控/审计日志等）
+│       │       ├── infra/         # 基础设施（文件管理/代码生成/任务调度/系统监控/回收站/通用导出等）
+│       │       ├── trade/         # 交易集成（微信 Native/支付宝支付、短信双通道、邮件 SMTP 发信）
+│       │       ├── ticket/        # 工单审批（工单全生命周期流转、通用审批流引擎、用户注册审批流）
+│       │       ├── message/       # 消息通讯（站内信公告、企业 IM 私聊/群聊、@提及、群公告）
+│       │       └── ai/            # AI 管理（SSE 流式对话、模型配置、知识库 RAG、对话日志审计）
 │       ├── main/resources/
 │       │   ├── application.yml / application-dev.yml / application-prod.yml
 │       │   ├── ip2region/         # IP 归属地 xdb 库（git 忽略）
@@ -364,76 +376,158 @@ wu-admin/
 │   ├── package.json / package-lock.json / tsconfig.json / tsconfig.node.json
 │   ├── vite.config.ts
 │   └── src/
-│       ├── api/                   # API 接口层（按模块分目录，含 ai/knowledge、security）
-│       ├── views/                 # 页面视图（login/dashboard/system/ai/monitor/tool/message）
-│       │   ├── ai/                # 模型配置、对话日志、知识库（knowledge 组件化拆分）
-│       │   ├── system/            # 用户/角色/菜单/组织/字典/配置/日志/安全风控/文件
-│       │   └── monitor/           # 服务/缓存/在线用户/API 访问/定时任务
-│       ├── components/            # 全局组件（DictSelect、SliderCaptcha、EmojiPicker、AiWu 悬浮球助手等）
-│       ├── composables/           # 组合式函数（useDict、useMonitorBackground、useStreamingMarkdown 等）
-│       ├── store/                 # Pinia（user/message/site/tagsView/aiWu）
-│       ├── router/                # 路由与守卫
-│       ├── utils/                 # request、crypto（SM2/SM4）、主题、菜单树、WebSocket 工具
-│       ├── directives/            # v-permission / v-role 指令
-│       ├── constants/             # 全局常量（权限码、字典 key 等）
-│       ├── styles/                # 全局样式与主题变量
-│       ├── types/                 # TypeScript 类型定义
-│       ├── App.vue / main.ts
-├── scripts/                       # 生产环境部署 Shell 脚本（deploy-backend.sh / deploy-frontend.sh）
-├── uniapp/                        # uni-app 移动端（H5 / 微信小程序）
+│       ├── core/                  # 前端核心基础设施层（全局唯一 Axios 封装、SM4 报文加密、防重放、Token 鉴权）
+│       │   └── http/              # request.ts（请求拦截器与实例封装）、api-response.ts
+│       ├── api/                   # API 接口定义层（按业务模块划分，只声明入参/出参与请求地址）
+│       ├── views/                 # 页面视图层（按业务路由编排，复杂大页面组件化与 composables 拆分）
+│       │   ├── ai/                # AI 模块（模型配置、对话日志、知识库管理）
+│       │   ├── system/            # 系统管理（用户/角色/菜单/组织/字典/配置/安全风控/回收站等）
+│       │   ├── monitor/           # 系统监控（服务/缓存/在线用户/API 访问/定时任务）
+│       │   ├── message/           # 消息中心（企业 IM、公告通知）
+│       │   ├── dashboard/         # 仪表盘工作台（统计卡片、趋势图表、快捷入口）
+│       │   └── tool/              # 工具中心（代码生成、接口文档）
+│       ├── components/            # 全局通用组件与领域组件（AiWu 悬浮助手、SliderCaptcha、DictSelect 等）
+│       ├── composables/           # 组合式函数（跨页面业务逻辑复用，如 useDict、useStreamingMarkdown）
+│       ├── router/                # 路由配置与动态权限守卫
+│       ├── store/                 # Pinia 全局状态管理（user / message / site / tagsView / aiWu）
+│       ├── utils/                 # 纯函数工具库（按领域严格聚拢，无 Vue 响应式依赖）
+│       │   ├── chat/              # IM 聊天渲染与消息时间格式化
+│       │   ├── security/          # 国密 SM2/SM4 密码与报文加解密、安全配置辅助
+│       │   ├── tree/              # 菜单树、部门树构建与平铺
+│       │   └── permission.ts      # 纯权限判定函数（彻底解耦 Router 路由与 Directives 指令）
+│       ├── directives/            # 自定义指令（v-permission / v-role 按钮级鉴权）
+│       ├── constants/             # 全局业务常量与字典枚举
+│       ├── styles/                # SCSS 全局样式系统、CSS 变量、主题与 Element Plus 覆盖
+│       └── types/                 # TypeScript 类型定义声明
+├── uniapp/                        # uni-app 移动端（Vue 3 + Pinia + TS，H5 / 微信小程序）
 │   ├── .env / .env.example / .env.production
 │   ├── index.html / package.json / package-lock.json / tsconfig.json / shims-uni.d.ts
 │   ├── vite.config.ts
 │   └── src/
 │       ├── manifest.json / pages.json / uni.scss / env.d.ts
-│       ├── api/                   # 移动端 API 接口层
-│       ├── pages/                 # 主包页面：首页、工作台、消息、我的
-│       ├── pages-sub/             # 子包：系统管理、监控、IM、AI 管理、个人中心
-│       ├── components/            # 通用与业务组件（含 SliderCaptcha 滑块、ChatComposer 等）
-│       ├── composables/           # useH5ListPageNav、useChatKeyboardInset 等
-│       ├── constants/             # 常量定义（TabBar 配置、图标映射等）
-│       ├── store/                 # Pinia stores
-│       ├── utils/                 # api-base、nav-history、webSocket、security-config、sm4/slider-captcha 等
-│       ├── config/                # 路由/请求等配置
-│       ├── plugins/               # uView/luch-request 等插件接入
-│       ├── custom-tab-bar/        # 自定义底部导航
+│       ├── api/                   # 接口定义层（按业务模块划分，只声明地址/入参/返回类型）
+│       ├── pages/                 # 主包页面（首页 / 工作台 / 消息 / 我的 + 登录 / 注册）
+│       ├── pages-sub/             # 分包页面（system / monitor / msg / ai / log / mine）
+│       ├── components/            # 移动端三层组件体系
+│       │   ├── base/              # 纯 UI 原子组件（FormCell、ListCard、EmptyState、IconFont、FabButton 等）
+│       │   ├── layout/            # 页面骨架与容器（ModuleHero、ModuleDarkHero、PageTabShell、MonitorPanel）
+│       │   └── business/          # 业务组件（按领域划分：ai/auth/chat/dashboard/earth/file/message/mine/monitor/system/work/shared）
+│       ├── composables/           # 组合式函数（按领域分组：base/auth/chat/dashboard/monitor/profile/system）
+│       ├── core/                  # 移动端基础设施层（唯一 HTTP 实例 http.ts、ws.ts、storage.ts、auth.ts、cache.ts、api-base.ts、logger.ts）
+│       ├── utils/                 # 纯工具库（分组收口：nav / tree / display / security 及无领域依赖工具）
+│       ├── constants/             # 全局常量（TabBar 配置、图标映射等）
+│       ├── store/                 # Pinia 状态管理
+│       ├── config/                # 基础运行配置
+│       ├── plugins/               # 全局插件（全局错误捕获、页面守卫、Pinia 挂载）
+│       ├── custom-tab-bar/        # 自定义底部导航栏
 │       ├── styles/                # 全局样式
-│       ├── types/                 # TypeScript 类型定义
-│       ├── static/                # 静态资源（图片、图标、滑块背景图等）
-│       ├── App.vue / main.ts
-├── docs/                          # Nginx 主配置/站点模板、渗透测试报告
+│       ├── types/                 # TypeScript 类型声明
+│       └── static/                # 静态资源（图片、图标、滑块背景图等）
+├── scripts/                       # 生产环境自动化部署脚本（deploy-backend.sh / deploy-frontend.sh）
+├── docs/                          # Nginx 生产配置模板、渗透测试报告等
 ├── sql/                           # 数据库全量脚本（admin_platform_dev.sql / admin_platform_prod.sql）
-└── data/                          # 本地上传目录（git 忽略）
+└── data/                          # 本地开发态上传与数据目录（git 忽略）
 ```
 
-### 后端包分层约定
+### 后端包分层与四层架构约定
+
+后端采用 **「全局单向分层 + 业务模块四层内聚」** 的架构组织规范。
+
+#### 1. 全局分层依赖规则
+- **依赖方向**：`modules/*` → `framework` → `common`，严格单向依赖。
+- **解耦约束**：
+  - `framework` 严禁反向依赖 `modules`（保证通用基础设施可独立抽取为公共 Starter）；
+  - `common` 保持 0 业务依赖，仅提供基础通用规范与纯工具类；
+  - 业务模块之间禁止双向或循环依赖，模块间业务协作通过各自暴露的 Service 接口解耦。
+
+#### 2. 业务模块内部标准四层结构（modules/<module>/）
+每个业务模块内部遵循标准的领域四层架构，职责边界高度清晰：
 
 ```
-com.admin.server/
-├── common/           # 通用层（0 业务依赖）
-│   ├── core/         # CommonResult、PageParam、PageResult
-│   ├── exception/    # BusinessException、ErrorCode
-│   └── util/         # ClientIpUtils、IpLocationUtils、UserAgentUtils、BeanMappingUtils 等
-├── framework/        # 技术基础设施（可抽公共 starter）
-│   ├── security/     # Sa-Token 鉴权、@RequirePermission AOP、SM2/SM4-GCM、SecurityPathRules、反爬风控
-│   ├── web/          # GlobalExceptionHandler（17 类异常）、AuthorizationQueryFilter、安全响应头
-│   ├── config/       # AsyncConfig、SaTokenCookieConfig（httpOnly）、CorsConfig、PasswordConfig
-│   ├── storage/      # 多引擎存储门面、对象键生成、统一流式访问（含路径穿越校验）
-│   ├── quartz/       # Quartz 任务调度
-│   ├── mybatis/      # MybatisPlusConfig（分页）、MyMetaObjectHandler、BaseDO 实体基类
-│   ├── redis/        # RedisTemplate 序列化配置
-│   ├── websocket/    # WebSocket 消息推送
-│   ├── log/          # @Log 操作日志注解
-│   ├── openapi/      # Knife4j/Springdoc OpenAPI 配置
-│   └── export/       # Excel/CSV 导出工具
-└── modules/          # 业务模块（高内聚低耦合拆分）
-    ├── system/       # 用户、角色、菜单、部门、岗位、组织数据权限、字典、系统配置、通知、权限、日志、仪表盘、安全风控
-    ├── infra/        # 文件存储、代码生成、定时任务、监控运维、操作日志、回收站、通用导出
-    ├── trade/        # 微信/支付宝支付接入、短信平台通道、发信通道、三方渠道对接
-    ├── ticket/       # 工单与审批流（工单管理、流程审批表单、用户注册审核流）
-    ├── message/      # 消息触达（站内公告推送、IM 聊天、消息撤回、@提及提醒、群聊管理）
-    └── ai/           # AI wu助手（SSE 流式对话、模型配置、知识库 RAG、对话日志审计、SM4-GCM 密钥加密）
+modules/<module_name>/
+├── api/             # ① 表现层（Controller / Web API）
+│   ├── <domain>/    # 接收 HTTP 请求，进行参数校验，调用 Service 业务，组装统一响应体 CommonResult
+│   └── vo/          # 视图传输对象（ReqVO 入参、RespVO 出参、PageReqVO 分页入参）
+├── service/         # ② 业务逻辑层（Service）
+│   ├── <domain>/    # 业务接口定义（单一职责，清晰表达业务行为）
+│   └── <domain>/impl/ # 业务实现类（编排业务逻辑、事务控制 @Transactional、多源数据装配、外部调用）
+├── dal/             # ③ 数据访问层（DAL: Data Access Layer）
+│   ├── dataobject/  # DO 实体类（对应数据库表，继承 BaseDO，承载持久化状态）
+│   ├── mysql/       # MyBatis-Plus Mapper 接口及 XML（按领域分包，纯 SQL 与条件构造）
+│   └── redis/       # 模块专属的 Redis 缓存操作 / DAO（如适用）
+├── convert/         # ④ 实体转换层（Convert）
+│   └── <domain>/    # DO 与 VO/DTO 之间的属性互转映射（MapStruct / BeanMappingUtils）
+└── framework/       # 模块专属扩展（模块级特定配置、适配器，如 Security 蜜罐、配置中心 Provider 等）
 ```
+
+- **调用流转红线**：调用链路严格按 `api` → `service` → `dal` 单向流转；严禁 Controller 绕过 Service 直接注入 Mapper 进行数据读写；严禁 `dal` 反向引用 `service`。
+- **实体收拢规范**：数据库实体必须放置在各模块的 `dal/dataobject/` 目录下，Mapper 接口与 XML 统一置于 `dal/mysql/`，保持各模块目录骨架一致。
+
+### PC 前端目录分层约定
+
+PC 前端（Vue 3 + TypeScript）采用 **「核心基础设施下沉 + 纯工具领域聚拢 + 页面组件化编排」** 的架构组织规范：
+
+```
+frontend/src/
+├── core/                  # 基础设施层：全局唯一 HTTP 客户端，报文加解密、防重放与拦截器收口
+│   └── http/              # request.ts（Axios 实例与拦截器）、api-response.ts
+├── api/                   # 接口定义层：按业务模块组织，纯函数声明（URL、Method、入参与出参类型），不写 UI 逻辑
+├── views/                 # 页面视图层：按路由编排，复杂大页面（>500 行）必须抽离私有 components/ 与 composables/
+├── components/            # 全局通用组件：
+│   ├── AiWu/              # AI 助手悬浮球与对话面板
+│   ├── auth/              # 登录认证与滑块验证码
+│   ├── chat/              # 企业 IM 聊天公用组件
+│   ├── earth/             # 3D 监控地球（Three.js）
+│   └── ...                # DictSelect、DictTag、IconSelect 等通用原子组件
+├── composables/           # 组合式函数：跨页面状态与业务逻辑复用（useDict、useStreamingMarkdown 等）
+├── utils/                 # 领域纯工具库：无 Vue 响应式依赖的纯函数（禁止包含 ref/reactive）
+│   ├── chat/              # 聊天渲染、消息气泡时间格式化纯函数
+│   ├── security/          # 国密 SM2/SM4 密码与数据加解密、安全配置辅助
+│   ├── tree/              # 菜单树、组织树的递归构建与平铺
+│   └── permission.ts      # 纯权限判断工具（彻底解耦 Router 路由守卫与 Directives 自定义指令）
+├── directives/            # 自定义指令：v-permission / v-role（按钮级鉴权）
+├── router/                # 路由配置、静态路由与动态权限路由守卫
+├── store/                 # Pinia 全局状态管理
+├── constants/             # 全局常量、配置常量与枚举映射
+├── styles/                # SCSS 全局样式系统与主题变量
+└── types/                 # 全局 TypeScript 接口与类型定义
+```
+
+- **前端架构约束**：
+  1. `core/http/` 承载唯一 Axios 实例与安全加解密，禁止在页面或工具层重复创建请求客户端；
+  2. 页面之间禁止相对路径跨模块引用彼此内部私有组件，跨页面复用组件必须提升到 `components/`；
+  3. `utils/` 严格为无副作用纯函数，严禁引入 Vue 响应式 API（`ref` / `reactive` / `computed`）或 Pinia store；
+  4. 路由守卫鉴权必须依赖 `utils/permission.ts` 纯函数，彻底切断路由对指令层的反向依赖。
+
+### 移动端目录分层约定
+
+```
+uniapp/src/
+├── pages/ pages-sub/      # 路由级页面：只做布局编排与子组件引用，不堆业务细节
+├── components/
+│   ├── base/              # 纯 UI，无业务语义（FormCell、ListCard、EmptyState、IconFont、FabButton 等）
+│   ├── layout/            # 页面骨架与容器（ModuleHero、ModuleDarkHero、PageTabShell、MonitorPanel）
+│   └── business/
+│       ├── shared/        # 有业务语义、跨 ≥2 个领域复用（SliderCaptcha、UserAvatar）
+│       └── <domain>/      # 单领域业务组件（ai/auth/chat/dashboard/earth/file/message/mine/monitor/system/work）
+├── composables/           # 组合式函数，按领域分目录，base/ 放跨域复用逻辑
+├── core/                  # 唯一基础设施层：http.ts、ws.ts、storage.ts、auth.ts、cache.ts、api-base.ts、logger.ts
+├── utils/                 # 纯函数，按 nav / tree / display / security 分组收口
+├── api/                   # 只放接口定义（地址、方法、入参、返回类型）
+├── types/                 # 数据结构统一收口
+├── constants/             # 常量
+└── store/                 # Pinia 全局状态
+```
+
+- **移动端架构约束**：
+  1. 页面之间禁止互相 import 私有 UI；跨页面复用的 UI 必须下沉到 `components/`；
+  2. `core/http.ts` 是唯一 HTTP 实例，禁止在其他层重复创建请求实例；
+  3. `utils/` 只放无 Vue 响应式依赖的纯函数；带响应式或生命周期的一律放 `composables/`；
+  4. `api/` 不写业务编排、不操作页面状态、不引用组件；
+  5. 新增组件先判断归属：纯 UI → `base`；页面骨架 → `layout`；单领域 → `business/<domain>`；跨领域业务语义 → `business/shared`；
+  6. 同一目录出现第二个业务概念时必须下钻子目录，不允许平铺堆积；
+  7. 单个 `.vue` 超过 500 行应按业务块拆分子组件；目前 `pages-sub/system/config`、`security`、`file` 与 `pages-sub/monitor/api-access` 仍是待拆的超大页面；
+  8. 分包 `pages-sub/ai` 已完整集成模型配置（`model/`）、对话日志（`log/`）与知识库管理（`knowledge/`）。
 
 ---
 

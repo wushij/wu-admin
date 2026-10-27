@@ -6,17 +6,17 @@
 
 <script setup lang="ts">
 import { onLaunch, onShow, onHide } from '@dcloudio/uni-app'
-import MessageNotification from '@/components/business/MessageNotification/index.vue'
-import H5BackButton from '@/components/common/H5BackButton/index.vue'
-import AiWuAssistant from '@/components/business/AiWuAssistant/index.vue'
+import MessageNotification from '@/components/business/message/MessageNotification/index.vue'
+import H5BackButton from '@/components/base/H5BackButton/index.vue'
+import AiWuAssistant from '@/components/business/ai/AiWuAssistant/index.vue'
 import { useUserStore } from '@/store/user'
 import { useAppStore } from '@/store/app'
-import { setupRouteGuard, bootstrapSession } from '@/utils/route-guard'
+import { setupRouteGuard, bootstrapSession } from '@/utils/nav/route-guard'
 import { ensureH5Favicon } from '@/utils/h5-document-head'
-import { hasToken } from '@/utils/auth'
-import { shouldRedirectAuthedUserToHome } from '@/utils/launch-route'
-import { startSessionServices } from '@/composables/useSessionServices'
-import { onMonitorAppHide, onMonitorAppShow } from '@/composables/useMonitorBackground'
+import { hasToken } from '@/core/auth'
+import { shouldRedirectAuthedUserToHome } from '@/utils/nav/launch-route'
+import { startSessionServices } from '@/composables/base/useSessionServices'
+import { onMonitorAppHide, onMonitorAppShow } from '@/composables/monitor/useMonitorBackground'
 import { useMessageStore } from '@/store/message'
 
 onLaunch(async () => {

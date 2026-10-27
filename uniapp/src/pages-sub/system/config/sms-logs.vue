@@ -29,13 +29,13 @@
 <script setup lang="ts">
 import { ref, watch, onMounted } from 'vue'
 import { onPullDownRefresh } from '@dcloudio/uni-app'
-import SearchBar from '@/components/common/SearchBar/index.vue'
-import SegmentTabs from '@/components/common/SegmentTabs/index.vue'
-import ListCard from '@/components/common/ListCard/index.vue'
-import DictTag from '@/components/common/DictTag/index.vue'
-import EmptyState from '@/components/common/EmptyState/index.vue'
-import ListFooter from '@/components/common/ListFooter/index.vue'
-import { useSmsLogs } from '@/composables/useSmsLogs'
+import SearchBar from '@/components/base/SearchBar/index.vue'
+import SegmentTabs from '@/components/base/SegmentTabs/index.vue'
+import ListCard from '@/components/base/ListCard/index.vue'
+import DictTag from '@/components/base/DictTag/index.vue'
+import EmptyState from '@/components/base/EmptyState/index.vue'
+import ListFooter from '@/components/base/ListFooter/index.vue'
+import { useSmsLogs } from '@/composables/system/useSmsLogs'
 
 const statusFilter = ref('all')
 const statusTabs = [

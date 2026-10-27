@@ -127,19 +127,19 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue'
 import { onPullDownRefresh, onShow } from '@dcloudio/uni-app'
-import ModuleDarkHero from '@/components/common/ModuleDarkHero/index.vue'
-import SearchBar from '@/components/common/SearchBar/index.vue'
-import ListFooter from '@/components/common/ListFooter/index.vue'
-import ListLoading from '@/components/common/ListLoading/index.vue'
-import EmptyState from '@/components/common/EmptyState/index.vue'
-import DictTag from '@/components/common/DictTag/index.vue'
-import FabButton from '@/components/common/FabButton/index.vue'
-import StatGrid from '@/components/common/StatGrid/index.vue'
-import type { StatItem } from '@/components/common/StatGrid/index.vue'
-import PermissionBlock from '@/components/common/PermissionBlock/index.vue'
-import AppDialogHost from '@/components/common/AppDialogHost/index.vue'
-import { usePageList } from '@/composables/usePageList'
-import { useModulePermission } from '@/composables/useModulePermission'
+import ModuleDarkHero from '@/components/layout/ModuleDarkHero/index.vue'
+import SearchBar from '@/components/base/SearchBar/index.vue'
+import ListFooter from '@/components/base/ListFooter/index.vue'
+import ListLoading from '@/components/base/ListLoading/index.vue'
+import EmptyState from '@/components/base/EmptyState/index.vue'
+import DictTag from '@/components/base/DictTag/index.vue'
+import FabButton from '@/components/base/FabButton/index.vue'
+import StatGrid from '@/components/base/StatGrid/index.vue'
+import type { StatItem } from '@/components/base/StatGrid/index.vue'
+import PermissionBlock from '@/components/base/PermissionBlock/index.vue'
+import AppDialogHost from '@/components/base/AppDialogHost/index.vue'
+import { usePageList } from '@/composables/base/usePageList'
+import { useModulePermission } from '@/composables/base/useModulePermission'
 import {
   pageAiKnowledge,
   deleteAiKnowledge,
@@ -150,7 +150,7 @@ import {
   type AiKnowledgeTestRetrieveResult,
   type AiKnowledgeStats,
 } from '@/api/system/ai-knowledge'
-import { formatDateTime } from '@/utils/format'
+import { formatDateTime } from '@/utils/display/format'
 import { showConfirm, showActionSheet } from '@/utils/app-dialog'
 import { showSuccessToast } from '@/utils/app-toast'
 

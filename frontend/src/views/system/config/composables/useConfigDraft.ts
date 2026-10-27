@@ -1,6 +1,6 @@
 import { ref, reactive, computed, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import { getConfigGroup, updateConfigGroup } from '@/api/system/config'
+import { getConfigGroup, updateConfigGroup, getStorageConfig } from '@/api/system/config'
 import { getRoleList } from '@/api/system/role'
 import { getUserList } from '@/api/system/user'
 import { getErrorMessage } from '@/utils/axiosError'
@@ -89,8 +89,20 @@ const DEFAULTS = {
     sm3SignEnabled: true,
     timestampEnabled: true,
     nonceEnabled: true,
-    riskBlockScore: 80,
+    riskEnabled: true,
+    riskWindowMinutes: 60,
+    riskNoticeScore: 30,
+    riskWarnScore: 50,
+    riskChallengeScore: 70,
+    riskBlockScore: 90,
     riskBanScore: 120,
+    riskBlockSeconds: 3600,
+    riskBanSeconds: 86400,
+    riskChallengeEnabled: false,
+    riskBehaviorEnabled: true,
+    riskPageScanThreshold: 8,
+    riskExportThreshold: 5,
+    riskAlertWebhook: '',
   },
   sms: {
     enabled: false, provider: 'aliyunAuth',
@@ -250,9 +262,43 @@ export function useConfigDraft() {
       const res = await getConfigGroup(code, { silent403: true })
       const serverJson = res.data?.configValue ? parseJson(res.data.configValue) : {}
       applyGroupFromServer(savedSnapshot, draft, code, serverJson as Partial<ConfigGroupMap[typeof code]>)
+      if (code === 'file') {
+        try {
+          const storageRes = await getStorageConfig({ silent403: true })
+          if (storageRes?.data) {
+            const data = storageRes.data
+            const storageOverrides = {
+              type: data.type || data.activeType || 'local',
+              localPath: data.localPath,
+              localDomain: data.localDomain,
+              minioDomain: data.minioDomain,
+              minioEndpoint: data.minioEndpoint,
+              minioAccessKey: data.minioAccessKey,
+              minioBucket: data.minioBucket,
+              cosRegion: data.cosRegion,
+              cosBucket: data.cosBucket,
+              cosSecretId: data.cosSecretId,
+              cosDomain: data.cosDomain,
+              ossEndpoint: data.ossEndpoint,
+              ossBucket: data.ossBucket,
+              ossAccessKeyId: data.ossAccessKeyId,
+              ossDomain: data.ossDomain,
+            }
+            Object.assign(savedSnapshot.file, storageOverrides)
+            Object.assign(draft.file, storageOverrides)
+          }
+        } catch {
+          /* 忽略存储配置单项错误 */
+        }
+      }
     } catch {
       applyGroupFromServer(savedSnapshot, draft, code, {})
     }
+  }
+
+  const syncFileSnapshot = () => {
+    setConfigGroup(savedSnapshot, 'file', cloneConfig(draft.file))
+    checkDirty()
   }
 
   async function loadRoles() {
@@ -356,6 +402,6 @@ export function useConfigDraft() {
   return {
     canEdit, activeTab, loading, saving, roleOptions, userOptions, platformMaxFileMb,
     draft, savedSnapshot, isDirty, forbidConcurrentLogin,
-    checkDirty, loadAll, handleReset, handleSave,
+    checkDirty, syncFileSnapshot, loadAll, handleReset, handleSave,
   }
 }

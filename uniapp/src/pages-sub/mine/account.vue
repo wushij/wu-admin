@@ -84,12 +84,12 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import ModuleIcon from '@/components/common/ModuleIcon/index.vue'
-import UserAvatar from '@/components/business/UserAvatar/index.vue'
-import ListLoading from '@/components/common/ListLoading/index.vue'
-import EmptyState from '@/components/common/EmptyState/index.vue'
+import ModuleIcon from '@/components/base/ModuleIcon/index.vue'
+import UserAvatar from '@/components/business/shared/UserAvatar/index.vue'
+import ListLoading from '@/components/base/ListLoading/index.vue'
+import EmptyState from '@/components/base/EmptyState/index.vue'
 import { getProfile } from '@/api/system/profile'
-import { formatDateTime, formatUserStatus } from '@/utils/format'
+import { formatDateTime, formatUserStatus } from '@/utils/display/format'
 import type { UserProfile } from '@/types/profile'
 
 const loading = ref(true)

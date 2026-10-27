@@ -1,4 +1,4 @@
-import http, { get, post, put, del } from '@/utils/request'
+import http, { get, post, put, del } from '@/core/http'
 import type { ApiResult, PageResult } from '@/types/api'
 
 /** 供应商标识 */

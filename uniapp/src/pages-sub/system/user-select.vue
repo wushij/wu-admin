@@ -47,12 +47,12 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
-import SearchBar from '@/components/common/SearchBar/index.vue'
-import ListLoading from '@/components/common/ListLoading/index.vue'
-import EmptyState from '@/components/common/EmptyState/index.vue'
-import PageFooter from '@/components/common/PageFooter/index.vue'
-import { useUserSelectPage } from '@/composables/useUserSelectPage'
-import { setPagePickerResult } from '@/utils/page-picker-result'
+import SearchBar from '@/components/base/SearchBar/index.vue'
+import ListLoading from '@/components/base/ListLoading/index.vue'
+import EmptyState from '@/components/base/EmptyState/index.vue'
+import PageFooter from '@/components/base/PageFooter/index.vue'
+import { useUserSelectPage } from '@/composables/system/useUserSelectPage'
+import { setPagePickerResult } from '@/utils/nav/page-picker-result'
 import { commitLeaderPick } from '@/utils/leader-pick'
 
 type PageOpts = Record<string, string | undefined>

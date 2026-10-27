@@ -23,12 +23,12 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
-import MonitorPanel from '@/components/common/MonitorPanel/index.vue'
-import DetailRow from '@/components/common/DetailRow/index.vue'
-import ListLoading from '@/components/common/ListLoading/index.vue'
-import EmptyState from '@/components/common/EmptyState/index.vue'
-import { loginStatusLabel, readLoginLogDetail } from '@/composables/useLoginLog'
-import { formatDateTime } from '@/utils/format'
+import MonitorPanel from '@/components/layout/MonitorPanel/index.vue'
+import DetailRow from '@/components/base/DetailRow/index.vue'
+import ListLoading from '@/components/base/ListLoading/index.vue'
+import EmptyState from '@/components/base/EmptyState/index.vue'
+import { loginStatusLabel, readLoginLogDetail } from '@/composables/system/useLoginLog'
+import { formatDateTime } from '@/utils/display/format'
 import type { LoginLogVO } from '@/types/system'
 
 const loading = ref(true)

@@ -145,6 +145,6 @@ defineEmits<{
 }
 .type-pager {
   margin-top: 12px;
-  justify-content: center;
+  justify-content: flex-start;
 }
 </style>

@@ -164,23 +164,25 @@ function handleClick() {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
+  border: 1px solid transparent;
+  color: #475569;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.stat-icon-box.user { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
-.stat-icon-box.role { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
-.stat-icon-box.menu { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
-.stat-icon-box.dept { background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); }
-.stat-icon-box.pending-user { background: linear-gradient(135deg, #f59e0b 0%, #f97316 100%); }
-.stat-icon-box.login-success { background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); }
-.stat-icon-box.file-store { background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); }
-.stat-icon-box.post { background: linear-gradient(135deg, #0ea5e9 0%, #06b6d4 100%); }
-.stat-icon-box.online { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
-.stat-icon-box.visit { background: linear-gradient(135deg, #0ea5e9 0%, #38bdf8 100%); }
-.stat-icon-box.approval { background: linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%); }
-.stat-icon-box.ticket { background: linear-gradient(135deg, #f7971e 0%, #ffd200 100%); }
-.stat-icon-box.menu { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
-.stat-icon-box.job { background: linear-gradient(135deg, #14b8a6 0%, #2dd4bf 100%); }
+/* 浅色底 + 同色系图标，保持图标图形不变 */
+.stat-icon-box.user { background: #eef2ff; color: #4f46e5; border-color: #e0e7ff; }
+.stat-icon-box.role { background: #fff1f2; color: #e11d48; border-color: #ffe4e6; }
+.stat-icon-box.menu { background: #eff6ff; color: #2563eb; border-color: #dbeafe; }
+.stat-icon-box.dept { background: #ecfdf5; color: #059669; border-color: #d1fae5; }
+.stat-icon-box.pending-user { background: #fffbeb; color: #d97706; border-color: #fef3c7; }
+.stat-icon-box.login-success { background: #f0fdf4; color: #16a34a; border-color: #dcfce7; }
+.stat-icon-box.file-store { background: #f5f3ff; color: #7c3aed; border-color: #ede9fe; }
+.stat-icon-box.post { background: #ecfeff; color: #0891b2; border-color: #cffafe; }
+.stat-icon-box.online { background: #eef2ff; color: #6366f1; border-color: #e0e7ff; }
+.stat-icon-box.visit { background: #f0f9ff; color: #0284c7; border-color: #e0f2fe; }
+.stat-icon-box.approval { background: #faf5ff; color: #9333ea; border-color: #f3e8ff; }
+.stat-icon-box.ticket { background: #fff7ed; color: #ea580c; border-color: #ffedd5; }
+.stat-icon-box.job { background: #f0fdfa; color: #0d9488; border-color: #ccfbf1; }
 
 .stat-trend-badge {
   display: flex;
@@ -225,5 +227,9 @@ function handleClick() {
   transform: translateY(-4px);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
   border-color: var(--theme-primary, #111827);
+}
+
+.stat-card:hover .stat-icon-box {
+  transform: scale(1.06);
 }
 </style>

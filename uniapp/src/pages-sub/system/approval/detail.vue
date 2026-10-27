@@ -98,10 +98,10 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
-import { useAppDialogBackPress } from '@/composables/useAppDialogBackPress'
-import DictTag from '@/components/common/DictTag/index.vue'
-import PageFooter from '@/components/common/PageFooter/index.vue'
-import AppDialogHost from '@/components/common/AppDialogHost/index.vue'
+import { useAppDialogBackPress } from '@/composables/base/useAppDialogBackPress'
+import DictTag from '@/components/base/DictTag/index.vue'
+import PageFooter from '@/components/base/PageFooter/index.vue'
+import AppDialogHost from '@/components/base/AppDialogHost/index.vue'
 import {
   getApproval,
   getApprovalRecords,
@@ -109,21 +109,21 @@ import {
   archiveApproval,
   deleteApproval,
 } from '@/api/system/approval'
-import { usePermission } from '@/composables/usePermission'
+import { usePermission } from '@/composables/base/usePermission'
 import { useUserStore } from '@/store/user'
 import { useMessageStore } from '@/store/message'
-import { preloadDicts } from '@/composables/useDict'
+import { preloadDicts } from '@/composables/base/useDict'
 import { DICT_TYPE } from '@/constants/dict'
-import { formatDateTime } from '@/utils/format'
+import { formatDateTime } from '@/utils/display/format'
 import { showConfirm } from '@/utils/app-dialog'
-import { navigateToFallback } from '@/utils/navigate-back'
+import { navigateToFallback } from '@/utils/nav/navigate-back'
 import {
   approvalActionLabel,
   parseRegisterApprovalContent,
   resolveApplicantDisplayName,
   resolveOperatorDisplayName,
   timelineActionClass,
-} from '@/utils/approval-display'
+} from '@/utils/display/approval-display'
 import type { ApprovalRecordVO, ApprovalVO } from '@/types/system'
 
 const approval = ref<ApprovalVO | null>(null)

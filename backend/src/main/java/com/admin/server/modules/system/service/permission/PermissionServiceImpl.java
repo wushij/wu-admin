@@ -8,6 +8,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import jakarta.annotation.Resource;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -260,5 +261,22 @@ public class PermissionServiceImpl implements PermissionService {
             }
         }
         return result;
+    }
+
+    @Override
+    public List<Long> getUserIdsByRoleCode(String roleCode) {
+        if (!StringUtils.hasText(roleCode)) {
+            return Collections.emptyList();
+        }
+        RoleDO role = roleMapper.selectOne(new LambdaQueryWrapper<RoleDO>()
+                .eq(RoleDO::getCode, roleCode)
+                .eq(RoleDO::getDeleted, 0)
+                .last("LIMIT 1"));
+        if (role == null) {
+            return Collections.emptyList();
+        }
+        List<UserRoleDO> links = userRoleMapper.selectList(new LambdaQueryWrapper<UserRoleDO>()
+                .eq(UserRoleDO::getRoleId, role.getId()));
+        return links.stream().map(UserRoleDO::getUserId).distinct().collect(Collectors.toList());
     }
 }

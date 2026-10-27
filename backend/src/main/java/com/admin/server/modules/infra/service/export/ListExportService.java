@@ -230,7 +230,7 @@ public class ListExportService {
         Map<Long, String> userMap = new HashMap<>();
         for (UserDO user : userMapper.selectByIds(userIds)) {
             if (user != null) {
-                userMap.put(user.getId(), UserDisplayNames.of(user));
+                userMap.put(user.getId(), UserDisplayNames.of(user.getNickname(), user.getUsername()));
             }
         }
         forms.forEach(form -> {

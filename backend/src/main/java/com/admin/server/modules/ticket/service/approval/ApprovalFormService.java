@@ -34,4 +34,10 @@ public interface ApprovalFormService {
     void restore(Long id);
 
     void deletePermanent(Long id);
+
+    /** 判断审批单是否存在（未删除） */
+    boolean exists(Long id);
+
+    /** 统计指定审核人的待审批单数量（状态为 SUBMITTED） */
+    long countPendingApproval(Long approverUserId);
 }

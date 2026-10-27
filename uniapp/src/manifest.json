@@ -2,8 +2,8 @@
     "name" : "Admin Platform",
     "appid" : "",
     "description" : "",
-    "versionName" : "1.1",
-    "versionCode" : "110",
+    "versionName" : "1.2",
+    "versionCode" : "120",
     "transformPx" : false,
     /* 5+App特有相关 */
     "app-plus" : {

@@ -91,13 +91,13 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
-import ModuleDarkHero from '@/components/common/ModuleDarkHero/index.vue'
-import ModuleIcon from '@/components/common/ModuleIcon/index.vue'
-import ListLoading from '@/components/common/ListLoading/index.vue'
-import FormCell from '@/components/common/FormCell/index.vue'
-import NumberStepper from '@/components/common/NumberStepper/index.vue'
-import PageFooter from '@/components/common/PageFooter/index.vue'
-import AppDialogHost from '@/components/common/AppDialogHost/index.vue'
+import ModuleDarkHero from '@/components/layout/ModuleDarkHero/index.vue'
+import ModuleIcon from '@/components/base/ModuleIcon/index.vue'
+import ListLoading from '@/components/base/ListLoading/index.vue'
+import FormCell from '@/components/base/FormCell/index.vue'
+import NumberStepper from '@/components/base/NumberStepper/index.vue'
+import PageFooter from '@/components/base/PageFooter/index.vue'
+import AppDialogHost from '@/components/base/AppDialogHost/index.vue'
 import {
   getAiKnowledge,
   createAiKnowledge,

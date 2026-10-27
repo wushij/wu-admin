@@ -1,0 +1,254 @@
+{
+  "src/api/ai/index.ts": {
+    "no-useless-assignment": {
+      "count": 1
+    },
+    "prefer-const": {
+      "count": 2
+    }
+  },
+  "src/components/AiWu/AiCompassIcon.vue": {
+    "no-useless-assignment": {
+      "count": 1
+    }
+  },
+  "src/store/user.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "src/types/profile.ts": {
+    "@typescript-eslint/no-empty-object-type": {
+      "count": 1
+    }
+  },
+  "src/utils/request.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 3
+    }
+  },
+  "src/utils/security-config.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 4
+    }
+  },
+  "src/views/ai/knowledge/components/KnowledgeDocTable.vue": {
+    "no-useless-escape": {
+      "count": 3
+    },
+    "vue/no-mutating-props": {
+      "count": 2
+    }
+  },
+  "src/views/ai/knowledge/components/KnowledgeEditDrawer.vue": {
+    "vue/no-mutating-props": {
+      "count": 6
+    }
+  },
+  "src/views/ai/knowledge/components/KnowledgeFilterBar.vue": {
+    "vue/no-mutating-props": {
+      "count": 3
+    }
+  },
+  "src/views/ai/knowledge/components/KnowledgeMdUploadDialog.vue": {
+    "no-useless-escape": {
+      "count": 3
+    }
+  },
+  "src/views/ai/knowledge/composables/useKnowledgeEdit.ts": {
+    "no-useless-assignment": {
+      "count": 1
+    }
+  },
+  "src/views/ai/knowledge/index.vue": {
+    "no-useless-escape": {
+      "count": 3
+    }
+  },
+  "src/views/monitor/job/components/JobFormDialog.vue": {
+    "vue/no-mutating-props": {
+      "count": 8
+    }
+  },
+  "src/views/monitor/job/components/JobLogDrawer.vue": {
+    "vue/no-mutating-props": {
+      "count": 2
+    }
+  },
+  "src/views/monitor/job/components/JobTableSection.vue": {
+    "vue/no-mutating-props": {
+      "count": 5
+    }
+  },
+  "src/views/profile/components/BasicInfoForm.vue": {
+    "vue/no-mutating-props": {
+      "count": 5
+    }
+  },
+  "src/views/profile/components/LoginLogsTab.vue": {
+    "vue/no-mutating-props": {
+      "count": 2
+    }
+  },
+  "src/views/profile/components/SecuritySettings.vue": {
+    "vue/no-mutating-props": {
+      "count": 9
+    }
+  },
+  "src/views/profile/composables/useProfileSecurity.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 6
+    }
+  },
+  "src/views/system/config/components/AiConfigTab.vue": {
+    "vue/no-mutating-props": {
+      "count": 5
+    }
+  },
+  "src/views/system/config/components/EmailConfigTab.vue": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    },
+    "vue/no-mutating-props": {
+      "count": 34
+    }
+  },
+  "src/views/system/config/components/FileConfigTab.vue": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 3
+    },
+    "vue/no-mutating-props": {
+      "count": 20
+    }
+  },
+  "src/views/system/config/components/LoginConfigTab.vue": {
+    "vue/no-mutating-props": {
+      "count": 10
+    }
+  },
+  "src/views/system/config/components/PaymentConfigTab.vue": {
+    "vue/no-mutating-props": {
+      "count": 14
+    }
+  },
+  "src/views/system/config/components/RateLimitConfigTab.vue": {
+    "vue/no-mutating-props": {
+      "count": 11
+    }
+  },
+  "src/views/system/config/components/RegisterConfigTab.vue": {
+    "vue/no-mutating-props": {
+      "count": 7
+    }
+  },
+  "src/views/system/config/components/SecurityConfigTab.vue": {
+    "vue/no-mutating-props": {
+      "count": 24
+    }
+  },
+  "src/views/system/config/components/SessionConfigTab.vue": {
+    "vue/no-mutating-props": {
+      "count": 2
+    }
+  },
+  "src/views/system/config/components/SiteConfigTab.vue": {
+    "vue/no-mutating-props": {
+      "count": 8
+    }
+  },
+  "src/views/system/config/components/SmsConfigTab.vue": {
+    "vue/no-mutating-props": {
+      "count": 14
+    }
+  },
+  "src/views/system/config/components/ThirdPartyConfigTab.vue": {
+    "vue/no-mutating-props": {
+      "count": 14
+    }
+  },
+  "src/views/system/config/composables/useConfigDraft.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "src/views/system/dict/components/DictDataFormDialog.vue": {
+    "vue/no-mutating-props": {
+      "count": 7
+    }
+  },
+  "src/views/system/dict/components/DictPage.vue": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "src/views/system/dict/components/DictSearchCard.vue": {
+    "vue/no-mutating-props": {
+      "count": 3
+    }
+  },
+  "src/views/system/dict/components/DictTypeFormDialog.vue": {
+    "vue/no-mutating-props": {
+      "count": 4
+    }
+  },
+  "src/views/system/dict/components/DictTypePanel.vue": {
+    "vue/no-mutating-props": {
+      "count": 2
+    }
+  },
+  "src/views/system/menu/components/MenuFormDialog.vue": {
+    "vue/no-mutating-props": {
+      "count": 13
+    }
+  },
+  "src/views/system/menu/components/MenuSearchToolbar.vue": {
+    "vue/no-mutating-props": {
+      "count": 3
+    }
+  },
+  "src/views/system/org/components/DeptFormDialog.vue": {
+    "vue/no-mutating-props": {
+      "count": 7
+    }
+  },
+  "src/views/system/org/components/OrgMemberPanel.vue": {
+    "vue/no-mutating-props": {
+      "count": 2
+    }
+  },
+  "src/views/system/org/components/OrgPage.vue": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "src/views/system/org/components/PostFormDialog.vue": {
+    "vue/no-mutating-props": {
+      "count": 6
+    }
+  },
+  "src/views/system/security-log/index.vue": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "src/views/system/user/components/UserFormDialog.vue": {
+    "vue/no-mutating-props": {
+      "count": 10
+    }
+  },
+  "src/views/system/user/components/UserMainPanel.vue": {
+    "vue/no-mutating-props": {
+      "count": 4
+    }
+  },
+  "src/views/system/user/components/UserPage.vue": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "src/views/system/user/components/UserResetPwdDialog.vue": {
+    "vue/no-mutating-props": {
+      "count": 2
+    }
+  }
+}

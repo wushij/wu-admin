@@ -1,5 +1,5 @@
 import { reactive } from 'vue'
-import { getH5LaunchPath } from '@/utils/launch-route'
+import { getH5LaunchPath } from '@/utils/nav/launch-route'
 
 export const h5BackButtonState = reactive({
   visible: false,

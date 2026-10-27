@@ -2,7 +2,7 @@ package com.admin.server.framework.security.core.filter;
 
 import com.admin.server.common.util.ClientIpUtils;
 import com.admin.server.framework.web.core.ApiErrorResponseWriter;
-import com.admin.server.modules.system.service.config.SystemConfigHelper;
+import com.admin.server.framework.config.DynamicConfigProvider;
 import jakarta.annotation.Resource;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -82,7 +82,7 @@ public class RequestRateLimitFilter extends OncePerRequestFilter {
     private StringRedisTemplate stringRedisTemplate;
 
     @Resource
-    private SystemConfigHelper systemConfigHelper;
+    private DynamicConfigProvider dynamicConfigProvider;
 
     @Resource
     private ApiErrorResponseWriter errorResponseWriter;
@@ -144,9 +144,9 @@ public class RequestRateLimitFilter extends OncePerRequestFilter {
 
     private int resolveLimit(String group) {
         return switch (group) {
-            case "auth" -> systemConfigHelper.getAuthPerIpMinute();
-            case "files" -> systemConfigHelper.getFilesPerIpMinute();
-            default -> systemConfigHelper.getApiPerIpMinute();
+            case "auth" -> dynamicConfigProvider.getAuthPerIpMinute();
+            case "files" -> dynamicConfigProvider.getFilesPerIpMinute();
+            default -> dynamicConfigProvider.getApiPerIpMinute();
         };
     }
 

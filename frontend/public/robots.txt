@@ -1,0 +1,5 @@
+User-agent: *
+# 内部接口目录，常规抓取请忽略
+Disallow: /api/system/internal/
+
+Allow: /

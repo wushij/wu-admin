@@ -171,18 +171,18 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { onPullDownRefresh } from '@dcloudio/uni-app'
-import ModuleDarkHero from '@/components/common/ModuleDarkHero/index.vue'
-import SearchBar from '@/components/common/SearchBar/index.vue'
-import ListFooter from '@/components/common/ListFooter/index.vue'
-import ListLoading from '@/components/common/ListLoading/index.vue'
-import EmptyState from '@/components/common/EmptyState/index.vue'
-import FabButton from '@/components/common/FabButton/index.vue'
-import FileThumb from '@/components/business/FileThumb/index.vue'
-import FileActionSheet from '@/components/business/FileActionSheet/index.vue'
-import AppDialogHost from '@/components/common/AppDialogHost/index.vue'
-import PermissionBlock from '@/components/common/PermissionBlock/index.vue'
-import { usePageList } from '@/composables/usePageList'
-import { useModulePermission } from '@/composables/useModulePermission'
+import ModuleDarkHero from '@/components/layout/ModuleDarkHero/index.vue'
+import SearchBar from '@/components/base/SearchBar/index.vue'
+import ListFooter from '@/components/base/ListFooter/index.vue'
+import ListLoading from '@/components/base/ListLoading/index.vue'
+import EmptyState from '@/components/base/EmptyState/index.vue'
+import FabButton from '@/components/base/FabButton/index.vue'
+import FileThumb from '@/components/business/file/FileThumb/index.vue'
+import FileActionSheet from '@/components/business/file/FileActionSheet/index.vue'
+import AppDialogHost from '@/components/base/AppDialogHost/index.vue'
+import PermissionBlock from '@/components/base/PermissionBlock/index.vue'
+import { usePageList } from '@/composables/base/usePageList'
+import { useModulePermission } from '@/composables/base/useModulePermission'
 import {
   pageFileByGroup,
   uploadSysFile,
@@ -198,8 +198,8 @@ import {
   type FileGroupVO,
 } from '@/api/system/file'
 import type { FilePageQuery } from '@/types/system'
-import { formatBytes, formatListTime } from '@/utils/format'
-import { previewFile, downloadFile, isUserCancelError } from '@/utils/file-preview'
+import { formatBytes, formatListTime } from '@/utils/display/format'
+import { previewFile, downloadFile, isUserCancelError } from '@/utils/display/file-preview'
 import {
   showConfirm,
   showActionSheet,

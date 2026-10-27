@@ -88,12 +88,12 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
-import ModuleDarkHero from '@/components/common/ModuleDarkHero/index.vue'
-import ModuleIcon from '@/components/common/ModuleIcon/index.vue'
-import FormCell from '@/components/common/FormCell/index.vue'
-import PageFooter from '@/components/common/PageFooter/index.vue'
-import { useJobForm } from '@/composables/useJobForm'
-import { useEditPageGuard } from '@/composables/useEditPageGuard'
+import ModuleDarkHero from '@/components/layout/ModuleDarkHero/index.vue'
+import ModuleIcon from '@/components/base/ModuleIcon/index.vue'
+import FormCell from '@/components/base/FormCell/index.vue'
+import PageFooter from '@/components/base/PageFooter/index.vue'
+import { useJobForm } from '@/composables/monitor/useJobForm'
+import { useEditPageGuard } from '@/composables/base/useEditPageGuard'
 
 const jobId = ref<number | undefined>()
 const {

@@ -1,11 +1,11 @@
 package com.admin.server.modules.infra.dal.mysql.monitor;
 
+import com.admin.server.modules.infra.dal.dataobject.monitor.ApiAccessDailyStatDO;
 import com.admin.server.modules.infra.dal.dataobject.monitor.ApiAccessLogDO;
-import com.admin.server.modules.infra.service.monitor.vo.ApiAccessDailyStatVO;
-import com.admin.server.modules.infra.service.monitor.vo.ApiAccessMethodStatVO;
-import com.admin.server.modules.infra.service.monitor.vo.ApiAccessPathStatVO;
-import com.admin.server.modules.infra.service.monitor.vo.ApiAccessSummaryVO;
-import com.admin.server.modules.infra.service.monitor.vo.ApiAccessUserStatVO;
+import com.admin.server.modules.infra.dal.dataobject.monitor.ApiAccessMethodStatDO;
+import com.admin.server.modules.infra.dal.dataobject.monitor.ApiAccessPathStatDO;
+import com.admin.server.modules.infra.dal.dataobject.monitor.ApiAccessSummaryDO;
+import com.admin.server.modules.infra.dal.dataobject.monitor.ApiAccessUserStatDO;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
@@ -23,7 +23,7 @@ public interface ApiAccessLogMapper extends BaseMapper<ApiAccessLogDO> {
             FROM sys_api_access_log
             WHERE start_time >= #{start} AND start_time < #{end}
             """)
-    ApiAccessSummaryVO selectSummary(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
+    ApiAccessSummaryDO selectSummary(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
 
     @Select("""
             SELECT DATE_FORMAT(start_time, '%Y-%m-%d') AS statDate,
@@ -34,7 +34,7 @@ public interface ApiAccessLogMapper extends BaseMapper<ApiAccessLogDO> {
             GROUP BY DATE_FORMAT(start_time, '%Y-%m-%d')
             ORDER BY statDate
             """)
-    List<ApiAccessDailyStatVO> selectDailyStats(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
+    List<ApiAccessDailyStatDO> selectDailyStats(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
 
     @Select("""
             SELECT IFNULL(api_path, 'unknown') AS apiPath, COUNT(*) AS count
@@ -44,7 +44,7 @@ public interface ApiAccessLogMapper extends BaseMapper<ApiAccessLogDO> {
             ORDER BY count DESC
             LIMIT #{limit}
             """)
-    List<ApiAccessPathStatVO> selectTopPaths(@Param("start") LocalDateTime start,
+    List<ApiAccessPathStatDO> selectTopPaths(@Param("start") LocalDateTime start,
                                              @Param("end") LocalDateTime end,
                                              @Param("limit") int limit);
 
@@ -54,7 +54,7 @@ public interface ApiAccessLogMapper extends BaseMapper<ApiAccessLogDO> {
             WHERE start_time >= #{start} AND start_time < #{end}
             GROUP BY method
             """)
-    List<ApiAccessMethodStatVO> selectMethodCounts(@Param("start") LocalDateTime start,
+    List<ApiAccessMethodStatDO> selectMethodCounts(@Param("start") LocalDateTime start,
                                                    @Param("end") LocalDateTime end);
 
     @Select("""
@@ -65,7 +65,7 @@ public interface ApiAccessLogMapper extends BaseMapper<ApiAccessLogDO> {
             ORDER BY count DESC
             LIMIT #{limit}
             """)
-    List<ApiAccessUserStatVO> selectTopUsers(@Param("start") LocalDateTime start,
-                                             @Param("end") LocalDateTime end,
-                                             @Param("limit") int limit);
+    List<ApiAccessUserStatDO> selectTopUsers(@Param("start") LocalDateTime start,
+                                            @Param("end") LocalDateTime end,
+                                            @Param("limit") int limit);
 }

@@ -1,4 +1,4 @@
-import { get, post, put, del } from '@/utils/request'
+import { get, post, put, del } from '@/core/http'
 
 import type { DictDataItem, PageResult } from '@/types/api'
 

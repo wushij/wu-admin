@@ -98,16 +98,16 @@
 
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
-import SliderCaptcha from '@/components/business/SliderCaptcha/index.vue'
-import AuthParticleBackground from '@/components/business/AuthParticleBackground/index.vue'
-import AuthGlassForm from '@/components/business/AuthGlassForm/index.vue'
-import AuthInput from '@/components/business/AuthInput/index.vue'
-import AuthPasswordInput from '@/components/business/AuthPasswordInput/index.vue'
-import AuthFooterLink from '@/components/business/AuthFooterLink/index.vue'
-import AuthBackNav from '@/components/business/AuthBackNav/index.vue'
-import { useForgotPasswordForm } from '@/composables/useForgotPasswordForm'
-import { useH5PageHead } from '@/composables/useH5PageHead'
-import { navigateToLogin } from '@/utils/auth-route'
+import SliderCaptcha from '@/components/business/shared/SliderCaptcha/index.vue'
+import AuthParticleBackground from '@/components/business/auth/AuthParticleBackground/index.vue'
+import AuthGlassForm from '@/components/business/auth/AuthGlassForm/index.vue'
+import AuthInput from '@/components/business/auth/AuthInput/index.vue'
+import AuthPasswordInput from '@/components/business/auth/AuthPasswordInput/index.vue'
+import AuthFooterLink from '@/components/business/auth/AuthFooterLink/index.vue'
+import AuthBackNav from '@/components/business/auth/AuthBackNav/index.vue'
+import { useForgotPasswordForm } from '@/composables/auth/useForgotPasswordForm'
+import { useH5PageHead } from '@/composables/base/useH5PageHead'
+import { navigateToLogin } from '@/utils/nav/auth-route'
 
 useH5PageHead('忘记密码')
 

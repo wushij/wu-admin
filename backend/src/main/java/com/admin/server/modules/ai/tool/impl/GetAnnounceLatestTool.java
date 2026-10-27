@@ -7,8 +7,7 @@ import com.admin.server.modules.ai.tool.AiTool;
 import com.admin.server.modules.ai.tool.AiToolContext;
 import com.admin.server.modules.ai.tool.ToolAccessLevel;
 import com.admin.server.modules.message.dal.dataobject.AnnounceDO;
-import com.admin.server.modules.message.dal.mysql.AnnounceMapper;
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.admin.server.modules.message.service.AnnounceService;
 import org.springframework.stereotype.Component;
 
 import jakarta.annotation.Resource;
@@ -23,7 +22,7 @@ public class GetAnnounceLatestTool implements AiTool {
     private static final int MAX_LIMIT = 5;
 
     @Resource
-    private AnnounceMapper announceMapper;
+    private AnnounceService announceService;
 
     @Override
     public String name() {
@@ -53,10 +52,7 @@ public class GetAnnounceLatestTool implements AiTool {
     @Override
     public String execute(JSONObject args, AiToolContext ctx) {
         // status=1 表示已发布公告，仅取标题与时间，最多 5 条
-        List<AnnounceDO> list = announceMapper.selectList(new LambdaQueryWrapper<AnnounceDO>()
-                .eq(AnnounceDO::getStatus, 1)
-                .orderByDesc(AnnounceDO::getCreateTime)
-                .last("LIMIT " + MAX_LIMIT));
+        List<AnnounceDO> list = announceService.getLatestPublishedList(MAX_LIMIT);
         JSONArray arr = new JSONArray();
         for (AnnounceDO a : list) {
             arr.add(new JSONObject()

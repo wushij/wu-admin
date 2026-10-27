@@ -61,15 +61,15 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
 import { onPullDownRefresh } from '@dcloudio/uni-app'
-import ModuleIcon from '@/components/common/ModuleIcon/index.vue'
-import ListFooter from '@/components/common/ListFooter/index.vue'
-import ListLoading from '@/components/common/ListLoading/index.vue'
-import EmptyState from '@/components/common/EmptyState/index.vue'
-import { usePageList } from '@/composables/usePageList'
-import { useNoticeWs } from '@/composables/useNoticeWs'
+import ModuleIcon from '@/components/base/ModuleIcon/index.vue'
+import ListFooter from '@/components/base/ListFooter/index.vue'
+import ListLoading from '@/components/base/ListLoading/index.vue'
+import EmptyState from '@/components/base/EmptyState/index.vue'
+import { usePageList } from '@/composables/base/usePageList'
+import { useNoticeWs } from '@/composables/chat/useNoticeWs'
 import { getMyAnnounce, readAllAnnounce } from '@/api/message'
 import { useMessageStore } from '@/store/message'
-import { formatListTime, summarizeText } from '@/utils/format'
+import { formatListTime, summarizeText } from '@/utils/display/format'
 
 const { list, loading, finished, empty, total, refresh, loadMore } = usePageList(
   async (pageNo, pageSize) => {

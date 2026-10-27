@@ -18,4 +18,13 @@ public interface NoticeService {
 
     /** 将当前用户关联某业务的未读站内信标为已读 */
     void markReadByBiz(Long userId, String bizType, Long bizId);
+
+    /** 发送单条站内通知 */
+    void sendNotice(NoticeDO notice);
+
+    /** 批量发送站内通知 */
+    void sendNoticeBatch(List<NoticeDO> notices);
+
+    /** 按关联业务删除通知（支持逻辑/物理删除） */
+    void deleteNoticeByBiz(String bizType, Long bizId, boolean physical);
 }

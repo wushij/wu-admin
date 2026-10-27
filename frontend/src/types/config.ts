@@ -221,10 +221,42 @@ export interface SecurityConfig {
   timestampEnabled?: boolean
   /** 校验随机数，防止重放攻击 (Nonce) */
   nonceEnabled?: boolean
-  /** 风险分触发临时封禁（1 小时）的阈值 */
+  /** 风控总开关 */
+  riskEnabled?: boolean
+  /** 风险分滑动窗口（分钟），窗口外分值自动失效 */
+  riskWindowMinutes?: number
+  /** 关注阈值 */
+  riskNoticeScore?: number
+  /** 警告阈值 */
+  riskWarnScore?: number
+  /** 挑战阈值 */
+  riskChallengeScore?: number
+  /** 风险分触发临时封禁的阈值 */
   riskBlockScore?: number
-  /** 风险分触发 24 小时封禁的阈值 */
+  /** 风险分触发最高档封禁的阈值 */
   riskBanScore?: number
+  /** 临时封禁时长（秒） */
+  riskBlockSeconds?: number
+  /** 最高档封禁时长（秒） */
+  riskBanSeconds?: number
+  /** 是否启用风控挑战（高风险主体写操作需先完成安全验证） */
+  riskChallengeEnabled?: boolean
+  /** 风险告警 webhook 地址，为空表示不推送 */
+  riskAlertWebhook?: string
+  /** 是否启用行为识别（翻页遍历、批量导出、越权探测） */
+  riskBehaviorEnabled?: boolean
+  /** 翻页扫描阈值：窗口内不同页码数达到该值判定为遍历 */
+  riskPageScanThreshold?: number
+  /** 批量导出阈值：窗口内导出/下载次数达到该值判定为批量拉取 */
+  riskExportThreshold?: number
+  /** 是否启用蜜罐诱捕（默认关闭，开启前需确认蜜罐前缀下没有真实接口） */
+  honeypotEnabled?: boolean
+  /** 蜜罐命中时追加的风险分 */
+  honeypotRiskDelta?: number
+  /** 蜜罐命中后的封禁时长（秒） */
+  honeypotBlockSeconds?: number
+  /** 蜜罐响应随机延迟上限（毫秒） */
+  honeypotTarpitMs?: number
   /** SM4 秘钥 */
   sm4SecretKey?: string
 }

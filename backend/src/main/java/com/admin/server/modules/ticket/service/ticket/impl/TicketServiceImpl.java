@@ -10,11 +10,10 @@ import com.admin.server.modules.ticket.dal.dataobject.ticket.TicketCommentDO;
 import com.admin.server.modules.ticket.dal.dataobject.ticket.TicketDO;
 import com.admin.server.common.util.UserDisplayNames;
 import com.admin.server.modules.system.dal.dataobject.user.UserDO;
-import com.admin.server.modules.system.dal.mysql.notice.NoticeMapper;
 import com.admin.server.modules.ticket.dal.mysql.ticket.TicketAttachmentMapper;
 import com.admin.server.modules.ticket.dal.mysql.ticket.TicketCommentMapper;
 import com.admin.server.modules.ticket.dal.mysql.ticket.TicketMapper;
-import com.admin.server.modules.system.dal.mysql.user.UserMapper;
+import com.admin.server.modules.system.service.user.UserService;
 import com.admin.server.modules.system.service.notice.NoticeService;
 import com.admin.server.modules.system.service.permission.DataScopeService;
 import com.admin.server.modules.system.service.permission.PermissionService;
@@ -44,9 +43,7 @@ public class TicketServiceImpl implements TicketService {
     @Resource
     private TicketCommentMapper ticketCommentMapper;
     @Resource
-    private UserMapper userMapper;
-    @Resource
-    private NoticeMapper noticeMapper;
+    private UserService userService;
     @Resource
     private TicketAttachmentMapper ticketAttachmentMapper;
     @Resource
@@ -58,20 +55,16 @@ public class TicketServiceImpl implements TicketService {
 
     @Override
     public List<AssigneeOptionVO> getAssigneeOptions(Long currentUserId) {
-        LambdaQueryWrapper<UserDO> wrapper = new LambdaQueryWrapper<UserDO>()
-                .eq(UserDO::getStatus, 1)
-                .select(UserDO::getId, UserDO::getUsername, UserDO::getNickname)
-                .orderByAsc(UserDO::getUsername);
-        if (currentUserId != null && currentUserId > 0) {
-            wrapper.ne(UserDO::getId, currentUserId);
-        }
-        return userMapper.selectList(wrapper).stream().map(u -> {
-            AssigneeOptionVO vo = new AssigneeOptionVO();
-            vo.setId(u.getId());
-            vo.setUsername(u.getUsername());
-            vo.setNickname(u.getNickname());
-            return vo;
-        }).collect(Collectors.toList());
+        return userService.getEnabledUserList().stream()
+                .filter(u -> currentUserId == null || !Objects.equals(u.getId(), currentUserId))
+                .sorted(Comparator.comparing(UserDO::getUsername, Comparator.nullsLast(String::compareTo)))
+                .map(u -> {
+                    AssigneeOptionVO vo = new AssigneeOptionVO();
+                    vo.setId(u.getId());
+                    vo.setUsername(u.getUsername());
+                    vo.setNickname(u.getNickname());
+                    return vo;
+                }).collect(Collectors.toList());
     }
 
     @Override
@@ -345,9 +338,9 @@ public class TicketServiceImpl implements TicketService {
                 .filter(id -> id != null && id > 0)
                 .collect(Collectors.toSet());
         if (userIds.isEmpty()) return;
-        List<UserDO> userList = userMapper.selectByIds(userIds);
+        List<UserDO> userList = userService.getUserList(userIds);
         Map<Long, String> userMap = (userList != null ? userList : Collections.<UserDO>emptyList()).stream()
-                .collect(Collectors.toMap(UserDO::getId, UserDisplayNames::of, (a, b) -> a));
+                .collect(Collectors.toMap(UserDO::getId, u -> UserDisplayNames.of(u.getNickname(), u.getUsername()), (a, b) -> a));
         tickets.forEach(ticket -> {
             if (ticket.getCreatorUserId() != null) {
                 ticket.setCreatorName(userMap.getOrDefault(ticket.getCreatorUserId(), "-"));
@@ -365,18 +358,18 @@ public class TicketServiceImpl implements TicketService {
     private void fillCommentUsername(List<TicketCommentDO> comments) {
         Set<Long> userIds = comments.stream().map(TicketCommentDO::getUserId).collect(Collectors.toSet());
         if (userIds.isEmpty()) return;
-        List<UserDO> userList = userMapper.selectByIds(userIds);
+        List<UserDO> userList = userService.getUserList(userIds);
         Map<Long, String> userMap = (userList != null ? userList : Collections.<UserDO>emptyList()).stream()
-                .collect(Collectors.toMap(UserDO::getId, UserDisplayNames::of, (a, b) -> a));
+                .collect(Collectors.toMap(UserDO::getId, u -> UserDisplayNames.of(u.getNickname(), u.getUsername()), (a, b) -> a));
         comments.forEach(comment -> comment.setUsername(userMap.getOrDefault(comment.getUserId(), "-")));
     }
 
     private void fillAttachmentUploader(List<TicketAttachmentDO> attachments) {
         Set<Long> userIds = attachments.stream().map(TicketAttachmentDO::getUploaderUserId).collect(Collectors.toSet());
         if (userIds.isEmpty()) return;
-        List<UserDO> userList = userMapper.selectByIds(userIds);
+        List<UserDO> userList = userService.getUserList(userIds);
         Map<Long, String> userMap = (userList != null ? userList : Collections.<UserDO>emptyList()).stream()
-                .collect(Collectors.toMap(UserDO::getId, UserDisplayNames::of, (a, b) -> a));
+                .collect(Collectors.toMap(UserDO::getId, u -> UserDisplayNames.of(u.getNickname(), u.getUsername()), (a, b) -> a));
         attachments.forEach(a -> a.setUploaderName(userMap.getOrDefault(a.getUploaderUserId(), "-")));
     }
 
@@ -390,11 +383,11 @@ public class TicketServiceImpl implements TicketService {
         notice.setBizType("TICKET");
         notice.setBizId(ticket.getId());
         notice.setReadStatus(0);
-        noticeMapper.insert(notice);
+        noticeService.sendNotice(notice);
     }
 
     private void createBroadcastNotice(TicketDO ticket, String content) {
-        List<UserDO> users = userMapper.selectList(new LambdaQueryWrapper<UserDO>().eq(UserDO::getStatus, 1));
+        List<UserDO> users = userService.getEnabledUserList();
         if (users.isEmpty()) {
             return;
         }
@@ -417,7 +410,26 @@ public class TicketServiceImpl implements TicketService {
             notices.add(notice);
         }
         if (!notices.isEmpty()) {
-            noticeMapper.insertBatch(notices);
+            noticeService.sendNoticeBatch(notices);
         }
+    }
+
+    @Override
+    public boolean exists(Long id) {
+        if (id == null || id <= 0) {
+            return false;
+        }
+        return ticketMapper.selectById(id) != null;
+    }
+
+    @Override
+    public long countAssignedOpenTickets(Long assigneeUserId) {
+        if (assigneeUserId == null || assigneeUserId <= 0) {
+            return 0L;
+        }
+        Long count = ticketMapper.selectCount(new LambdaQueryWrapper<TicketDO>()
+                .eq(TicketDO::getAssigneeUserId, assigneeUserId)
+                .in(TicketDO::getStatus, List.of("OPEN", "IN_PROGRESS")));
+        return count != null ? count : 0L;
     }
 }

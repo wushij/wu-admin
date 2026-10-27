@@ -8,7 +8,6 @@ import com.admin.server.modules.system.dal.dataobject.notice.NoticeDO;
 import com.admin.server.modules.ticket.dal.dataobject.ticket.TicketAttachmentDO;
 import com.admin.server.modules.ticket.dal.dataobject.ticket.TicketCommentDO;
 import com.admin.server.modules.ticket.dal.dataobject.ticket.TicketDO;
-import com.admin.server.modules.system.dal.mysql.notice.NoticeMapper;
 import com.admin.server.modules.ticket.dal.mysql.ticket.TicketAttachmentMapper;
 import com.admin.server.modules.ticket.dal.mysql.ticket.TicketCommentMapper;
 import com.admin.server.modules.ticket.dal.mysql.ticket.TicketMapper;
@@ -38,8 +37,6 @@ class TicketServiceImplTest {
     private TicketCommentMapper ticketCommentMapper;
     @Mock
     private UserMapper userMapper;
-    @Mock
-    private NoticeMapper noticeMapper;
     @Mock
     private TicketAttachmentMapper ticketAttachmentMapper;
     @Mock
@@ -83,7 +80,7 @@ class TicketServiceImplTest {
         assertEquals(100L, id);
         verify(ticketMapper).insert(argThat((TicketDO t) ->
                 "OPEN".equals(t.getStatus()) && t.getCreatorUserId() == 10L && t.getAssigneeUserId() == 20L));
-        verify(noticeMapper).insert(any(NoticeDO.class));
+        verify(noticeService).sendNotice(any(NoticeDO.class));
     }
 
     @Test

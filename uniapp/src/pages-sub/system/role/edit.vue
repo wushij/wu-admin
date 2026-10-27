@@ -106,16 +106,16 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
-import ModuleDarkHero from '@/components/common/ModuleDarkHero/index.vue'
-import ModuleIcon from '@/components/common/ModuleIcon/index.vue'
-import ListLoading from '@/components/common/ListLoading/index.vue'
-import FormCell from '@/components/common/FormCell/index.vue'
-import PageFooter from '@/components/common/PageFooter/index.vue'
-import { useRoleForm } from '@/composables/useRoleForm'
-import { useEditPageGuard } from '@/composables/useEditPageGuard'
-import { setTreeSelectDeptIds } from '@/utils/tree-select-init'
-import { consumePagePickerResult } from '@/utils/page-picker-result'
-import { appendNavFromParam } from '@/utils/nav-from'
+import ModuleDarkHero from '@/components/layout/ModuleDarkHero/index.vue'
+import ModuleIcon from '@/components/base/ModuleIcon/index.vue'
+import ListLoading from '@/components/base/ListLoading/index.vue'
+import FormCell from '@/components/base/FormCell/index.vue'
+import PageFooter from '@/components/base/PageFooter/index.vue'
+import { useRoleForm } from '@/composables/system/useRoleForm'
+import { useEditPageGuard } from '@/composables/base/useEditPageGuard'
+import { setTreeSelectDeptIds } from '@/utils/tree/tree-select-init'
+import { consumePagePickerResult } from '@/utils/nav/page-picker-result'
+import { appendNavFromParam } from '@/utils/nav/nav-from'
 
 const roleId = ref(0)
 const {

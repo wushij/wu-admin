@@ -3,7 +3,9 @@ package com.admin.server.modules.system.service.auth.impl;
 import com.admin.server.modules.system.service.auth.LoginLockService;
 import com.admin.server.modules.system.service.auth.vo.LoginLockStatusVO;
 import com.admin.server.modules.system.service.config.SystemConfigHelper;
+import com.admin.server.modules.system.service.security.AntiBotRiskService;
 import jakarta.annotation.Resource;
+import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RBucket;
 import org.redisson.api.RKeys;
 import org.redisson.api.RedissonClient;
@@ -19,6 +21,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
+@Slf4j
 @Service
 public class LoginLockServiceImpl implements LoginLockService {
 
@@ -31,6 +34,8 @@ public class LoginLockServiceImpl implements LoginLockService {
     private RedissonClient redissonClient;
     @Resource
     private SystemConfigHelper systemConfigHelper;
+    @Resource
+    private AntiBotRiskService antiBotRiskService;
 
     @Override
     public String checkLoginLockMessage(String username, String ip) {
@@ -54,6 +59,23 @@ public class LoginLockServiceImpl implements LoginLockService {
                 LOGIN_LOCK_IP_KEY + ip,
                 systemConfigHelper.getMaxRetryCountIp(),
                 lockMinutes);
+        recordRisk(username, ip);
+    }
+
+    /**
+     * 登录失败计入行为风险分。
+     *
+     * <p>账号锁定仍然是第一道闸门（默认 5 次即锁），风险分是第二层：
+     * 攻击者换账号、换密码字典继续撞时，同一 IP 的分数会持续累积，
+     * 由风控统一封禁，而不是只锁某一个用户名。</p>
+     */
+    private void recordRisk(String username, String ip) {
+        try {
+            antiBotRiskService.addRisk(ip, ip, 10, "LOGIN_FAIL", "WARNING",
+                    "/auth/login", "POST", "", "登录失败: username=" + username);
+        } catch (Exception e) {
+            log.debug("登录失败风险分记录跳过: ip={}, error={}", ip, e.getMessage());
+        }
     }
 
     @Override

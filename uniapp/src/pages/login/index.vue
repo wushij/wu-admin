@@ -186,17 +186,17 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
-import SliderCaptcha from '@/components/business/SliderCaptcha/index.vue'
+import SliderCaptcha from '@/components/business/shared/SliderCaptcha/index.vue'
 // #ifdef H5
-import AuthEarth from '@/components/business/AuthEarth/index.vue'
+import AuthEarth from '@/components/business/auth/AuthEarth/index.vue'
 // #endif
-import AuthParticleBackground from '@/components/business/AuthParticleBackground/index.vue'
-import AuthGlassForm from '@/components/business/AuthGlassForm/index.vue'
-import AuthInput from '@/components/business/AuthInput/index.vue'
-import AuthPasswordInput from '@/components/business/AuthPasswordInput/index.vue'
-import AuthFooterLink from '@/components/business/AuthFooterLink/index.vue'
-import { useLoginForm } from '@/composables/useLoginForm'
-import { useH5PageHead } from '@/composables/useH5PageHead'
+import AuthParticleBackground from '@/components/business/auth/AuthParticleBackground/index.vue'
+import AuthGlassForm from '@/components/business/auth/AuthGlassForm/index.vue'
+import AuthInput from '@/components/business/auth/AuthInput/index.vue'
+import AuthPasswordInput from '@/components/business/auth/AuthPasswordInput/index.vue'
+import AuthFooterLink from '@/components/business/auth/AuthFooterLink/index.vue'
+import { useLoginForm } from '@/composables/auth/useLoginForm'
+import { useH5PageHead } from '@/composables/base/useH5PageHead'
 
 const pageReady = ref(false)
 

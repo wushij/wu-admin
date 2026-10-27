@@ -35,12 +35,12 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
-import PageTabShell from '@/components/common/PageTabShell/index.vue'
-import SearchBar from '@/components/common/SearchBar/index.vue'
-import QuickEntryGrid from '@/components/common/QuickEntryGrid/index.vue'
-import EmptyState from '@/components/common/EmptyState/index.vue'
-import { usePermission } from '@/composables/usePermission'
-import { useTabBarPage } from '@/composables/useTabBarPage'
+import PageTabShell from '@/components/layout/PageTabShell/index.vue'
+import SearchBar from '@/components/base/SearchBar/index.vue'
+import QuickEntryGrid from '@/components/business/work/QuickEntryGrid/index.vue'
+import EmptyState from '@/components/base/EmptyState/index.vue'
+import { usePermission } from '@/composables/base/usePermission'
+import { useTabBarPage } from '@/composables/base/useTabBarPage'
 import { useUserStore } from '@/store/user'
 import {
   mobileQuickEntries,

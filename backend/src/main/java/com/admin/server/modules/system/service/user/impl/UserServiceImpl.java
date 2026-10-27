@@ -92,6 +92,28 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    public List<UserDO> getEnabledUserList() {
+        return userMapper.selectList(new LambdaQueryWrapper<UserDO>().eq(UserDO::getStatus, 1));
+    }
+
+    @Override
+    public List<UserDO> getUserList(java.util.Collection<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return Collections.emptyList();
+        }
+        return userMapper.selectByIds(ids);
+    }
+
+    @Override
+    public List<UserDO> getUserListByDeptIds(java.util.Collection<Long> deptIds) {
+        if (deptIds == null || deptIds.isEmpty()) {
+            return Collections.emptyList();
+        }
+        return userMapper.selectList(new LambdaQueryWrapper<UserDO>()
+                .in(UserDO::getDeptId, deptIds));
+    }
+
+    @Override
     public PageResult<UserDO> page(PageParam pageParam, String keyword, String username, String mobile,
                                     Integer status, Long deptId, Long postId, Boolean loginLocked) {
         LambdaQueryWrapper<UserDO> wrapper = new LambdaQueryWrapper<>();
@@ -539,5 +561,48 @@ public class UserServiceImpl implements UserService {
             link.setPostId(postId);
             userPostMapper.insert(link);
         }
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void handleRegisterAudit(Long userId, boolean approved) {
+        if (userId == null) {
+            return;
+        }
+        UserDO user = userMapper.selectById(userId);
+        if (user == null || user.getStatus() == null || user.getStatus() != 2) {
+            return;
+        }
+        if (approved) {
+            user.setStatus(1);
+            userMapper.updateById(user);
+        } else {
+            user.setStatus(3);
+            userMapper.updateById(user);
+            permissionService.assignUserRole(user.getId(), Collections.emptySet());
+            userPostMapper.deleteByUserId(user.getId());
+            userMapper.deleteById(user.getId());
+        }
+    }
+
+    @Override
+    public List<UserDO> searchUsersByKeyword(String keyword) {
+        if (!StringUtils.hasText(keyword)) {
+            return Collections.emptyList();
+        }
+        String search = keyword.trim();
+        return userMapper.selectList(new LambdaQueryWrapper<UserDO>()
+                .eq(UserDO::getDeleted, 0)
+                .and(q -> q.like(UserDO::getUsername, search).or().like(UserDO::getNickname, search)));
+    }
+
+    @Override
+    public List<UserDO> listUsersByUsernamesOrNicknames(java.util.Collection<String> names) {
+        if (names == null || names.isEmpty()) {
+            return Collections.emptyList();
+        }
+        return userMapper.selectList(new LambdaQueryWrapper<UserDO>()
+                .eq(UserDO::getDeleted, 0)
+                .and(q -> q.in(UserDO::getUsername, names).or().in(UserDO::getNickname, names)));
     }
 }

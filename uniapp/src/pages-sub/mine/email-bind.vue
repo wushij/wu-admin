@@ -68,11 +68,11 @@
 
 <script setup lang="ts">
 import { onMounted } from 'vue'
-import ModuleIcon from '@/components/common/ModuleIcon/index.vue'
-import ListLoading from '@/components/common/ListLoading/index.vue'
-import PageFooter from '@/components/common/PageFooter/index.vue'
-import { maskBoundEmail, useEmailBindForm } from '@/composables/useEmailBindForm'
-import { useShallowStackBackFallback } from '@/composables/useShallowStackBackFallback'
+import ModuleIcon from '@/components/base/ModuleIcon/index.vue'
+import ListLoading from '@/components/base/ListLoading/index.vue'
+import PageFooter from '@/components/base/PageFooter/index.vue'
+import { maskBoundEmail, useEmailBindForm } from '@/composables/profile/useEmailBindForm'
+import { useShallowStackBackFallback } from '@/composables/base/useShallowStackBackFallback'
 
 const PROFILE_URL = '/pages-sub/mine/profile'
 

@@ -452,17 +452,107 @@ public class SystemConfigHelper {
         return getGroupJson(GROUP_SECURITY).getBool("nonceEnabled", true);
     }
 
-    /** 风险分触发临时封禁（1 小时）的阈值，默认 80 */
-    public int getRiskBlockScore() {
-        int n = getGroupJson(GROUP_SECURITY).getInt("riskBlockScore", 80);
-        return Math.max(20, Math.min(n, 1000));
+    /** 风控总开关，默认开启 */
+    public boolean isRiskEnabled() {
+        return getGroupJson(GROUP_SECURITY).getBool("riskEnabled", true);
     }
 
-    /** 风险分触发 24 小时封禁的阈值，默认 120，且必须高于临时封禁阈值 */
+    /** 风险分滑动窗口（分钟），默认 60；窗口外的分值自动失效，相当于自然衰减 */
+    public int getRiskWindowMinutes() {
+        int n = getGroupJson(GROUP_SECURITY).getInt("riskWindowMinutes", 60);
+        return Math.max(5, Math.min(n, 1440));
+    }
+
+    /** 关注阈值，默认 30 */
+    public int getRiskNoticeScore() {
+        int n = getGroupJson(GROUP_SECURITY).getInt("riskNoticeScore", 30);
+        return Math.max(10, Math.min(n, 2000));
+    }
+
+    /** 警告阈值，默认 50，必须高于关注阈值 */
+    public int getRiskWarnScore() {
+        int n = getGroupJson(GROUP_SECURITY).getInt("riskWarnScore", 50);
+        return Math.max(getRiskNoticeScore() + 1, Math.min(n, 3000));
+    }
+
+    /** 挑战阈值，默认 70，必须高于警告阈值 */
+    public int getRiskChallengeScore() {
+        int n = getGroupJson(GROUP_SECURITY).getInt("riskChallengeScore", 70);
+        return Math.max(getRiskWarnScore() + 1, Math.min(n, 4000));
+    }
+
+    /** 风险分触发临时封禁的阈值，默认 90，必须高于挑战阈值 */
+    public int getRiskBlockScore() {
+        int n = getGroupJson(GROUP_SECURITY).getInt("riskBlockScore", 90);
+        return Math.max(getRiskChallengeScore() + 1, Math.min(n, 5000));
+    }
+
+    /** 风险分触发最高档封禁的阈值，默认 120，且必须高于临时封禁阈值 */
     public int getRiskBanScore() {
-        int block = getRiskBlockScore();
         int n = getGroupJson(GROUP_SECURITY).getInt("riskBanScore", 120);
-        return Math.max(block + 1, Math.min(n, 2000));
+        return Math.max(getRiskBlockScore() + 1, Math.min(n, 10000));
+    }
+
+    /** 临时封禁时长（秒），默认 1 小时 */
+    public long getRiskBlockSeconds() {
+        int n = getGroupJson(GROUP_SECURITY).getInt("riskBlockSeconds", 3600);
+        return Math.max(60, Math.min(n, 604800));
+    }
+
+    /** 最高档封禁时长（秒），默认 24 小时 */
+    public long getRiskBanSeconds() {
+        int n = getGroupJson(GROUP_SECURITY).getInt("riskBanSeconds", 86400);
+        return Math.max(getRiskBlockSeconds(), Math.min(n, 2592000));
+    }
+
+    /** 是否需要风控二次验证（挑战），默认关闭：开启后高风险主体的写操作会被要求先验证 */
+    public boolean isRiskChallengeEnabled() {
+        return getGroupJson(GROUP_SECURITY).getBool("riskChallengeEnabled", false);
+    }
+
+    /** 风险告警 webhook 地址，为空表示不推送 */
+    public String getRiskAlertWebhook() {
+        return StrUtil.trimToEmpty(getGroupJson(GROUP_SECURITY).getStr("riskAlertWebhook", ""));
+    }
+
+    /** 行为识别开关，默认开启：翻页遍历、批量导出、越权探测 */
+    public boolean isRiskBehaviorEnabled() {
+        return getGroupJson(GROUP_SECURITY).getBool("riskBehaviorEnabled", true);
+    }
+
+    /** 翻页扫描阈值：窗口内不同页码数达到该值判定为遍历，默认 8 */
+    public int getRiskPageScanThreshold() {
+        int n = getGroupJson(GROUP_SECURITY).getInt("riskPageScanThreshold", 8);
+        return Math.max(3, Math.min(n, 200));
+    }
+
+    /** 批量导出阈值：窗口内导出/下载次数达到该值判定为批量拉取，默认 5 */
+    public int getRiskExportThreshold() {
+        int n = getGroupJson(GROUP_SECURITY).getInt("riskExportThreshold", 5);
+        return Math.max(2, Math.min(n, 100));
+    }
+
+    /** 蜜罐诱捕总开关，默认关闭：蜜罐路径匿名可达，上线前必须确认该前缀下没有真实接口 */
+    public boolean isHoneypotEnabled() {
+        return getGroupJson(GROUP_SECURITY).getBool("honeypotEnabled", false);
+    }
+
+    /** 蜜罐命中时追加的风险分，默认 80，范围 20～500 */
+    public int getHoneypotRiskDelta() {
+        int n = getGroupJson(GROUP_SECURITY).getInt("honeypotRiskDelta", 80);
+        return Math.max(20, Math.min(n, 500));
+    }
+
+    /** 蜜罐命中后的封禁时长（秒），默认 24 小时，范围 60～604800 */
+    public long getHoneypotBlockSeconds() {
+        int n = getGroupJson(GROUP_SECURITY).getInt("honeypotBlockSeconds", 86400);
+        return Math.max(60, Math.min(n, 604800));
+    }
+
+    /** 蜜罐响应随机延迟上限（毫秒），默认 300，范围 0～3000；用于消耗扫描器并发 */
+    public int getHoneypotTarpitMs() {
+        int n = getGroupJson(GROUP_SECURITY).getInt("honeypotTarpitMs", 300);
+        return Math.max(0, Math.min(n, 3000));
     }
 
     /** SM4 对称秘钥（16 字节密钥），未配置时返回空串（不提供硬编码兜底密钥） */

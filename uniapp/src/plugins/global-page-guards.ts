@@ -1,17 +1,17 @@
 import type { App } from 'vue'
 import { isWhiteRoute } from '@/config/route'
-import { hasToken } from '@/utils/auth'
-import { closeTopAppDialog } from '@/utils/dialog-back-guard'
-import { isLeaveConfirmActive } from '@/composables/useUnsavedLeaveGuard'
+import { hasToken } from '@/core/auth'
+import { closeTopAppDialog } from '@/utils/nav/dialog-back-guard'
+import { isLeaveConfirmActive } from '@/composables/base/useUnsavedLeaveGuard'
 import {
   installH5ShallowStackTrapIfNeeded,
   redirectAuthedAwayFromAuthPage,
   rememberShallowBackTarget,
   handleGlobalBackPress,
   getCurrentPageUrl,
-} from '@/utils/navigate-back'
+} from '@/utils/nav/navigate-back'
 import { scheduleSyncH5BackButton } from '@/store/h5-back-button'
-import { ensureNavParent } from '@/utils/nav-history'
+import { ensureNavParent } from '@/utils/nav/nav-history'
 
 const TAB_PAGE_ROUTES = new Set([
   'pages/index/index',

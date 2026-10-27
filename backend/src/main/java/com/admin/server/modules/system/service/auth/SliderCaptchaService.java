@@ -26,6 +26,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 
+import com.admin.server.framework.security.core.SliderChallengeVerifier;
+
 /**
  * 滑块验证码：服务端生成带缺口的图片，答案仅保存在 Redis，校验通过后签发一次性票据。
  * <p>响应体不再包含 targetX，前端无法直接得到正确偏移量；提交时必须同时携带
@@ -33,7 +35,7 @@ import java.util.concurrent.ThreadLocalRandom;
  */
 @Slf4j
 @Service
-public class SliderCaptchaService {
+public class SliderCaptchaService implements SliderChallengeVerifier {
 
     /** 历史遗留前端常量，禁止再作为通过凭证使用 */
     public static final String LEGACY_BYPASS_CODE = "slider_verified";
@@ -72,6 +74,9 @@ public class SliderCaptchaService {
 
     @Resource
     private SliderImageRenderer sliderImageRenderer;
+
+    @Resource
+    private com.admin.server.modules.system.service.security.AntiBotRiskService antiBotRiskService;
 
     /**
      * 生成滑块挑战：返回服务端渲染的图片、拼图块和 Y 坐标，不返回缺口 X 坐标。
@@ -294,6 +299,17 @@ public class SliderCaptchaService {
             failCounter.expire(CHALLENGE_TTL);
         }
         state.setFailCount((int) Math.min(failCount, Integer.MAX_VALUE));
+        // 滑块失败计入行为风险分：单次 3 分，连续失败作废时额外 10 分。
+        // 不阻塞当前校验流程，失败记录本身不能影响验证码的正常拒绝语义。
+        try {
+            boolean abuse = failCount >= MAX_FAIL_COUNT;
+            antiBotRiskService.addRisk(clientIp, clientIp, abuse ? 13 : 3,
+                    abuse ? "CAPTCHA_ABUSE" : "CAPTCHA_FAIL", "WARNING",
+                    "/auth/slider-verify", "POST", "",
+                    (abuse ? "滑块连续失败作废 challenge" : "滑块验证失败") + ": scene=" + state.getScene());
+        } catch (Exception e) {
+            log.debug("滑块失败风险分记录跳过: ip={}, error={}", clientIp, e.getMessage());
+        }
         if (failCount >= MAX_FAIL_COUNT) {
             redissonClient.getBucket(challengeKey).delete();
             failCounter.delete();

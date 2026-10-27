@@ -498,7 +498,7 @@ function getStorageLabel(type?: string): string {
 .pagination-bar {
   padding: 12px 16px;
   display: flex;
-  justify-content: flex-end;
+  justify-content: flex-start;
   border-top: 1px solid var(--el-border-color-lighter);
 }
 

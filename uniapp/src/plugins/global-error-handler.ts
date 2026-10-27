@@ -1,6 +1,6 @@
 import type { App } from 'vue'
 import type { ApiResult } from '@/types/api'
-import { logger } from '@/utils/logger'
+import { logger } from '@/core/logger'
 
 let lastGlobalErrorToastAt = 0
 

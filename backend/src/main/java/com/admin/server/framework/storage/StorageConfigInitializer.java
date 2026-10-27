@@ -1,6 +1,6 @@
 package com.admin.server.framework.storage;
 
-import com.admin.server.modules.system.service.config.SystemConfigHelper;
+import com.admin.server.framework.config.DynamicConfigProvider;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.ApplicationArguments;
@@ -20,12 +20,12 @@ import org.springframework.stereotype.Component;
 public class StorageConfigInitializer implements ApplicationRunner {
 
     private final RoutingFileStorageService routingFileStorageService;
-    private final SystemConfigHelper systemConfigHelper;
+    private final DynamicConfigProvider dynamicConfigProvider;
 
     @Override
     public void run(ApplicationArguments args) {
         try {
-            StorageConfig config = systemConfigHelper.getStorageConfig();
+            StorageConfig config = dynamicConfigProvider.getStorageConfig();
             if (config != null) {
                 routingFileStorageService.reload(config);
                 log.info("已成功从系统配置表加载存储引擎: type={}", config.getType());

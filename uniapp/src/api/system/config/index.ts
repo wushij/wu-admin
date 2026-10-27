@@ -1,4 +1,4 @@
-import { get, put, post } from '@/utils/request'
+import { get, put, post } from '@/core/http'
 import type { ConfigGroup } from '@/types/system'
 import type {
   PayOrderRecord,

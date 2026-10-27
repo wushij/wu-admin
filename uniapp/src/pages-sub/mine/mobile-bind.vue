@@ -69,12 +69,12 @@
 
 <script setup lang="ts">
 import { watch, onMounted } from 'vue'
-import ModuleIcon from '@/components/common/ModuleIcon/index.vue'
-import ListLoading from '@/components/common/ListLoading/index.vue'
-import PageFooter from '@/components/common/PageFooter/index.vue'
-import SliderCaptcha from '@/components/business/SliderCaptcha/index.vue'
-import { maskBoundMobile, useMobileBindForm } from '@/composables/useMobileBindForm'
-import { useShallowStackBackFallback } from '@/composables/useShallowStackBackFallback'
+import ModuleIcon from '@/components/base/ModuleIcon/index.vue'
+import ListLoading from '@/components/base/ListLoading/index.vue'
+import PageFooter from '@/components/base/PageFooter/index.vue'
+import SliderCaptcha from '@/components/business/shared/SliderCaptcha/index.vue'
+import { maskBoundMobile, useMobileBindForm } from '@/composables/profile/useMobileBindForm'
+import { useShallowStackBackFallback } from '@/composables/base/useShallowStackBackFallback'
 
 const PROFILE_URL = '/pages-sub/mine/profile'
 

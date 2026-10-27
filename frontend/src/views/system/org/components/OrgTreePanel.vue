@@ -73,7 +73,6 @@
       v-permission="activeTab === 'dept' ? 'system:dept:create' : 'system:post:create'"
       class="org-add-root"
       type="primary"
-      plain
       @click="$emit('add-root')"
     >
       {{ activeTab === 'dept' ? '新增一级部门' : '新增顶级岗位' }}
@@ -233,7 +232,20 @@ defineExpose({ deptTreeRef, postTreeRef })
 
 .org-add-root {
   width: 100%;
+  height: 34px;
   margin-top: 12px;
   border-radius: 8px;
+  font-weight: 500;
+  box-shadow: 0 2px 6px rgba(1, 7, 16, 0.16);
+  transition: box-shadow 0.16s ease, transform 0.16s ease;
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(1, 7, 16, 0.24);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
 }
 </style>

@@ -4,10 +4,11 @@ import com.admin.server.common.exception.BusinessException;
 import com.admin.server.modules.system.dal.dataobject.notice.NoticeDO;
 import com.admin.server.modules.system.dal.mysql.notice.NoticeMapper;
 import com.admin.server.modules.system.service.notice.NoticeService;
-import com.admin.server.modules.ticket.dal.mysql.approval.ApprovalFormMapper;
-import com.admin.server.modules.ticket.dal.mysql.ticket.TicketMapper;
+import com.admin.server.modules.ticket.service.approval.ApprovalFormService;
+import com.admin.server.modules.ticket.service.ticket.TicketService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import jakarta.annotation.Resource;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -21,9 +22,11 @@ public class NoticeServiceImpl implements NoticeService {
     @Resource
     private NoticeMapper noticeMapper;
     @Resource
-    private ApprovalFormMapper approvalFormMapper;
+    @Lazy
+    private ApprovalFormService approvalFormService;
     @Resource
-    private TicketMapper ticketMapper;
+    @Lazy
+    private TicketService ticketService;
 
     @Override
     public long unreadCount(Long userId) {
@@ -74,15 +77,43 @@ public class NoticeServiceImpl implements NoticeService {
         noticeMapper.markReadByBiz(userId, bizType, bizId);
     }
 
+    @Override
+    public void sendNotice(NoticeDO notice) {
+        if (notice != null) {
+            noticeMapper.insert(notice);
+        }
+    }
+
+    @Override
+    public void sendNoticeBatch(List<NoticeDO> notices) {
+        if (notices != null && !notices.isEmpty()) {
+            noticeMapper.insertBatch(notices);
+        }
+    }
+
+    @Override
+    public void deleteNoticeByBiz(String bizType, Long bizId, boolean physical) {
+        if (bizType == null || bizId == null) {
+            return;
+        }
+        if (physical) {
+            noticeMapper.deletePhysicalByBiz(bizType, bizId);
+        } else {
+            noticeMapper.delete(new LambdaQueryWrapper<NoticeDO>()
+                    .eq(NoticeDO::getBizType, bizType)
+                    .eq(NoticeDO::getBizId, bizId));
+        }
+    }
+
     private boolean isOrphanNotice(NoticeDO notice) {
         if (notice.getBizId() == null || notice.getBizId() <= 0) {
             return false;
         }
         if (BIZ_TYPE_APPROVAL.equals(notice.getBizType())) {
-            return approvalFormMapper.selectById(notice.getBizId()) == null;
+            return !approvalFormService.exists(notice.getBizId());
         }
         if (BIZ_TYPE_TICKET.equals(notice.getBizType())) {
-            return ticketMapper.selectById(notice.getBizId()) == null;
+            return !ticketService.exists(notice.getBizId());
         }
         return false;
     }

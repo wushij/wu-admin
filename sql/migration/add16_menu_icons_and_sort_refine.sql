@@ -35,7 +35,7 @@ WHERE `id` = 187 OR `path` = '/monitor/server';
 -- 4. 安全风控菜单图标更新为 Lock（经典安全锁）
 UPDATE `sys_menu`
 SET `icon` = 'Lock'
-WHERE `id` IN (129, 230) OR `path` = '/system/security-log';
+WHERE `id` = 230 OR `path` = '/system/security-log';
 
 -- 5. 流程中心菜单图标更新为 Workflow（业务工作流分支流转）
 UPDATE `sys_menu`

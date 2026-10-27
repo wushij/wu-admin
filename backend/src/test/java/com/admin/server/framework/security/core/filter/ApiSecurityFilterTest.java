@@ -1,8 +1,8 @@
 package com.admin.server.framework.security.core.filter;
 
 import com.admin.server.framework.security.core.util.Sm4GcmUtil;
-import com.admin.server.modules.system.service.config.SystemConfigHelper;
-import com.admin.server.modules.system.service.security.AntiBotRiskService;
+import com.admin.server.framework.config.DynamicConfigProvider;
+import com.admin.server.framework.security.core.RiskScoringApi;
 import jakarta.servlet.FilterChain;
 import org.bouncycastle.util.encoders.Base64;
 import org.junit.jupiter.api.BeforeEach;
@@ -33,16 +33,16 @@ public class ApiSecurityFilterTest {
     private static final String PLAIN_BODY = "{\"username\":\"admin\",\"role\":\"super_admin\"}";
 
     private ApiSecurityFilter filter;
-    private AntiBotRiskService antiBotRiskService;
-    private SystemConfigHelper configHelper;
+    private RiskScoringApi antiBotRiskService;
+    private DynamicConfigProvider configHelper;
 
     @BeforeEach
     public void setUp() {
         filter = new ApiSecurityFilter();
-        configHelper = mock(SystemConfigHelper.class);
+        configHelper = mock(DynamicConfigProvider.class);
         StringRedisTemplate redisTemplate = mock(StringRedisTemplate.class);
-        antiBotRiskService = mock(AntiBotRiskService.class);
-        ReflectionTestUtils.setField(filter, "systemConfigHelper", configHelper);
+        antiBotRiskService = mock(RiskScoringApi.class);
+        ReflectionTestUtils.setField(filter, "dynamicConfigProvider", configHelper);
         ReflectionTestUtils.setField(filter, "stringRedisTemplate", redisTemplate);
         ReflectionTestUtils.setField(filter, "antiBotRiskService", antiBotRiskService);
 

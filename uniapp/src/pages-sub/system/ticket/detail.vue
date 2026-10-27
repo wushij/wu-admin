@@ -89,10 +89,10 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
-import { useAppDialogBackPress } from '@/composables/useAppDialogBackPress'
-import DictTag from '@/components/common/DictTag/index.vue'
-import PageFooter from '@/components/common/PageFooter/index.vue'
-import AppDialogHost from '@/components/common/AppDialogHost/index.vue'
+import { useAppDialogBackPress } from '@/composables/base/useAppDialogBackPress'
+import DictTag from '@/components/base/DictTag/index.vue'
+import PageFooter from '@/components/base/PageFooter/index.vue'
+import AppDialogHost from '@/components/base/AppDialogHost/index.vue'
 import {
   getTicket,
   getTicketComments,
@@ -100,14 +100,14 @@ import {
   createTicketComment,
   deleteTicket,
 } from '@/api/system/ticket'
-import { usePermission } from '@/composables/usePermission'
+import { usePermission } from '@/composables/base/usePermission'
 import { useUserStore } from '@/store/user'
 import { useMessageStore } from '@/store/message'
-import { getDictLabel, getDictOptions, preloadDicts } from '@/composables/useDict'
+import { getDictLabel, getDictOptions, preloadDicts } from '@/composables/base/useDict'
 import { showConfirm, showActionSheet } from '@/utils/app-dialog'
 import { DICT_TYPE } from '@/constants/dict'
-import { formatDateTime } from '@/utils/format'
-import { navigateToFallback } from '@/utils/navigate-back'
+import { formatDateTime } from '@/utils/display/format'
+import { navigateToFallback } from '@/utils/nav/navigate-back'
 import type { TicketCommentVO, TicketVO } from '@/types/system'
 
 const ticket = ref<TicketVO | null>(null)

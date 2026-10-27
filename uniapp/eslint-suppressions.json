@@ -1,0 +1,247 @@
+{
+  "src/App.vue": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "src/api/ai/index.ts": {
+    "no-useless-assignment": {
+      "count": 2
+    },
+    "prefer-const": {
+      "count": 2
+    }
+  },
+  "src/components/business/ai/AiWuAssistant/AiCompassIcon.vue": {
+    "no-useless-assignment": {
+      "count": 1
+    }
+  },
+  "src/components/business/ai/AiWuAssistant/index.vue": {
+    "vue/no-v-text-v-html-on-component": {
+      "count": 1
+    }
+  },
+  "src/components/business/chat/ChatComposer/index.vue": {
+    "no-unreachable": {
+      "count": 1
+    }
+  },
+  "src/components/business/earth/Earth3D/index.vue": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 5
+    }
+  },
+  "src/components/business/earth/Earth3D/three/glow.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "src/components/business/earth/Earth3D/three/types.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 5
+    }
+  },
+  "src/components/business/earth/GlobeCanvas/index.vue": {
+    "no-undef": {
+      "count": 1
+    }
+  },
+  "src/composables/base/useEditPageGuard.ts": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 1
+    }
+  },
+  "src/composables/chat/useChatDetail.ts": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 2
+    }
+  },
+  "src/composables/chat/useMessageTab.ts": {
+    "no-useless-assignment": {
+      "count": 1
+    }
+  },
+  "src/composables/monitor/useServerMonitor.ts": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 1
+    }
+  },
+  "src/composables/profile/usePasswordForm.ts": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 1
+    }
+  },
+  "src/core/api-base.ts": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 1
+    }
+  },
+  "src/core/http.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 15
+    },
+    "@typescript-eslint/no-unused-vars": {
+      "count": 1
+    }
+  },
+  "src/env.d.ts": {
+    "@typescript-eslint/triple-slash-reference": {
+      "count": 1
+    }
+  },
+  "src/pages-sub/ai/log/detail.vue": {
+    "vue/no-v-text-v-html-on-component": {
+      "count": 1
+    }
+  },
+  "src/pages-sub/ai/log/index.vue": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 4
+    }
+  },
+  "src/pages-sub/ai/model/index.vue": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 3
+    }
+  },
+  "src/pages-sub/mine/email-bind.vue": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 1
+    }
+  },
+  "src/pages-sub/mine/password.vue": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 1
+    }
+  },
+  "src/pages-sub/monitor/api-access.vue": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "src/pages-sub/system/config/components/AiConfigPanel.vue": {
+    "vue/no-mutating-props": {
+      "count": 3
+    }
+  },
+  "src/pages-sub/system/config/components/EmailConfigPanel.vue": {
+    "vue/no-mutating-props": {
+      "count": 15
+    }
+  },
+  "src/pages-sub/system/config/components/FileConfigPanel.vue": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    },
+    "vue/no-mutating-props": {
+      "count": 19
+    }
+  },
+  "src/pages-sub/system/config/components/LoginConfigPanel.vue": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    },
+    "vue/no-mutating-props": {
+      "count": 4
+    }
+  },
+  "src/pages-sub/system/config/components/PaymentConfigPanel.vue": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    },
+    "vue/no-mutating-props": {
+      "count": 11
+    }
+  },
+  "src/pages-sub/system/config/components/RateLimitConfigPanel.vue": {
+    "vue/no-mutating-props": {
+      "count": 11
+    }
+  },
+  "src/pages-sub/system/config/components/RegisterConfigPanel.vue": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    },
+    "vue/no-mutating-props": {
+      "count": 2
+    }
+  },
+  "src/pages-sub/system/config/components/SecurityConfigPanel.vue": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 3
+    },
+    "vue/no-mutating-props": {
+      "count": 14
+    }
+  },
+  "src/pages-sub/system/config/components/SmsConfigPanel.vue": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    },
+    "vue/no-mutating-props": {
+      "count": 12
+    }
+  },
+  "src/pages-sub/system/config/components/ThirdPartyConfigPanel.vue": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    },
+    "vue/no-mutating-props": {
+      "count": 10
+    }
+  },
+  "src/pages-sub/system/config/index.vue": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "src/pages-sub/system/file/index.vue": {
+    "no-useless-assignment": {
+      "count": 2
+    }
+  },
+  "src/pages-sub/system/recycle/detail.vue": {
+    "vue/no-deprecated-filter": {
+      "count": 1
+    }
+  },
+  "src/pages-sub/system/role/menu-assign.vue": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 1
+    }
+  },
+  "src/shime-uni.d.ts": {
+    "@typescript-eslint/no-empty-object-type": {
+      "count": 1
+    }
+  },
+  "src/store/app.ts": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 2
+    }
+  },
+  "src/store/user.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    },
+    "@typescript-eslint/no-unused-vars": {
+      "count": 2
+    }
+  },
+  "src/types/profile.ts": {
+    "@typescript-eslint/no-empty-object-type": {
+      "count": 1
+    }
+  },
+  "src/utils/nav/navigate-back.ts": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 2
+    }
+  },
+  "src/utils/security/security-config.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 5
+    }
+  }
+}

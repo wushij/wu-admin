@@ -234,6 +234,10 @@ public class SysConfigGroupServiceImpl implements SysConfigGroupService {
             switch (key) {
                 case "disableDevtool": return "禁用开发者工具";
                 case "isConcurrent": return "并发登录";
+                case "honeypotEnabled": return "蜜罐诱捕开关";
+                case "honeypotRiskDelta": return "蜜罐命中风险分";
+                case "honeypotBlockSeconds": return "蜜罐封禁时长";
+                case "honeypotTarpitMs": return "蜜罐响应延迟";
                 default: break;
             }
         }
@@ -334,16 +338,59 @@ public class SysConfigGroupServiceImpl implements SysConfigGroupService {
     }
 
     private void validateSecurityConfig(JSONObject json) {
-        int block = json.getInt("riskBlockScore", 80);
+        int notice = json.getInt("riskNoticeScore", 30);
+        int warn = json.getInt("riskWarnScore", 50);
+        int challenge = json.getInt("riskChallengeScore", 70);
+        int block = json.getInt("riskBlockScore", 90);
         int ban = json.getInt("riskBanScore", 120);
-        if (block < 20 || block > 1000) {
-            throw new BusinessException("临时封禁阈值须在 20～1000 之间");
+        if (notice < 10 || notice > 2000) {
+            throw new BusinessException("关注阈值须在 10～2000 之间");
         }
-        if (ban < 40 || ban > 2000) {
-            throw new BusinessException("24 小时封禁阈值须在 40～2000 之间");
+        if (warn < 10 || warn > 3000) {
+            throw new BusinessException("警告阈值须在 10～3000 之间");
         }
-        if (ban <= block) {
-            throw new BusinessException("24 小时封禁阈值必须高于临时封禁阈值");
+        if (challenge < 20 || challenge > 4000) {
+            throw new BusinessException("挑战阈值须在 20～4000 之间");
+        }
+        if (block < 20 || block > 5000) {
+            throw new BusinessException("临时封禁阈值须在 20～5000 之间");
+        }
+        if (ban < 40 || ban > 10000) {
+            throw new BusinessException("最高档封禁阈值须在 40～10000 之间");
+        }
+        if (!(notice < warn && warn < challenge && challenge < block && block < ban)) {
+            throw new BusinessException("风控阈值必须严格递增：关注 < 警告 < 挑战 < 临时封禁 < 最高档封禁");
+        }
+        int windowMinutes = json.getInt("riskWindowMinutes", 60);
+        if (windowMinutes < 5 || windowMinutes > 1440) {
+            throw new BusinessException("风险分滑动窗口须在 5～1440 分钟之间");
+        }
+        int blockSeconds = json.getInt("riskBlockSeconds", 3600);
+        if (blockSeconds < 60 || blockSeconds > 604800) {
+            throw new BusinessException("临时封禁时长须在 60～604800 秒之间");
+        }
+        int banSeconds = json.getInt("riskBanSeconds", 86400);
+        if (banSeconds < 60 || banSeconds > 2592000) {
+            throw new BusinessException("最高档封禁时长须在 60～2592000 秒之间");
+        }
+        if (banSeconds < blockSeconds) {
+            throw new BusinessException("最高档封禁时长不能短于临时封禁时长");
+        }
+        String webhook = json.getStr("riskAlertWebhook", "");
+        if (StrUtil.isNotBlank(webhook) && !webhook.startsWith("http://") && !webhook.startsWith("https://")) {
+            throw new BusinessException("告警 webhook 必须以 http:// 或 https:// 开头");
+        }
+        int honeyDelta = json.getInt("honeypotRiskDelta", 80);
+        if (honeyDelta < 20 || honeyDelta > 500) {
+            throw new BusinessException("蜜罐风险分须在 20～500 之间");
+        }
+        int honeyBlock = json.getInt("honeypotBlockSeconds", 86400);
+        if (honeyBlock < 60 || honeyBlock > 604800) {
+            throw new BusinessException("蜜罐封禁时长须在 60～604800 秒之间");
+        }
+        int honeyTarpit = json.getInt("honeypotTarpitMs", 300);
+        if (honeyTarpit < 0 || honeyTarpit > 3000) {
+            throw new BusinessException("蜜罐响应延迟须在 0～3000 毫秒之间");
         }
     }
 

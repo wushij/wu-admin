@@ -1,9 +1,9 @@
-import { get, post, del, put } from '@/utils/request'
+import { get, post, del, put } from '@/core/http'
 import { uploadFile as uniUpload } from '@/utils/upload'
-import { getToken } from '@/utils/auth'
+import { getToken } from '@/core/auth'
 import type { PageResult } from '@/types/api'
 import type { FilePageQuery } from '@/types/system'
-import { resolveApiBaseUrl } from '@/utils/api-base'
+import { resolveApiBaseUrl } from '@/core/api-base'
 
 export interface FileRecord {
   id?: number

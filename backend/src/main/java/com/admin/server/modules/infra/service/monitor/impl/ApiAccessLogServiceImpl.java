@@ -2,14 +2,14 @@ package com.admin.server.modules.infra.service.monitor.impl;
 
 import com.admin.server.common.core.PageResult;
 import com.admin.server.modules.infra.api.monitor.vo.ApiAccessUserRankVO;
-import com.admin.server.modules.infra.service.monitor.vo.ApiAccessDailyStatVO;
-import com.admin.server.modules.infra.service.monitor.vo.ApiAccessMethodStatVO;
-import com.admin.server.modules.infra.service.monitor.vo.ApiAccessSummaryVO;
-import com.admin.server.modules.infra.service.monitor.vo.ApiAccessUserStatVO;
+import com.admin.server.modules.infra.dal.dataobject.monitor.ApiAccessDailyStatDO;
 import com.admin.server.modules.infra.dal.dataobject.monitor.ApiAccessLogDO;
+import com.admin.server.modules.infra.dal.dataobject.monitor.ApiAccessMethodStatDO;
+import com.admin.server.modules.infra.dal.dataobject.monitor.ApiAccessSummaryDO;
+import com.admin.server.modules.infra.dal.dataobject.monitor.ApiAccessUserStatDO;
 import com.admin.server.modules.system.dal.dataobject.user.UserDO;
 import com.admin.server.modules.infra.dal.mysql.monitor.ApiAccessLogMapper;
-import com.admin.server.modules.system.dal.mysql.user.UserMapper;
+import com.admin.server.modules.system.service.user.UserService;
 import com.admin.server.modules.infra.service.monitor.ApiAccessLogService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -42,7 +42,7 @@ public class ApiAccessLogServiceImpl extends ServiceImpl<ApiAccessLogMapper, Api
     @Resource
     private ObjectMapper objectMapper;
     @Resource
-    private UserMapper userMapper;
+    private UserService userService;
     /** 定时线程没有外层事务，批量落库必须显式开启事务，否则 MyBatis-Plus 每次都会告警 Transaction not enabled */
     @Resource
     private TransactionTemplate transactionTemplate;
@@ -115,7 +115,7 @@ public class ApiAccessLogServiceImpl extends ServiceImpl<ApiAccessLogMapper, Api
                 .collect(Collectors.toSet());
         Map<Long, UserDO> userMap = new HashMap<>();
         if (!userIds.isEmpty()) {
-            for (UserDO user : userMapper.selectByIds(userIds)) {
+            for (UserDO user : userService.getUserList(userIds)) {
                 if (user != null) {
                     userMap.put(user.getId(), user);
                 }
@@ -140,7 +140,7 @@ public class ApiAccessLogServiceImpl extends ServiceImpl<ApiAccessLogMapper, Api
         LocalDateTime start = startDate.atStartOfDay();
         LocalDateTime end = endDate.plusDays(1).atStartOfDay();
 
-        ApiAccessSummaryVO summary = baseMapper.selectSummary(start, end);
+        ApiAccessSummaryDO summary = baseMapper.selectSummary(start, end);
         long total = summary != null && summary.getTotalCount() != null ? summary.getTotalCount() : 0L;
         long successCount = summary != null && summary.getSuccessCount() != null ? summary.getSuccessCount() : 0L;
         long failCount = total - successCount;
@@ -153,7 +153,7 @@ public class ApiAccessLogServiceImpl extends ServiceImpl<ApiAccessLogMapper, Api
             empty.put("fail", 0L);
             dailyStats.put(day.toString(), empty);
         }
-        for (ApiAccessDailyStatVO row : baseMapper.selectDailyStats(start, end)) {
+        for (ApiAccessDailyStatDO row : baseMapper.selectDailyStats(start, end)) {
             if (row.getStatDate() == null) {
                 continue;
             }
@@ -178,12 +178,12 @@ public class ApiAccessLogServiceImpl extends ServiceImpl<ApiAccessLogMapper, Api
                 .collect(Collectors.toList());
 
         Map<String, Long> methodCount = new HashMap<>();
-        for (ApiAccessMethodStatVO row : baseMapper.selectMethodCounts(start, end)) {
+        for (ApiAccessMethodStatDO row : baseMapper.selectMethodCounts(start, end)) {
             methodCount.put(row.getMethod(), row.getCount() != null ? row.getCount() : 0L);
         }
 
         Map<Long, Long> userCount = new HashMap<>();
-        for (ApiAccessUserStatVO row : baseMapper.selectTopUsers(start, end, 10)) {
+        for (ApiAccessUserStatDO row : baseMapper.selectTopUsers(start, end, 10)) {
             if (row.getUserId() != null) {
                 userCount.put(row.getUserId(), row.getCount() != null ? row.getCount() : 0L);
             }
@@ -213,7 +213,7 @@ public class ApiAccessLogServiceImpl extends ServiceImpl<ApiAccessLogMapper, Api
         Set<Long> userIds = sorted.stream().map(Map.Entry::getKey).collect(Collectors.toSet());
         Map<Long, UserDO> userMap = new HashMap<>();
         if (!userIds.isEmpty()) {
-            for (UserDO user : userMapper.selectByIds(userIds)) {
+            for (UserDO user : userService.getUserList(userIds)) {
                 if (user != null) {
                     userMap.put(user.getId(), user);
                 }

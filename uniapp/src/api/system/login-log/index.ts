@@ -1,4 +1,4 @@
-import { get, del } from '@/utils/request'
+import { get, del } from '@/core/http'
 import type { PageResult } from '@/types/api'
 import type { LoginLogPageQuery, LoginLogVO } from '@/types/system'
 

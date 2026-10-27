@@ -32,7 +32,12 @@
           <SessionConfigTab :draft="draft.session" :can-edit="canEdit" />
         </el-tab-pane>
         <el-tab-pane label="文件存储" name="file">
-          <FileConfigTab :draft="draft.file" :can-edit="canEdit" :platform-max-file-mb="platformMaxFileMb" />
+          <FileConfigTab
+            :draft="draft.file"
+            :can-edit="canEdit"
+            :platform-max-file-mb="platformMaxFileMb"
+            @storage-loaded="syncFileSnapshot"
+          />
         </el-tab-pane>
         <el-tab-pane label="接口限流" name="rateLimit">
           <RateLimitConfigTab :draft="draft.rateLimit" :can-edit="canEdit" />
@@ -231,7 +236,7 @@ import { useEmailTest } from './composables/useEmailTest'
 const {
   canEdit, activeTab, loading, saving, roleOptions, userOptions, platformMaxFileMb,
   draft, savedSnapshot, isDirty, forbidConcurrentLogin,
-  loadAll, handleReset, handleSave,
+  syncFileSnapshot, loadAll, handleReset, handleSave,
 } = useConfigDraft()
 
 const defaultWechatNotifyUrl = computed(() => `${window.location.origin}/api/pay/notify/wechat`)
@@ -290,7 +295,7 @@ onMounted(() => {
 .payment-test-modal .qrcode-tip { margin-top: 12px; color: #6b7280; font-size: 14px; }
 .payment-test-modal .payment-actions { margin-top: 20px; display: flex; justify-content: center; }
 .sms-logs-toolbar { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; }
-.sms-logs-pagination { display: flex; justify-content: flex-end; margin-top: 14px; }
+.sms-logs-pagination { display: flex; justify-content: flex-start; margin-top: 14px; }
 </style>
 
 <style src="./styles/config-shared.css"></style>

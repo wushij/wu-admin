@@ -322,6 +322,10 @@ const props = defineProps<{
   platformMaxFileMb: number
 }>()
 
+const emit = defineEmits<{
+  (e: 'storageLoaded'): void
+}>()
+
 const selectedEngine = ref<StorageEngineType>('local')
 const activeType = ref<StorageEngineType>('local')
 const healthy = ref<boolean>(true)
@@ -413,6 +417,7 @@ async function loadConfig() {
 
       // 同步回 props.draft
       syncToDraft()
+      emit('storageLoaded')
     }
   } catch (e: any) {
     if (!isErrorToastShown(e)) {

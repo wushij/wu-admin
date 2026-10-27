@@ -3,12 +3,12 @@ package com.admin.server.modules.message.service;
 import com.admin.server.common.exception.BusinessException;
 import com.admin.server.framework.websocket.MessageWebSocketHandler;
 import com.admin.server.modules.system.service.permission.PermissionService;
+import com.admin.server.modules.system.service.user.UserService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.admin.server.modules.message.dal.dataobject.*;
 import com.admin.server.modules.system.dal.dataobject.user.UserDO;
 import com.admin.server.modules.message.dal.mysql.*;
-import com.admin.server.modules.system.dal.mysql.user.UserMapper;
 import com.admin.server.modules.message.service.vo.ChatGroupLogVO;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
@@ -36,7 +36,7 @@ public class ChatService {
     @Resource
     private UserBlacklistMapper blacklistMapper;
     @Resource
-    private UserMapper userMapper;
+    private UserService userService;
     @Resource
     private ChatGroupMapper chatGroupMapper;
     @Resource
@@ -69,7 +69,7 @@ public class ChatService {
         if (isBlocked(senderId, receiverId)) {
             throw new BusinessException(400, "无法发送，存在拉黑关系");
         }
-        UserDO sender = userMapper.selectById(senderId);
+        UserDO sender = userService.getDetail(senderId);
         ChatMessageDO msg = new ChatMessageDO();
         msg.setSenderId(senderId);
         msg.setSenderName(sender != null ? sender.getNickname() : "");
@@ -105,9 +105,9 @@ public class ChatService {
     }
 
     public List<Map<String, Object>> listUsers(Long userId) {
-        List<UserDO> users = userMapper.selectList(new LambdaQueryWrapper<UserDO>()
-                .eq(UserDO::getStatus, 1)
-                .ne(UserDO::getId, userId));
+        List<UserDO> users = userService.getEnabledUserList().stream()
+                .filter(u -> u != null && !userId.equals(u.getId()))
+                .collect(Collectors.toList());
         if (users.isEmpty()) {
             return List.of();
         }
@@ -217,7 +217,7 @@ public class ChatService {
             m.setJoinTime(now);
             toInsert.add(m);
             if (!uid.equals(ownerId)) {
-                invitedNames.add(displayUserName(userMapper.selectById(uid)));
+                invitedNames.add(displayUserName(userService.getDetail(uid)));
             }
         }
         groupMemberMapper.insertBatch(toInsert);
@@ -284,7 +284,7 @@ public class ChatService {
         if (member.getMuted() != null && member.getMuted() == 1) {
             throw new BusinessException(403, "您已被禁言");
         }
-        UserDO sender = userMapper.selectById(senderId);
+        UserDO sender = userService.getDetail(senderId);
         ChatGroupMessageDO msg = new ChatGroupMessageDO();
         msg.setGroupId(groupId);
         msg.setSenderId(senderId);
@@ -480,7 +480,7 @@ public class ChatService {
                 .collect(Collectors.toSet());
         Map<Long, UserDO> userMap = userIds.isEmpty()
                 ? Map.of()
-                : userMapper.selectByIds(userIds).stream()
+                : userService.getUserList(userIds).stream()
                         .filter(Objects::nonNull)
                         .collect(Collectors.toMap(UserDO::getId, u -> u, (a, b) -> a));
         List<Map<String, Object>> list = new ArrayList<>();
@@ -614,7 +614,7 @@ public class ChatService {
             m.setRole(0);
             m.setJoinTime(now);
             toInsert.add(m);
-            invitedNames.add(displayUserName(userMapper.selectById(uid)));
+            invitedNames.add(displayUserName(userService.getDetail(uid)));
         }
         if (!toInsert.isEmpty()) {
             groupMemberMapper.insertBatch(toInsert);
@@ -759,7 +759,7 @@ public class ChatService {
             }
         }
         if (publisherId != null) {
-            UserDO publisher = userMapper.selectById(publisherId);
+            UserDO publisher = userService.getDetail(publisherId);
             item.put("announcementPublisherId", publisherId);
             item.put("announcementPublisherName", displayUserName(publisher));
             if (publisher != null) {
@@ -770,7 +770,7 @@ public class ChatService {
     }
 
     private void pushGroupAnnouncement(Long groupId, Long publisherId, String groupName, String announcement) {
-        UserDO publisher = userMapper.selectById(publisherId);
+        UserDO publisher = userService.getDetail(publisherId);
         String publisherName = displayUserName(publisher);
         String preview = announcement != null ? announcement : "";
         if (preview.length() > 80) {
@@ -857,7 +857,7 @@ public class ChatService {
 
     private void saveGroupLog(Long groupId, String actionType, Long operatorId, Long targetUserId,
             String targetNames, String detail) {
-        UserDO operator = userMapper.selectById(operatorId);
+        UserDO operator = userService.getDetail(operatorId);
         ChatGroupLogDO log = new ChatGroupLogDO();
         log.setGroupId(groupId);
         log.setActionType(actionType);
@@ -865,7 +865,7 @@ public class ChatService {
         log.setOperatorName(displayUserName(operator));
         log.setTargetUserId(targetUserId);
         if (targetUserId != null) {
-            log.setTargetUserName(displayUserName(userMapper.selectById(targetUserId)));
+            log.setTargetUserName(displayUserName(userService.getDetail(targetUserId)));
         }
         if (StringUtils.hasText(targetNames)) {
             log.setDetail(targetNames);

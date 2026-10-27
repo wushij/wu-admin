@@ -1,7 +1,7 @@
-import { get, post } from '@/utils/request'
+import { get, post } from '@/core/http'
 import type { AuthInfo, LoginForm, LoginResult, RegisterForm } from '@/types/api'
 import type { AuthPublicConfig } from '@/types/config'
-import type { SliderTrackEvent } from '@/utils/slider-captcha'
+import type { SliderTrackEvent } from '@/utils/security/slider-captcha'
 
 export interface CaptchaResult {
   uuid: string

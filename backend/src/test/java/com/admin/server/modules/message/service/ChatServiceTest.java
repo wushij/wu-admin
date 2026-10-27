@@ -14,7 +14,7 @@ import com.admin.server.modules.message.dal.dataobject.ChatPeerUnreadVO;
 import com.admin.server.modules.message.dal.dataobject.UserBlacklistDO;
 import com.admin.server.modules.system.dal.dataobject.user.UserDO;
 import com.admin.server.modules.message.dal.mysql.*;
-import com.admin.server.modules.system.dal.mysql.user.UserMapper;
+import com.admin.server.modules.system.service.user.UserService;
 import com.admin.server.modules.system.service.permission.PermissionService;
 import com.admin.server.testsupport.MybatisLambdaTestBase;
 import com.admin.server.testsupport.MybatisMockMatchers;
@@ -48,7 +48,7 @@ class ChatServiceTest extends MybatisLambdaTestBase {
     @Mock
     private UserBlacklistMapper blacklistMapper;
     @Mock
-    private UserMapper userMapper;
+    private UserService userService;
     @Mock
     private ChatGroupMapper chatGroupMapper;
     @Mock
@@ -68,7 +68,7 @@ class ChatServiceTest extends MybatisLambdaTestBase {
     @Test
     @DisplayName("listUsers：无其他用户时返回空列表")
     void listUsers_emptyWhenNoPeers() {
-        when(userMapper.selectList(MybatisMockMatchers.anyLambdaQueryWrapper())).thenReturn(List.of());
+        when(userService.getEnabledUserList()).thenReturn(List.of());
 
         assertTrue(chatService.listUsers(ME).isEmpty());
         verifyNoInteractions(chatMessageMapper, blacklistMapper);
@@ -78,7 +78,7 @@ class ChatServiceTest extends MybatisLambdaTestBase {
     @DisplayName("listUsers：批量查询黑名单/最新消息/未读数各一次")
     void listUsers_usesBatchQueries() {
         UserDO peer = ServiceTestFixtures.user(2L, "bob", 1);
-        when(userMapper.selectList(MybatisMockMatchers.anyLambdaQueryWrapper())).thenReturn(List.of(peer));
+        when(userService.getEnabledUserList()).thenReturn(List.of(peer));
         when(blacklistMapper.selectBlockedUserIds(ME)).thenReturn(List.of(2L));
 
         ChatPeerLatestVO latest = new ChatPeerLatestVO();
@@ -191,7 +191,7 @@ class ChatServiceTest extends MybatisLambdaTestBase {
     @DisplayName("sendPrivate：成功发送并推送 WebSocket")
     void sendPrivate_success() {
         when(blacklistMapper.selectCount(MybatisMockMatchers.anyLambdaQueryWrapper())).thenReturn(0L);
-        when(userMapper.selectById(ME)).thenReturn(ServiceTestFixtures.user(ME, "alice", 1));
+        when(userService.getDetail(ME)).thenReturn(ServiceTestFixtures.user(ME, "alice", 1));
         doAnswer(inv -> {
             ChatMessageDO msg = inv.getArgument(0);
             msg.setId(200L);
@@ -289,8 +289,8 @@ class ChatServiceTest extends MybatisLambdaTestBase {
             g.setId(100L);
             return 1;
         }).when(chatGroupMapper).insert(any(ChatGroupDO.class));
-        when(userMapper.selectById(ME)).thenReturn(ServiceTestFixtures.user(ME, "alice", 1));
-        when(userMapper.selectById(2L)).thenReturn(ServiceTestFixtures.user(2L, "bob", 1));
+        when(userService.getDetail(ME)).thenReturn(ServiceTestFixtures.user(ME, "alice", 1));
+        when(userService.getDetail(2L)).thenReturn(ServiceTestFixtures.user(2L, "bob", 1));
 
         ChatGroupDO group = chatService.createGroup(ME, "研发群", List.of(2L));
 
@@ -318,7 +318,7 @@ class ChatServiceTest extends MybatisLambdaTestBase {
         operator.setRole(2);
         when(groupMemberMapper.selectOne(MybatisMockMatchers.anyLambdaQueryWrapper())).thenReturn(operator);
         when(groupMemberMapper.selectCount(MybatisMockMatchers.anyLambdaQueryWrapper())).thenReturn(0L);
-        when(userMapper.selectById(2L)).thenReturn(ServiceTestFixtures.user(2L, "bob", 1));
+        when(userService.getDetail(2L)).thenReturn(ServiceTestFixtures.user(2L, "bob", 1));
 
         chatService.addMembers(100L, List.of(2L), ME);
 
@@ -364,7 +364,7 @@ class ChatServiceTest extends MybatisLambdaTestBase {
         when(groupMemberMapper.selectOne(MybatisMockMatchers.anyLambdaQueryWrapper())).thenReturn(sender);
         when(groupMemberMapper.selectList(MybatisMockMatchers.anyLambdaQueryWrapper()))
                 .thenReturn(List.of(sender, peer));
-        when(userMapper.selectById(ME)).thenReturn(ServiceTestFixtures.user(ME, "alice", 1));
+        when(userService.getDetail(ME)).thenReturn(ServiceTestFixtures.user(ME, "alice", 1));
         doAnswer(inv -> {
             ChatGroupMessageDO msg = inv.getArgument(0);
             msg.setId(300L);

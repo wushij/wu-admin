@@ -107,7 +107,7 @@ defineExpose({
   display: flex;
   flex-direction: column;
   width: 100%;
-  max-height: calc(100vh - 200px);
+  height: 100%;
   border-radius: 12px;
   border: 1px solid var(--el-border-color-lighter);
 

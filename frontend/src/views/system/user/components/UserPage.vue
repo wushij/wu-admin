@@ -130,16 +130,22 @@ watchEffect(() => {
 .user-layout {
   display: flex;
   gap: 16px;
-  align-items: flex-start;
+  align-items: stretch;
+  min-height: calc(100vh - 215px);
 }
 
 .user-layout__side {
   width: 280px;
   flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .user-layout__main {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 </style>

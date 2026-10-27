@@ -197,6 +197,16 @@
 }
 
 /* 分页 */
+.main-content .el-pagination,
+.table-pagination {
+  justify-content: flex-start;
+}
+
+.table-pagination {
+  margin-top: auto;
+  padding-top: 16px;
+}
+
 .main-content .el-pagination .el-pager li,
 .main-content .el-pagination .btn-prev,
 .main-content .el-pagination .btn-next,
@@ -349,8 +359,9 @@
   }
 
   .table-pagination {
-    margin-top: 16px;
-    justify-content: flex-end;
+    margin-top: auto;
+    padding-top: 16px;
+    justify-content: flex-start;
   }
 }
 

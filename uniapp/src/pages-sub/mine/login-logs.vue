@@ -64,14 +64,14 @@
 <script setup lang="ts">
 import { onMounted } from 'vue'
 import { onPullDownRefresh } from '@dcloudio/uni-app'
-import ModuleIcon from '@/components/common/ModuleIcon/index.vue'
-import ListLoading from '@/components/common/ListLoading/index.vue'
-import ListFooter from '@/components/common/ListFooter/index.vue'
-import EmptyState from '@/components/common/EmptyState/index.vue'
-import DictTag from '@/components/common/DictTag/index.vue'
-import { usePageList } from '@/composables/usePageList'
+import ModuleIcon from '@/components/base/ModuleIcon/index.vue'
+import ListLoading from '@/components/base/ListLoading/index.vue'
+import ListFooter from '@/components/base/ListFooter/index.vue'
+import EmptyState from '@/components/base/EmptyState/index.vue'
+import DictTag from '@/components/base/DictTag/index.vue'
+import { usePageList } from '@/composables/base/usePageList'
 import { getMyLoginLogs } from '@/api/system/profile'
-import { formatDateTime } from '@/utils/format'
+import { formatDateTime } from '@/utils/display/format'
 import type { LoginLogVO } from '@/types/profile'
 
 const { list, loading, refreshing, finished, empty, total, refresh, loadMore } = usePageList<LoginLogVO>(

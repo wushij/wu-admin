@@ -1,6 +1,5 @@
 package com.admin.server.common.util;
 
-import com.admin.server.modules.system.dal.dataobject.user.UserDO;
 import org.springframework.util.StringUtils;
 
 /**
@@ -11,15 +10,12 @@ public final class UserDisplayNames {
     private UserDisplayNames() {
     }
 
-    public static String of(UserDO user) {
-        if (user == null) {
-            return "-";
+    public static String of(String nickname, String username) {
+        if (StringUtils.hasText(nickname)) {
+            return nickname.trim();
         }
-        if (StringUtils.hasText(user.getNickname())) {
-            return user.getNickname().trim();
-        }
-        if (StringUtils.hasText(user.getUsername())) {
-            return user.getUsername().trim();
+        if (StringUtils.hasText(username)) {
+            return username.trim();
         }
         return "-";
     }

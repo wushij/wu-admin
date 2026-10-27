@@ -28,4 +28,7 @@ public interface PermissionService {
 
     /** 用户拥有的权限标识（含 query→list 只读推导，供前端 v-permission） */
     Set<String> getUserPermissionCodes(Long userId);
+
+    /** 根据角色编码获取拥有该角色的用户ID列表 */
+    List<Long> getUserIdsByRoleCode(String roleCode);
 }

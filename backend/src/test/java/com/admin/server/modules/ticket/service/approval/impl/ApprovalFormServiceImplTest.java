@@ -41,8 +41,6 @@ class ApprovalFormServiceImplTest extends MybatisLambdaTestBase {
     @Mock
     private UserMapper userMapper;
     @Mock
-    private NoticeMapper noticeMapper;
-    @Mock
     private PermissionService permissionService;
     @Mock
     private RegisterApprovalService registerApprovalService;
@@ -196,7 +194,7 @@ class ApprovalFormServiceImplTest extends MybatisLambdaTestBase {
 
         approvalFormService.delete(4L);
 
-        verify(noticeMapper).delete(any());
+        verify(noticeService).deleteNoticeByBiz("APPROVAL", 4L, false);
         verify(approvalRecordMapper).delete(any());
         verify(approvalFormMapper).deleteById(4L);
     }
@@ -210,7 +208,7 @@ class ApprovalFormServiceImplTest extends MybatisLambdaTestBase {
 
         approvalFormService.deletePermanent(4L);
 
-        verify(noticeMapper).deletePhysicalByBiz("APPROVAL", 4L);
+        verify(noticeService).deleteNoticeByBiz("APPROVAL", 4L, true);
         verify(approvalRecordMapper).deletePhysicalByFormId(4L);
         verify(approvalFormMapper).deletePhysicalById(4L);
     }

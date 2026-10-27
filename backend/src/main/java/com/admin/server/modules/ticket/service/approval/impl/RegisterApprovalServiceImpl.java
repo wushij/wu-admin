@@ -5,16 +5,12 @@ import cn.hutool.json.JSONUtil;
 import com.admin.server.modules.ticket.dal.dataobject.approval.ApprovalFormDO;
 import com.admin.server.modules.ticket.dal.dataobject.approval.ApprovalRecordDO;
 import com.admin.server.modules.system.dal.dataobject.notice.NoticeDO;
-import com.admin.server.modules.system.dal.dataobject.permission.RoleDO;
-import com.admin.server.modules.system.dal.dataobject.permission.UserRoleDO;
 import com.admin.server.modules.system.dal.dataobject.user.UserDO;
 import com.admin.server.modules.ticket.dal.mysql.approval.ApprovalFormMapper;
 import com.admin.server.modules.ticket.dal.mysql.approval.ApprovalRecordMapper;
-import com.admin.server.modules.system.dal.mysql.notice.NoticeMapper;
-import com.admin.server.modules.system.dal.mysql.permission.RoleMapper;
-import com.admin.server.modules.system.dal.mysql.permission.UserRoleMapper;
-import com.admin.server.modules.system.dal.mysql.user.UserMapper;
-import com.admin.server.modules.system.dal.mysql.user.UserPostMapper;
+import com.admin.server.modules.system.service.notice.NoticeService;
+import com.admin.server.modules.system.service.permission.PermissionService;
+import com.admin.server.modules.system.service.user.UserService;
 import com.admin.server.modules.ticket.service.approval.RegisterApprovalService;
 import com.admin.server.modules.system.service.config.SystemConfigHelper;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
@@ -23,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import jakarta.annotation.Resource;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -38,15 +35,11 @@ public class RegisterApprovalServiceImpl implements RegisterApprovalService {
     @Resource
     private ApprovalRecordMapper approvalRecordMapper;
     @Resource
-    private UserMapper userMapper;
+    private UserService userService;
     @Resource
-    private RoleMapper roleMapper;
+    private PermissionService permissionService;
     @Resource
-    private UserRoleMapper userRoleMapper;
-    @Resource
-    private UserPostMapper userPostMapper;
-    @Resource
-    private NoticeMapper noticeMapper;
+    private NoticeService noticeService;
     @Resource
     private SystemConfigHelper systemConfigHelper;
 
@@ -100,24 +93,10 @@ public class RegisterApprovalServiceImpl implements RegisterApprovalService {
         if (userId == null || userId <= 0) {
             userId = form.getApplicantUserId();
         }
-        UserDO user = userMapper.selectById(userId);
-        if (user == null) {
-            return;
-        }
-        if (user.getStatus() == null || user.getStatus() != 2) {
-            return;
-        }
         if ("APPROVE".equals(action)) {
-            user.setStatus(1);
-            userMapper.updateById(user);
+            userService.handleRegisterAudit(userId, true);
         } else if ("REJECT".equals(action)) {
-            user.setStatus(3);
-            userMapper.updateById(user);
-            userRoleMapper.deleteByUserId(user.getId());
-            userPostMapper.deleteByUserId(user.getId());
-            userMapper.deleteById(user.getId());
-        } else {
-            return;
+            userService.handleRegisterAudit(userId, false);
         }
     }
 
@@ -170,10 +149,9 @@ public class RegisterApprovalServiceImpl implements RegisterApprovalService {
     private List<Long> resolveRegisterApproverUserIds() {
         List<Long> configured = systemConfigHelper.getRegisterAuditorUserIds();
         if (!configured.isEmpty()) {
-            List<UserDO> validUsers = userMapper.selectList(new LambdaQueryWrapper<UserDO>()
-                    .in(UserDO::getId, configured)
-                    .eq(UserDO::getStatus, 1)
-                    .eq(UserDO::getDeleted, 0));
+            List<UserDO> validUsers = userService.getUserList(configured).stream()
+                    .filter(u -> u != null && u.getStatus() != null && u.getStatus() == 1)
+                    .collect(Collectors.toList());
             Map<Long, UserDO> byId = validUsers.stream()
                     .collect(Collectors.toMap(UserDO::getId, u -> u, (a, b) -> a));
             List<Long> ordered = new ArrayList<>();
@@ -191,24 +169,14 @@ public class RegisterApprovalServiceImpl implements RegisterApprovalService {
     }
 
     private Long resolveDefaultSuperAdminApproverUserId() {
-        RoleDO superRole = roleMapper.selectOne(new LambdaQueryWrapper<RoleDO>()
-                .eq(RoleDO::getCode, "super_admin")
-                .eq(RoleDO::getDeleted, 0)
-                .last("LIMIT 1"));
-        if (superRole == null) {
-            return 1L;
-        }
-        List<UserRoleDO> links = userRoleMapper.selectList(new LambdaQueryWrapper<UserRoleDO>()
-                .eq(UserRoleDO::getRoleId, superRole.getId()));
-        List<Long> userIds = links.stream().map(UserRoleDO::getUserId).collect(Collectors.toList());
+        List<Long> userIds = permissionService.getUserIdsByRoleCode("super_admin");
         if (userIds.isEmpty()) {
             return 1L;
         }
-        List<UserDO> admins = userMapper.selectList(new LambdaQueryWrapper<UserDO>()
-                .in(UserDO::getId, userIds)
-                .eq(UserDO::getStatus, 1)
-                .eq(UserDO::getDeleted, 0)
-                .orderByAsc(UserDO::getId));
+        List<UserDO> admins = userService.getUserList(userIds).stream()
+                .filter(u -> u != null && u.getStatus() != null && u.getStatus() == 1)
+                .sorted(Comparator.comparing(UserDO::getId))
+                .collect(Collectors.toList());
         return admins.isEmpty() ? userIds.get(0) : admins.get(0).getId();
     }
 
@@ -227,6 +195,6 @@ public class RegisterApprovalServiceImpl implements RegisterApprovalService {
         notice.setBizType(bizType);
         notice.setBizId(bizId);
         notice.setReadStatus(0);
-        noticeMapper.insert(notice);
+        noticeService.sendNotice(notice);
     }
 }

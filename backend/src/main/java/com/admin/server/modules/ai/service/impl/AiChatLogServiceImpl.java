@@ -7,6 +7,7 @@ import com.admin.server.modules.ai.api.vo.AiChatHistoryItemVO;
 import com.admin.server.modules.ai.api.vo.AiChatLogPageReqVO;
 import com.admin.server.modules.ai.api.vo.AiConversationVO;
 import com.admin.server.modules.ai.dal.dataobject.AiChatLogDO;
+import com.admin.server.modules.ai.dal.dataobject.AiConversationDO;
 import com.admin.server.modules.ai.dal.mysql.AiChatLogMapper;
 import com.admin.server.modules.ai.service.AiChatLogService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
@@ -70,10 +71,16 @@ public class AiChatLogServiceImpl extends ServiceImpl<AiChatLogMapper, AiChatLog
         if (userId == null || userId <= 0) {
             return List.of();
         }
-        List<AiConversationVO> list = baseMapper.selectConversations(userId, MAX_CONVERSATIONS);
-        // 标题兜底与长度收敛
-        for (AiConversationVO vo : list) {
-            vo.setTitle(StrUtil.brief(StrUtil.blankToDefault(vo.getTitle(), "（无标题会话）"), 60));
+        List<AiConversationDO> doList = baseMapper.selectConversations(userId, MAX_CONVERSATIONS);
+        List<AiConversationVO> list = new ArrayList<>(doList.size());
+        // 标题兜底与长度收敛，转换为视图展示对象
+        for (AiConversationDO item : doList) {
+            AiConversationVO vo = new AiConversationVO();
+            vo.setConversationId(item.getConversationId());
+            vo.setTitle(StrUtil.brief(StrUtil.blankToDefault(item.getTitle(), "（无标题会话）"), 60));
+            vo.setLastTime(item.getLastTime());
+            vo.setMessageCount(item.getMessageCount());
+            list.add(vo);
         }
         return list;
     }

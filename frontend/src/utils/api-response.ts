@@ -1,4 +1,5 @@
-/** 后端统一响应 code 表示成功 */
-export function isApiSuccessCode(code: unknown): boolean {
-  return code === 200 || code === 0
-}
+/**
+ * API 业务响应统一判定兼容转发
+ * 核心实现已提升至 @/core/http/api-response
+ */
+export * from '@/core/http/api-response'

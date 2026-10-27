@@ -5,6 +5,7 @@ import cn.dev33.satoken.stp.StpUtil;
 import com.admin.server.framework.security.api.PermissionApi;
 import com.admin.server.framework.security.api.PermissionDeniedException;
 import com.admin.server.framework.security.api.RequirePermission;
+import com.admin.server.framework.security.core.RiskScoringApi;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -33,6 +34,9 @@ class RequirePermissionAspectTest {
     private PermissionApi permissionApi;
 
     @Mock
+    private RiskScoringApi antiBotRiskService;
+
+    @Mock
     private RequirePermission annotation;
 
     private RequirePermissionAspect aspect;
@@ -40,7 +44,7 @@ class RequirePermissionAspectTest {
 
     @BeforeEach
     void setUp() {
-        aspect = new RequirePermissionAspect(permissionApi);
+        aspect = new RequirePermissionAspect(permissionApi, antiBotRiskService);
         stpUtil = Mockito.mockStatic(StpUtil.class);
     }
 
@@ -158,7 +162,7 @@ class RequirePermissionAspectTest {
 
     private SampleController proxyOfSampleController() {
         AspectJProxyFactory factory = new AspectJProxyFactory(new SampleController());
-        factory.addAspect(new RequirePermissionAspect(permissionApi));
+        factory.addAspect(new RequirePermissionAspect(permissionApi, antiBotRiskService));
         return factory.getProxy();
     }
 

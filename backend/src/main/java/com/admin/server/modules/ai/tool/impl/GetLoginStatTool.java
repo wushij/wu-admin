@@ -4,9 +4,7 @@ import cn.hutool.json.JSONObject;
 import com.admin.server.modules.ai.tool.AiTool;
 import com.admin.server.modules.ai.tool.AiToolContext;
 import com.admin.server.modules.ai.tool.ToolAccessLevel;
-import com.admin.server.modules.system.dal.dataobject.loginlog.LoginLogDO;
-import com.admin.server.modules.system.dal.mysql.loginlog.LoginLogMapper;
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.admin.server.modules.system.service.loginlog.LoginLogService;
 import org.springframework.stereotype.Component;
 
 import jakarta.annotation.Resource;
@@ -19,7 +17,7 @@ import java.time.LocalDateTime;
 public class GetLoginStatTool implements AiTool {
 
     @Resource
-    private LoginLogMapper loginLogMapper;
+    private LoginLogService loginLogService;
 
     @Override
     public String name() {
@@ -61,16 +59,12 @@ public class GetLoginStatTool implements AiTool {
         }
         LocalDateTime since = LocalDateTime.now().minusDays(days);
         // 登录日志状态：0=成功 1=失败
-        Long success = loginLogMapper.selectCount(new LambdaQueryWrapper<LoginLogDO>()
-                .eq(LoginLogDO::getStatus, 0)
-                .ge(LoginLogDO::getLoginTime, since));
-        Long fail = loginLogMapper.selectCount(new LambdaQueryWrapper<LoginLogDO>()
-                .eq(LoginLogDO::getStatus, 1)
-                .ge(LoginLogDO::getLoginTime, since));
+        long success = loginLogService.countByStartTime(since, 0);
+        long fail = loginLogService.countByStartTime(since, 1);
         return new JSONObject()
                 .set("days", days)
-                .set("successCount", success == null ? 0 : success)
-                .set("failCount", fail == null ? 0 : fail)
+                .set("successCount", success)
+                .set("failCount", fail)
                 .toString();
     }
 }

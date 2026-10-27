@@ -4,10 +4,10 @@
  * 流式对话在 H5 下使用原生 fetch 增量读取 SSE；
  * 会话凭证走 Authorization 头（与 luch-request 拦截器一致），并手动补齐防重放签名头。
  */
-import http, { get, del } from '@/utils/request'
-import { getToken } from '@/utils/auth'
-import { generateNonce, getTimestamp, signHmacSm3 } from '@/utils/crypto'
-import { getClientId, getSecurityConfig, requestSessionSignKey } from '@/utils/security-config'
+import http, { get, del } from '@/core/http'
+import { getToken } from '@/core/auth'
+import { generateNonce, getTimestamp, signHmacSm3 } from '@/utils/security/crypto'
+import { getClientId, getSecurityConfig, requestSessionSignKey } from '@/utils/security/security-config'
 
 export interface AiChatModelVO {
   id: number

@@ -5,7 +5,7 @@ import com.admin.server.common.util.UserDisplayNames;
 import com.admin.server.modules.infra.dal.dataobject.operlog.OperLogDO;
 import com.admin.server.modules.system.dal.dataobject.user.UserDO;
 import com.admin.server.modules.infra.dal.mysql.operlog.OperLogMapper;
-import com.admin.server.modules.system.dal.mysql.user.UserMapper;
+import com.admin.server.modules.system.service.user.UserService;
 import com.admin.server.modules.infra.service.operlog.OperLogService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -22,7 +22,7 @@ import java.util.stream.Collectors;
 public class OperLogServiceImpl extends ServiceImpl<OperLogMapper, OperLogDO> implements OperLogService {
 
     @Resource
-    private UserMapper userMapper;
+    private UserService userService;
 
     @Override
     public PageResult<OperLogDO> page(Integer pageNo, Integer pageSize, String title, String operName, Integer status) {
@@ -33,9 +33,7 @@ public class OperLogServiceImpl extends ServiceImpl<OperLogMapper, OperLogDO> im
 
         if (StringUtils.hasText(operName)) {
             String search = operName.trim();
-            List<UserDO> matchedUsers = userMapper.selectList(new LambdaQueryWrapper<UserDO>()
-                    .eq(UserDO::getDeleted, 0)
-                    .and(q -> q.like(UserDO::getUsername, search).or().like(UserDO::getNickname, search)));
+            List<UserDO> matchedUsers = userService.searchUsersByKeyword(search);
             Set<String> searchKeys = new HashSet<>();
             searchKeys.add(search);
             for (UserDO u : matchedUsers) {
@@ -77,13 +75,11 @@ public class OperLogServiceImpl extends ServiceImpl<OperLogMapper, OperLogDO> im
             return;
         }
 
-        List<UserDO> users = userMapper.selectList(new LambdaQueryWrapper<UserDO>()
-                .eq(UserDO::getDeleted, 0)
-                .and(q -> q.in(UserDO::getUsername, operNames).or().in(UserDO::getNickname, operNames)));
+        List<UserDO> users = userService.listUsersByUsernamesOrNicknames(operNames);
 
         Map<String, String> displayNameMap = new HashMap<>();
         for (UserDO u : users) {
-            String displayName = UserDisplayNames.of(u);
+            String displayName = UserDisplayNames.of(u.getNickname(), u.getUsername());
             if (StringUtils.hasText(u.getUsername())) {
                 displayNameMap.put(u.getUsername(), displayName);
             }

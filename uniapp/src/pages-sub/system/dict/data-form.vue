@@ -82,15 +82,15 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
-import ModuleDarkHero from '@/components/common/ModuleDarkHero/index.vue'
-import ModuleIcon from '@/components/common/ModuleIcon/index.vue'
-import FormCell from '@/components/common/FormCell/index.vue'
-import PageFooter from '@/components/common/PageFooter/index.vue'
-import DictTag from '@/components/common/DictTag/index.vue'
+import ModuleDarkHero from '@/components/layout/ModuleDarkHero/index.vue'
+import ModuleIcon from '@/components/base/ModuleIcon/index.vue'
+import FormCell from '@/components/base/FormCell/index.vue'
+import PageFooter from '@/components/base/PageFooter/index.vue'
+import DictTag from '@/components/base/DictTag/index.vue'
 import { listDictDataForManage } from '@/api/system/dict'
-import { listClassToTagType } from '@/composables/useDict'
-import { useDictDataForm, LIST_CLASS_OPTIONS } from '@/composables/useDictDataForm'
-import { useEditPageGuard } from '@/composables/useEditPageGuard'
+import { listClassToTagType } from '@/composables/base/useDict'
+import { useDictDataForm, LIST_CLASS_OPTIONS } from '@/composables/system/useDictDataForm'
+import { useEditPageGuard } from '@/composables/base/useEditPageGuard'
 
 const dataId = ref(0)
 const dictType = ref('')

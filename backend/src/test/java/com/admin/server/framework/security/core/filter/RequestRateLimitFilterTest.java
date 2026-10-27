@@ -1,7 +1,7 @@
 package com.admin.server.framework.security.core.filter;
 
+import com.admin.server.framework.config.DynamicConfigProvider;
 import com.admin.server.framework.web.core.ApiErrorResponseWriter;
-import com.admin.server.modules.system.service.config.SystemConfigHelper;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.FilterChain;
 import org.junit.jupiter.api.BeforeEach;
@@ -29,16 +29,16 @@ class RequestRateLimitFilterTest {
 
     private RequestRateLimitFilter filter;
     private StringRedisTemplate stringRedisTemplate;
-    private SystemConfigHelper systemConfigHelper;
+    private DynamicConfigProvider systemConfigHelper;
 
     @BeforeEach
     void setUp() {
         filter = new RequestRateLimitFilter();
         stringRedisTemplate = mock(StringRedisTemplate.class);
-        systemConfigHelper = mock(SystemConfigHelper.class);
+        systemConfigHelper = mock(DynamicConfigProvider.class);
 
         ReflectionTestUtils.setField(filter, "stringRedisTemplate", stringRedisTemplate);
-        ReflectionTestUtils.setField(filter, "systemConfigHelper", systemConfigHelper);
+        ReflectionTestUtils.setField(filter, "dynamicConfigProvider", systemConfigHelper);
         ReflectionTestUtils.setField(filter, "errorResponseWriter",
                 new ApiErrorResponseWriter(new ObjectMapper()));
     }

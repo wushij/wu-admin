@@ -39,10 +39,10 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
-import ModuleIcon from '@/components/common/ModuleIcon/index.vue'
-import EmptyState from '@/components/common/EmptyState/index.vue'
-import { formatDateTime } from '@/utils/format'
-import { readInboxCache, inboxBizLabel } from '@/utils/inbox-nav'
+import ModuleIcon from '@/components/base/ModuleIcon/index.vue'
+import EmptyState from '@/components/base/EmptyState/index.vue'
+import { formatDateTime } from '@/utils/display/format'
+import { readInboxCache, inboxBizLabel } from '@/utils/nav/inbox-nav'
 import type { NoticeVO } from '@/types/message'
 
 const detail = ref<NoticeVO | null>(null)

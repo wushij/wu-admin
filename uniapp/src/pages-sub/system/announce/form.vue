@@ -124,17 +124,17 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
-import ModuleDarkHero from '@/components/common/ModuleDarkHero/index.vue'
-import ModuleIcon from '@/components/common/ModuleIcon/index.vue'
-import ListLoading from '@/components/common/ListLoading/index.vue'
-import FormCell from '@/components/common/FormCell/index.vue'
-import PageFooter from '@/components/common/PageFooter/index.vue'
-import EmptyState from '@/components/common/EmptyState/index.vue'
-import { useAnnounceForm } from '@/composables/useAnnounceForm'
-import { useModulePermission } from '@/composables/useModulePermission'
-import { useEditPageGuard } from '@/composables/useEditPageGuard'
-import { setTreeSelectDeptIds } from '@/utils/tree-select-init'
-import { appendNavFromParam } from '@/utils/nav-from'
+import ModuleDarkHero from '@/components/layout/ModuleDarkHero/index.vue'
+import ModuleIcon from '@/components/base/ModuleIcon/index.vue'
+import ListLoading from '@/components/base/ListLoading/index.vue'
+import FormCell from '@/components/base/FormCell/index.vue'
+import PageFooter from '@/components/base/PageFooter/index.vue'
+import EmptyState from '@/components/base/EmptyState/index.vue'
+import { useAnnounceForm } from '@/composables/system/useAnnounceForm'
+import { useModulePermission } from '@/composables/base/useModulePermission'
+import { useEditPageGuard } from '@/composables/base/useEditPageGuard'
+import { setTreeSelectDeptIds } from '@/utils/tree/tree-select-init'
+import { appendNavFromParam } from '@/utils/nav/nav-from'
 
 const announceId = ref(0)
 const { hasPerm } = useModulePermission('system:announce:list')

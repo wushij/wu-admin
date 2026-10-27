@@ -1,4 +1,4 @@
-import { get } from '@/utils/request'
+import { get } from '@/core/http'
 import type { PageResult } from '@/types/api'
 import type { ApiAccessLogRow, ApiAccessPageQuery, ApiAccessStatistics } from '@/types/system'
 

@@ -107,6 +107,15 @@ defineEmits<{
 .org-member-card {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+
+  :deep(.el-card__body) {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+  }
 }
 .card-header {
   display: flex;
@@ -129,8 +138,14 @@ defineEmits<{
     font-size: 12px;
   }
 }
+
+:deep(.el-table) {
+  flex: 1;
+}
+
 .el-pagination {
-  margin-top: 16px;
-  justify-content: flex-end;
+  margin-top: auto;
+  padding-top: 16px;
+  justify-content: flex-start;
 }
 </style>

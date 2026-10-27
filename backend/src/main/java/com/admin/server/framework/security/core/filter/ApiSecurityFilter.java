@@ -7,8 +7,10 @@ import cn.hutool.json.JSONUtil;
 import com.admin.server.common.core.CommonResult;
 import com.admin.server.framework.security.core.util.Sm4GcmUtil;
 import com.admin.server.common.util.ClientIpUtils;
-import com.admin.server.modules.system.service.security.AntiBotRiskService;
-import com.admin.server.modules.system.service.config.SystemConfigHelper;
+import com.admin.server.framework.config.DynamicConfigProvider;
+import com.admin.server.framework.security.core.RiskPrincipal;
+import com.admin.server.framework.security.core.RiskPrincipalResolver;
+import com.admin.server.framework.security.core.RiskScoringApi;
 import jakarta.annotation.Resource;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ReadListener;
@@ -78,17 +80,20 @@ public class ApiSecurityFilter extends OncePerRequestFilter {
             "/system/export",
             "/monitor/api-access/export",
             "/monitor/online/export",
-            "/tool/gen/download"
+            "/tool/gen/download",
+            // 蜜罐诱饵：爬虫不会携带签名头，若在此被拦下，陷阱只会返回验签失败，
+            // 命中事件也无法落到 HONEYPOT 类型。
+            "/system/internal"
     );
 
     @Resource
-    private SystemConfigHelper systemConfigHelper;
+    private DynamicConfigProvider dynamicConfigProvider;
 
     @Resource
     private StringRedisTemplate stringRedisTemplate;
 
     @Resource
-    private AntiBotRiskService antiBotRiskService;
+    private RiskScoringApi antiBotRiskService;
 
     @Resource
     private com.admin.server.framework.web.core.ApiErrorResponseWriter errorResponseWriter;
@@ -191,16 +196,16 @@ public class ApiSecurityFilter extends OncePerRequestFilter {
         }
 
         // 1. 读取系统安全开关 (需同时配置了有效密钥才视为生效)
-        boolean timestampEnabled = systemConfigHelper.isTimestampEnabled();
-        boolean nonceEnabled = systemConfigHelper.isNonceEnabled();
-        boolean sm2SignEnabled = systemConfigHelper.isSm2SignEffective();
-        boolean sm4EncryptEnabled = systemConfigHelper.isSm4EncryptEffective();
+        boolean timestampEnabled = dynamicConfigProvider.isTimestampEnabled();
+        boolean nonceEnabled = dynamicConfigProvider.isNonceEnabled();
+        boolean sm2SignEnabled = dynamicConfigProvider.isSm2SignEffective();
+        boolean sm4EncryptEnabled = dynamicConfigProvider.isSm4EncryptEffective();
 
         // 2. 时间戳校验
         String timestampStr = request.getHeader(HEADER_TIMESTAMP);
         if (timestampEnabled) {
             if (StrUtil.isBlank(timestampStr)) {
-                antiBotRiskService.addRisk(clientIp, clientIp, 10, "TIMESTAMP_INVALID", "BLOCKED",
+                antiBotRiskService.addRisk(resolveSubject(request), 10, "TIMESTAMP_INVALID", "BLOCKED",
                         uri, method, userAgent, "缺失 X-Timestamp 请求头");
                 writeError(response, 403, "请求已被拒绝：缺失 X-Timestamp 请求头");
                 return;
@@ -209,13 +214,13 @@ public class ApiSecurityFilter extends OncePerRequestFilter {
                 long timestamp = Long.parseLong(timestampStr);
                 long diff = Math.abs(System.currentTimeMillis() - timestamp);
                 if (diff > MAX_TIMESTAMP_DIFF_MS) {
-                    antiBotRiskService.addRisk(clientIp, clientIp, 20, "TIMESTAMP_INVALID", "BLOCKED",
+                    antiBotRiskService.addRisk(resolveSubject(request), 20, "TIMESTAMP_INVALID", "BLOCKED",
                             uri, method, userAgent, "时间戳无效或已过期 (diff=" + diff + "ms)");
                     writeError(response, 403, "请求已被拒绝：时间戳无效或已过期");
                     return;
                 }
             } catch (NumberFormatException e) {
-                antiBotRiskService.addRisk(clientIp, clientIp, 20, "TIMESTAMP_INVALID", "BLOCKED",
+                antiBotRiskService.addRisk(resolveSubject(request), 20, "TIMESTAMP_INVALID", "BLOCKED",
                         uri, method, userAgent, "非法时间戳格式");
                 writeError(response, 403, "请求已被拒绝：非法时间戳格式");
                 return;
@@ -226,13 +231,13 @@ public class ApiSecurityFilter extends OncePerRequestFilter {
         String nonce = request.getHeader(HEADER_NONCE);
         if (nonceEnabled) {
             if (StrUtil.isBlank(nonce)) {
-                antiBotRiskService.addRisk(clientIp, clientIp, 10, "ANTI_REPLAY", "BLOCKED",
+                antiBotRiskService.addRisk(resolveSubject(request), 10, "ANTI_REPLAY", "BLOCKED",
                         uri, method, userAgent, "缺失 X-Nonce 请求头");
                 writeError(response, 403, "请求已被拒绝：缺失 X-Nonce 请求头");
                 return;
             }
             if (!nonce.matches("[0-9a-fA-F-]{16,64}")) {
-                antiBotRiskService.addRisk(clientIp, clientIp, 10, "ANTI_REPLAY", "BLOCKED",
+                antiBotRiskService.addRisk(resolveSubject(request), 10, "ANTI_REPLAY", "BLOCKED",
                         uri, method, userAgent, "非法 X-Nonce 格式");
                 writeError(response, 403, "请求已被拒绝：非法 X-Nonce 格式");
                 return;
@@ -240,7 +245,7 @@ public class ApiSecurityFilter extends OncePerRequestFilter {
             String redisKey = "security:nonce:" + nonce;
             Boolean success = stringRedisTemplate.opsForValue().setIfAbsent(redisKey, "1", 5, TimeUnit.MINUTES);
             if (Boolean.FALSE.equals(success)) {
-                antiBotRiskService.addRisk(clientIp, clientIp, 30, "ANTI_REPLAY", "BLOCKED",
+                antiBotRiskService.addRisk(resolveSubject(request), 30, "ANTI_REPLAY", "BLOCKED",
                         uri, method, userAgent, "检测到重复请求 (Anti-Replay nonce=" + nonce + ")");
                 writeError(response, 403, "请求已被拒绝：检测到重复请求 (Anti-Replay)");
                 return;
@@ -270,7 +275,7 @@ public class ApiSecurityFilter extends OncePerRequestFilter {
             boolean isPublicAuth = isPublicAuthUri(servletPath);
             if (StrUtil.isBlank(signature)) {
                 if (!isPublicAuth) {
-                    antiBotRiskService.addRisk(clientIp, clientIp, 15, "SIGN_FAIL", "BLOCKED",
+                    antiBotRiskService.addRisk(resolveSubject(request), 15, "SIGN_FAIL", "BLOCKED",
                             uri, method, userAgent, "缺失 X-Signature 签名头");
                     writeError(response, 403, "请求已被拒绝：缺失 X-Signature 签名头");
                     return;
@@ -281,7 +286,7 @@ public class ApiSecurityFilter extends OncePerRequestFilter {
                 if (StrUtil.isBlank(signKey)) {
                     // 签名已开启但拿不到任何密钥：严禁静默放行，否则伪造签名可绕过校验
                     if (!isPublicAuth) {
-                        antiBotRiskService.addRisk(clientIp, clientIp, 15, "SIGN_FAIL", "BLOCKED",
+                        antiBotRiskService.addRisk(resolveSubject(request), 15, "SIGN_FAIL", "BLOCKED",
                                 uri, method, userAgent, "签名密钥缺失或已过期");
                         writeError(response, 403, "请求已被拒绝：签名密钥缺失或已过期，请重新初始化会话");
                         return;
@@ -305,7 +310,7 @@ public class ApiSecurityFilter extends OncePerRequestFilter {
                         String expectedSignature = hmac.digestHex(signContent);
 
                         if (!expectedSignature.equalsIgnoreCase(signature)) {
-                            antiBotRiskService.addRisk(clientIp, clientIp, 25, "SIGN_FAIL", "BLOCKED",
+                            antiBotRiskService.addRisk(resolveSubject(request), 25, "SIGN_FAIL", "BLOCKED",
                                     uri, method, userAgent, "数字签名不匹配 (HMAC-SM3 digest mismatch)");
                             writeError(response, 403, "请求已被拒绝：数字签名验证失败");
                             return;
@@ -431,7 +436,7 @@ public class ApiSecurityFilter extends OncePerRequestFilter {
             }
         }
         // 回退：使用系统配置的主密钥（兼容旧版未升级客户端）
-        return systemConfigHelper.getSm3SignKey();
+        return dynamicConfigProvider.getSm3SignKey();
     }
 
     /**
@@ -448,7 +453,7 @@ public class ApiSecurityFilter extends OncePerRequestFilter {
             }
         }
         // 回退：使用 DB 静态 SM4 密钥（兼容未完成会话协商的旧版客户端）
-        return systemConfigHelper.getSm4SecretKey();
+        return dynamicConfigProvider.getSm4SecretKey();
     }
 
     /** clientId 只允许字母、数字、下划线和短横线，避免拼进 Redis key 时产生注入或异常 key */
@@ -467,14 +472,14 @@ public class ApiSecurityFilter extends OncePerRequestFilter {
                                      String userAgent) throws IOException {
         long contentLength = request.getContentLengthLong();
         if (contentLength > MAX_BODY_BYTES) {
-            rejectOversizedBody(clientIp, uri, method, userAgent);
+            rejectOversizedBody(request, clientIp, uri, method, userAgent);
             writeError(response, 413, "请求体过大，最大允许 1MB");
             return null;
         }
         try (InputStream in = request.getInputStream()) {
             byte[] bytes = in.readNBytes(MAX_BODY_BYTES + 1);
             if (bytes.length > MAX_BODY_BYTES) {
-                rejectOversizedBody(clientIp, uri, method, userAgent);
+                rejectOversizedBody(request, clientIp, uri, method, userAgent);
                 writeError(response, 413, "请求体过大，最大允许 1MB");
                 return null;
             }
@@ -482,12 +487,23 @@ public class ApiSecurityFilter extends OncePerRequestFilter {
         }
     }
 
-    private void rejectOversizedBody(String clientIp, String uri, String method, String userAgent) {
+    private void rejectOversizedBody(HttpServletRequest request, String clientIp, String uri, String method, String userAgent) {
         try {
-            antiBotRiskService.addRisk(clientIp, clientIp, 20, "BODY_TOO_LARGE", "BLOCKED",
+            antiBotRiskService.addRisk(resolveSubject(request), 20, "BODY_TOO_LARGE", "BLOCKED",
                     uri, method, userAgent, "请求体超过 1MB 上限");
         } catch (Exception e) {
             log.warn("记录超大请求体风险分失败: {}", e.getMessage());
+        }
+    }
+
+    /**
+     * 解析风险主体：只有确实要记分时才调用，避免给每个正常请求增加一次登录态查询。
+     */
+    private RiskPrincipal resolveSubject(HttpServletRequest request) {
+        try {
+            return RiskPrincipalResolver.resolve(request);
+        } catch (Exception e) {
+            return RiskPrincipal.ofIp(ClientIpUtils.resolve(request));
         }
     }
 

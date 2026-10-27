@@ -12,26 +12,21 @@
 
     <scroll-view scroll-y class="page-list__scroll" @scrolltolower="onScrollLower">
       <FadeIn :show="hasFetched">
-        <StatGrid :items="statItems" :columns="2" />
+        <StatGrid :items="statItems" :columns="3" />
 
         <SegmentTabs v-model="activeTab" :tabs="tabs" theme="teal" class="security-tabs" />
 
         <!-- 安全拦截事件 -->
+        <!-- 安全拦截事件 -->
         <template v-if="activeTab === 'events'">
-          <MonitorPanel title="安全拦截事件">
-            <template #extra>
-              <button v-if="canClear" class="security-toolbar-btn security-toolbar-btn--danger" @click="confirmClear">
-                清空事件
-              </button>
-            </template>
-
+          <MonitorPanel title="筛选条件">
             <SearchBar v-model="filters.ipaddr" placeholder="搜索客户端 IP" @search="applyFilters" />
 
             <view class="security-filter">
               <text class="security-filter__label">事件类型</text>
-              <view class="security-chips">
+              <view class="security-chips security-chips--row">
                 <text
-                  v-for="item in eventTypeOptions"
+                  v-for="item in primaryEventTypeOptions"
                   :key="item.value"
                   class="security-chip"
                   :class="{ 'security-chip--active': filters.eventType === item.value }"
@@ -39,17 +34,34 @@
                 >
                   {{ item.label }}
                 </text>
+                <text
+                  class="security-chip security-chip--more"
+                  :class="{ 'security-chip--active': isExtraEventTypeActive }"
+                  @click="pickExtraEventType"
+                >
+                  {{ moreEventTypeLabel }}
+                </text>
               </view>
             </view>
+
+
+          </MonitorPanel>
+
+          <MonitorPanel title="拦截事件明细">
+            <template #extra>
+              <view class="security-panel-extra">
+                <text class="security-log-meta">{{ list.length }} 条已加载</text>
+                <button v-if="canClear" class="security-toolbar-btn security-toolbar-btn--danger" @click="confirmClear">
+                  清空
+                </button>
+              </view>
+            </template>
 
             <ListCard v-for="item in list" :key="item.id" class="security-card" @click="openDetail(item)">
               <view class="security-card__head">
                 <view class="security-card__tags">
                   <DictTag :label="formatEventTypeName(item.eventType)" :effect="eventTypeTone(item.eventType)" />
-                  <DictTag
-                    :label="item.action === 'FORBIDDEN' ? '触发封禁' : '已阻断'"
-                    :effect="item.action === 'FORBIDDEN' ? 'danger' : 'warning'"
-                  />
+                  <DictTag :label="formatAction(item.action)" :effect="actionTone(item.action)" />
                 </view>
                 <text class="security-card__score">+{{ item.riskDelta }}</text>
               </view>
@@ -69,48 +81,113 @@
           </MonitorPanel>
         </template>
 
-        <!-- 风险封禁名单 -->
+        <!-- 风险主体 -->
         <template v-else>
-          <MonitorPanel title="风险封禁名单">
+          <MonitorPanel title="筛选条件">
+            <SearchBar v-model="riskFilters.keyword" placeholder="搜索用户 ID / IP" @search="applyRiskFilters" />
+
+            <view class="security-filter">
+              <text class="security-filter__label">风险等级</text>
+              <view class="security-chips">
+                <text
+                  v-for="item in riskLevelOptions"
+                  :key="String(item.value)"
+                  class="security-chip"
+                  :class="{ 'security-chip--active': riskFilters.level === item.value }"
+                  @click="setRiskLevel(item.value)"
+                >
+                  {{ item.label }}
+                </text>
+              </view>
+            </view>
+
+            <view class="security-filter">
+              <text class="security-filter__label">封禁状态</text>
+              <view class="security-chips">
+                <text
+                  v-for="item in riskBlockedOptions"
+                  :key="String(item.value)"
+                  class="security-chip"
+                  :class="{ 'security-chip--active': riskFilters.blocked === item.value }"
+                  @click="setRiskBlocked(item.value)"
+                >
+                  {{ item.label }}
+                </text>
+              </view>
+            </view>
+
+
+          </MonitorPanel>
+
+          <MonitorPanel title="风险主体明细">
             <template #extra>
-              <button v-if="canBlock" class="security-toolbar-btn" @click="openBlock()">手动封禁</button>
+              <view class="security-panel-extra">
+                <text class="security-log-meta">{{ riskList.length }} 条已加载</text>
+                <button v-if="canBlock" class="security-toolbar-btn" @click="openBlock()">手动封禁</button>
+              </view>
             </template>
 
             <ListCard v-for="item in riskList" :key="item.principal" class="security-risk">
               <view class="security-risk__head">
-                <text class="security-risk__ip">{{ item.principal }}</text>
-                <DictTag :label="formatRemainingSeconds(item.remainingSeconds)" effect="danger" />
+                <view class="security-risk__title">
+                  <DictTag
+                    :label="item.principalType === 'user' ? '账号' : 'IP'"
+                    :effect="item.principalType === 'user' ? 'primary' : 'default'"
+                  />
+                  <text class="security-risk__ip">{{ item.principal }}</text>
+                </view>
+                <DictTag
+                  :label="item.blocked ? `剩余 ${formatRemainingSeconds(item.remainingSeconds)}` : '正常'"
+                  :effect="item.blocked ? 'danger' : 'success'"
+                />
               </view>
 
               <view class="security-risk__bar">
                 <view class="security-risk__track">
                   <view
                     class="security-risk__fill"
-                    :class="{ 'security-risk__fill--danger': item.riskScore >= 120 }"
+                    :class="{ 'security-risk__fill--danger': item.riskLevel >= 4 }"
                     :style="{ width: `${Math.min(100, Math.round((item.riskScore / 120) * 100))}%` }"
                   />
                 </view>
-                <text class="security-risk__score">{{ item.riskScore }} / 120 分</text>
+                <text class="security-risk__score">{{ item.riskScore }} 分 · {{ item.riskLevelText }}</text>
               </view>
 
-              <text class="security-risk__reason">{{ item.reason || '—' }}</text>
+              <view class="security-risk__meta">
+                <text class="security-risk__meta-item">窗口内事件 {{ item.eventCount ?? 0 }} 次</text>
+                <text class="security-risk__meta-item">最近触发 {{ item.lastEventTime || '—' }}</text>
+              </view>
+
+              <text v-if="item.ipaddr && item.principalType === 'user'" class="security-risk__meta-item">
+                来源 IP：{{ item.ipaddr }}
+              </text>
+              <text v-if="item.reason" class="security-risk__reason">{{ item.reason }}</text>
 
               <view class="security-card__actions">
+                <button class="outline-btn" @click="openSubjectEvents(item)">事件</button>
                 <button
-                  v-if="canUnblock"
+                  v-if="item.blocked && canUnblock"
                   class="outline-btn outline-btn--primary"
                   @click="handleUnblock(item)"
                 >
-                  一键解封
+                  解封
                 </button>
-                <button class="outline-btn outline-btn--danger" @click="openBlock(item.principal)">
-                  重新封禁
+                <button
+                  v-else-if="canBlock"
+                  class="outline-btn outline-btn--danger"
+                  @click="openBlock(item.principal)"
+                >
+                  拉黑
                 </button>
               </view>
             </ListCard>
 
-            <EmptyState v-if="!riskLoading && !riskList.length" title="暂无封禁中的风险 IP" icon="shield-o" />
-            <ListFooter v-else :loading="riskLoading" :finished="true" :empty="false" />
+            <EmptyState
+              v-if="!riskLoading && !riskList.length"
+              title="当前没有处于风险窗口中的主体"
+              icon="shield-o"
+            />
+            <ListFooter v-else :loading="riskLoading" :finished="riskFinished" :empty="riskEmpty" />
           </MonitorPanel>
         </template>
       </FadeIn>
@@ -152,10 +229,49 @@
 
         <view class="security-modal__actions">
           <button v-if="canBlock" class="security-action-btn security-action-btn--danger" @click="blockFromDetail">
-            拉黑 IP
+            拉黑主体
           </button>
           <button v-if="canDelete" class="security-action-btn" @click="deleteFromDetail">删除</button>
           <button class="security-action-btn" @click="detailVisible = false">关闭</button>
+        </view>
+      </view>
+    </view>
+
+    <!-- 风险主体最近事件 -->
+    <view v-if="subjectEventsVisible" class="security-modal" @click="subjectEventsVisible = false">
+      <view class="security-modal__card" @click.stop>
+        <text class="security-modal__title">最近安全事件</text>
+
+        <view v-if="activeSubject" class="security-subject-summary">
+          <DictTag
+            :label="activeSubject.principalType === 'user' ? '账号' : 'IP'"
+            :effect="activeSubject.principalType === 'user' ? 'primary' : 'default'"
+          />
+          <text class="security-risk__ip">{{ activeSubject.principal }}</text>
+          <text class="security-risk__score">{{ activeSubject.riskScore }} 分 · {{ activeSubject.riskLevelText }}</text>
+        </view>
+
+        <view v-for="item in subjectEvents" :key="item.id" class="security-subject-event">
+          <view class="security-subject-event__head">
+            <DictTag :label="formatEventTypeName(item.eventType)" :effect="eventTypeTone(item.eventType)" />
+            <text class="security-card__score">+{{ item.riskDelta }}</text>
+          </view>
+          <text class="security-card__reason">{{ item.reason || '—' }}</text>
+          <view class="security-card__row">
+            <text class="security-card__time">{{ formatDateTime(item.createTime, true) }}</text>
+            <text class="security-card__time">累计 {{ item.totalRiskScore }} 分</text>
+          </view>
+        </view>
+
+        <text v-if="subjectEventsLoading" class="security-subject-loading">加载中…</text>
+        <EmptyState
+          v-if="!subjectEventsLoading && !subjectEvents.length"
+          title="该主体最近没有安全事件"
+          icon="shield-o"
+        />
+
+        <view class="security-modal__actions">
+          <button class="security-action-btn" @click="subjectEventsVisible = false">关闭</button>
         </view>
       </view>
     </view>
@@ -165,8 +281,12 @@
       <view class="security-modal__card" @click.stop>
         <text class="security-modal__title">手动封禁风险主体</text>
 
-        <text class="security-form__label">目标 IP</text>
-        <input v-model="blockForm.principal" class="security-input" placeholder="例如 192.168.1.100" />
+        <text class="security-form__label">目标主体</text>
+        <input
+          v-model="blockForm.principal"
+          class="security-input"
+          placeholder="用户 ID 或 IP，例如 user:12 / 1.2.3.100"
+        />
 
         <text class="security-form__label">封禁时长</text>
         <view class="security-input security-input--picker" @click="pickDuration">
@@ -197,25 +317,26 @@
 <script setup lang="ts">
 import { computed, reactive, ref, onMounted, watch } from 'vue'
 import { onPullDownRefresh } from '@dcloudio/uni-app'
-import ModuleDarkHero from '@/components/common/ModuleDarkHero/index.vue'
-import MonitorPanel from '@/components/common/MonitorPanel/index.vue'
-import SearchBar from '@/components/common/SearchBar/index.vue'
-import ListFooter from '@/components/common/ListFooter/index.vue'
-import ListCard from '@/components/common/ListCard/index.vue'
-import DictTag from '@/components/common/DictTag/index.vue'
-import FadeIn from '@/components/common/FadeIn/index.vue'
-import EmptyState from '@/components/common/EmptyState/index.vue'
-import SegmentTabs from '@/components/common/SegmentTabs/index.vue'
-import StatGrid from '@/components/common/StatGrid/index.vue'
-import type { StatItem } from '@/components/common/StatGrid/index.vue'
-import PermissionBlock from '@/components/common/PermissionBlock/index.vue'
-import AppDialogHost from '@/components/common/AppDialogHost/index.vue'
-import { usePageList } from '@/composables/usePageList'
-import { useModulePermission } from '@/composables/useModulePermission'
+import ModuleDarkHero from '@/components/layout/ModuleDarkHero/index.vue'
+import MonitorPanel from '@/components/layout/MonitorPanel/index.vue'
+import SearchBar from '@/components/base/SearchBar/index.vue'
+import ListFooter from '@/components/base/ListFooter/index.vue'
+import ListCard from '@/components/base/ListCard/index.vue'
+import DictTag from '@/components/base/DictTag/index.vue'
+import FadeIn from '@/components/base/FadeIn/index.vue'
+import EmptyState from '@/components/base/EmptyState/index.vue'
+import SegmentTabs from '@/components/base/SegmentTabs/index.vue'
+import StatGrid from '@/components/base/StatGrid/index.vue'
+import type { StatItem } from '@/components/base/StatGrid/index.vue'
+import PermissionBlock from '@/components/base/PermissionBlock/index.vue'
+import AppDialogHost from '@/components/base/AppDialogHost/index.vue'
+import { usePageList } from '@/composables/base/usePageList'
+import { useModulePermission } from '@/composables/base/useModulePermission'
 import {
   getSecurityEvents,
   getSecurityStats,
-  getRiskList,
+  getRiskSubjects,
+  getRiskSubjectEvents,
   unblockRiskSubject,
   blockRiskSubject,
   deleteSecurityEvent,
@@ -223,8 +344,9 @@ import {
   type SecurityEventVO,
   type SecurityStatsVO,
   type RiskSubjectVO,
+  type RiskSubjectPageQuery,
 } from '@/api/system/security'
-import { formatDateTime } from '@/utils/format'
+import { formatDateTime } from '@/utils/display/format'
 import { showActionSheet, showConfirm } from '@/utils/app-dialog'
 import { showSuccessToast } from '@/utils/app-toast'
 
@@ -238,7 +360,7 @@ const canClear = computed(() => hasPerm('system:security:clear'))
 
 const tabs = [
   { key: 'events', label: '拦截事件' },
-  { key: 'risk', label: '风险名单' },
+  { key: 'risk', label: '风险主体' },
 ]
 const activeTab = ref<'events' | 'risk'>('events')
 const hasFetched = ref(false)
@@ -246,16 +368,26 @@ const hasFetched = ref(false)
 const stats = reactive<SecurityStatsVO>({
   todayTotal: 0,
   todayBlocked: 0,
+  todayForbidden: 0,
+  todayWarning: 0,
+  todayChallenge: 0,
   todayUaBlock: 0,
   todayReplayBlock: 0,
+  todayHoneypot: 0,
+  todayPermissionDenied: 0,
   activeBlockedCount: 0,
+  activeRiskCount: 0,
+  riskLevelDistribution: {},
+  topRiskSubjects: [],
 })
 
 const statItems = computed<StatItem[]>(() => [
   { label: '今日拦截', value: stats.todayTotal, tone: 'primary' },
-  { label: '爬虫拦截', value: stats.todayUaBlock, tone: 'warning' },
-  { label: '重放攻击', value: stats.todayReplayBlock, tone: 'danger' },
-  { label: '当前封禁 IP', value: stats.activeBlockedCount, tone: 'danger' },
+  { label: '爬虫嗅探', value: stats.todayUaBlock, tone: 'warning' },
+  { label: '重放攻击', value: stats.todayReplayBlock, tone: 'info' },
+  { label: '蜜罐击中', value: stats.todayHoneypot, tone: 'success' },
+  { label: '自动封禁', value: stats.todayForbidden, tone: 'danger' },
+  { label: '当前封禁', value: stats.activeBlockedCount, tone: 'danger' },
 ])
 
 const filters = reactive({
@@ -263,14 +395,49 @@ const filters = reactive({
   eventType: '',
 })
 
-const eventTypeOptions = [
+const primaryEventTypeOptions = [
   { label: '全部', value: '' },
-  { label: '爬虫 UA', value: 'UA_BLOCK' },
-  { label: '重放攻击', value: 'ANTI_REPLAY' },
-  { label: '签名篡改', value: 'SIGN_FAIL' },
-  { label: '时间戳超窗', value: 'TIMESTAMP_INVALID' },
-  { label: '风控封禁', value: 'RISK_BLOCK' },
+  { label: '爬虫风控', value: 'UA_BLOCK' },
+  { label: '蜜罐诱导', value: 'HONEYPOT' },
 ]
+
+const extraEventTypeOptions = [
+  { label: '重放攻击', value: 'ANTI_REPLAY' },
+  { label: '自动封禁', value: 'RISK_BLOCK' },
+  { label: '越权探测', value: 'PERMISSION_DENIED' },
+  { label: '签名篡改', value: 'SIGN_FAIL' },
+  { label: '登录失败', value: 'LOGIN_FAIL' },
+  { label: '滑块失败', value: 'CAPTCHA_FAIL' },
+  { label: '时间戳超窗', value: 'TIMESTAMP_INVALID' },
+  { label: '超大请求体', value: 'BODY_TOO_LARGE' },
+  { label: '翻页遍历', value: 'PAGE_SCAN' },
+  { label: '批量导出', value: 'BULK_EXPORT' },
+  { label: '风控挑战', value: 'RISK_CHALLENGE' },
+]
+
+const isExtraEventTypeActive = computed(() => {
+  return extraEventTypeOptions.some((item) => item.value === filters.eventType)
+})
+
+const moreEventTypeLabel = computed(() => {
+  const match = extraEventTypeOptions.find((item) => item.value === filters.eventType)
+  return match ? `${match.label} ▾` : '更多 ▾'
+})
+
+async function pickExtraEventType() {
+  try {
+    const index = await showActionSheet({
+      title: '选择细分事件类型',
+      items: extraEventTypeOptions.map((item) => ({ label: item.label })),
+    })
+    const selected = extraEventTypeOptions[index]
+    if (selected) {
+      setEventType(selected.value)
+    }
+  } catch {
+    /* 用户取消选择 */
+  }
+}
 
 const {
   list,
@@ -279,6 +446,7 @@ const {
   empty,
   refresh,
   loadMore,
+  total,
 } = usePageList<SecurityEventVO>(async (pageNo, pageSize) => {
   const res = await getSecurityEvents({
     pageNo,
@@ -289,8 +457,49 @@ const {
   return { list: res.data?.list || [], total: res.data?.total || 0 }
 })
 
-const riskList = ref<RiskSubjectVO[]>([])
-const riskLoading = ref(false)
+
+const riskFilters = reactive<RiskSubjectPageQuery>({
+  keyword: '',
+  level: undefined,
+  blocked: undefined,
+})
+
+const riskLevelOptions: Array<{ label: string; value: number | undefined }> = [
+  { label: '全部', value: undefined },
+  { label: '关注', value: 1 },
+  { label: '警告', value: 2 },
+  { label: '挑战', value: 3 },
+  { label: '封禁', value: 4 },
+]
+
+const riskBlockedOptions: Array<{ label: string; value: boolean | undefined }> = [
+  { label: '全部', value: undefined },
+  { label: '已封禁', value: true },
+  { label: '未封禁', value: false },
+]
+
+const {
+  list: riskList,
+  loading: riskLoading,
+  finished: riskFinished,
+  empty: riskEmpty,
+  refresh: refreshRisk,
+  loadMore: loadMoreRisk,
+} = usePageList<RiskSubjectVO>(async (pageNo, pageSize) => {
+  const res = await getRiskSubjects({
+    pageNo,
+    pageSize,
+    keyword: (riskFilters.keyword || '').trim() || undefined,
+    level: riskFilters.level,
+    blocked: riskFilters.blocked,
+  })
+  return { list: res.data?.list || [], total: res.data?.total || 0 }
+})
+
+const subjectEventsVisible = ref(false)
+const subjectEventsLoading = ref(false)
+const subjectEvents = ref<SecurityEventVO[]>([])
+const activeSubject = ref<RiskSubjectVO | null>(null)
 
 const detailVisible = ref(false)
 const activeEvent = ref<SecurityEventVO | null>(null)
@@ -323,21 +532,70 @@ function formatEventTypeName(type: string): string {
       return '数字签名篡改'
     case 'TIMESTAMP_INVALID':
       return '时间戳超窗'
+    case 'BODY_TOO_LARGE':
+      return '超大请求体'
     case 'RISK_BLOCK':
       return '风控累计封禁'
+    case 'HONEYPOT':
+      return '蜜罐诱捕触发'
+    case 'LOGIN_FAIL':
+      return '登录失败'
+    case 'CAPTCHA_FAIL':
+      return '滑块验证失败'
+    case 'CAPTCHA_ABUSE':
+      return '滑块连续失败'
+    case 'PERMISSION_DENIED':
+      return '越权探测'
+    case 'PAGE_SCAN':
+      return '翻页遍历'
+    case 'BULK_EXPORT':
+      return '批量导出'
+    case 'RISK_CHALLENGE':
+      return '风控挑战'
     default:
       return type || '未知事件'
   }
 }
 
-function eventTypeTone(type: string): 'warning' | 'danger' | 'primary' {
+function eventTypeTone(type: string): 'warning' | 'danger' | 'primary' | 'default' {
   switch (type) {
     case 'UA_BLOCK':
+    case 'CAPTCHA_FAIL':
+    case 'LOGIN_FAIL':
       return 'warning'
     case 'TIMESTAMP_INVALID':
+    case 'BODY_TOO_LARGE':
+    case 'RISK_CHALLENGE':
       return 'primary'
     default:
       return 'danger'
+  }
+}
+
+function formatAction(action: string): string {
+  switch (action) {
+    case 'FORBIDDEN':
+      return '触发封禁'
+    case 'CHALLENGE':
+      return '要求验证'
+    case 'WARNING':
+      return '安全告警'
+    case 'BLOCKED':
+      return '已阻断(403)'
+    default:
+      return action || '未知'
+  }
+}
+
+function actionTone(action: string): 'warning' | 'danger' | 'primary' | 'default' {
+  switch (action) {
+    case 'FORBIDDEN':
+      return 'danger'
+    case 'CHALLENGE':
+    case 'WARNING':
+      return 'warning'
+    default:
+      return 'default'
   }
 }
 
@@ -364,15 +622,35 @@ async function loadStats() {
 }
 
 async function loadRiskList() {
-  riskLoading.value = true
+  await refreshRisk({ silent: true })
+}
+
+function applyRiskFilters() {
+  void loadRiskList()
+}
+
+function setRiskLevel(value: number | undefined) {
+  riskFilters.level = value
+  void loadRiskList()
+}
+
+function setRiskBlocked(value: boolean | undefined) {
+  riskFilters.blocked = value
+  void loadRiskList()
+}
+
+async function openSubjectEvents(item: RiskSubjectVO) {
+  activeSubject.value = item
+  subjectEvents.value = []
+  subjectEventsVisible.value = true
+  subjectEventsLoading.value = true
   try {
-    const res = await getRiskList()
-    riskList.value = res.data || []
-    stats.activeBlockedCount = riskList.value.length
+    const res = await getRiskSubjectEvents(item.principal, 50)
+    subjectEvents.value = res.data || []
   } catch {
     /* 全局错误处理已提示 */
   } finally {
-    riskLoading.value = false
+    subjectEventsLoading.value = false
   }
 }
 
@@ -386,13 +664,30 @@ function applyFilters() {
   void loadEvents()
 }
 
+function resetFilters() {
+  filters.ipaddr = ''
+  filters.eventType = ''
+  void loadEvents()
+}
+
+function resetRiskFilters() {
+  riskFilters.keyword = ''
+  riskFilters.level = undefined
+  riskFilters.blocked = undefined
+  void loadRiskList()
+}
+
 function setEventType(value: string) {
   filters.eventType = value
   void loadEvents()
 }
 
 function onScrollLower() {
-  if (activeTab.value === 'events') loadMore()
+  if (activeTab.value === 'events') {
+    loadMore()
+  } else {
+    loadMoreRisk()
+  }
 }
 
 watch(activeTab, (tab) => {
@@ -453,12 +748,12 @@ async function confirmClear() {
 async function handleUnblock(item: RiskSubjectVO) {
   const { confirmed } = await showConfirm({
     title: '解除封禁',
-    content: `确认立即解除对 IP「${item.principal}」的限制吗？`,
+    content: `确认解除对风险主体「${item.principal}」的封禁并清零风险分吗？`,
     confirmText: '立即解封',
   })
   if (!confirmed) return
-  await unblockRiskSubject(item.principal)
-  showSuccessToast('已解除封禁')
+  await unblockRiskSubject(item.principal, true)
+  showSuccessToast('已解封并清零风险分')
   await loadRiskList()
   await loadStats()
 }
@@ -486,7 +781,7 @@ async function pickDuration() {
 async function confirmBlock() {
   const principal = blockForm.principal.trim()
   if (!principal) {
-    uni.showToast({ title: '请输入待封禁的 IP 地址', icon: 'none' })
+    uni.showToast({ title: '请输入待封禁的主体或 IP', icon: 'none' })
     return
   }
   blocking.value = true
@@ -583,17 +878,32 @@ onPullDownRefresh(async () => {
   display: flex;
   flex-wrap: wrap;
   gap: 12rpx;
+  margin-top: 4rpx;
+}
+
+.security-chips--row {
+  flex-wrap: nowrap;
+}
+
+.security-chips--row .security-chip {
+  flex: 1;
+  padding: 10rpx 4rpx;
+  font-size: 21rpx;
+  text-align: center;
+  white-space: nowrap;
 }
 
 .security-chip {
   display: inline-flex;
   align-items: center;
-  padding: 10rpx 22rpx;
+  justify-content: center;
+  padding: 8rpx 20rpx;
   border-radius: 999rpx;
-  font-size: $font-size-sm;
+  font-size: 22rpx;
   color: $color-text-secondary;
   background: $color-bg-muted;
-  border: 1px solid $color-border-light;
+  border: 1px solid rgba(226, 232, 240, 0.85);
+  transition: all 0.2s ease;
 }
 
 .security-chip--active {
@@ -603,8 +913,63 @@ onPullDownRefresh(async () => {
   font-weight: $font-weight-semibold;
 }
 
+.security-chip--more {
+  border-style: dashed;
+}
+
+.filter-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 16rpx;
+  margin-top: 24rpx;
+}
+
+.filter-actions__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 64rpx;
+  padding: 0 32rpx;
+  margin: 0;
+  font-size: $font-size-sm;
+  color: $color-text-secondary;
+  background: $color-bg-muted;
+  border: none;
+  border-radius: 32rpx;
+
+  &::after {
+    border: none;
+  }
+}
+
+.filter-actions__btn--primary {
+  color: #fff;
+  background: linear-gradient(135deg, #6366f1, #818cf8);
+}
+
+.security-panel-extra {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+
+.security-log-meta {
+  font-size: 22rpx;
+  color: #909399;
+}
+
 .security-card {
   margin-top: 16rpx;
+}
+
+.security-list-footer {
+  padding: 32rpx 0 16rpx;
+  text-align: center;
+}
+
+.security-footer-text {
+  font-size: 22rpx;
+  color: $color-text-placeholder;
 }
 
 .security-card__head {
@@ -732,6 +1097,59 @@ onPullDownRefresh(async () => {
   font-size: $font-size-sm;
   color: $color-text-regular;
   line-height: 1.5;
+}
+
+.security-risk__title {
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+  min-width: 0;
+}
+
+.security-risk__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8rpx 24rpx;
+  margin-top: 12rpx;
+}
+
+.security-risk__meta-item {
+  display: block;
+  margin-top: 4rpx;
+  font-size: $font-size-xs;
+  color: $color-text-secondary;
+}
+
+.security-subject-summary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12rpx;
+  margin-bottom: 20rpx;
+}
+
+.security-subject-event {
+  padding: 20rpx 0;
+  border-bottom: 1px solid $color-border-light;
+}
+
+.security-subject-event:last-of-type {
+  border-bottom: none;
+}
+
+.security-subject-event__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12rpx;
+}
+
+.security-subject-loading {
+  display: block;
+  padding: 32rpx 0;
+  text-align: center;
+  font-size: $font-size-sm;
+  color: $color-text-secondary;
 }
 
 .security-modal {

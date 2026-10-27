@@ -68,4 +68,16 @@ public class LoginLogServiceImpl implements LoginLogService {
     public void clear() {
         loginLogMapper.delete(new LambdaQueryWrapper<>());
     }
+
+    @Override
+    public long countByStartTime(java.time.LocalDateTime startTime, Integer status) {
+        LambdaQueryWrapper<LoginLogDO> wrapper = new LambdaQueryWrapper<>();
+        if (startTime != null) {
+            wrapper.ge(LoginLogDO::getLoginTime, startTime);
+        }
+        if (status != null) {
+            wrapper.eq(LoginLogDO::getStatus, status);
+        }
+        return loginLogMapper.selectCount(wrapper);
+    }
 }

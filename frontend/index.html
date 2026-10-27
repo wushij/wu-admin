@@ -9,6 +9,10 @@
   </head>
   <body>
     <div id="app"></div>
+    <!-- 内部导出入口，页面不渲染，仅用于探测非人类访问 -->
+    <a href="/api/system/internal/config-export" rel="nofollow" aria-hidden="true" tabindex="-1" style="display:none!important;visibility:hidden;position:absolute;left:-9999px">export</a>
+    <a href="/api/system/internal/db-backup" rel="nofollow" aria-hidden="true" tabindex="-1" style="display:none!important;visibility:hidden;position:absolute;left:-9999px">backup</a>
+    <meta name="x-internal-api" content="/api/system/internal/console" />
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

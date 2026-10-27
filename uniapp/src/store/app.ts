@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { getConfig, sessionSignInit } from '@/api/system/auth'
-import { setSecurityConfig, getClientId } from '@/utils/security-config'
+import { setSecurityConfig, getClientId } from '@/utils/security/security-config'
 
 export const useAppStore = defineStore('app', () => {
   const platformName = ref('Wu-Admin')

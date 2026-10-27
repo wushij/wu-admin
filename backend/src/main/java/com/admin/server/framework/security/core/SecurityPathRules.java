@@ -32,7 +32,10 @@ public final class SecurityPathRules {
 
     /** 等价于 {@code permitAll}：放行但仍执行过滤器（已登录时会刷新在线活跃时间） */
     private static final List<String> PERMIT_ALL_PATHS = List.of(
-            "/pay/notify/**"
+            "/pay/notify/**",
+            // 蜜罐诱饵：必须匿名可达，否则扫描器只会拿到 401，陷阱永远不会被踩中。
+            // 该前缀下不得挂载任何真实业务接口，详见 HoneypotPaths。
+            HoneypotPaths.PREFIX_ANT
     );
 
     /** 等价于 {@code requestMatchers(HttpMethod.GET, "/files/**").permitAll()} */

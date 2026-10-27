@@ -166,7 +166,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import DictTag from '@/components/DictTag.vue'
 import { getRecycleSummary, type RecycleSummary } from '@/api/system/recycle'
 import { useUserStore } from '@/store/user'
-import { hasMenuPermission } from '@/directives/permission'
+import { hasMenuPermission } from '@/utils/permission'
 import { RECYCLE_TYPES, getRecycleType, type RecycleTypeKey } from './recycle-config'
 import { preloadDicts } from '@/composables/useDict'
 import { DICT_TYPE } from '@/constants/dict'
@@ -434,9 +434,14 @@ onMounted(async () => {
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    background: var(--accent-gradient, linear-gradient(135deg, #6366f1, #8b5cf6));
-    color: #fff;
-    box-shadow: 0 4px 12px var(--accent-shadow, rgba(99, 102, 241, 0.35));
+    background: var(--accent-soft, #eef2ff);
+    color: var(--accent-ink, #4f46e5);
+    border: 1px solid var(--accent-line, #e0e7ff);
+    transition: transform 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .type-card:hover .type-icon-wrap {
+    transform: scale(1.06);
   }
 
   .type-icon {
@@ -478,67 +483,93 @@ onMounted(async () => {
 
   .accent-user {
     --accent-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    --accent-shadow: rgba(102, 126, 234, 0.35);
+    --accent-soft: #eef2ff;
+    --accent-ink: #4f46e5;
+    --accent-line: #e0e7ff;
   }
 
   .accent-role {
     --accent-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-    --accent-shadow: rgba(240, 147, 251, 0.35);
+    --accent-soft: #fff1f2;
+    --accent-ink: #e11d48;
+    --accent-line: #ffe4e6;
   }
 
   .accent-menu {
     --accent-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-    --accent-shadow: rgba(79, 172, 254, 0.35);
+    --accent-soft: #eff6ff;
+    --accent-ink: #2563eb;
+    --accent-line: #dbeafe;
   }
 
   .accent-dept {
     --accent-gradient: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
-    --accent-shadow: rgba(67, 233, 123, 0.35);
+    --accent-soft: #ecfdf5;
+    --accent-ink: #059669;
+    --accent-line: #d1fae5;
   }
 
   .accent-post {
     --accent-gradient: linear-gradient(135deg, #0ea5e9 0%, #06b6d4 100%);
-    --accent-shadow: rgba(14, 165, 233, 0.35);
+    --accent-soft: #ecfeff;
+    --accent-ink: #0891b2;
+    --accent-line: #cffafe;
   }
 
   .accent-ticket {
     --accent-gradient: linear-gradient(135deg, #f7971e 0%, #ffd200 100%);
-    --accent-shadow: rgba(247, 151, 30, 0.35);
+    --accent-soft: #fff7ed;
+    --accent-ink: #ea580c;
+    --accent-line: #ffedd5;
   }
 
   .accent-approval {
     --accent-gradient: linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%);
-    --accent-shadow: rgba(161, 140, 209, 0.35);
+    --accent-soft: #faf5ff;
+    --accent-ink: #9333ea;
+    --accent-line: #f3e8ff;
   }
 
   .accent-dict {
     --accent-gradient: linear-gradient(135deg, #6366f1 0%, #818cf8 100%);
-    --accent-shadow: rgba(99, 102, 241, 0.35);
+    --accent-soft: #eef2ff;
+    --accent-ink: #6366f1;
+    --accent-line: #e0e7ff;
   }
 
   .accent-dictData {
     --accent-gradient: linear-gradient(135deg, #8b5cf6 0%, #a78bfa 100%);
-    --accent-shadow: rgba(139, 92, 246, 0.35);
+    --accent-soft: #f5f3ff;
+    --accent-ink: #7c3aed;
+    --accent-line: #ede9fe;
   }
 
   .accent-announce {
     --accent-gradient: linear-gradient(135deg, #ec4899 0%, #f472b6 100%);
-    --accent-shadow: rgba(236, 72, 153, 0.35);
+    --accent-soft: #fdf2f8;
+    --accent-ink: #db2777;
+    --accent-line: #fce7f3;
   }
 
   .accent-job {
     --accent-gradient: linear-gradient(135deg, #14b8a6 0%, #2dd4bf 100%);
-    --accent-shadow: rgba(20, 184, 166, 0.35);
+    --accent-soft: #f0fdfa;
+    --accent-ink: #0d9488;
+    --accent-line: #ccfbf1;
   }
 
   .accent-file {
     --accent-gradient: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-    --accent-shadow: rgba(99, 102, 241, 0.35);
+    --accent-soft: #f5f3ff;
+    --accent-ink: #6d28d9;
+    --accent-line: #ede9fe;
   }
 
   .accent-gen {
     --accent-gradient: linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%);
-    --accent-shadow: rgba(59, 130, 246, 0.35);
+    --accent-soft: #eff6ff;
+    --accent-ink: #3b82f6;
+    --accent-line: #dbeafe;
   }
 
   .table-card {
@@ -578,9 +609,10 @@ onMounted(async () => {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    color: #fff;
     font-size: 16px;
-    background: var(--accent-gradient, linear-gradient(135deg, #6366f1, #8b5cf6));
+    background: var(--accent-soft, #eef2ff);
+    color: var(--accent-ink, #4f46e5);
+    border: 1px solid var(--accent-line, #e0e7ff);
   }
 
   .refresh-btn {
@@ -624,7 +656,7 @@ onMounted(async () => {
 
   .pagination {
     margin-top: 16px;
-    justify-content: flex-end;
+    justify-content: flex-start;
   }
 
   .action-buttons {

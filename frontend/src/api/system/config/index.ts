@@ -29,8 +29,8 @@ export function updateConfigGroup(groupCode: string, configValue: string) {
   return put(`/system/config-group/${groupCode}`, { configValue })
 }
 
-export function getStorageConfig() {
-  return get<import('@/types/config').StorageConfigVO>('/system/config-group/storage')
+export function getStorageConfig(params?: Record<string, any>) {
+  return get<import('@/types/config').StorageConfigVO>('/system/config-group/storage', params)
 }
 
 export function updateStorageConfig(data: import('@/types/config').StorageConfigDTO) {

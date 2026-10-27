@@ -205,8 +205,8 @@
 
 <script setup lang="ts">
 import { User, Lock, Key, Iphone, Message } from '@element-plus/icons-vue'
-import AuthSplitLayout from '@/views/auth/components/AuthSplitLayout.vue'
-import AuthCaptchaField from '@/views/auth/components/AuthCaptchaField.vue'
+import AuthSplitLayout from '@/components/auth/AuthSplitLayout.vue'
+import AuthCaptchaField from '@/components/auth/AuthCaptchaField.vue'
 import SliderCaptcha from '@/components/SliderCaptcha.vue'
 import { useLoginForm } from '../composables/useLoginForm'
 

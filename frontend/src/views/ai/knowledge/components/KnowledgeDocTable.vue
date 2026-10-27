@@ -355,7 +355,7 @@ function getCleanSnippet(content?: string): string {
 
 .pagination-footer {
   display: flex;
-  justify-content: flex-end;
+  justify-content: flex-start;
   padding: 16px 20px;
   border-top: 1px solid #f1f5f9;
 }

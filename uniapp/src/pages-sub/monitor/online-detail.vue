@@ -64,16 +64,16 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
-import UserAvatar from '@/components/business/UserAvatar/index.vue'
-import EmptyState from '@/components/common/EmptyState/index.vue'
-import ListLoading from '@/components/common/ListLoading/index.vue'
-import PageFooter from '@/components/common/PageFooter/index.vue'
-import AppDialogHost from '@/components/common/AppDialogHost/index.vue'
+import UserAvatar from '@/components/business/shared/UserAvatar/index.vue'
+import EmptyState from '@/components/base/EmptyState/index.vue'
+import ListLoading from '@/components/base/ListLoading/index.vue'
+import PageFooter from '@/components/base/PageFooter/index.vue'
+import AppDialogHost from '@/components/base/AppDialogHost/index.vue'
 import { forceLogoutOnlineUser } from '@/api/monitor/online'
-import { useModulePermission } from '@/composables/useModulePermission'
+import { useModulePermission } from '@/composables/base/useModulePermission'
 import { clearOnlineUserDetail, resolveOnlineUserDetail } from '@/utils/online-detail-cache'
 import { showConfirm } from '@/utils/app-dialog'
-import { formatDateTime } from '@/utils/format'
+import { formatDateTime } from '@/utils/display/format'
 import type { OnlineUser } from '@/types/system'
 
 type OpenerEventChannel = {

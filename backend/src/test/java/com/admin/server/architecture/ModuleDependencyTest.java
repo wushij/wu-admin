@@ -22,10 +22,20 @@ public class ModuleDependencyTest {
     }
 
     @Test
-    void testNoCrossModuleImplAccess() {
-        noClasses().that().resideInAPackage("..modules.ticket..")
-            .should().accessClassesThat()
-            .resideInAnyPackage("..modules.system.service..impl..", "..modules.message.service..impl..")
+    void testFrameworkMustNotDependOnModules() {
+        noClasses().that().resideInAPackage("com.admin.server.framework..")
+            .should().dependOnClassesThat()
+            .resideInAPackage("com.admin.server.modules..")
+            .because("framework 是框架基础设施层，严禁反向依赖业务模块 modules")
+            .check(classes);
+    }
+
+    @Test
+    void testCommonMustNotDependOnModules() {
+        noClasses().that().resideInAPackage("com.admin.server.common..")
+            .should().dependOnClassesThat()
+            .resideInAPackage("com.admin.server.modules..")
+            .because("common 是底层通用基础层，严禁反向依赖业务模块 modules")
             .check(classes);
     }
 }

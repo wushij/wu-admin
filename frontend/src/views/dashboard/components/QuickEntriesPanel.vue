@@ -82,12 +82,13 @@ function goQuick(item: QuickEntry) {
 .section-icon {
   width: 32px;
   height: 32px;
-  background: linear-gradient(135deg, var(--theme-primary, #111827) 0%, var(--theme-primary-hover, #374151) 100%);
+  background: #eff6ff;
+  border: 1px solid #dbeafe;
   border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
+  color: #2563eb;
 }
 
 .section-title {
@@ -136,25 +137,27 @@ function goQuick(item: QuickEntry) {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
+  border: 1px solid transparent;
+  color: #475569;
   flex-shrink: 0;
   transition: all 0.3s;
 }
 
 .quick-item:hover .quick-icon-wrapper { transform: scale(1.05); }
 
-.quick-icon-wrapper.user { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
-.quick-icon-wrapper.menu { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
-.quick-icon-wrapper.dict { background: linear-gradient(135deg, #6366f1 0%, #818cf8 100%); }
-.quick-icon-wrapper.config { background: linear-gradient(135deg, #64748b 0%, #475569 100%); }
-.quick-icon-wrapper.approval { background: linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%); }
-.quick-icon-wrapper.chat { background: linear-gradient(135deg, #f97316 0%, #fb923c 100%); }
-.quick-icon-wrapper.notice { background: linear-gradient(135deg, #ec4899 0%, #f472b6 100%); }
-.quick-icon-wrapper.job { background: linear-gradient(135deg, #14b8a6 0%, #2dd4bf 100%); }
-.quick-icon-wrapper.monitor { background: linear-gradient(135deg, #0ea5e9 0%, #38bdf8 100%); }
-.quick-icon-wrapper.server { background: linear-gradient(135deg, #8b5cf6 0%, #a78bfa 100%); }
-.quick-icon-wrapper.cache { background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%); }
-.quick-icon-wrapper.log { background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); }
+/* 浅色底 + 同色系图标，保持图标图形不变 */
+.quick-icon-wrapper.user { background: #eef2ff; color: #4f46e5; border-color: #e0e7ff; }
+.quick-icon-wrapper.menu { background: #eff6ff; color: #2563eb; border-color: #dbeafe; }
+.quick-icon-wrapper.dict { background: #f5f3ff; color: #7c3aed; border-color: #ede9fe; }
+.quick-icon-wrapper.config { background: #f8fafc; color: #475569; border-color: #e2e8f0; }
+.quick-icon-wrapper.approval { background: #faf5ff; color: #9333ea; border-color: #f3e8ff; }
+.quick-icon-wrapper.chat { background: #fff7ed; color: #ea580c; border-color: #ffedd5; }
+.quick-icon-wrapper.notice { background: #fdf2f8; color: #db2777; border-color: #fce7f3; }
+.quick-icon-wrapper.job { background: #f0fdfa; color: #0d9488; border-color: #ccfbf1; }
+.quick-icon-wrapper.monitor { background: #f0f9ff; color: #0284c7; border-color: #e0f2fe; }
+.quick-icon-wrapper.server { background: #f5f3ff; color: #6d28d9; border-color: #ede9fe; }
+.quick-icon-wrapper.cache { background: #fffbeb; color: #d97706; border-color: #fef3c7; }
+.quick-icon-wrapper.log { background: #fff1f2; color: #e11d48; border-color: #ffe4e6; }
 
 .quick-info { flex: 1; min-width: 0; }
 

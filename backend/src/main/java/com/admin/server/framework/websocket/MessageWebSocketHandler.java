@@ -227,13 +227,4 @@ public class MessageWebSocketHandler extends TextWebSocketHandler {
         }
         return null;
     }
-
-    private void closeQuietly(WebSocketSession session) {
-        if (session != null && session.isOpen()) {
-            try {
-                session.close();
-            } catch (IOException ignored) {
-            }
-        }
-    }
 }

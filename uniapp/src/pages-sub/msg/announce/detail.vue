@@ -44,12 +44,12 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
-import ModuleIcon from '@/components/common/ModuleIcon/index.vue'
-import EmptyState from '@/components/common/EmptyState/index.vue'
-import ChatAvatar from '@/components/business/ChatAvatar/index.vue'
+import ModuleIcon from '@/components/base/ModuleIcon/index.vue'
+import EmptyState from '@/components/base/EmptyState/index.vue'
+import ChatAvatar from '@/components/business/chat/ChatAvatar/index.vue'
 import { getAnnounceDetail, readAnnounce, type AnnounceDetail } from '@/api/message'
 import { useMessageStore } from '@/store/message'
-import { formatDateTime } from '@/utils/format'
+import { formatDateTime } from '@/utils/display/format'
 
 const detail = ref<AnnounceDetail | null>(null)
 
