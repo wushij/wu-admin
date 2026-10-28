@@ -1,6 +1,7 @@
 package com.admin.server.modules.ai.service;
 
 import com.admin.server.common.core.PageResult;
+import com.admin.server.modules.ai.api.vo.AiModelListModelsReqVO;
 import com.admin.server.modules.ai.api.vo.AiModelPageReqVO;
 import com.admin.server.modules.ai.api.vo.AiModelRespVO;
 import com.admin.server.modules.ai.api.vo.AiModelSaveReqVO;
@@ -32,6 +33,9 @@ public interface AiModelService {
 
     /** 连通性测试，返回往返延迟毫秒数 */
     long test(AiModelTestReqVO reqVO);
+
+    /** 拉取供应商可用模型列表，用于配置表单的「获取模型」 */
+    List<String> listModels(AiModelListModelsReqVO reqVO);
 
     /** 获取可用模型：modelId 为空时取默认模型，均校验启用状态 */
     AiModelDO getAvailableModel(Long modelId);

@@ -9,7 +9,7 @@
 - **安全体系**：全链路国密 SM4 对称加密、SM2 数字签名与防篡改、动态滑动拼图人机验证码、防暴力破解多级速率限制（RateLimit）。
 - **前端架构**：采用 Vue 3.4+、TypeScript 5.3+、Element Plus、Pinia 与 Vite。
 - **移动端架构**：基于 UniApp 跨端框架构建，适配 iOS、Android、微信小程序与 H5。
-- **AI 智能中枢**：集成 DeepSeek、通义千问、OpenAI、Kimi 等主流大模型，支持 SSE 流式打字机输出、多轮上下文记忆与本地 RAG 知识库优先检索。
+- **AI 智能中枢**：集成 DeepSeek、OpenAI、Kimi、智谱 AI 等主流大模型，支持 SSE 流式打字机输出、多轮上下文记忆与本地 RAG 知识库优先检索。
 
 ---
 
@@ -45,8 +45,9 @@
 
 ### 3.2 大模型供应商与参数配置
 在“AI 智能中心 -> AI 模型配置”中，管理员可维护多个大模型供应商：
-- 支持供应商：DeepSeek、OpenAI、通义千问、Kimi。
-- 核心配置项：接口地址（Base URL）、API Key 鉴权秘钥、温度系数（Temperature，推荐 0.7）、最大 Tokens（推荐 4096）、系统预设 Prompt。
+- 支持供应商：DeepSeek、Kimi、智谱 AI（GLM）、自定义（可接入 OpenAI、通义、豆包、Ollama 等任意兼容接口）。
+- 接入协议：OpenAI 兼容（默认，路径 `/chat/completions`）/ Anthropic Messages（路径 `/v1/messages`，用于 Claude 原生接口及其兼容网关）；仅选择「自定义」时需要指定协议，还可填写路径模板与额外请求头。
+- 核心配置项：接口地址（Base URL）、API Key 鉴权秘钥、温度系数（Temperature，推荐 0.7）、最大 Tokens（推荐 8192，推理类模型建议 16384 以上）、系统预设 Prompt。
 - 状态控制：支持一键连接可用性测试、启用/停用、以及“设为默认模型”。
 
 ---

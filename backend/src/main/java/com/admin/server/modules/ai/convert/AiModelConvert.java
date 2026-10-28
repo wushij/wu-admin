@@ -28,8 +28,11 @@ public final class AiModelConvert {
         vo.setId(model.getId());
         vo.setName(model.getName());
         vo.setProvider(model.getProvider());
+        vo.setProtocol(model.getProtocol());
         vo.setModelName(model.getModelName());
         vo.setBaseUrl(model.getBaseUrl());
+        vo.setPathTemplate(model.getPathTemplate());
+        vo.setExtraHeaders(model.getExtraHeaders());
         vo.setHasApiKey(StrUtil.isNotBlank(model.getApiKey()));
         vo.setApiKeyMasked(maskApiKey(plainApiKey));
         vo.setTemperature(model.getTemperature());
@@ -52,8 +55,11 @@ public final class AiModelConvert {
         model.setId(reqVO.getId());
         model.setName(reqVO.getName());
         model.setProvider(reqVO.getProvider());
+        model.setProtocol(reqVO.getProtocol());
         model.setModelName(reqVO.getModelName());
         model.setBaseUrl(reqVO.getBaseUrl());
+        model.setPathTemplate(reqVO.getPathTemplate());
+        model.setExtraHeaders(reqVO.getExtraHeaders());
         model.setTemperature(reqVO.getTemperature());
         model.setMaxTokens(reqVO.getMaxTokens());
         model.setSystemPrompt(reqVO.getSystemPrompt());

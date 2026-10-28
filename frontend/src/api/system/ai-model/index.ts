@@ -2,14 +2,23 @@ import { get, post, put, del } from '@/utils/request'
 import type { PageQuery, PageResult } from '@/types/api'
 
 /** 供应商标识 */
-export type AiProvider = 'deepseek' | 'openai' | 'qwen' | 'kimi'
+export type AiProvider = 'deepseek' | 'kimi' | 'zhipu' | 'openai' | 'custom' | string
+
+/** 接入协议 */
+export type AiProtocol = 'openai' | 'anthropic'
 
 export interface AiModelVO {
   id: number
   name: string
   provider: AiProvider
+  /** 接入协议：openai（兼容协议）/ anthropic（Messages 协议） */
+  protocol?: AiProtocol | string
   modelName: string
   baseUrl: string
+  /** 自定义请求路径模板，支持 {model} 占位 */
+  pathTemplate?: string
+  /** 额外请求头 JSON */
+  extraHeaders?: string
   /** API Key 掩码（如 sk-a***x9f2） */
   apiKeyMasked?: string
   /** 是否已配置 API Key */
@@ -28,8 +37,11 @@ export interface AiModelSaveDTO {
   id?: number
   name: string
   provider: AiProvider | string
+  protocol?: AiProtocol | string
   modelName: string
   baseUrl: string
+  pathTemplate?: string
+  extraHeaders?: string
   /** 明文 API Key，编辑时留空表示不修改 */
   apiKey?: string
   temperature?: number
@@ -43,8 +55,22 @@ export interface AiModelSaveDTO {
 export interface AiModelTestDTO {
   id?: number
   provider?: string
+  protocol?: AiProtocol | string
   modelName?: string
   baseUrl?: string
+  pathTemplate?: string
+  extraHeaders?: string
+  apiKey?: string
+}
+
+/** 拉取供应商模型列表入参：字段含义与测试连接一致，无需 modelName */
+export interface AiModelModelsDTO {
+  id?: number
+  provider?: string
+  protocol?: AiProtocol | string
+  baseUrl?: string
+  pathTemplate?: string
+  extraHeaders?: string
   apiKey?: string
 }
 
@@ -81,4 +107,9 @@ export function setDefaultAiModel(id: number) {
 /** 连通性测试，返回延迟毫秒数（耗时较长，放宽超时） */
 export function testAiModel(data: AiModelTestDTO) {
   return post<number>('/system/ai-model/test', data, { timeout: 40000 })
+}
+
+/** 拉取供应商可用模型列表，供表单「获取模型」按钮使用 */
+export function listAiModels(data: AiModelModelsDTO) {
+  return post<string[]>('/system/ai-model/models', data, { timeout: 30000 })
 }

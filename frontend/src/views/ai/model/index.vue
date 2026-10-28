@@ -7,7 +7,7 @@
             <ModulePageIcon :icon="MODULE_PAGE_ICON.aiModel" />
             <span>AI 模型配置</span>
           </div>
-          <p class="module-hero-desc">管理 AI wu助手接入的大模型供应商，支持 DeepSeek / OpenAI / 通义千问 / Kimi</p>
+          <p class="module-hero-desc">管理 AI wu助手接入的大模型供应商，支持 DeepSeek / Kimi / GLM / 自定义</p>
         </div>
         <div class="module-hero-stats">
           <div class="stat-num">{{ total }}</div>
@@ -53,16 +53,12 @@
         <el-empty v-if="!loading && list.length === 0" description="暂无模型配置，点击右上角新增模型" class="grid-empty" />
         <div v-for="item in list" :key="item.id" class="model-card" :class="{ 'is-disabled': item.status === 0 }">
           <div class="model-card-head">
-            <div class="provider-badge" :style="{ background: providerMeta(item.provider).bg, color: providerMeta(item.provider).color }">
-              {{ providerMeta(item.provider).short }}
+            <div class="provider-badge" :style="{ background: providerMeta(item.provider).bg }">
+              <AiProviderIcon :provider="item.provider" :size="28" />
             </div>
             <div class="model-card-title">
               <div class="name-row">
                 <span class="name" :title="item.name">{{ item.name }}</span>
-                <span v-if="item.isDefault === 1" class="default-badge">
-                  <el-icon :size="11"><Star /></el-icon>
-                  <span>默认</span>
-                </span>
               </div>
               <div class="sub">{{ providerMeta(item.provider).label }} · {{ item.modelName }}</div>
             </div>
@@ -91,7 +87,7 @@
             </div>
             <div class="info-line">
               <span class="label">模型参数</span>
-              <span class="value">温度 {{ item.temperature ?? 0.7 }} · 最大 {{ item.maxTokens ?? 4096 }} Tokens</span>
+              <span class="value">温度 {{ item.temperature ?? 0.7 }} · 最大 {{ item.maxTokens ?? 8192 }} Tokens</span>
             </div>
             <div v-if="testResults[item.id] !== undefined" class="test-result" :class="testResults[item.id]! >= 0 ? 'ok' : 'fail'">
               <el-icon v-if="testResults[item.id]! >= 0"><CircleCheckFilled /></el-icon>
@@ -101,6 +97,10 @@
           </div>
 
           <div class="model-card-foot">
+            <span v-if="item.isDefault === 1" class="default-badge">
+              <el-icon :size="11"><Star /></el-icon>
+              <span>默认</span>
+            </span>
             <el-button
               size="small"
               class="action-btn"
@@ -173,7 +173,7 @@
       destroy-on-close
       @closed="resetForm"
     >
-      <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
+      <el-form ref="formRef" :model="form" :rules="rules" :validate-on-rule-change="false" label-width="100px">
         <el-form-item label="供应商" prop="provider">
           <div class="provider-select">
             <div
@@ -183,25 +183,86 @@
               :class="{ active: form.provider === p.value }"
               @click="selectProvider(p.value)"
             >
-              <span class="provider-item-badge" :style="{ background: providerMeta(p.value).bg, color: providerMeta(p.value).color }">
-                {{ providerMeta(p.value).short }}
+              <span class="provider-item-badge" :style="{ background: providerMeta(p.value).bg }">
+                <AiProviderIcon :provider="p.value" :size="16" />
               </span>
               <span>{{ p.label }}</span>
             </div>
           </div>
         </el-form-item>
-        <el-form-item label="配置名称" prop="name">
-          <el-input v-model="form.name" placeholder="如：DeepSeek 官方" maxlength="50" show-word-limit />
-        </el-form-item>
-        <el-form-item label="模型名称" prop="modelName">
-          <el-select v-model="form.modelName" filterable allow-create default-first-option placeholder="选择或输入模型名称" style="width: 100%">
-            <el-option v-for="m in providerModels" :key="m" :label="m" :value="m" />
+        <el-form-item v-if="form.provider === 'custom'" label="接入协议" prop="protocol">
+          <el-select
+            v-model="form.protocol"
+            placeholder="请选择接入协议"
+            style="width: 100%"
+            @change="onProtocolChange"
+          >
+            <el-option
+              v-for="p in PROTOCOL_OPTIONS"
+              :key="p.value"
+              :label="p.label"
+              :value="p.value"
+            />
           </el-select>
         </el-form-item>
-        <el-form-item label="接口地址" prop="baseUrl">
-          <el-input v-model="form.baseUrl" placeholder="如：https://api.deepseek.com/v1" />
+        <el-form-item label="配置名称" prop="name">
+          <el-input v-model="form.name" :placeholder="form.provider === 'custom' ? '如：公司网关 / 本地 Ollama' : '如：' + providerMeta(form.provider).label + ' 官方'" maxlength="50" show-word-limit />
         </el-form-item>
-        <el-form-item label="API Key" prop="apiKey">
+        <el-form-item prop="modelName">
+          <template #label>
+            <span class="model-name-label">
+              模型名称
+              <el-tooltip content="点击「获取模型」从接口拉取可用模型；拉取失败时也可直接手动输入" placement="top">
+                <el-icon><QuestionFilled /></el-icon>
+              </el-tooltip>
+            </span>
+          </template>
+          <div class="model-name-row">
+            <el-select
+              v-model="form.modelName"
+              class="model-name-select"
+              filterable
+              allow-create
+              default-first-option
+              clearable
+              :validate-event="false"
+              placeholder="选择或输入模型名称"
+            >
+              <el-option v-for="m in modelOptions" :key="m" :label="m" :value="m" />
+            </el-select>
+            <el-button
+              :loading="fetchingModels"
+              :icon="Refresh"
+              v-permission="'system:ai-model:test'"
+              @click="handleFetchModels"
+            >
+              获取模型
+            </el-button>
+          </div>
+        </el-form-item>
+        <el-form-item label="接口地址" prop="baseUrl">
+          <el-input v-model="form.baseUrl" :placeholder="effectiveBaseUrlPlaceholder" />
+        </el-form-item>
+        <el-form-item v-if="form.provider === 'custom'" label="路径模板">
+          <el-input
+            v-model="form.pathTemplate"
+            maxlength="500"
+            placeholder="留空使用协议默认路径，支持 {model} 占位"
+          />
+        </el-form-item>
+        <el-form-item v-if="form.provider === 'custom'" label="额外请求头">
+          <el-input
+            v-model="form.extraHeaders"
+            type="textarea"
+            :rows="2"
+            maxlength="1000"
+            placeholder='可选，JSON 对象，如 {"HTTP-Referer":"https://example.com"}'
+          />
+        </el-form-item>
+        <el-form-item prop="apiKey">
+          <template #label>
+            <span class="api-key-label" :class="{ required: !form.id }">API Key</span>
+          </template>
           <el-input
             v-model="form.apiKey"
             type="password"
@@ -231,20 +292,32 @@
         <el-form-item label="最大 Tokens">
           <div style="display: flex; align-items: center; gap: 8px;">
             <el-input-number v-model="form.maxTokens" :min="128" :max="32768" :step="256" style="width: 180px" />
-            <el-tooltip content="限制 AI 单次回答生成的最大文本长度（1000 Tokens ≈ 700 汉字），默认 4096" placement="top">
+            <el-tooltip content="限制 AI 单次回答生成的最大文本长度（1000 Tokens ≈ 700 汉字），默认 8192；推理类模型建议 16384 以上" placement="top">
               <el-icon style="color: var(--el-text-color-secondary); cursor: pointer;"><QuestionFilled /></el-icon>
             </el-tooltip>
           </div>
         </el-form-item>
-        <el-form-item label="设为默认">
-          <el-switch v-model="form.isDefault" :active-value="1" :inactive-value="0" />
+        <el-form-item label="系统提示词">
+          <el-input
+            v-model="form.systemPrompt"
+            type="textarea"
+            :rows="3"
+            maxlength="2000"
+            show-word-limit
+            placeholder="可选，留空使用内置人设"
+          />
         </el-form-item>
-        <el-form-item label="状态">
-          <el-radio-group v-model="form.status">
-            <el-radio :value="1">启用</el-radio>
-            <el-radio :value="0">停用</el-radio>
-          </el-radio-group>
-        </el-form-item>
+        <div class="form-inline-row">
+          <el-form-item label="设为默认" class="inline-item">
+            <el-switch v-model="form.isDefault" :active-value="1" :inactive-value="0" :disabled="editIsDefault" />
+          </el-form-item>
+          <el-form-item label="状态" class="inline-item">
+            <el-radio-group v-model="form.status">
+              <el-radio :value="1">启用</el-radio>
+              <el-radio :value="0">停用</el-radio>
+            </el-radio-group>
+          </el-form-item>
+        </div>
         <el-form-item label="备注">
           <el-input v-model="form.remark" placeholder="可选" maxlength="200" />
         </el-form-item>
@@ -259,7 +332,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, nextTick } from 'vue'
 import {
   Search,
   Refresh,
@@ -284,11 +357,13 @@ import {
   deleteAiModel,
   setDefaultAiModel,
   testAiModel,
+  listAiModels,
   type AiModelVO,
   type AiModelSaveDTO,
   type AiModelPageQuery,
   type AiProvider,
 } from '@/api/system/ai-model'
+import AiProviderIcon from '@/components/AiProviderIcon.vue'
 
 /** 供应商元信息与默认配置（选择供应商时自动回填） */
 const PROVIDER_META: Record<string, { label: string; short: string; color: string; bg: string; baseUrl: string; portalUrl: string; models: string[] }> = {
@@ -299,25 +374,7 @@ const PROVIDER_META: Record<string, { label: string; short: string; color: strin
     bg: 'rgba(77, 107, 254, 0.12)',
     baseUrl: 'https://api.deepseek.com/v1',
     portalUrl: 'https://platform.deepseek.com',
-    models: ['deepseek-flash', 'deepseek-v4-pro', 'deepseek-v4-flash'],
-  },
-  openai: {
-    label: 'OpenAI',
-    short: 'GPT',
-    color: '#10a37f',
-    bg: 'rgba(16, 163, 127, 0.12)',
-    baseUrl: 'https://api.openai.com/v1',
-    portalUrl: 'https://platform.openai.com',
-    models: ['gpt-4o', 'gpt-4o-mini', 'o3-mini', 'o1', 'o1-mini'],
-  },
-  qwen: {
-    label: '通义千问',
-    short: 'QW',
-    color: '#615ced',
-    bg: 'rgba(97, 92, 237, 0.12)',
-    baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
-    portalUrl: 'https://modelstudio.console.alibabacloud.com',
-    models: ['qwen-max', 'qwen-plus', 'qwen-turbo', 'qwen-long'],
+    models: ['deepseek-v4.1-flash', 'deepseek-v4-pro'],
   },
   kimi: {
     label: 'Kimi',
@@ -325,15 +382,46 @@ const PROVIDER_META: Record<string, { label: string; short: string; color: strin
     color: '#0f172a',
     bg: 'rgba(15, 23, 42, 0.08)',
     baseUrl: 'https://api.moonshot.cn/v1',
-    portalUrl: 'https://platform.moonshot.cn',
-    models: ['kimi-k3', 'kimi-k2.7-code', 'kimi-k2.7-code-highspeed', 'kimi-k2.6'],
+    portalUrl: 'https://platform.kimi.com',
+    models: ['kimi-k3.1-pro', 'kimi-k3.1-pro-highspeed', 'kimi-k3', 'kimi-k2.6'],
+  },
+  zhipu: {
+    label: 'GLM',
+    short: 'GLM',
+    color: '#3485ff',
+    bg: 'rgba(52, 133, 255, 0.12)',
+    baseUrl: 'https://open.bigmodel.cn/api/paas/v4',
+    portalUrl: 'https://bigmodel.cn',
+    models: ['glm-5.3', 'glm-5.3-flash', 'glm-5.2'],
+  },
+  custom: {
+    label: '自定义',
+    short: 'AI',
+    color: '#8b5cf6',
+    bg: 'rgba(139, 92, 246, 0.12)',
+    baseUrl: '',
+    portalUrl: '',
+    models: [],
   },
 }
 
 const PROVIDER_OPTIONS = Object.entries(PROVIDER_META).map(([value, meta]) => ({ value: value as AiProvider, label: meta.label }))
 
+/** 接入协议元信息：决定请求路径、鉴权头与响应解析方式 */
+const PROTOCOL_META: Record<string, { label: string }> = {
+  openai: {
+    label: 'OpenAI 兼容',
+  },
+  anthropic: {
+    label: 'Anthropic Messages',
+  },
+}
+
+const PROTOCOL_OPTIONS = Object.entries(PROTOCOL_META).map(([value, meta]) => ({ value, label: meta.label }))
+
 function providerMeta(provider: string) {
-  return PROVIDER_META[provider] || { label: provider, short: 'AI', color: '#64748b', bg: 'rgba(100, 116, 139, 0.12)', baseUrl: '', portalUrl: '', models: [] }
+  if (PROVIDER_META[provider]) return PROVIDER_META[provider]
+  return { label: provider || '未知', short: 'AI', color: '#64748b', bg: 'rgba(100, 116, 139, 0.12)', baseUrl: '', portalUrl: '', models: [] }
 }
 
 const userStore = useUserStore()
@@ -389,18 +477,26 @@ function resetQuery() {
 const dialogVisible = ref(false)
 const submitting = ref(false)
 const formTesting = ref(false)
+const fetchingModels = ref(false)
+/** 「获取模型」拉回来的模型列表：与内置推荐合并后作为下拉选项 */
+const fetchedModels = ref<string[]>([])
 const formRef = ref<FormInstance>()
 const editHasKey = ref(false)
+/** 编辑的是否为当前默认模型：默认模型不允许在表单里直接取消默认 */
+const editIsDefault = ref(false)
 
 const defaultForm = (): AiModelSaveDTO & { temperature: number; maxTokens: number } => ({
   id: undefined,
   name: '',
   provider: 'deepseek',
-  modelName: PROVIDER_META.deepseek.models[0] || 'deepseek-flash',
+  protocol: 'openai',
+  modelName: PROVIDER_META.deepseek.models[0] || 'deepseek-v4.1-flash',
   baseUrl: PROVIDER_META.deepseek.baseUrl,
+  pathTemplate: '',
+  extraHeaders: '',
   apiKey: '',
   temperature: 0.7,
-  maxTokens: 4096,
+  maxTokens: 8192,
   systemPrompt: '',
   isDefault: 0,
   status: 1,
@@ -409,6 +505,18 @@ const defaultForm = (): AiModelSaveDTO & { temperature: number; maxTokens: numbe
 
 const form = reactive(defaultForm())
 
+const effectiveBaseUrlPlaceholder = computed(() => {
+  if (form.provider === 'custom') {
+    return form.protocol === 'anthropic'
+      ? '如：https://api.anthropic.com'
+      : '如：https://api.example.com/v1'
+  }
+  return `如：${providerMeta(form.provider).baseUrl || 'https://api.example.com/v1'}`
+})
+
+// 固定规则，不随供应商切换重新计算；否则 Element Plus 在规则变化时会触发整表校验，
+// 点「自定义」就会把配置名称、模型名称、接口地址全部标红。
+// API Key 的「新增必填、编辑可留空、自定义可免鉴权」放到提交和测试时手动判断。
 const rules: FormRules = {
   provider: [{ required: true, message: '请选择供应商', trigger: 'change' }],
   name: [{ required: true, message: '请输入配置名称', trigger: 'blur' }],
@@ -416,7 +524,10 @@ const rules: FormRules = {
   baseUrl: [{ required: true, message: '请输入接口地址', trigger: 'blur' }],
 }
 
-const providerModels = computed(() => providerMeta(form.provider).models)
+const modelOptions = computed(() => {
+  // 接口返回的模型排在前面（更贴近供应商当前实际可用的模型），内置推荐作为兜底
+  return Array.from(new Set([...fetchedModels.value, ...providerMeta(form.provider).models].filter(Boolean)))
+})
 
 function selectProvider(provider: AiProvider) {
   if (form.provider === provider) return
@@ -425,29 +536,49 @@ function selectProvider(provider: AiProvider) {
   // 切换供应商时自动回填官方默认地址与首个推荐模型
   form.baseUrl = meta.baseUrl
   form.modelName = meta.models[0] || ''
+  // 协议、路径模板、额外请求头只对「自定义」有意义；切换时重置，避免把上一家的配置带过去
+  form.protocol = 'openai'
+  form.pathTemplate = ''
+  form.extraHeaders = ''
+  // 拉取结果属于上一家供应商，切换后必须失效
+  fetchedModels.value = []
+  // 切换供应商属于程序性回填，不应弹出任何必填校验（自定义没有推荐模型，模型名会短暂为空）
+  nextTick(() => formRef.value?.clearValidate())
+}
+
+function onProtocolChange() {
+  // 自定义接入不预填任何厂商地址，避免把第三方地址误当成官方接口
+  nextTick(() => formRef.value?.clearValidate())
 }
 
 function openDialog(row?: AiModelVO) {
   Object.assign(form, defaultForm())
   editHasKey.value = false
+  editIsDefault.value = false
+  fetchedModels.value = []
   if (row) {
     Object.assign(form, {
       id: row.id,
       name: row.name,
       provider: row.provider,
+      protocol: row.protocol || 'openai',
       modelName: row.modelName,
       baseUrl: row.baseUrl,
+      pathTemplate: row.pathTemplate || '',
+      extraHeaders: row.extraHeaders || '',
       apiKey: '',
       temperature: row.temperature ?? 0.7,
-      maxTokens: row.maxTokens ?? 4096,
+      maxTokens: row.maxTokens ?? 8192,
       systemPrompt: row.systemPrompt || '',
       isDefault: row.isDefault ?? 0,
       status: row.status ?? 1,
       remark: row.remark || '',
     })
     editHasKey.value = !!row.hasApiKey
+    editIsDefault.value = row.isDefault === 1
   }
   dialogVisible.value = true
+  nextTick(() => formRef.value?.clearValidate())
 }
 
 function resetForm() {
@@ -456,6 +587,10 @@ function resetForm() {
 
 async function handleSubmit() {
   await formRef.value?.validate()
+  if (!form.id && !form.apiKey?.trim()) {
+    ElMessage.warning('请输入 API Key')
+    return
+  }
   submitting.value = true
   try {
     const data: AiModelSaveDTO = { ...form, apiKey: form.apiKey || undefined }
@@ -490,18 +625,61 @@ async function handleTest(row: AiModelVO) {
 async function handleFormTest() {
   const valid = await formRef.value?.validateField(['provider', 'modelName', 'baseUrl']).catch(() => false)
   if (valid === false) return
+  if (!form.id && !form.apiKey?.trim()) {
+    ElMessage.warning('请输入 API Key')
+    return
+  }
   formTesting.value = true
   try {
     const res = await testAiModel({
       id: form.id,
       provider: form.provider,
+      protocol: form.protocol,
       modelName: form.modelName,
       baseUrl: form.baseUrl,
+      pathTemplate: form.pathTemplate,
+      extraHeaders: form.extraHeaders,
       apiKey: form.apiKey || undefined,
     })
     ElMessage.success(`连接正常，延迟 ${res.data}ms`)
   } finally {
     formTesting.value = false
+  }
+}
+
+/** 拉取供应商可用模型：编辑时 Key 留空会自动沿用库中已保存的密钥 */
+async function handleFetchModels() {
+  const valid = await formRef.value?.validateField(['provider', 'baseUrl']).catch(() => false)
+  if (valid === false) return
+  if (!form.id && !form.apiKey?.trim()) {
+    ElMessage.warning('请先输入 API Key')
+    return
+  }
+  fetchingModels.value = true
+  try {
+    const res = await listAiModels({
+      id: form.id,
+      provider: form.provider,
+      protocol: form.protocol,
+      baseUrl: form.baseUrl,
+      pathTemplate: form.pathTemplate,
+      extraHeaders: form.extraHeaders,
+      apiKey: form.apiKey || undefined,
+    })
+    const models = (res.data || []).filter((item) => !!item)
+    if (models.length === 0) {
+      ElMessage.warning('接口未返回可用模型，请手动输入模型名称')
+      return
+    }
+    fetchedModels.value = models
+    // 当前模型不在新列表里时自动选中第一个，省去手动挑选
+    if (!form.modelName || !models.includes(form.modelName)) {
+      form.modelName = models[0]
+      nextTick(() => formRef.value?.clearValidate('modelName'))
+    }
+    ElMessage.success(`获取到 ${models.length} 个模型`)
+  } finally {
+    fetchingModels.value = false
   }
 }
 
@@ -522,8 +700,11 @@ async function toggleStatus(row: AiModelVO, enabled: boolean) {
     id: row.id,
     name: row.name,
     provider: row.provider,
+    protocol: row.protocol || 'openai',
     modelName: row.modelName,
     baseUrl: row.baseUrl,
+    pathTemplate: row.pathTemplate,
+    extraHeaders: row.extraHeaders,
     temperature: row.temperature,
     maxTokens: row.maxTokens,
     systemPrompt: row.systemPrompt,
@@ -605,9 +786,12 @@ onMounted(() => loadData())
     display: flex;
     align-items: center;
     gap: 8px;
+    min-width: 0;
   }
 
   .name {
+    flex: 1;
+    min-width: 0;
     font-size: 15px;
     font-weight: 700;
     color: var(--el-text-color-primary, #0f172a);
@@ -616,28 +800,35 @@ onMounted(() => loadData())
     white-space: nowrap;
   }
 
-  .default-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 3px;
-    padding: 2px 8px;
-    border-radius: 20px;
-    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-    color: #ffffff;
-    font-size: 10.5px;
-    font-weight: 600;
-    box-shadow: 0 2px 6px rgba(245, 158, 11, 0.3);
-    flex-shrink: 0;
-  }
-
   .sub {
+    display: flex;
+    align-items: center;
+    gap: 6px;
     margin-top: 3px;
     font-size: 12px;
     color: var(--el-text-color-secondary, #64748b);
+    min-width: 0;
+  }
+
+  .sub-text {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
+}
+
+.default-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 8px;
+  border-radius: 20px;
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  color: #ffffff;
+  font-size: 10.5px;
+  font-weight: 600;
+  box-shadow: 0 2px 6px rgba(245, 158, 11, 0.3);
+  flex-shrink: 0;
 }
 
 .status-switch-wrap {
@@ -751,6 +942,29 @@ onMounted(() => loadData())
   }
 }
 
+/* 模型名称：下拉选择 + 拉取按钮 */
+.model-name-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+
+  .el-icon {
+    color: var(--el-text-color-secondary);
+    cursor: pointer;
+  }
+}
+
+.model-name-row {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+
+  .model-name-select {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
 /* 供应商选择块 */
 .provider-select {
   display: flex;
@@ -803,6 +1017,32 @@ onMounted(() => loadData())
   margin-top: 4px;
   font-size: 12px;
 }
+
+.api-key-label.required::before {
+  content: '*';
+  margin-right: 4px;
+  color: var(--el-color-danger, #f56c6c);
+}
+
+.form-inline-row {
+  display: flex;
+  gap: 16px;
+
+  .inline-item {
+    flex: 1;
+    min-width: 0;
+    margin-bottom: 18px;
+  }
+}
+
+.form-item-tip {
+  width: 100%;
+  margin-top: 4px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--el-text-color-secondary, #909399);
+}
+
 
 .slider-row {
   display: flex;

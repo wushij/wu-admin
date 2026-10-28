@@ -4,6 +4,7 @@
     <view class="app-confirm__panel" @tap.stop>
       <text v-if="title" class="app-confirm__title">{{ title }}</text>
       <text
+        v-if="content"
         class="app-confirm__content"
         :class="{ 'app-confirm__content--left': contentAlign === 'left' }"
       >{{ content }}</text>
@@ -11,10 +12,13 @@
         v-if="editable"
         v-model="inputValue"
         class="app-confirm__input"
-        :type="inputType === 'password' ? 'text' : 'text'"
         :password="inputType === 'password'"
         :placeholder="placeholderText || '请输入'"
+        placeholder-class="app-confirm__placeholder"
         :maxlength="200"
+        :focus="inputFocused"
+        confirm-type="done"
+        @confirm="onConfirm"
       />
       <view class="app-confirm__actions" :class="{ 'app-confirm__actions--solo': showCancel === false }">
         <view v-if="showCancel !== false" class="app-confirm__btn app-confirm__btn--ghost" @tap.stop="onCancel">
@@ -33,7 +37,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import type { ConfirmTone } from '@/store/dialog'
 
 const props = defineProps<{
@@ -61,6 +65,35 @@ const inputValue = computed({
   get: () => props.inputValue || '',
   set: (value: string) => emit('update:inputValue', value),
 })
+
+/** 可编辑弹窗打开后自动聚焦输入框；延时避开入场动画，避免键盘顶动弹窗 */
+const inputFocused = ref(false)
+let focusTimer: ReturnType<typeof setTimeout> | null = null
+
+function clearFocusTimer() {
+  if (focusTimer) {
+    clearTimeout(focusTimer)
+    focusTimer = null
+  }
+}
+
+watch(
+  () => props.visible,
+  (visible) => {
+    clearFocusTimer()
+    inputFocused.value = false
+    if (!visible || !props.editable) return
+    nextTick(() => {
+      focusTimer = setTimeout(() => {
+        inputFocused.value = true
+        focusTimer = null
+      }, 240)
+    })
+  },
+  { immediate: true },
+)
+
+onBeforeUnmount(clearFocusTimer)
 
 function onConfirm() {
   emit('confirm')
@@ -132,14 +165,21 @@ function onCancel() {
 .app-confirm__input {
   display: block;
   width: 100%;
-  height: 84rpx;
+  height: 88rpx;
   margin-top: 28rpx;
-  padding: 0 24rpx;
+  padding: 0 28rpx;
   box-sizing: border-box;
-  border-radius: $radius-lg;
-  background: $color-bg-muted;
-  font-size: $font-size-base;
+  border: 1px solid $color-border;
+  border-radius: $radius-full;
+  background: $color-bg-card;
+  font-family: inherit;
+  font-size: $font-size-md;
   color: $color-text-primary;
+}
+
+.app-confirm__placeholder {
+  color: $color-text-placeholder;
+  font-size: $font-size-md;
 }
 
 .app-confirm__actions {

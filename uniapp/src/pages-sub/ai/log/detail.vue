@@ -11,7 +11,14 @@
       <!-- 基本信息面板 -->
       <MonitorPanel title="基本信息">
         <DetailRow label="操作用户" :value="detail.username" />
-        <DetailRow label="供应商" :value="providerMeta(detail.provider).label" />
+        <DetailRow label="供应商">
+          <template #value>
+            <view class="provider-cell">
+              <AiProviderIcon :provider="detail.provider" :size="14" />
+              <text>{{ providerMeta(detail.provider).label }}</text>
+            </view>
+          </template>
+        </DetailRow>
         <DetailRow label="模型名称" :value="detail.modelName" />
         <DetailRow label="对话状态">
           <template #value>
@@ -84,6 +91,7 @@ import EmptyState from '@/components/base/EmptyState/index.vue'
 import PageFooter from '@/components/base/PageFooter/index.vue'
 import AppDialogHost from '@/components/base/AppDialogHost/index.vue'
 import { providerMeta } from '@/constants/aiProviders'
+import AiProviderIcon from '@/components/business/ai/AiProviderIcon/index.vue'
 import { deleteAiChatLog, type AiChatLogVO } from '@/api/system/ai-log'
 import { useModulePermission } from '@/composables/base/useModulePermission'
 import { renderMarkdown } from '@/utils/display/chat-markdown'
@@ -168,7 +176,14 @@ async function handleDelete() {
   gap: 20rpx;
 }
 
+.provider-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 8rpx;
+}
+
 .status-pill {
+  display: inline-block;
   padding: 4rpx 14rpx;
   border-radius: 20rpx;
   font-size: 22rpx;

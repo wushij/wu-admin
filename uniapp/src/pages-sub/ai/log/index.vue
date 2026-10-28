@@ -37,7 +37,10 @@
             <text class="user-icon">👤</text>
             <text class="user-name">{{ item.username }}</text>
           </view>
-          <text class="model-pill">{{ providerMeta(item.provider).label }} · {{ item.modelName }}</text>
+          <view class="model-pill">
+            <AiProviderIcon :provider="item.provider" :size="13" />
+            <text class="model-pill__name">{{ providerMeta(item.provider).label }} · {{ item.modelName }}</text>
+          </view>
           <view
             class="status-pill"
             :class="item.chatStatus === 1 ? 'is-success' : item.chatStatus === 2 ? 'is-warn' : 'is-error'"
@@ -89,6 +92,7 @@ import { usePageList } from '@/composables/base/usePageList'
 import { useModulePermission } from '@/composables/base/useModulePermission'
 import { pageAiChatLog, deleteAiChatLog, cleanAiChatLog, type AiChatLogVO } from '@/api/system/ai-log'
 import { providerMeta } from '@/constants/aiProviders'
+import AiProviderIcon from '@/components/business/ai/AiProviderIcon/index.vue'
 import { showConfirm } from '@/store/dialog'
 
 const { allowed, hasPerm } = useModulePermission('system:ai-log:list')
@@ -253,12 +257,20 @@ onPullDownRefresh(async () => {
 .model-pill {
   flex: 1;
   min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6rpx;
   font-size: 22rpx;
   color: #6366f1;
   font-family: monospace;
   overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
+
+  .model-pill__name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
 }
 
 .status-pill {
