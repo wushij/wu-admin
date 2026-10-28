@@ -41,6 +41,15 @@ export const AI_PROVIDER_META: Record<string, AiProviderMeta> = {
     baseUrl: 'https://api.moonshot.cn/v1',
     models: ['kimi-k3', 'kimi-k2.7-code', 'kimi-k2.7-code-highspeed', 'kimi-k2.6'],
   },
+  // 自定义 OpenAI 兼容接口：私有大模型（Ollama / vLLM / Xinference / One-API 等），地址与模型全部手填
+  custom: {
+    label: '自定义',
+    short: 'CU',
+    color: '#8b5cf6',
+    bg: 'rgba(139, 92, 246, 0.12)',
+    baseUrl: '',
+    models: [],
+  },
 }
 
 export const AI_PROVIDER_KEYS = Object.keys(AI_PROVIDER_META)

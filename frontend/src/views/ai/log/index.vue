@@ -190,6 +190,7 @@ const PROVIDER_LABELS: Record<string, string> = {
   openai: 'OpenAI',
   qwen: '通义千问',
   kimi: 'Kimi',
+  custom: '自定义',
 }
 
 const tableHeaderStyle = { textAlign: 'center' as const }

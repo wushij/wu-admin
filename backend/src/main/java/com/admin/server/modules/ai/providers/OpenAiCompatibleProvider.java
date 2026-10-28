@@ -28,11 +28,12 @@ import java.util.TreeMap;
 /**
  * OpenAI 兼容协议统一实现
  * <p>DeepSeek / OpenAI / Qwen / Kimi 均遵循 /chat/completions SSE 协议，仅 baseUrl 与 model 不同，共用此类。</p>
+ * <p>custom（自定义供应商）面向私有化部署大模型（Ollama / vLLM / Xinference / One-API 等 OpenAI 兼容网关），协议一致同样复用。</p>
  */
 @Component
 public class OpenAiCompatibleProvider implements AiProviderStrategy {
 
-    private static final Set<String> SUPPORTED = Set.of("deepseek", "openai", "qwen", "kimi");
+    private static final Set<String> SUPPORTED = Set.of("deepseek", "openai", "qwen", "kimi", "custom");
 
     private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(15))

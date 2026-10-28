@@ -1,5 +1,36 @@
 <template>
   <div class="ai-config-tab">
+    <!-- 模型接入入口：展示当前可用模型状态，直达「AI 管理理 → AI 模型配置」 -->
+    <div class="model-access-card" :class="modelStatusTheme">
+      <div class="model-access-icon">
+        <el-icon :size="22"><Cpu /></el-icon>
+      </div>
+      <div class="model-access-info">
+        <div class="model-access-title">
+          模型接入
+          <el-tag v-if="modelCount > 0" type="success" size="small" effect="light">已接入 {{ modelCount }} 个</el-tag>
+          <el-tag v-else type="warning" size="small" effect="light">未接入</el-tag>
+        </div>
+        <div class="model-access-desc">
+          <template v-if="modelCount > 0">
+            默认模型：{{ defaultModelText }}，AI 助手已就绪
+          </template>
+          <template v-else>
+            尚未接入任何大模型，AI 助手将无法对话。接入 DeepSeek / OpenAI / 通义千问 / Kimi，或任意 OpenAI 兼容接口（如 Ollama / vLLM 内网模型）
+          </template>
+        </div>
+      </div>
+      <el-button
+        v-permission="'system:ai-model:list'"
+        type="primary"
+        :plain="modelCount > 0"
+        :icon="Position"
+        @click="goModelConfig"
+      >
+        {{ modelCount > 0 ? '管理模型配置' : '去配置模型' }}
+      </el-button>
+    </div>
+
     <el-form :model="draft" label-width="120px" class="config-form">
       <el-form-item label="AI 助手">
         <div class="switch-with-tip">
@@ -145,16 +176,49 @@
 </template>
 
 <script setup lang="ts">
-import { Coin, Plus, InfoFilled } from '@element-plus/icons-vue'
+import { computed, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { Coin, Cpu, Plus, InfoFilled, Position } from '@element-plus/icons-vue'
 import { ElMessageBox } from 'element-plus'
 import type { ConfigGroupMap } from '@/types/config'
 import type { RoleOption } from '../composables/useConfigDraft'
+import { listChatModels } from '@/api/ai'
+import type { AiModelVO } from '@/api/system/ai-model'
 
 const props = defineProps<{
   draft: ConfigGroupMap['ai']
   canEdit: boolean
   roleOptions: RoleOption[]
 }>()
+
+const router = useRouter()
+
+/** 已启用模型列表（失败时保持 null，降级为“未接入”提示但不阻断入口） */
+const enabledModels = ref<AiModelVO[] | null>(null)
+const modelCount = computed(() => enabledModels.value?.length ?? 0)
+
+const modelStatusTheme = computed(() => (modelCount.value > 0 ? 'is-ready' : 'is-empty'))
+
+const defaultModelText = computed(() => {
+  const models = enabledModels.value || []
+  const def = models.find((m) => m.isDefault === 1) || models[0]
+  if (!def) return '—'
+  return `${def.name}（${def.modelName}）`
+})
+
+onMounted(async () => {
+  try {
+    const res = await listChatModels()
+    enabledModels.value = res.data || []
+  } catch {
+    // 拉取失败不阻断配置页，仅状态文案降级；入口按钮仍可用
+    enabledModels.value = null
+  }
+})
+
+function goModelConfig() {
+  router.push('/ai/model')
+}
 
 /** 已被其它行选用的角色置灰（当前行已选值除外），避免重复配置同一角色 */
 function isRoleUsed(roleId: number, currentRoleId: number): boolean {
@@ -184,6 +248,65 @@ async function removeRow(index: number) {
 .ai-config-tab {
   max-width: 760px;
   padding-top: 8px;
+}
+
+/* ---------- 模型接入入口卡片 ---------- */
+.model-access-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 18px;
+  margin-bottom: 20px;
+  border-radius: 8px;
+  border: 1px solid var(--el-border-color-lighter, #e4e7ed);
+  background-color: var(--el-bg-color-overlay, #ffffff);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+}
+
+.model-access-card.is-empty {
+  border-color: var(--el-color-warning-light-7, #f3d19e);
+  background-color: var(--el-color-warning-light-9, #fdf6ec);
+}
+
+.model-access-card.is-ready .model-access-icon {
+  color: var(--el-color-success, #67c23a);
+  background-color: var(--el-color-success-light-9, #f0f9eb);
+}
+
+.model-access-card.is-empty .model-access-icon {
+  color: var(--el-color-warning, #e6a23c);
+  background-color: var(--el-color-warning-light-9, #fdf6ec);
+}
+
+.model-access-icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+}
+
+.model-access-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.model-access-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--el-text-color-primary, #303133);
+  margin-bottom: 4px;
+}
+
+.model-access-desc {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--el-text-color-secondary, #909399);
 }
 
 .config-form {

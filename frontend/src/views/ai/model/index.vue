@@ -7,7 +7,7 @@
             <ModulePageIcon :icon="MODULE_PAGE_ICON.aiModel" />
             <span>AI 模型配置</span>
           </div>
-          <p class="module-hero-desc">管理 AI wu助手接入的大模型供应商，支持 DeepSeek / OpenAI / 通义千问 / Kimi</p>
+          <p class="module-hero-desc">内置 DeepSeek / OpenAI / 通义千问 / Kimi，支持自定义 OpenAI 兼容接口（Ollama / vLLM 等私有大模型）</p>
         </div>
         <div class="module-hero-stats">
           <div class="stat-num">{{ total }}</div>
@@ -194,19 +194,33 @@
           <el-input v-model="form.name" placeholder="如：DeepSeek 官方" maxlength="50" show-word-limit />
         </el-form-item>
         <el-form-item label="模型名称" prop="modelName">
-          <el-select v-model="form.modelName" filterable allow-create default-first-option placeholder="选择或输入模型名称" style="width: 100%">
+          <el-select
+            v-model="form.modelName"
+            filterable
+            allow-create
+            default-first-option
+            :placeholder="form.provider === 'custom' ? '输入模型名称，如 qwen2.5:7b、deepseek-r1:8b' : '选择或输入模型名称'"
+            style="width: 100%"
+          >
             <el-option v-for="m in providerModels" :key="m" :label="m" :value="m" />
           </el-select>
         </el-form-item>
         <el-form-item label="接口地址" prop="baseUrl">
-          <el-input v-model="form.baseUrl" placeholder="如：https://api.deepseek.com/v1" />
+          <el-input
+            v-model="form.baseUrl"
+            :placeholder="form.provider === 'custom' ? '如：http://192.168.1.10:11434/v1' : '如：https://api.deepseek.com/v1'"
+          />
+          <div v-if="form.provider === 'custom'" class="custom-provider-tip">
+            私有大模型常见地址：Ollama <code>http://主机IP:11434/v1</code> · vLLM <code>http://主机IP:8000/v1</code>；
+            后端在容器内运行，请填主机 IP 或 <code>host.docker.internal</code>，勿填 127.0.0.1
+          </div>
         </el-form-item>
         <el-form-item label="API Key" prop="apiKey">
           <el-input
             v-model="form.apiKey"
             type="password"
             show-password
-            :placeholder="form.id && editHasKey ? '留空表示不修改已保存的 Key' : '请输入 API Key'"
+            :placeholder="apiKeyPlaceholder"
             autocomplete="new-password"
           />
           <el-link
@@ -328,6 +342,16 @@ const PROVIDER_META: Record<string, { label: string; short: string; color: strin
     portalUrl: 'https://platform.moonshot.cn',
     models: ['kimi-k3', 'kimi-k2.7-code', 'kimi-k2.7-code-highspeed', 'kimi-k2.6'],
   },
+  custom: {
+    label: '自定义',
+    short: 'CU',
+    color: '#8b5cf6',
+    bg: 'rgba(139, 92, 246, 0.12)',
+    // 无预置地址与模型：接入私有 OpenAI 兼容服务（Ollama / vLLM / Xinference / One-API 等），全部手填
+    baseUrl: '',
+    portalUrl: '',
+    models: [],
+  },
 }
 
 const PROVIDER_OPTIONS = Object.entries(PROVIDER_META).map(([value, meta]) => ({ value: value as AiProvider, label: meta.label }))
@@ -417,6 +441,13 @@ const rules: FormRules = {
 }
 
 const providerModels = computed(() => providerMeta(form.provider).models)
+
+/** API Key 占位提示：自定义供应商（本地模型）可留空 */
+const apiKeyPlaceholder = computed(() => {
+  if (form.id && editHasKey.value) return '留空表示不修改已保存的 Key'
+  if (form.provider === 'custom') return '本地模型可留空；服务有鉴权时填写'
+  return '请输入 API Key'
+})
 
 function selectProvider(provider: AiProvider) {
   if (form.provider === provider) return
@@ -854,6 +885,28 @@ onMounted(() => loadData())
   .el-dialog__footer {
     padding: 12px 20px 16px;
     border-top: 1px solid var(--el-border-color-lighter);
+  }
+}
+
+/* 自定义供应商接入提示（私有大模型地址写法） */
+.custom-provider-tip {
+  width: 100%;
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--el-text-color-secondary, #909399);
+  background-color: var(--el-color-primary-light-9, #ecf5ff);
+  border: 1px solid var(--el-color-primary-light-7, #d9ecff);
+  border-radius: 4px;
+  padding: 6px 10px;
+
+  code {
+    margin: 0 2px;
+    padding: 0 4px;
+    font-size: 11px;
+    color: var(--el-color-primary, #409eff);
+    background-color: var(--el-fill-color-light, #f5f7fa);
+    border-radius: 3px;
   }
 }
 </style>

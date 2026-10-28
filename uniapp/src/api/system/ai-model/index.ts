@@ -1,8 +1,8 @@
 import http, { get, post, put, del } from '@/core/http'
 import type { ApiResult, PageResult } from '@/types/api'
 
-/** 供应商标识 */
-export type AiProvider = 'deepseek' | 'openai' | 'qwen' | 'kimi'
+/** 供应商标识：四大内置 + custom（自定义 OpenAI 兼容接口，接私有模型） */
+export type AiProvider = 'deepseek' | 'openai' | 'qwen' | 'kimi' | 'custom'
 
 export interface AiModelVO {
   id: number

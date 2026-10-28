@@ -28,7 +28,8 @@ import java.util.Set;
 @Service
 public class AiModelServiceImpl extends ServiceImpl<AiModelMapper, AiModelDO> implements AiModelService {
 
-    private static final Set<String> SUPPORTED_PROVIDERS = Set.of("deepseek", "openai", "qwen", "kimi");
+    /** 四大内置供应商 + custom（自定义 OpenAI 兼容接口，私有大模型如 Ollama / vLLM / Xinference） */
+    private static final Set<String> SUPPORTED_PROVIDERS = Set.of("deepseek", "openai", "qwen", "kimi", "custom");
 
     @Resource
     private AiKeyCrypto aiKeyCrypto;
@@ -207,7 +208,7 @@ public class AiModelServiceImpl extends ServiceImpl<AiModelMapper, AiModelDO> im
             throw new BusinessException("配置名称不能为空");
         }
         if (StrUtil.isBlank(reqVO.getProvider()) || !SUPPORTED_PROVIDERS.contains(reqVO.getProvider().toLowerCase())) {
-            throw new BusinessException("供应商不合法，仅支持 deepseek/openai/qwen/kimi");
+            throw new BusinessException("供应商不合法，仅支持 deepseek/openai/qwen/kimi/custom（自定义 OpenAI 兼容接口）");
         }
         if (StrUtil.isBlank(reqVO.getModelName())) {
             throw new BusinessException("模型名称不能为空");

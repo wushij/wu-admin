@@ -115,7 +115,7 @@
 
 - **全局悬浮球助手**：PC 端登录后右下角悬浮球（`AiWuFloatBtn` + `AiWuChatPanel`）随时唤起对话，移动端提供同款 `AiWuAssistant` 组件，登录即可使用、无需菜单权限
 - **SSE 流式对话**：`POST /api/ai/chat/stream` 基于 `SseEmitter` 增量推送（事件 `delta` / `done` / `error`），专用线程池不占用 Web 容器线程，客户端断开自动停止拉流
-- **多供应商接入**：DeepSeek / OpenAI / Qwen（通义千问）/ Kimi（月之暗面），统一走 OpenAI 兼容协议 `/chat/completions`（策略模式 `AiProviderFactory`），仅 baseUrl 与模型名不同
+- **多供应商接入**：DeepSeek / OpenAI / Qwen（通义千问）/ Kimi（月之暗面），统一走 OpenAI 兼容协议 `/chat/completions`（策略模式 `AiProviderFactory`），仅 baseUrl 与模型名不同；另支持**自定义供应商**，可接入 Ollama / vLLM / Xinference / One-API 等私有化大模型（本地模型 API Key 可留空）
 - **AI 模型配置**：供应商/模型/baseUrl/温度等可视化管理，支持连通性测试与启用停用；**API Key 使用国密 SM4-GCM 加密存储**，回显仅掩码，历史 CBC 密文只读兼容
 - **AI 知识库（RAG-lite）**：独立菜单 `/ai/knowledge`，支持知识 CRUD、分类/关键词、权重排序、批量启用停用/删除、JSON 批量导入（同标题自动更新）、全量导出；内置 Markdown 双栏编辑与实时预览
 - **检索演练与召回测试**：`POST /api/system/ai-knowledge/test-retrieve` 返回命中条目、`<reference_data>` 参考块、字符数与预估 Token，便于调优关键词与内容

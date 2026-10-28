@@ -37,7 +37,7 @@
             label="接口地址"
             editable
             boxed
-            placeholder="如：https://api.deepseek.com/v1"
+            :placeholder="form.provider === 'custom' ? '如：http://主机IP:11434/v1' : '如：https://api.deepseek.com/v1'"
           />
           <FormCell
             v-model="form.apiKey"
@@ -45,7 +45,7 @@
             editable
             password
             boxed
-            :placeholder="!isCreate && hasKey ? '留空表示不修改' : '请输入 API Key'"
+            :placeholder="apiKeyPlaceholder"
             last
           />
         </view>
@@ -153,6 +153,13 @@ const maxTokensText = ref('4096')
 
 const providerLabels = computed(() => AI_PROVIDER_KEYS.map((k) => AI_PROVIDER_META[k].label))
 
+/** API Key 占位提示：自定义供应商（本地模型）可留空 */
+const apiKeyPlaceholder = computed(() => {
+  if (!isCreate.value && hasKey.value) return '留空表示不修改'
+  if (form.provider === 'custom') return '本地模型可留空；有鉴权时填写'
+  return '请输入 API Key'
+})
+
 function pickProvider() {
   uni.showActionSheet({
     itemList: providerLabels.value,
@@ -170,7 +177,8 @@ function pickProvider() {
 
 function pickModel() {
   const models = providerMeta(form.provider).models
-  const items = [...models, '手动输入']
+  // 自定义供应商无预置模型列表，直接弹手动输入
+  const items = models.length > 0 ? [...models, '手动输入'] : ['手动输入']
   uni.showActionSheet({
     itemList: items,
     success: (res) => {
@@ -181,7 +189,7 @@ function pickModel() {
       uni.showModal({
         title: '模型名称',
         editable: true,
-        placeholderText: '请输入模型名称',
+        placeholderText: '请输入模型名称，如 qwen2.5:7b',
         content: form.modelName,
         success: (r) => {
           if (r.confirm && r.content?.trim()) {

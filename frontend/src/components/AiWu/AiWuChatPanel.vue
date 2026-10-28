@@ -149,6 +149,18 @@
         <div class="welcome-desc">
           {{ aiWuStore.modelsLoaded && aiWuStore.models.length === 0 ? '暂无可用模型，请联系管理员配置' : '我是本系统的智能助手，熟悉各功能模块与操作路径，有问题尽管问我～' }}
         </div>
+        <!-- 空模型状态：有模型管理权限的用户提供直达入口 -->
+        <el-button
+          v-if="aiWuStore.modelsLoaded && aiWuStore.models.length === 0 && canManageModel"
+          class="go-model-btn"
+          type="primary"
+          size="small"
+          round
+          :icon="Position"
+          @click="goModelConfig"
+        >
+          去配置模型
+        </el-button>
         <div class="quick-section">
           <div class="quick-header">
             <el-icon :size="14"><Opportunity /></el-icon>
@@ -266,6 +278,7 @@
 
 <script setup lang="ts">
 import { ref, computed, nextTick, watch, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import {
   Plus,
   User,
@@ -279,9 +292,11 @@ import {
   ArrowRight,
   Clock,
   Close,
-  Delete
+  Delete,
+  Position
 } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { hasPermission } from '@/directives/permission'
 import { useAiWuStore } from '@/store/aiWu'
 import { useUserStore } from '@/store/user'
 import { listConversations, deleteConversation, clearAllConversations, type AiConversationVO } from '@/api/ai'
@@ -308,7 +323,15 @@ const QUICK_QUESTIONS = [
 
 const aiWuStore = useAiWuStore()
 const userStore = useUserStore()
+const router = useRouter()
 const userAvatar = computed(() => userStore.userInfo.avatar || '')
+
+/** 是否具备模型管理权限（决定空模型态是否展示直达入口，避免普通用户点击后被路由守卫拦截） */
+const canManageModel = computed(() => hasPermission('system:ai-model:list'))
+
+function goModelConfig() {
+  router.push('/ai/model')
+}
 
 const inputText = ref('')
 const msgListRef = ref<HTMLElement>()
