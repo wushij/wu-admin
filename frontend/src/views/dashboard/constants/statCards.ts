@@ -132,7 +132,7 @@ export const topStatCards: TopStatCardConfig[] = [
     icon: OfficeBuilding,
     iconTheme: 'dept',
     permission: 'system:dept:list',
-    to: '/system/org',
+    to: { path: '/system/org', query: { tab: 'dept' } },
     footer: (_s, t) => formatTrendFooter(t.dept),
   },
   {
@@ -142,7 +142,7 @@ export const topStatCards: TopStatCardConfig[] = [
     icon: Briefcase,
     iconTheme: 'post',
     permission: 'system:dept:list',
-    to: '/system/org',
+    to: { path: '/system/org', query: { tab: 'post' } },
     footer: (s) => `部门 ${s.deptCount ?? 0} 个`,
   },
 ]

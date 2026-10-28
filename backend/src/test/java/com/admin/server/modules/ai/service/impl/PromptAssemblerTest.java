@@ -64,7 +64,7 @@ class PromptAssemblerTest {
         user.setUsername("zhangsan");
         user.setNickname("张三");
         user.setDeptId(10L);
-        when(userService.getDetail(USER_ID)).thenReturn(user);
+        when(userService.getUserForDisplay(USER_ID)).thenReturn(user);
 
         DeptDO dept = new DeptDO();
         dept.setName("技术部");

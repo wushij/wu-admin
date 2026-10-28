@@ -148,9 +148,20 @@ async function doRegister(sliderCaptcha?: { uuid: string; code: string }) {
       }
     }
     const res = await register(payload)
-    const msg = res.message || res.msg || '注册成功，请登录'
-    uni.showToast({ title: msg, icon: 'success' })
-    setTimeout(() => goLogin(), 500)
+    const needAudit = res.data === true || (typeof res.message === 'string' && res.message.includes('审核'))
+    if (needAudit) {
+      uni.showModal({
+        title: '注册成功（待审核）',
+        content: '您的账号已成功提交注册，当前需要等待管理员审核通过后方可登录。请耐心等待！',
+        showCancel: false,
+        confirmText: '去登录',
+        success: () => goLogin(),
+      })
+    } else {
+      const msg = res.message || res.msg || '注册成功，请登录'
+      uni.showToast({ title: msg, icon: 'success' })
+      setTimeout(() => goLogin(), 500)
+    }
   } catch (e) {
     console.error(e)
     await refreshCaptcha()

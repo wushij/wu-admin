@@ -14,9 +14,11 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockHttpServletRequest;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -46,6 +48,7 @@ class HoneypotServiceImplTest {
     @Test
     @DisplayName("hit：命中后按 IP 加分并封禁，响应体是诱饵数据")
     void testHitRecordsRiskAndReturnsDecoy() {
+        when(systemConfigHelper.isRiskEnabled()).thenReturn(true);
         when(systemConfigHelper.getHoneypotRiskDelta()).thenReturn(80);
         when(systemConfigHelper.getHoneypotBlockSeconds()).thenReturn(86400L);
         when(systemConfigHelper.getHoneypotTarpitMs()).thenReturn(0);
@@ -70,6 +73,50 @@ class HoneypotServiceImplTest {
         assertTrue(body.contains("sys_user"), "db-backup 诱饵应伪装成数据库导出");
         // canary 用于追溯泄露来源，格式为 hk + 10 位十六进制
         assertTrue(body.matches("(?s).*\\bhk[0-9a-f]{10}\\b.*"), "诱饵必须嵌入 canary 标识");
+    }
+
+    @Test
+    @DisplayName("hit：风控总开关关闭时不写封禁标记，避免应急关闭后仍产生新封禁")
+    void testHitDoesNotBlockWhenRiskDisabled() {
+        when(systemConfigHelper.isRiskEnabled()).thenReturn(false);
+        when(systemConfigHelper.getHoneypotRiskDelta()).thenReturn(80);
+        when(systemConfigHelper.getHoneypotTarpitMs()).thenReturn(0);
+
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setRequestURI("/api/system/internal/db-backup");
+        request.setMethod("GET");
+        request.setRemoteAddr("1.2.3.4");
+        request.addHeader("User-Agent", "curl/8.0");
+
+        HoneypotResult result = honeypotService.hit(request, "db-backup");
+
+        verify(antiBotRiskService, never()).blockPrincipal(anyString(), anyLong(), anyString());
+        assertEquals(200, result.getHttpStatus());
+    }
+
+    @Test
+    @DisplayName("hit：延迟并发受信号量限制，许可耗尽时不再占用线程 sleep")
+    void testTarpitSkippedWhenPermitsExhausted() throws Exception {
+        when(systemConfigHelper.isRiskEnabled()).thenReturn(true);
+        when(systemConfigHelper.getHoneypotRiskDelta()).thenReturn(80);
+        when(systemConfigHelper.getHoneypotBlockSeconds()).thenReturn(86400L);
+        when(systemConfigHelper.getHoneypotTarpitMs()).thenReturn(3000);
+
+        // 把许可全部占满，模拟扫描器高并发
+        java.util.concurrent.Semaphore permits = (java.util.concurrent.Semaphore)
+                org.springframework.test.util.ReflectionTestUtils.getField(honeypotService, "tarpitPermits");
+        permits.acquire(permits.availablePermits());
+
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setRequestURI("/api/system/internal/db-backup");
+        request.setMethod("GET");
+        request.setRemoteAddr("1.2.3.4");
+
+        long start = System.nanoTime();
+        honeypotService.hit(request, "db-backup");
+        long elapsedMs = (System.nanoTime() - start) / 1_000_000;
+
+        assertTrue(elapsedMs < 1000, "许可耗尽时必须直接返回，实际耗时 " + elapsedMs + "ms");
     }
 
     @Test

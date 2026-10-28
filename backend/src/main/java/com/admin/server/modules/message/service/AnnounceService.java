@@ -30,6 +30,8 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 import com.admin.server.modules.message.service.vo.AnnounceMyVO;
@@ -88,17 +90,40 @@ public class AnnounceService {
         }
         uw.orderByDesc(UserAnnounceDO::getCreateTime);
         Page<UserAnnounceDO> uaPage = userAnnounceMapper.selectPage(new Page<>(pageNo, pageSize), uw);
+        List<UserAnnounceDO> rows = uaPage.getRecords();
         List<AnnounceMyVO> records = new ArrayList<>();
-        for (UserAnnounceDO ua : uaPage.getRecords()) {
-            AnnounceDO a = announceMapper.selectById(ua.getAnnounceId());
-            if (a != null && a.getStatus() != null && a.getStatus() == 1) {
-        AnnounceMyVO vo = new AnnounceMyVO();
+        if (!rows.isEmpty()) {
+            // 批量装配：一次取本页公告，一次取发布人。
+            // 发布人只用于展示昵称，必须走 getUserForDisplay / getUserList，
+            // 不能用带组织数据权限的 getDetail——否则普通用户看他人发布的公告会 403。
+            List<Long> announceIds = rows.stream()
+                    .map(UserAnnounceDO::getAnnounceId)
+                    .filter(Objects::nonNull)
+                    .distinct()
+                    .toList();
+            Map<Long, AnnounceDO> announceMap = announceIds.isEmpty() ? Map.of()
+                    : announceMapper.selectByIds(announceIds).stream()
+                            .filter(a -> a.getStatus() != null && a.getStatus() == 1)
+                            .collect(Collectors.toMap(AnnounceDO::getId, a -> a, (x, y) -> x));
+            Set<Long> publisherIds = announceMap.values().stream()
+                    .map(AnnounceDO::getCreateBy)
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toSet());
+            Map<Long, UserDO> publisherMap = publisherIds.isEmpty() ? Map.of()
+                    : userService.getUserList(publisherIds).stream()
+                            .collect(Collectors.toMap(UserDO::getId, u -> u, (x, y) -> x));
+            for (UserAnnounceDO ua : rows) {
+                AnnounceDO a = announceMap.get(ua.getAnnounceId());
+                if (a == null) {
+                    continue;
+                }
+                AnnounceMyVO vo = new AnnounceMyVO();
                 vo.setId(a.getId());
                 vo.setTitle(a.getTitle());
                 vo.setContent(a.getContent());
                 vo.setNoticeType(a.getNoticeType());
                 vo.setStatus(a.getStatus());
-                vo.setCreateName(resolvePublisherName(a));
+                vo.setCreateName(displayName(publisherMap.get(a.getCreateBy()), a.getCreateName()));
                 vo.setCreateTime(a.getCreateTime());
                 vo.setIsRead(ua.getIsRead());
                 vo.setReadTime(ua.getReadTime());
@@ -164,7 +189,7 @@ public class AnnounceService {
     public void create(AnnounceDO entity) {
         Long uid = SecurityUtils.getLoginUserId();
         entity.setCreateBy(uid);
-        UserDO user = userService.getDetail(uid);
+        UserDO user = userService.getUserForDisplay(uid);
         if (user != null) {
             entity.setCreateName(user.getNickname());
         }
@@ -356,16 +381,20 @@ public class AnnounceService {
         if (announce == null) {
             return null;
         }
-        UserDO publisher = resolvePublisher(announce);
-        if (publisher != null) {
-            if (StringUtils.hasText(publisher.getNickname())) {
-                return publisher.getNickname();
+        return displayName(resolvePublisher(announce), announce.getCreateName());
+    }
+
+    /** 发布人展示名：当前昵称 > 用户名 > 创建时快照名 */
+    private String displayName(UserDO user, String fallback) {
+        if (user != null) {
+            if (StringUtils.hasText(user.getNickname())) {
+                return user.getNickname();
             }
-            if (StringUtils.hasText(publisher.getUsername())) {
-                return publisher.getUsername();
+            if (StringUtils.hasText(user.getUsername())) {
+                return user.getUsername();
             }
         }
-        return announce.getCreateName();
+        return fallback;
     }
 
     /** 返回发布人当前头像；资料变更后不再显示旧快照 */
@@ -379,7 +408,9 @@ public class AnnounceService {
         if (announce == null || announce.getCreateBy() == null) {
             return null;
         }
-        return userService.getDetail(announce.getCreateBy());
+        // 这里只是给当前用户展示发布人昵称/头像，不能复用带组织数据权限的 getDetail，
+        // 否则普通用户（数据范围仅本人/本部门）会因查不到管理员而收到 403「无权查看该用户」。
+        return userService.getUserForDisplay(announce.getCreateBy());
     }
 
     /** 获取最新发布的公告列表（前 limit 条，供 AI 工具或仪表盘调用） */

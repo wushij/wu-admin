@@ -60,6 +60,10 @@ public class ApiSecurityFilter extends OncePerRequestFilter {
     /** 会话 SM4 加密密钥 Redis 前缀（与 AuthController 中保持一致） */
     private static final String SESSION_SM4_KEY_PREFIX = "security:session-sm4:";
 
+    /** 时间戳失败留痕的冷却键前缀与时长，避免每个失败请求都落一条安全事件 */
+    private static final String TIMESTAMP_TRACE_COOLDOWN_PREFIX = "security:risk:cd:ts:";
+    private static final long TIMESTAMP_TRACE_COOLDOWN_SECONDS = 300L;
+
     private static final long MAX_TIMESTAMP_DIFF_MS = 5 * 60 * 1000L; // 5 分钟窗口
 
     private static final Set<String> EXCLUDE_PATH_PREFIXES = Set.of(
@@ -205,8 +209,7 @@ public class ApiSecurityFilter extends OncePerRequestFilter {
         String timestampStr = request.getHeader(HEADER_TIMESTAMP);
         if (timestampEnabled) {
             if (StrUtil.isBlank(timestampStr)) {
-                antiBotRiskService.addRisk(resolveSubject(request), 10, "TIMESTAMP_INVALID", "BLOCKED",
-                        uri, method, userAgent, "缺失 X-Timestamp 请求头");
+                recordTimestampFailure(request, uri, method, userAgent, "缺失 X-Timestamp 请求头");
                 writeError(response, 403, "请求已被拒绝：缺失 X-Timestamp 请求头");
                 return;
             }
@@ -214,14 +217,12 @@ public class ApiSecurityFilter extends OncePerRequestFilter {
                 long timestamp = Long.parseLong(timestampStr);
                 long diff = Math.abs(System.currentTimeMillis() - timestamp);
                 if (diff > MAX_TIMESTAMP_DIFF_MS) {
-                    antiBotRiskService.addRisk(resolveSubject(request), 20, "TIMESTAMP_INVALID", "BLOCKED",
-                            uri, method, userAgent, "时间戳无效或已过期 (diff=" + diff + "ms)");
+                    recordTimestampFailure(request, uri, method, userAgent, "时间戳无效或已过期 (diff=" + diff + "ms)");
                     writeError(response, 403, "请求已被拒绝：时间戳无效或已过期");
                     return;
                 }
             } catch (NumberFormatException e) {
-                antiBotRiskService.addRisk(resolveSubject(request), 20, "TIMESTAMP_INVALID", "BLOCKED",
-                        uri, method, userAgent, "非法时间戳格式");
+                recordTimestampFailure(request, uri, method, userAgent, "非法时间戳格式");
                 writeError(response, 403, "请求已被拒绝：非法时间戳格式");
                 return;
             }
@@ -493,6 +494,31 @@ public class ApiSecurityFilter extends OncePerRequestFilter {
                     uri, method, userAgent, "请求体超过 1MB 上限");
         } catch (Exception e) {
             log.warn("记录超大请求体风险分失败: {}", e.getMessage());
+        }
+    }
+
+    /**
+     * 记录时间戳校验失败，但不累加风险分。
+     *
+     * <p>时间戳失败几乎都是客户端时钟偏差或前后端配置不一致，而不是攻击：时钟偏差会让该客户端
+     * 的每个请求都失败，若持续加分，正常用户在窗口内就会被累计到临时封禁。
+     * 请求本身仍然被 403 拒绝；真正的重放/伪造由 Nonce 与签名校验计分。</p>
+     *
+     * <p>为避免每个失败请求都写一条安全事件，同一主体在冷却期内只留痕一次。</p>
+     */
+    private void recordTimestampFailure(HttpServletRequest request, String uri, String method,
+                                        String userAgent, String reason) {
+        try {
+            RiskPrincipal subject = resolveSubject(request);
+            Boolean first = stringRedisTemplate.opsForValue().setIfAbsent(
+                    TIMESTAMP_TRACE_COOLDOWN_PREFIX + subject.key(), "1",
+                    TIMESTAMP_TRACE_COOLDOWN_SECONDS, TimeUnit.SECONDS);
+            if (Boolean.TRUE.equals(first)) {
+                antiBotRiskService.addRisk(subject, 0, "TIMESTAMP_INVALID", "BLOCKED",
+                        uri, method, userAgent, reason);
+            }
+        } catch (Exception e) {
+            log.debug("记录时间戳失败事件异常: reason={}, error={}", reason, e.getMessage());
         }
     }
 

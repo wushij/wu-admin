@@ -9,7 +9,7 @@
       @keyup.enter="$emit('enter')"
     >
       <template #prefix>
-        <el-icon class="input-icon"><Key /></el-icon>
+        <el-icon class="input-icon"><Lock /></el-icon>
       </template>
     </el-input>
     <img
@@ -24,7 +24,7 @@
 </template>
 
 <script setup lang="ts">
-import { Key } from '@element-plus/icons-vue'
+import { Lock } from '@element-plus/icons-vue'
 
 defineProps<{
   modelValue: string

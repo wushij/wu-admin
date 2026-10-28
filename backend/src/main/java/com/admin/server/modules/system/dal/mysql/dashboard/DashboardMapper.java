@@ -15,11 +15,11 @@ public interface DashboardMapper {
      */
     @Select({
             "SELECT",
-            "  (SELECT COUNT(*) FROM sys_user WHERE deleted = 0) AS user_count,",
+            "  (SELECT COUNT(*) FROM sys_user WHERE deleted = 0 AND status IN (0, 1)) AS user_count,",
             "  (SELECT COUNT(*) FROM sys_user WHERE deleted = 0 AND status = 2) AS user_pending_count,",
             "  (SELECT COUNT(*) FROM sys_user WHERE deleted = 0 AND status = 0) AS user_disabled_count,",
-            "  (SELECT COUNT(*) FROM sys_user WHERE deleted = 0 AND create_time >= #{todayStart}) AS user_today,",
-            "  (SELECT COUNT(*) FROM sys_user WHERE deleted = 0 AND create_time >= #{yesterdayStart} AND create_time < #{todayStart}) AS user_yesterday,",
+            "  (SELECT COUNT(*) FROM sys_user WHERE deleted = 0 AND status IN (0, 1) AND create_time >= #{todayStart}) AS user_today,",
+            "  (SELECT COUNT(*) FROM sys_user WHERE deleted = 0 AND status IN (0, 1) AND create_time >= #{yesterdayStart} AND create_time < #{todayStart}) AS user_yesterday,",
             "  (SELECT COUNT(*) FROM sys_role WHERE deleted = 0) AS role_count,",
             "  (SELECT COUNT(*) FROM sys_role WHERE deleted = 0 AND create_time >= #{todayStart}) AS role_today,",
             "  (SELECT COUNT(*) FROM sys_role WHERE deleted = 0 AND create_time >= #{yesterdayStart} AND create_time < #{todayStart}) AS role_yesterday,",

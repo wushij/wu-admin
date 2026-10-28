@@ -69,7 +69,7 @@ public class ChatService {
         if (isBlocked(senderId, receiverId)) {
             throw new BusinessException(400, "无法发送，存在拉黑关系");
         }
-        UserDO sender = userService.getDetail(senderId);
+        UserDO sender = userService.getUserForDisplay(senderId);
         ChatMessageDO msg = new ChatMessageDO();
         msg.setSenderId(senderId);
         msg.setSenderName(sender != null ? sender.getNickname() : "");
@@ -217,7 +217,7 @@ public class ChatService {
             m.setJoinTime(now);
             toInsert.add(m);
             if (!uid.equals(ownerId)) {
-                invitedNames.add(displayUserName(userService.getDetail(uid)));
+                invitedNames.add(displayUserName(userService.getUserForDisplay(uid)));
             }
         }
         groupMemberMapper.insertBatch(toInsert);
@@ -284,7 +284,7 @@ public class ChatService {
         if (member.getMuted() != null && member.getMuted() == 1) {
             throw new BusinessException(403, "您已被禁言");
         }
-        UserDO sender = userService.getDetail(senderId);
+        UserDO sender = userService.getUserForDisplay(senderId);
         ChatGroupMessageDO msg = new ChatGroupMessageDO();
         msg.setGroupId(groupId);
         msg.setSenderId(senderId);
@@ -614,7 +614,7 @@ public class ChatService {
             m.setRole(0);
             m.setJoinTime(now);
             toInsert.add(m);
-            invitedNames.add(displayUserName(userService.getDetail(uid)));
+            invitedNames.add(displayUserName(userService.getUserForDisplay(uid)));
         }
         if (!toInsert.isEmpty()) {
             groupMemberMapper.insertBatch(toInsert);
@@ -759,7 +759,7 @@ public class ChatService {
             }
         }
         if (publisherId != null) {
-            UserDO publisher = userService.getDetail(publisherId);
+            UserDO publisher = userService.getUserForDisplay(publisherId);
             item.put("announcementPublisherId", publisherId);
             item.put("announcementPublisherName", displayUserName(publisher));
             if (publisher != null) {
@@ -770,7 +770,7 @@ public class ChatService {
     }
 
     private void pushGroupAnnouncement(Long groupId, Long publisherId, String groupName, String announcement) {
-        UserDO publisher = userService.getDetail(publisherId);
+        UserDO publisher = userService.getUserForDisplay(publisherId);
         String publisherName = displayUserName(publisher);
         String preview = announcement != null ? announcement : "";
         if (preview.length() > 80) {
@@ -857,7 +857,7 @@ public class ChatService {
 
     private void saveGroupLog(Long groupId, String actionType, Long operatorId, Long targetUserId,
             String targetNames, String detail) {
-        UserDO operator = userService.getDetail(operatorId);
+        UserDO operator = userService.getUserForDisplay(operatorId);
         ChatGroupLogDO log = new ChatGroupLogDO();
         log.setGroupId(groupId);
         log.setActionType(actionType);
@@ -865,7 +865,7 @@ public class ChatService {
         log.setOperatorName(displayUserName(operator));
         log.setTargetUserId(targetUserId);
         if (targetUserId != null) {
-            log.setTargetUserName(displayUserName(userService.getDetail(targetUserId)));
+            log.setTargetUserName(displayUserName(userService.getUserForDisplay(targetUserId)));
         }
         if (StringUtils.hasText(targetNames)) {
             log.setDetail(targetNames);

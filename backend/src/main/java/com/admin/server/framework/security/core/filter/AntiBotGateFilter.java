@@ -94,9 +94,10 @@ public class AntiBotGateFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
         String clientIp = ClientIpUtils.resolve(request);
 
+        // 风控总开关关闭即全部失效：已写入的封禁标记也不再拦截，避免应急关闭风控后仍有人被拒绝而误判
         boolean blocked;
         try {
-            blocked = antiBotRiskService.isBlocked(clientIp);
+            blocked = dynamicConfigProvider.isRiskEnabled() && antiBotRiskService.isBlocked(clientIp);
         } catch (Exception e) {
             // 风控存储故障时优先保证站点可用，不能让静态文件与登录页一起不可用
             log.warn("反爬门禁读取封禁状态失败，按放行处理: ip={}, reason={}", clientIp, e.getMessage());
@@ -221,7 +222,8 @@ public class AntiBotGateFilter extends OncePerRequestFilter {
      */
     private boolean rejectIfChallengeRequired(HttpServletRequest request, HttpServletResponse response,
                                               String clientIp, String userAgent) throws IOException {
-        if (!dynamicConfigProvider.isRiskChallengeEnabled()) {
+        // 总开关关闭时历史风险分不再触发挑战
+        if (!dynamicConfigProvider.isRiskEnabled() || !dynamicConfigProvider.isRiskChallengeEnabled()) {
             return false;
         }
         if (!isWriteMethod(request.getMethod())) {

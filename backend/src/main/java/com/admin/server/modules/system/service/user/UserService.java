@@ -29,6 +29,15 @@ public interface UserService {
 
     UserDO getDetail(Long id);
 
+    /**
+     * 读取用户展示信息（昵称、头像、用户名），不受当前用户组织数据权限约束。
+     *
+     * <p>仅用于「把他人名字/头像展示给当前用户」的场景，例如消息发送者、公告发布人。
+     * 管理端按 ID 查看用户资料仍须使用 {@link #getDetail(Long)}——它带数据范围校验，
+     * 普通用户越权查询会得到 403。</p>
+     */
+    UserDO getUserForDisplay(Long id);
+
     Long createUser(UserCreateReqVO reqVO);
 
     void updateUser(UserUpdateReqVO reqVO);

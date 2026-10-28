@@ -5,7 +5,7 @@ export interface OrgTreeNode {
   children?: OrgTreeNode[]
 }
 
-/** 组织树：隐藏唯一的 parentId=0 根节点，仅展示其下级（如「本部」不展示，直接展示各中心） */
+/** 查找唯一的 parentId=0 根节点（供上级部门解析等场景使用） */
 export function findSingleOrgRoot<T extends OrgTreeNode>(
   roots: T[] | null | undefined,
   rootParentId = 0
@@ -16,17 +16,16 @@ export function findSingleOrgRoot<T extends OrgTreeNode>(
   return null
 }
 
+/** 组织部门树完整展示（保留总公司等顶级根节点，与岗位体系层级保持一致） */
 export function displayOrgTree<T extends OrgTreeNode>(
   roots: T[] | null | undefined,
-  rootParentId = 0
+  _rootParentId = 0
 ): T[] {
   if (!roots?.length) return []
-  const hidden = findSingleOrgRoot(roots, rootParentId)
-  if (hidden?.children?.length) return hidden.children as T[]
   return roots
 }
 
-/** 部门树隐藏根节点后，「新增一级部门」应挂到该根 id 下 */
+/** 部门树「新增一级部门」应默认挂到顶级公司节点（如总公司）下 */
 export function resolveDeptRootParentId(
   roots: OrgTreeNode[] | null | undefined,
   fallback = 1

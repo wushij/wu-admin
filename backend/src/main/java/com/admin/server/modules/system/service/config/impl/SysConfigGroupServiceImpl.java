@@ -10,6 +10,7 @@ import com.admin.server.modules.system.dal.mysql.config.SysConfigGroupMapper;
 import com.admin.server.modules.system.framework.cache.SysConfigCacheService;
 import com.admin.server.modules.system.service.config.SysConfigGroupService;
 import com.admin.server.modules.system.service.config.SystemConfigHelper;
+import com.admin.server.modules.system.service.security.WebhookUrlValidator;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import org.springframework.stereotype.Service;
 
@@ -377,8 +378,13 @@ public class SysConfigGroupServiceImpl implements SysConfigGroupService {
             throw new BusinessException("最高档封禁时长不能短于临时封禁时长");
         }
         String webhook = json.getStr("riskAlertWebhook", "");
-        if (StrUtil.isNotBlank(webhook) && !webhook.startsWith("http://") && !webhook.startsWith("https://")) {
-            throw new BusinessException("告警 webhook 必须以 http:// 或 https:// 开头");
+        if (StrUtil.isNotBlank(webhook)) {
+            try {
+                // 含 SSRF 防护：禁止回环、私网、链路本地（云元数据）地址，并校验 DNS 解析后的实际 IP
+                WebhookUrlValidator.validate(webhook);
+            } catch (IllegalArgumentException e) {
+                throw new BusinessException(e.getMessage());
+            }
         }
         int honeyDelta = json.getInt("honeypotRiskDelta", 80);
         if (honeyDelta < 20 || honeyDelta > 500) {

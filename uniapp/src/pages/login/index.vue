@@ -27,7 +27,11 @@
             :class="{ 'login-mode-switch__item--active': loginMode === 'account' }"
             @click="switchLoginMode('account')"
           >
-            账号登录
+            <svg viewBox="0 0 24 24" class="login-mode-switch__icon" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+              <circle cx="12" cy="7" r="4" />
+            </svg>
+            <text>账号登录</text>
           </view>
           <view
             v-if="smsLoginEnabled && smsEnabled"
@@ -35,7 +39,11 @@
             :class="{ 'login-mode-switch__item--active': loginMode === 'sms' }"
             @click="switchLoginMode('sms')"
           >
-            短信登录
+            <svg viewBox="0 0 24 24" class="login-mode-switch__icon" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="5" y="2" width="14" height="20" rx="2" ry="2" />
+              <line x1="12" y1="18" x2="12.01" y2="18" />
+            </svg>
+            <text>短信登录</text>
           </view>
           <view
             v-if="emailLoginEnabled && emailEnabled"
@@ -43,7 +51,11 @@
             :class="{ 'login-mode-switch__item--active': loginMode === 'email' }"
             @click="switchLoginMode('email')"
           >
-            邮箱登录
+            <svg viewBox="0 0 24 24" class="login-mode-switch__icon" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+              <polyline points="22,6 12,13 2,6" />
+            </svg>
+            <text>邮箱登录</text>
           </view>
         </view>
 
@@ -63,7 +75,7 @@
           <view v-if="captchaEnabled && captchaType === 'image'" class="captcha-row auth-anim auth-anim--3">
             <AuthInput
               v-model="formData.code"
-              icon="key"
+              icon="lock"
               custom-class="captcha-input"
               placeholder="请输入验证码"
               :maxlength="6"
@@ -93,7 +105,7 @@
           <view class="sms-row auth-anim auth-anim--2">
             <AuthInput
               v-model="formData.code"
-              icon="key"
+              icon="lock"
               custom-class="sms-input"
               placeholder="请输入验证码"
               :maxlength="6"
@@ -120,7 +132,7 @@
           <view class="sms-row auth-anim auth-anim--2">
             <AuthInput
               v-model="formData.code"
-              icon="key"
+              icon="lock"
               custom-class="sms-input"
               placeholder="请输入验证码"
               :maxlength="6"
@@ -343,12 +355,22 @@ onShow(() => {
 .login-mode-switch__item {
   flex: 1;
   height: 80rpx;
-  line-height: 80rpx;
-  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12rpx;
   border-radius: 18rpx;
   color: rgba(255, 255, 255, 0.65);
   font-size: 28rpx;
+  font-weight: 500;
   transition: all 0.25s ease;
+}
+
+.login-mode-switch__icon {
+  width: 32rpx;
+  height: 32rpx;
+  flex-shrink: 0;
+  color: currentColor;
 }
 
 .login-mode-switch__item--active {

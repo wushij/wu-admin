@@ -84,7 +84,7 @@
         <!-- 风险主体 -->
         <template v-else>
           <MonitorPanel title="筛选条件">
-            <SearchBar v-model="riskFilters.keyword" placeholder="搜索用户 ID / IP" @search="applyRiskFilters" />
+            <SearchBar v-model="riskFilters.keyword" placeholder="搜索用户名 / 昵称 / ID / IP" @search="applyRiskFilters" />
 
             <view class="security-filter">
               <text class="security-filter__label">风险等级</text>
@@ -134,7 +134,7 @@
                     :label="item.principalType === 'user' ? '账号' : 'IP'"
                     :effect="item.principalType === 'user' ? 'primary' : 'default'"
                   />
-                  <text class="security-risk__ip">{{ item.principal }}</text>
+                  <text class="security-risk__ip">{{ formatSubjectTitle(item) }}</text>
                 </view>
                 <DictTag
                   :label="item.blocked ? `剩余 ${formatRemainingSeconds(item.remainingSeconds)}` : '正常'"
@@ -247,7 +247,7 @@
             :label="activeSubject.principalType === 'user' ? '账号' : 'IP'"
             :effect="activeSubject.principalType === 'user' ? 'primary' : 'default'"
           />
-          <text class="security-risk__ip">{{ activeSubject.principal }}</text>
+          <text class="security-risk__ip">{{ formatSubjectTitle(activeSubject) }}</text>
           <text class="security-risk__score">{{ activeSubject.riskScore }} 分 · {{ activeSubject.riskLevelText }}</text>
         </view>
 
@@ -469,7 +469,8 @@ const riskLevelOptions: Array<{ label: string; value: number | undefined }> = [
   { label: '关注', value: 1 },
   { label: '警告', value: 2 },
   { label: '挑战', value: 3 },
-  { label: '封禁', value: 4 },
+  { label: '临时封禁', value: 4 },
+  { label: '最高档封禁', value: 5 },
 ]
 
 const riskBlockedOptions: Array<{ label: string; value: boolean | undefined }> = [
@@ -745,15 +746,24 @@ async function confirmClear() {
   await loadStats()
 }
 
+function formatSubjectTitle(item: RiskSubjectVO) {
+  if (item.principalType === 'user' && (item.username || item.nickname)) {
+    const name = item.nickname ? `${item.nickname} (${item.username || ''})` : item.username
+    return `${name} · ID: ${item.principalId}`
+  }
+  return item.principal
+}
+
 async function handleUnblock(item: RiskSubjectVO) {
+  const title = formatSubjectTitle(item)
   const { confirmed } = await showConfirm({
     title: '解除封禁',
-    content: `确认解除对风险主体「${item.principal}」的封禁并清零风险分吗？`,
+    content: `确认解除对风险主体「${title}」的封禁并清零风险分吗？`,
     confirmText: '立即解封',
   })
   if (!confirmed) return
   await unblockRiskSubject(item.principal, true)
-  showSuccessToast('已解封并清零风险分')
+  showSuccessToast(`【${title}】已解封并清零风险分`)
   await loadRiskList()
   await loadStats()
 }

@@ -32,6 +32,16 @@ public class RiskSubjectVO implements Serializable {
     private String principalId;
 
     /**
+     * 用户账号/用户名（主体类型为 user 时有值）
+     */
+    private String username;
+
+    /**
+     * 用户昵称（主体类型为 user 时有值）
+     */
+    private String nickname;
+
+    /**
      * 关联的真实 IP，用户主体也可能带 IP
      */
     private String ipaddr;

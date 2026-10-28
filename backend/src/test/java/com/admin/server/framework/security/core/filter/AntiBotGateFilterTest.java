@@ -57,6 +57,7 @@ class AntiBotGateFilterTest {
     @Test
     @DisplayName("被封禁 IP 的 multipart 请求在门禁层直接 403")
     void blockedIpIsRejectedBeforeMultipart() throws Exception {
+        when(dynamicConfigProvider.isRiskEnabled()).thenReturn(true);
         when(antiBotRiskService.isBlocked("1.2.3.4")).thenReturn(true);
 
         MockHttpServletRequest request = new MockHttpServletRequest();
@@ -71,6 +72,26 @@ class AntiBotGateFilterTest {
 
         assertEquals(403, response.getStatus());
         assertFalse(invoked.get());
+    }
+
+    @Test
+    @DisplayName("风控总开关关闭时，已有的 IP 封禁标记不再拦截请求")
+    void blockedIpIgnoredWhenRiskDisabled() throws Exception {
+        when(dynamicConfigProvider.isRiskEnabled()).thenReturn(false);
+        lenient().when(antiBotRiskService.isBlocked(anyString())).thenReturn(true);
+        when(antiBotRiskService.matchBlockedUserAgent(any())).thenReturn(null);
+
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setRemoteAddr("1.2.3.4");
+        request.addHeader("User-Agent", "Mozilla/5.0");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        AtomicBoolean invoked = new AtomicBoolean(false);
+        FilterChain chain = (req, res) -> invoked.set(true);
+
+        filter.doFilterInternal(request, response, chain);
+
+        assertTrue(invoked.get());
+        assertEquals(200, response.getStatus());
     }
 
     @Test

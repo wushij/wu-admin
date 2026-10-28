@@ -1,5 +1,5 @@
 import { ref, reactive, computed, watch, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { ElTree } from 'element-plus'
 import { getUserPage, type UserVO, type UserPageQuery } from '@/api/system/user'
@@ -26,7 +26,18 @@ import { displayOrgTree, resolveDeptRootParentId } from '@/utils/org-tree'
 
 export function useOrgPage() {
   const router = useRouter()
-  const activeTab = ref('dept')
+  const route = useRoute()
+  const initialTab = route.query.tab === 'post' ? 'post' : 'dept'
+  const activeTab = ref(initialTab)
+
+  watch(
+    () => route.query.tab,
+    (tab) => {
+      if ((tab === 'post' || tab === 'dept') && tab !== activeTab.value) {
+        activeTab.value = tab
+      }
+    }
+  )
   const treeSearch = ref('')
   const deptTreeRef = ref<InstanceType<typeof ElTree> | null>(null)
   const postTreeRef = ref<InstanceType<typeof ElTree> | null>(null)

@@ -28,6 +28,7 @@
         :props="{ label: 'name', children: 'children' }"
         node-key="id"
         highlight-current
+        default-expand-all
         :indent="20"
         :filter-node-method="filterNode"
         @node-click="onNodeClick"

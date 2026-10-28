@@ -8,7 +8,6 @@ import com.admin.server.modules.ticket.dal.dataobject.approval.ApprovalFormDO;
 import com.admin.server.modules.ticket.dal.dataobject.approval.ApprovalRecordDO;
 import com.admin.server.modules.ticket.dal.mysql.approval.ApprovalFormMapper;
 import com.admin.server.modules.ticket.dal.mysql.approval.ApprovalRecordMapper;
-import com.admin.server.modules.system.dal.mysql.notice.NoticeMapper;
 import com.admin.server.modules.system.dal.mysql.user.UserMapper;
 import com.admin.server.modules.ticket.service.approval.RegisterApprovalService;
 import com.admin.server.modules.system.service.notice.NoticeService;
@@ -48,6 +47,10 @@ class ApprovalFormServiceImplTest extends MybatisLambdaTestBase {
     private NoticeService noticeService;
     @Mock
     private DataScopeService dataScopeService;
+    @Mock
+    private com.admin.server.modules.system.service.config.SystemConfigHelper systemConfigHelper;
+    @Mock
+    private com.admin.server.modules.system.service.user.UserService userService;
 
     @InjectMocks
     private ApprovalFormServiceImpl approvalFormService;
@@ -211,5 +214,72 @@ class ApprovalFormServiceImplTest extends MybatisLambdaTestBase {
         verify(noticeService).deleteNoticeByBiz("APPROVAL", 4L, true);
         verify(approvalRecordMapper).deletePhysicalByFormId(4L);
         verify(approvalFormMapper).deletePhysicalById(4L);
+    }
+
+    @Test
+    @DisplayName("get：普通用户受限于数据范围时，普通业务单据不可见抛 403")
+    void get_generalForm_forbiddenForLimitedDataScope() {
+        ApprovalFormDO form = ServiceTestFixtures.generalApprovalForm(1L, 10L, 99L, "SUBMITTED");
+        when(approvalFormMapper.selectById(1L)).thenReturn(form);
+        when(dataScopeService.getCurrentScope())
+                .thenReturn(new DataScopeService.DataScopeContext(false, true, List.of(), 5L, null));
+        try (org.mockito.MockedStatic<com.admin.server.framework.security.core.service.SecurityUtils> mocked =
+                     mockStatic(com.admin.server.framework.security.core.service.SecurityUtils.class)) {
+            mocked.when(com.admin.server.framework.security.core.service.SecurityUtils::getLoginUserId).thenReturn(5L);
+
+            BusinessException ex = assertThrows(BusinessException.class, () -> approvalFormService.get(1L));
+            assertEquals(403, ex.getCode());
+        }
+    }
+
+    @Test
+    @DisplayName("get：普通用户属于配置的注册审核人时，即使数据范围受限也能查看注册审批单")
+    void get_registerForm_visibleForConfiguredAuditor() {
+        ApprovalFormDO form = new ApprovalFormDO();
+        form.setId(1L);
+        form.setFormType(RegisterApprovalService.FORM_TYPE_REGISTER);
+        form.setApplicantUserId(88L); // 新注册用户
+        form.setApproverUserId(1L);   // 超管作为默认主审批人
+        form.setStatus("SUBMITTED");
+        when(approvalFormMapper.selectById(1L)).thenReturn(form);
+        when(dataScopeService.getCurrentScope())
+                .thenReturn(new DataScopeService.DataScopeContext(false, true, List.of(), 5L, null));
+        when(permissionService.hasRole(5L, "super_admin")).thenReturn(false);
+        when(systemConfigHelper.getRegisterAuditorUserIds()).thenReturn(List.of(5L)); // 5L 为配置的注册审核人
+
+        try (org.mockito.MockedStatic<com.admin.server.framework.security.core.service.SecurityUtils> mocked =
+                     mockStatic(com.admin.server.framework.security.core.service.SecurityUtils.class)) {
+            mocked.when(com.admin.server.framework.security.core.service.SecurityUtils::getLoginUserId).thenReturn(5L);
+
+            ApprovalFormDO result = approvalFormService.get(1L);
+            assertNotNull(result);
+            assertEquals(1L, result.getId());
+        }
+    }
+
+    @Test
+    @DisplayName("get：普通用户拥有审批权限时，即使数据范围受限也能查看注册审批单")
+    void get_registerForm_visibleForApprovalPermissionUser() {
+        ApprovalFormDO form = new ApprovalFormDO();
+        form.setId(1L);
+        form.setFormType(RegisterApprovalService.FORM_TYPE_REGISTER);
+        form.setApplicantUserId(88L);
+        form.setApproverUserId(1L);
+        form.setStatus("SUBMITTED");
+        when(approvalFormMapper.selectById(1L)).thenReturn(form);
+        when(dataScopeService.getCurrentScope())
+                .thenReturn(new DataScopeService.DataScopeContext(false, true, List.of(), 5L, null));
+        when(permissionService.hasRole(5L, "super_admin")).thenReturn(false);
+        when(systemConfigHelper.getRegisterAuditorUserIds()).thenReturn(List.of());
+        when(permissionService.hasPermission(5L, "system:approval:approve")).thenReturn(true);
+
+        try (org.mockito.MockedStatic<com.admin.server.framework.security.core.service.SecurityUtils> mocked =
+                     mockStatic(com.admin.server.framework.security.core.service.SecurityUtils.class)) {
+            mocked.when(com.admin.server.framework.security.core.service.SecurityUtils::getLoginUserId).thenReturn(5L);
+
+            ApprovalFormDO result = approvalFormService.get(1L);
+            assertNotNull(result);
+            assertEquals(1L, result.getId());
+        }
     }
 }

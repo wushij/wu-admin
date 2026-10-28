@@ -31,6 +31,10 @@ export interface RiskSubjectVO {
   principalId: string
   /** 关联的真实 IP */
   ipaddr?: string | null
+  /** 用户账号/用户名（主体类型为 user 时存在） */
+  username?: string | null
+  /** 用户昵称（主体类型为 user 时存在） */
+  nickname?: string | null
   /** 滑动窗口内累计风险分 */
   riskScore: number
   /** 风险等级 0～4 */

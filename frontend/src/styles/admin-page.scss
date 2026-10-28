@@ -18,6 +18,8 @@
 .app-container,
 .page-container {
   min-height: 100%;
+  /* 作为 .main-content__body 的弹性子项，内容不足时撑满可用高度 */
+  flex: 1 0 auto;
 }
 
 /* 卡片：大圆角 + 细边框，去掉默认重阴影 */

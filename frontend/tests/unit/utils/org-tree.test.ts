@@ -7,11 +7,11 @@ import {
 } from '@/utils/org-tree'
 
 describe('org-tree', () => {
-  it('unwraps single root with children', () => {
+  it('preserves single root with children', () => {
     const roots: OrgTreeNode[] = [
       { id: 1, parentId: 0, children: [{ id: 2, parentId: 1 }] },
     ]
-    expect(displayOrgTree(roots)).toEqual([{ id: 2, parentId: 1 }])
+    expect(displayOrgTree(roots)).toEqual(roots)
   })
 
   it('keeps tree when multiple roots', () => {

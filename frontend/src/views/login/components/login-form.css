@@ -64,6 +64,17 @@
   font-weight: 500;
   cursor: pointer;
   transition: all 0.25s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.login-mode-switch__icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  color: currentColor;
 }
 
 .login-mode-switch__item:hover:not(.login-mode-switch__item--active) {

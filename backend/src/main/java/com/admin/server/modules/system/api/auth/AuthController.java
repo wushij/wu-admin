@@ -240,7 +240,7 @@ public class AuthController {
     @PostMapping("/register")
     public CommonResult<Boolean> register(@Validated @RequestBody RegisterReqVO reqVO, HttpServletRequest request) {
         boolean needAudit = authService.register(reqVO, ClientIpUtils.resolve(request));
-        CommonResult<Boolean> result = CommonResult.success(true);
+        CommonResult<Boolean> result = CommonResult.success(needAudit);
         result.setMessage(needAudit ? "注册成功，请等待管理员审核" : "注册成功");
         return result;
     }

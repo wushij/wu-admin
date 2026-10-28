@@ -125,13 +125,16 @@ watchEffect(() => {
 <style scoped lang="scss">
 .user-page {
   padding: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
 }
 
 .user-layout {
   display: flex;
   gap: 16px;
   align-items: stretch;
-  min-height: calc(100vh - 215px);
+  flex: 1 0 auto;
 }
 
 .user-layout__side {
@@ -142,10 +145,9 @@ watchEffect(() => {
 }
 
 .user-layout__main {
-  flex: 1;
+  flex: 1 1 auto;
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 16px;
 }
 </style>

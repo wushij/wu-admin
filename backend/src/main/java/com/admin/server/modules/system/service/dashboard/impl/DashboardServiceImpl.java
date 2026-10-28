@@ -3,14 +3,17 @@ package com.admin.server.modules.system.service.dashboard.impl;
 import cn.hutool.json.JSONUtil;
 import com.admin.server.modules.system.dal.dataobject.dashboard.DashboardStatsRowDO;
 import com.admin.server.modules.system.dal.dataobject.loginlog.LoginLogDO;
+import com.admin.server.modules.system.dal.dataobject.dept.DeptDO;
 import com.admin.server.modules.system.dal.dataobject.user.UserDO;
 import com.admin.server.modules.system.dal.mysql.dashboard.DashboardMapper;
+import com.admin.server.modules.system.dal.mysql.dept.DeptMapper;
 import com.admin.server.modules.system.dal.mysql.loginlog.LoginLogMapper;
 import com.admin.server.modules.system.dal.mysql.user.UserMapper;
 import com.admin.server.modules.system.service.config.SystemConfigHelper;
 import com.admin.server.modules.system.service.config.SysConfigGroupService;
 import com.admin.server.modules.system.service.dashboard.DashboardService;
 import com.admin.server.modules.system.service.dashboard.vo.RecentLoginVO;
+import com.admin.server.modules.system.service.permission.DataScopeService;
 import com.admin.server.modules.infra.service.file.SysFileService;
 import com.admin.server.modules.message.service.ChatService;
 import com.admin.server.modules.infra.service.monitor.OnlineUserService;
@@ -35,8 +38,8 @@ import java.util.concurrent.TimeUnit;
 public class DashboardServiceImpl implements DashboardService {
 
     private static final String VISIT_COUNT_KEY = "dashboard:visit:date:";
-    /** v3：fileCount 改为实时查文件管理服务，与列表口径一致 */
-    private static final String STATS_AGGREGATE_CACHE_KEY = "dashboard:stats:aggregate:v3";
+    /** v4：userCount、userToday、userYesterday 排除未审批通过的用户（只统计 status IN (0, 1)） */
+    private static final String STATS_AGGREGATE_CACHE_KEY = "dashboard:stats:aggregate:v4";
     /** 计数类统计缓存时长（分钟级延迟可接受） */
     private static final long STATS_CACHE_MINUTES = 2;
 
@@ -46,6 +49,10 @@ public class DashboardServiceImpl implements DashboardService {
     private LoginLogMapper loginLogMapper;
     @Resource
     private UserMapper userMapper;
+    @Resource
+    private DeptMapper deptMapper;
+    @Resource
+    private DataScopeService dataScopeService;
     @Resource
     private RedissonClient redissonClient;
     @Resource
@@ -73,6 +80,7 @@ public class DashboardServiceImpl implements DashboardService {
 
         DashboardStatsRowDO row = loadAggregateStatsRow(todayStart, yesterdayStart);
         putAggregateFields(stats, row);
+        putScopedUserAndDeptStats(stats, loginUserId, todayStart, yesterdayStart);
         putLoginStatsFresh(stats, todayStart, yesterdayStart);
         putFileCountFresh(stats);
         putJobStatsFresh(stats);
@@ -221,6 +229,69 @@ public class DashboardServiceImpl implements DashboardService {
         LocalDateTime now = LocalDateTime.now();
         stats.put("ticketOpenCount", dashboardMapper.countTicketOpenByAssignee(loginUserId));
         stats.put("ticketOverdueCount", dashboardMapper.countTicketOverdueByAssignee(loginUserId, now));
+    }
+
+    /**
+     * 组织权限隔离：用户总数、待审用户、停用用户、部门总数等指标按当前登录用户的数据权限范围动态计算。
+     * 若为超级管理员或拥有全部数据权限，则保持全局聚合大盘统计；
+     * 若为普通用户/非全量权限，则严格遵循 DataScope 过滤口径，与用户管理列表保持 100% 一致。
+     */
+    private void putScopedUserAndDeptStats(Map<String, Object> stats, Long loginUserId,
+                                           LocalDateTime todayStart, LocalDateTime yesterdayStart) {
+        DataScopeService.DataScopeContext scope = dataScopeService.getCurrentScope();
+        if (scope.all()) {
+            return;
+        }
+
+        // 1. 用户总数：口径与用户管理列表默认查询一致（status IN (0, 1) 且在当前组织范围内）
+        LambdaQueryWrapper<UserDO> userCountWrapper = new LambdaQueryWrapper<>();
+        userCountWrapper.in(UserDO::getStatus, 0, 1);
+        dataScopeService.applyUserScope(userCountWrapper);
+        stats.put("userCount", userMapper.selectCount(userCountWrapper));
+
+        // 2. 待审注册与停用用户
+        LambdaQueryWrapper<UserDO> pendingWrapper = new LambdaQueryWrapper<>();
+        pendingWrapper.eq(UserDO::getStatus, 2);
+        dataScopeService.applyUserScope(pendingWrapper);
+        stats.put("userPendingCount", userMapper.selectCount(pendingWrapper));
+
+        LambdaQueryWrapper<UserDO> disabledWrapper = new LambdaQueryWrapper<>();
+        disabledWrapper.eq(UserDO::getStatus, 0);
+        dataScopeService.applyUserScope(disabledWrapper);
+        stats.put("userDisabledCount", userMapper.selectCount(disabledWrapper));
+
+        // 3. 用户今日/昨日新增与较昨日趋势
+        LambdaQueryWrapper<UserDO> userTodayWrapper = new LambdaQueryWrapper<>();
+        userTodayWrapper.in(UserDO::getStatus, 0, 1).ge(UserDO::getCreateTime, todayStart);
+        dataScopeService.applyUserScope(userTodayWrapper);
+        long userToday = userMapper.selectCount(userTodayWrapper);
+
+        LambdaQueryWrapper<UserDO> userYesterdayWrapper = new LambdaQueryWrapper<>();
+        userYesterdayWrapper.in(UserDO::getStatus, 0, 1)
+                .ge(UserDO::getCreateTime, yesterdayStart)
+                .lt(UserDO::getCreateTime, todayStart);
+        dataScopeService.applyUserScope(userYesterdayWrapper);
+        long userYesterday = userMapper.selectCount(userYesterdayWrapper);
+
+        stats.put("userTrend", trendPercent(userToday, userYesterday));
+
+        // 4. 部门总数与趋势
+        LambdaQueryWrapper<DeptDO> deptWrapper = new LambdaQueryWrapper<>();
+        dataScopeService.applyDeptScope(deptWrapper);
+        stats.put("deptCount", deptMapper.selectCount(deptWrapper));
+
+        LambdaQueryWrapper<DeptDO> deptTodayWrapper = new LambdaQueryWrapper<>();
+        deptTodayWrapper.ge(DeptDO::getCreateTime, todayStart);
+        dataScopeService.applyDeptScope(deptTodayWrapper);
+        long deptToday = deptMapper.selectCount(deptTodayWrapper);
+
+        LambdaQueryWrapper<DeptDO> deptYesterdayWrapper = new LambdaQueryWrapper<>();
+        deptYesterdayWrapper.ge(DeptDO::getCreateTime, yesterdayStart)
+                .lt(DeptDO::getCreateTime, todayStart);
+        dataScopeService.applyDeptScope(deptYesterdayWrapper);
+        long deptYesterday = deptMapper.selectCount(deptYesterdayWrapper);
+
+        stats.put("deptTrend", trendPercent(deptToday, deptYesterday));
     }
 
     private long longVal(Long value) {

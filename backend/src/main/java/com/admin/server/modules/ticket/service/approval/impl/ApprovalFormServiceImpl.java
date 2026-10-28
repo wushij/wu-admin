@@ -65,18 +65,29 @@ public class ApprovalFormServiceImpl implements ApprovalFormService {
         if (status != null && !status.isEmpty()) {
             wrapper.eq(ApprovalFormDO::getStatus, status);
         }
-        // 组织隔离：按申请人/审批人所属部门的数据范围过滤
+        // 组织隔离：按申请人/审批人所属部门的数据范围过滤；具有注册审批/查看权限的用户一并放行注册审批单
         DataScopeService.DataScopeContext scope = dataScopeService.getCurrentScope();
         if (!scope.all()) {
+            boolean canHandleRegister = canHandleRegisterForm(userId);
             if (scope.selfOnly()) {
-                wrapper.and(w -> w.eq(ApprovalFormDO::getApplicantUserId, userId)
-                        .or()
-                        .eq(ApprovalFormDO::getApproverUserId, userId));
+                wrapper.and(w -> {
+                    w.eq(ApprovalFormDO::getApplicantUserId, userId)
+                            .or()
+                            .eq(ApprovalFormDO::getApproverUserId, userId);
+                    if (canHandleRegister) {
+                        w.or().eq(ApprovalFormDO::getFormType, RegisterApprovalService.FORM_TYPE_REGISTER);
+                    }
+                });
             } else {
                 String visibleUsersSql = dataScopeService.visibleUserIdsSql();
-                wrapper.and(w -> w.inSql(ApprovalFormDO::getApplicantUserId, visibleUsersSql)
-                        .or()
-                        .inSql(ApprovalFormDO::getApproverUserId, visibleUsersSql));
+                wrapper.and(w -> {
+                    w.inSql(ApprovalFormDO::getApplicantUserId, visibleUsersSql)
+                            .or()
+                            .inSql(ApprovalFormDO::getApproverUserId, visibleUsersSql);
+                    if (canHandleRegister) {
+                        w.or().eq(ApprovalFormDO::getFormType, RegisterApprovalService.FORM_TYPE_REGISTER);
+                    }
+                });
             }
         }
         wrapper.orderByDesc(ApprovalFormDO::getCreateTime);
@@ -292,7 +303,28 @@ public class ApprovalFormServiceImpl implements ApprovalFormService {
     }
 
     /**
-     * 审批单可见性：超管全部可见；仅本人范围看自己申请或审批的单；其余按申请人/审批人所在部门范围判断。
+     * 判断指定用户是否具备注册审批单的查看/处理权限：
+     * 1. 超级管理员
+     * 2. 在系统配置的注册审核人列表（RegisterConfig）中的用户
+     * 3. 拥有审批权限 (system:approval:approve) 或查询权限 (system:approval:query) 的用户
+     */
+    private boolean canHandleRegisterForm(Long userId) {
+        if (userId == null || userId <= 0) {
+            return false;
+        }
+        if (permissionService.hasRole(userId, "super_admin")) {
+            return true;
+        }
+        List<Long> auditorUserIds = systemConfigHelper.getRegisterAuditorUserIds();
+        if (auditorUserIds != null && auditorUserIds.contains(userId)) {
+            return true;
+        }
+        return permissionService.hasPermission(userId, "system:approval:approve")
+                || permissionService.hasPermission(userId, "system:approval:query");
+    }
+
+    /**
+     * 审批单可见性：超管全部可见；注册单按审核人/审批权限放行；仅本人范围看自己申请或审批的单；其余按申请人/审批人所在部门范围判断。
      */
     private boolean isFormVisible(ApprovalFormDO form) {
         if (form == null) {
@@ -303,6 +335,11 @@ public class ApprovalFormServiceImpl implements ApprovalFormService {
             return true;
         }
         Long currentUserId = SecurityUtils.getLoginUserId();
+        if (RegisterApprovalService.FORM_TYPE_REGISTER.equals(form.getFormType())) {
+            if (canHandleRegisterForm(currentUserId)) {
+                return true;
+            }
+        }
         if (scope.selfOnly()) {
             return currentUserId != null
                     && (currentUserId.equals(form.getApplicantUserId())
@@ -427,9 +464,16 @@ public class ApprovalFormServiceImpl implements ApprovalFormService {
         if (approverUserId == null || approverUserId <= 0) {
             return 0L;
         }
-        Long count = approvalFormMapper.selectCount(new LambdaQueryWrapper<ApprovalFormDO>()
-                .eq(ApprovalFormDO::getApproverUserId, approverUserId)
-                .eq(ApprovalFormDO::getStatus, "SUBMITTED"));
+        LambdaQueryWrapper<ApprovalFormDO> wrapper = new LambdaQueryWrapper<ApprovalFormDO>()
+                .eq(ApprovalFormDO::getStatus, "SUBMITTED");
+        boolean canHandleRegister = canHandleRegisterForm(approverUserId);
+        if (canHandleRegister) {
+            wrapper.and(w -> w.eq(ApprovalFormDO::getApproverUserId, approverUserId)
+                    .or().eq(ApprovalFormDO::getFormType, RegisterApprovalService.FORM_TYPE_REGISTER));
+        } else {
+            wrapper.eq(ApprovalFormDO::getApproverUserId, approverUserId);
+        }
+        Long count = approvalFormMapper.selectCount(wrapper);
         return count != null ? count : 0L;
     }
 }

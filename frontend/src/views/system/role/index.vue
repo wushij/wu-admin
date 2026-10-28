@@ -38,7 +38,7 @@
     </el-card>
 
     <!-- 数据表格 -->
-    <el-card>
+    <el-card class="role-table-card">
       <template #header>
         <div class="card-header">
           <span>角色列表</span>
@@ -446,6 +446,29 @@ onMounted(() => {
 </script>
 
 <style scoped>
+.module-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+.role-table-card {
+  flex: 1 0 auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.role-table-card :deep(.el-card__body) {
+  display: flex;
+  flex-direction: column;
+  flex: 1 0 auto;
+  min-height: 0;
+}
+
+.role-table-card :deep(.el-table) {
+  flex: 1 0 auto;
+}
+
 :deep(.dropdown-item-danger) {
   color: #f56c6c !important;
 }

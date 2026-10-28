@@ -180,7 +180,7 @@ public class PromptAssembler {
     private String buildUserContext(Long userId) {
         List<String> lines = new ArrayList<>();
         try {
-            UserDO user = userService.getDetail(userId);
+            UserDO user = userService.getUserForDisplay(userId);
             if (user != null) {
                 lines.add("当前用户：" + StrUtil.blankToDefault(user.getNickname(), user.getUsername())
                         + " (" + user.getUsername() + ")");

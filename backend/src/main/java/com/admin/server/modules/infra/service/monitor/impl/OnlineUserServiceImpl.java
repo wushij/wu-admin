@@ -7,10 +7,12 @@ import com.admin.server.framework.config.DynamicConfigProvider;
 import com.admin.server.framework.security.core.service.TokenService;
 import com.admin.server.common.util.ClientIpUtils;
 import com.admin.server.common.util.IpLocationUtils;
+import com.admin.server.common.exception.BusinessException;
 import com.admin.server.modules.infra.api.monitor.vo.OnlineUserVO;
 import com.admin.server.modules.system.dal.dataobject.dept.DeptDO;
 import com.admin.server.modules.system.dal.dataobject.user.UserDO;
 import com.admin.server.modules.system.service.dept.DeptService;
+import com.admin.server.modules.system.service.permission.DataScopeService;
 import com.admin.server.modules.system.service.user.UserService;
 import com.admin.server.modules.infra.service.monitor.OnlineUserService;
 import lombok.Data;
@@ -55,6 +57,8 @@ public class OnlineUserServiceImpl implements OnlineUserService {
     @Resource
     private DeptService deptService;
     @Resource
+    private DataScopeService dataScopeService;
+    @Resource
     private DynamicConfigProvider dynamicConfigProvider;
 
     @Data
@@ -90,7 +94,7 @@ public class OnlineUserServiceImpl implements OnlineUserService {
         detail.setLoginTime(now);
         detail.setLastAccessTime(now);
 
-        UserDO user = userService.getDetail(userId);
+        UserDO user = userService.getUserForDisplay(userId);
         if (user != null && user.getDeptId() != null) {
             DeptDO dept = deptService.getById(user.getDeptId());
             if (dept != null) {
@@ -129,15 +133,41 @@ public class OnlineUserServiceImpl implements OnlineUserService {
 
     @Override
     public int countOnlineUsers() {
-        return resolveActiveUserIds().size();
+        Set<Long> userIds = new LinkedHashSet<>(resolveActiveUserIds());
+        if (userIds.isEmpty()) {
+            return 0;
+        }
+        try {
+            if (dataScopeService.getCurrentScope().all()) {
+                return userIds.size();
+            }
+            int count = 0;
+            for (Long userId : userIds) {
+                if (dataScopeService.isUserVisible(userId)) {
+                    count++;
+                }
+            }
+            return count;
+        } catch (Exception e) {
+            return userIds.size();
+        }
     }
 
     @Override
     public List<OnlineUserVO> listOnlineUsers() {
         List<OnlineUserVO> list = new ArrayList<>();
+        boolean isAll = false;
+        try {
+            isAll = dataScopeService.getCurrentScope().all();
+        } catch (Exception ignored) {}
+
         for (Long userId : resolveActiveUserIds()) {
             try {
                 if (!isUserActive(userId)) {
+                    continue;
+                }
+                // 组织数据权限隔离：非超管只能查看当前组织数据范围内的在线用户
+                if (!isAll && !dataScopeService.isUserVisible(userId)) {
                     continue;
                 }
                 TokenService.LoginInfo loginInfo = tokenService.getLoginInfo(userId);
@@ -233,6 +263,9 @@ public class OnlineUserServiceImpl implements OnlineUserService {
         if (userId == null) {
             return;
         }
+        if (!dataScopeService.getCurrentScope().all() && !dataScopeService.isUserVisible(userId)) {
+            throw new BusinessException(403, "无权操作该用户会话");
+        }
         try {
             StpUtil.kickout(userId);
         } catch (Exception ignored) {}
@@ -251,7 +284,7 @@ public class OnlineUserServiceImpl implements OnlineUserService {
         vo.setTokenId(String.valueOf(userId));
 
         OnlineDetail detail = loadDetail(userId);
-        UserDO user = userService.getDetail(userId);
+        UserDO user = userService.getUserForDisplay(userId);
 
         String loginName = detail != null && StringUtils.hasText(detail.getUsername())
                 ? detail.getUsername()

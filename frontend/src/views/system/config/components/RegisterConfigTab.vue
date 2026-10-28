@@ -23,7 +23,7 @@
     <el-form-item label="注册需审核">
       <el-switch v-model="draft.needAudit" :disabled="!canEdit || !draft.enabled" />
     </el-form-item>
-    <el-form-item v-if="draft.needAudit" label="审核人">
+    <el-form-item v-if="draft.needAudit" label="审核人" class="config-auditor-item">
       <div class="config-auditor-field">
         <el-select
           v-model="draft.auditorUserIds"

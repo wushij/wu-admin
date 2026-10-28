@@ -58,8 +58,7 @@
               设为当前生效引擎
             </el-button>
             <el-button
-              type="primary"
-              plain
+              class="btn-ghost"
               size="small"
               :icon="Connection"
               :loading="testingStorage"
@@ -691,6 +690,35 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 10px;
+  flex-wrap: wrap;
+}
+
+.header-actions .el-button + .el-button {
+  margin-left: 0;
+}
+
+/* 次级操作（测试连通性）：白底细描边幽灵按钮，避免默认 plain 的灰底灰边显脏 */
+.btn-ghost {
+  --el-button-bg-color: var(--el-bg-color, #ffffff);
+  --el-button-border-color: var(--el-border-color-light, #e5e7eb);
+  --el-button-text-color: var(--el-text-color-regular, #4b5563);
+  --el-button-hover-text-color: var(--theme-primary, #010710);
+  --el-button-hover-bg-color: var(--theme-primary-muted, rgba(1, 7, 16, 0.05));
+  --el-button-hover-border-color: var(--theme-primary-muted-strong, rgba(1, 7, 16, 0.24));
+  --el-button-active-text-color: var(--theme-primary, #010710);
+  --el-button-active-bg-color: rgba(var(--theme-primary-rgb, 1, 7, 16), 0.09);
+  --el-button-active-border-color: var(--theme-primary, #010710);
+  font-weight: 500;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.btn-ghost:hover:not(.is-disabled),
+.btn-ghost:focus:not(.is-disabled) {
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+}
+
+.btn-ghost .el-icon {
+  font-size: 14px;
 }
 
 .config-form {

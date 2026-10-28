@@ -55,6 +55,10 @@ public interface AntiBotRiskService extends RiskScoringApi {
 
     /**
      * 手动或自动封禁主体。
+     *
+     * <p>只延长、不缩短：已有封禁的剩余时长更长（或永久）时保持不变，保留原封禁原因。
+     * 这样蜜罐等较短时长的写入，不会把最高档封禁或管理员手动的长封禁改短；
+     * 需要缩短时请先 {@link #unblockPrincipal(String, boolean)} 再封禁。</p>
      */
     void blockPrincipal(String principal, long durationSeconds, String reason);
 

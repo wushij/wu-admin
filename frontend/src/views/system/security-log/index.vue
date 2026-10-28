@@ -233,17 +233,18 @@
               <el-form-item label="主体">
                 <el-input
                   v-model="riskQuery.keyword"
-                  placeholder="用户ID / IP"
+                  placeholder="用户名 / 昵称 / ID / IP"
                   clearable
-                  style="width: 140px"
+                  style="width: 170px"
                 />
               </el-form-item>
               <el-form-item label="风险等级">
-                <el-select v-model="riskQuery.level" placeholder="全部等级" clearable style="width: 120px">
+                <el-select v-model="riskQuery.level" placeholder="全部等级" clearable style="width: 150px">
                   <el-option label="关注 (1)" :value="1" />
                   <el-option label="警告 (2)" :value="2" />
                   <el-option label="挑战 (3)" :value="3" />
-                  <el-option label="封禁 (4)" :value="4" />
+                  <el-option label="临时封禁 (4)" :value="4" />
+                  <el-option label="最高档封禁 (5)" :value="5" />
                 </el-select>
               </el-form-item>
               <el-form-item label="封禁状态">
@@ -269,18 +270,31 @@
           </div>
 
           <el-table :data="riskList" v-loading="riskLoading" border stripe class="security-table">
-            <el-table-column label="风险主体" min-width="200">
+            <el-table-column label="风险主体" min-width="220">
               <template #default="{ row }">
-                <el-tag
-                  :type="row.principalType === 'user' ? 'primary' : 'info'"
-                  size="small"
-                  class="principal-type-tag"
-                >
-                  {{ row.principalType === 'user' ? '账号' : 'IP' }}
-                </el-tag>
-                <span class="font-mono font-bold">{{ row.principal }}</span>
-                <div v-if="row.ipaddr && row.principalType === 'user'" class="principal-ip">
-                  来源 IP：{{ row.ipaddr }}
+                <div class="principal-cell">
+                  <div class="principal-title">
+                    <el-tag
+                      :type="row.principalType === 'user' ? 'primary' : 'info'"
+                      size="small"
+                      class="principal-type-tag"
+                    >
+                      {{ row.principalType === 'user' ? '账号' : 'IP' }}
+                    </el-tag>
+                    <template v-if="row.principalType === 'user'">
+                      <span v-if="row.username" class="font-bold">
+                        {{ row.nickname ? `${row.nickname} (${row.username})` : row.username }}
+                      </span>
+                      <span v-else class="font-mono font-bold">{{ row.principal }}</span>
+                      <span class="principal-id-badge">ID: {{ row.principalId }}</span>
+                    </template>
+                    <template v-else>
+                      <span class="font-mono font-bold">{{ row.principalId || row.principal }}</span>
+                    </template>
+                  </div>
+                  <div v-if="row.ipaddr && row.principalType === 'user'" class="principal-ip">
+                    来源 IP：{{ row.ipaddr }}
+                  </div>
                 </div>
               </template>
             </el-table-column>
@@ -324,7 +338,7 @@
                     link
                     size="small"
                     v-permission="'system:security:unblock'"
-                    @click="handleUnblock(row.principal)"
+                    @click="handleUnblock(row.principal, row)"
                   >
                     解封
                   </el-button>
@@ -394,11 +408,14 @@
     <!-- 风险主体事件抽屉 -->
     <el-drawer
       v-model="subjectEventsVisible"
-      :title="`风险主体事件 - ${activeSubject?.principal || ''}`"
+      :title="`风险主体事件 - ${formatPrincipalDisplayName(activeSubject)}`"
       size="600px"
     >
       <div v-loading="subjectEventsLoading">
         <el-descriptions v-if="activeSubject" :column="2" border size="small" class="subject-summary">
+          <el-descriptions-item label="风险主体" :span="2">
+            {{ formatPrincipalDisplayName(activeSubject) }}
+          </el-descriptions-item>
           <el-descriptions-item label="风险分">{{ activeSubject.riskScore }}</el-descriptions-item>
           <el-descriptions-item label="等级">{{ activeSubject.riskLevelText }}</el-descriptions-item>
           <el-descriptions-item label="窗口内事件">{{ activeSubject.eventCount }} 次</el-descriptions-item>
@@ -753,11 +770,24 @@ function showDetail(row: SecurityEventVO) {
   detailVisible.value = true
 }
 
+// 格式化风险主体友好展示名称
+function formatPrincipalDisplayName(subject?: RiskSubjectVO | null) {
+  if (!subject) return ''
+  if (subject.principalType === 'user') {
+    if (subject.username || subject.nickname) {
+      const name = subject.nickname ? `${subject.nickname} (${subject.username || ''})` : subject.username
+      return `${name} · ID: ${subject.principalId}`
+    }
+  }
+  return subject.principal || ''
+}
+
 // 一键解封
-async function handleUnblock(principal: string) {
+async function handleUnblock(principal: string, row?: RiskSubjectVO) {
+  const displayName = row ? formatPrincipalDisplayName(row) : principal
   try {
     await ElMessageBox.confirm(
-      `确认解除对风险主体【${principal}】的封禁并清零风险分吗？解除后该主体可正常访问。`,
+      `确认解除对风险主体【${displayName}】的封禁并清零风险分吗？解除后该主体可正常访问。`,
       '确认解封',
       {
         type: 'warning',
@@ -766,7 +796,7 @@ async function handleUnblock(principal: string) {
       }
     )
     await unblockRiskSubject(principal, true)
-    ElMessage.success(`【${principal}】已成功解封并清零风险分`)
+    ElMessage.success(`【${displayName}】已成功解封并清零风险分`)
     loadRiskData()
     loadStats()
   } catch {}
@@ -1187,8 +1217,30 @@ onMounted(() => {
   font-weight: 700;
 }
 
+.principal-cell {
+  display: flex;
+  flex-direction: column;
+}
+
+.principal-title {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 6px;
+}
+
 .principal-type-tag {
-  margin-right: 6px;
+  margin-right: 2px;
+}
+
+.principal-id-badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--el-fill-color);
+  color: var(--el-text-color-secondary);
 }
 
 .principal-ip {

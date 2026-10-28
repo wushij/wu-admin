@@ -62,15 +62,6 @@ export const mobileQuickEntries: QuickEntry[] = [
     path: '/pages-sub/system/dict/index',
   },
   {
-    key: 'config',
-    name: '系统配置',
-    desc: '登录与会话',
-    permission: 'system:config:list',
-    icon: 'setting-o',
-    theme: 'config',
-    path: '/pages-sub/system/config/index',
-  },
-  {
     key: 'file',
     name: '文件列表',
     desc: '上传与预览',
@@ -123,6 +114,15 @@ export const mobileQuickEntries: QuickEntry[] = [
     icon: 'notes-o',
     theme: 'log',
     path: '/pages-sub/system/recycle/index',
+  },
+  {
+    key: 'config',
+    name: '系统配置',
+    desc: '登录与会话',
+    permission: 'system:config:list',
+    icon: 'setting-o',
+    theme: 'config',
+    path: '/pages-sub/system/config/index',
   },
   {
     key: 'ai-model',
@@ -226,7 +226,7 @@ export const mobileQuickEntries: QuickEntry[] = [
 ]
 
 export const quickEntryGroups: QuickEntryGroup[] = [
-  { title: '系统管理', keys: ['user', 'role', 'menu', 'org', 'dict', 'config', 'recycle'] },
+  { title: '系统管理', keys: ['user', 'role', 'menu', 'org', 'dict', 'recycle', 'config'] },
   { title: '文件管理', keys: ['file'] },
   { title: '流程中心', keys: ['approval', 'ticket'] },
   { title: '消息协作', keys: ['chat', 'notice'] },

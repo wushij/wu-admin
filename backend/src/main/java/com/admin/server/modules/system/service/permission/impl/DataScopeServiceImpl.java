@@ -182,9 +182,18 @@ public class DataScopeServiceImpl implements DataScopeService {
             return;
         }
         if (deptIds.isEmpty()) {
-            wrapper.eq(UserDO::getId, -1L);
+            if (context.userId() != null) {
+                wrapper.eq(UserDO::getId, context.userId());
+            } else {
+                wrapper.eq(UserDO::getId, -1L);
+            }
         } else {
-            wrapper.in(UserDO::getDeptId, deptIds);
+            if (context.userId() != null) {
+                wrapper.and(w -> w.in(UserDO::getDeptId, deptIds)
+                        .or().eq(UserDO::getId, context.userId()));
+            } else {
+                wrapper.in(UserDO::getDeptId, deptIds);
+            }
         }
     }
 

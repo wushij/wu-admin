@@ -167,6 +167,13 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    public UserDO getUserForDisplay(Long id) {
+        // 纯展示读取：不套组织数据权限。调用方只取昵称/头像等公开字段，
+        // 否则普通用户查看他人（如公告发布人）时会被数据范围拦截成 403。
+        return id == null ? null : userMapper.selectById(id);
+    }
+
+    @Override
     public UserDO getDetail(Long id) {
         LambdaQueryWrapper<UserDO> wrapper = new LambdaQueryWrapper<UserDO>().eq(UserDO::getId, id);
         dataScopeService.applyUserScope(wrapper);

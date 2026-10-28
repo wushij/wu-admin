@@ -16,6 +16,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
@@ -41,7 +42,17 @@ public class HoneypotServiceImpl implements HoneypotService {
     private static final String DECOY_REDIS_HOST = "10.255.255.23";
     private static final String DECOY_OSS_ENDPOINT = "oss-cn-hangzhou.aliyuncs.com";
 
-    /** 搜索引擎与可用性监控的 UA 特征：命中只留痕、不封禁，避免误伤 SEO 与站点监控 */
+    /** 同时处于延迟中的蜜罐请求上限，需明显小于 Tomcat 工作线程数 */
+    private static final int MAX_CONCURRENT_TARPIT = 20;
+
+    private final Semaphore tarpitPermits = new Semaphore(MAX_CONCURRENT_TARPIT);
+
+    /**
+     * 搜索引擎与可用性监控的 UA 特征：命中只留痕、不封禁，避免误伤 SEO 与站点监控。
+     *
+     * <p>已知取舍：UA 可被伪造，攻击者伪装成 Googlebot 即可只留痕不封禁。
+     * 这是「宁可不误伤 SEO」的有意选择；如需收紧，应叠加反向 DNS 校验（rDNS + 正向确认）。</p>
+     */
     private static final List<String> TRUSTED_UA_PREFIXES = List.of(
             "googlebot", "baiduspider", "bingbot", "yandexbot", "sogou web spider",
             "360spider", "bytespider", "uptimerobot", "pingdom", "statuscake", "site24x7"
@@ -88,7 +99,9 @@ public class HoneypotServiceImpl implements HoneypotService {
             antiBotRiskService.addRisk(principal, ip, delta, EVENT_TYPE,
                     trustedSource ? "WARNING" : "FORBIDDEN",
                     uri, method, userAgent, reason);
-            if (!trustedSource) {
+            // 风控总开关关闭即全部失效：此时 addRisk 不再记分，也不应继续写封禁标记，
+            // 否则应急关闭风控后仍会产生新的 24 小时封禁
+            if (!trustedSource && systemConfigHelper.isRiskEnabled()) {
                 antiBotRiskService.blockPrincipal(principal, systemConfigHelper.getHoneypotBlockSeconds(), reason);
             }
         } catch (Exception e) {
@@ -96,17 +109,34 @@ public class HoneypotServiceImpl implements HoneypotService {
             log.error("蜜罐命中处置失败: ip={}, trap={}, error={}", ip, trapId, e.getMessage(), e);
         }
 
-        int tarpitMs = systemConfigHelper.getHoneypotTarpitMs();
-        if (tarpitMs > 0) {
-            try {
-                Thread.sleep(ThreadLocalRandom.current().nextInt(tarpitMs + 1));
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
-        }
+        tarpit();
 
         log.warn("蜜罐触发: ip={}, trap={}, canary={}, uid={}", ip, trapId, canary, userId);
         return HoneypotResult.of(buildDecoyBody(trapId, canary, ip));
+    }
+
+    /**
+     * 延迟响应，消耗扫描器的并发。
+     *
+     * <p>sleep 会占用 Tomcat 工作线程，扫描器并发一高，蜜罐反而会拖垮自身，
+     * 因此用信号量限制同时处于延迟中的请求数：拿不到许可的请求不再延迟，直接返回诱饵。</p>
+     */
+    private void tarpit() {
+        int tarpitMs = systemConfigHelper.getHoneypotTarpitMs();
+        if (tarpitMs <= 0) {
+            return;
+        }
+        if (!tarpitPermits.tryAcquire()) {
+            log.debug("蜜罐延迟并发已达上限 {}，本次跳过延迟", MAX_CONCURRENT_TARPIT);
+            return;
+        }
+        try {
+            Thread.sleep(ThreadLocalRandom.current().nextInt(tarpitMs + 1));
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        } finally {
+            tarpitPermits.release();
+        }
     }
 
     /** 是否为内网、回环或链路本地地址 */

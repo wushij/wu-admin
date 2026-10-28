@@ -240,14 +240,13 @@ defineEmits<{
 .user-main-container {
   display: flex;
   flex-direction: column;
-  flex: 1;
+  flex: 1 0 auto;
   min-width: 0;
   gap: 16px;
-  height: 100%;
 }
 
 .user-table-card {
-  flex: 1;
+  flex: 1 0 auto;
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -255,12 +254,12 @@ defineEmits<{
   :deep(.el-card__body) {
     display: flex;
     flex-direction: column;
-    flex: 1;
+    flex: 1 0 auto;
     min-height: 0;
   }
 
   :deep(.el-table) {
-    flex: 1;
+    flex: 1 0 auto;
   }
 
   .table-pagination,

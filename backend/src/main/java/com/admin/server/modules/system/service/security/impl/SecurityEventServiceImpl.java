@@ -8,10 +8,10 @@ import com.admin.server.modules.system.service.security.AntiBotRiskService;
 import com.admin.server.modules.system.service.security.SecurityEventService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import jakarta.annotation.PreDestroy;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Lazy;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -20,6 +20,11 @@ import java.time.LocalTime;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * 安全事件审计日志服务实现
@@ -27,6 +32,22 @@ import java.util.Map;
 @Slf4j
 @Service
 public class SecurityEventServiceImpl implements SecurityEventService {
+
+    /**
+     * 事件落库专用线程池：有界队列 + AbortPolicy。
+     *
+     * <p>不使用全局 @Async 池（CallerRunsPolicy）：队列打满后 insert 会落到请求线程上，
+     * 攻击期间等于让每个请求自己写库。这里满了就丢弃并记日志，审计事件宁可少记也不能拖慢请求。</p>
+     */
+    private final AtomicInteger threadSeq = new AtomicInteger();
+    private final ThreadPoolExecutor eventExecutor = new ThreadPoolExecutor(
+            2, 4, 60L, TimeUnit.SECONDS, new ArrayBlockingQueue<>(2000),
+            runnable -> {
+                Thread thread = new Thread(runnable, "security-event-" + threadSeq.incrementAndGet());
+                thread.setDaemon(true);
+                return thread;
+            },
+            new ThreadPoolExecutor.AbortPolicy());
 
     @Resource
     private SecurityEventMapper securityEventMapper;
@@ -54,10 +75,17 @@ public class SecurityEventServiceImpl implements SecurityEventService {
         return securityEventMapper.selectPage(page, wrapper);
     }
 
-    @Async
     @Override
     public void recordAsync(SecurityEventDO event) {
         if (event == null) return;
+        try {
+            eventExecutor.execute(() -> insertEvent(event));
+        } catch (RejectedExecutionException e) {
+            log.warn("安全事件落库队列已满，已丢弃: ip={}, type={}", event.getIpaddr(), event.getEventType());
+        }
+    }
+
+    private void insertEvent(SecurityEventDO event) {
         try {
             if (event.getCreateTime() == null) {
                 event.setCreateTime(LocalDateTime.now());
@@ -66,6 +94,11 @@ public class SecurityEventServiceImpl implements SecurityEventService {
         } catch (Exception e) {
             log.error("异步落库安全事件失败: ip={}, type={}", event.getIpaddr(), event.getEventType(), e);
         }
+    }
+
+    @PreDestroy
+    public void shutdown() {
+        eventExecutor.shutdown();
     }
 
     @Override

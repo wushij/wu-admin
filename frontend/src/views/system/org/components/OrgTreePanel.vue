@@ -24,6 +24,7 @@
         :props="{ label: 'name', children: 'children' }"
         :filter-node-method="filterTreeNode"
         highlight-current
+        default-expand-all
         draggable
         :indent="20"
         :allow-drop="allowDeptDrop"

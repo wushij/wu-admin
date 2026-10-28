@@ -1,6 +1,6 @@
 import { ref, reactive, computed, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
+import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
 import { useSiteStore } from '@/store/site'
 import { getCaptcha, register, getConfig } from '@/api/system/auth'
 import type { RegisterForm } from '@/types/api'
@@ -201,8 +201,29 @@ export function useRegisterForm() {
       }
 
       const res = await register(registerData)
-      ElMessage.success(res.message || res.msg || '注册成功，请登录')
-      router.push('/login')
+      const needAudit = res.data === true || (typeof res.message === 'string' && res.message.includes('审核'))
+      if (needAudit) {
+        try {
+          await ElMessageBox.alert(
+            '您的账号已成功提交注册，当前需要等待管理员审核通过后方可登录。请耐心等待！',
+            '注册成功（待审核）',
+            {
+              confirmButtonText: '我知道了，去登录',
+              type: 'warning',
+              customClass: 'register-audit-alert-box',
+              showClose: false,
+              closeOnClickModal: false,
+              closeOnPressEscape: false,
+            }
+          )
+        } catch {
+          // 用户通过任意非确定方式关闭弹窗，均按知晓处理并正常前往登录页
+        }
+        router.push('/login')
+      } else {
+        ElMessage.success(res.message || res.msg || '注册成功，请登录')
+        router.push('/login')
+      }
     } catch (error) {
       console.error('注册失败', error)
       const errorMessage = getErrorMessage(error)
