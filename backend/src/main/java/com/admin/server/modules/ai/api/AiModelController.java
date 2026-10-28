@@ -4,6 +4,7 @@ import com.admin.server.framework.security.api.RequirePermission;
 import com.admin.server.common.core.CommonResult;
 import com.admin.server.common.core.PageResult;
 import com.admin.server.framework.log.annotation.Log;
+import com.admin.server.modules.ai.api.vo.AiModelListModelsReqVO;
 import com.admin.server.modules.ai.api.vo.AiModelPageReqVO;
 import com.admin.server.modules.ai.api.vo.AiModelRespVO;
 import com.admin.server.modules.ai.api.vo.AiModelSaveReqVO;
@@ -14,6 +15,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.annotation.Resource;
+import java.util.List;
 
 @Tag(name = "AI 模型配置")
 @RestController
@@ -78,5 +80,12 @@ public class AiModelController {
     @RequirePermission("system:ai-model:test")
     public CommonResult<Long> test(@RequestBody AiModelTestReqVO reqVO) {
         return CommonResult.success(aiModelService.test(reqVO));
+    }
+
+    @PostMapping("/models")
+    @Operation(summary = "拉取供应商可用模型列表")
+    @RequirePermission("system:ai-model:test")
+    public CommonResult<List<String>> models(@RequestBody AiModelListModelsReqVO reqVO) {
+        return CommonResult.success(aiModelService.listModels(reqVO));
     }
 }

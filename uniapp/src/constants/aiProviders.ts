@@ -15,23 +15,7 @@ export const AI_PROVIDER_META: Record<string, AiProviderMeta> = {
     color: '#4d6bfe',
     bg: 'rgba(77, 107, 254, 0.12)',
     baseUrl: 'https://api.deepseek.com/v1',
-    models: ['deepseek-flash', 'deepseek-v4-pro', 'deepseek-v4-flash'],
-  },
-  openai: {
-    label: 'OpenAI',
-    short: 'GPT',
-    color: '#10a37f',
-    bg: 'rgba(16, 163, 127, 0.12)',
-    baseUrl: 'https://api.openai.com/v1',
-    models: ['gpt-4o', 'gpt-4o-mini', 'o3-mini', 'o1', 'o1-mini'],
-  },
-  qwen: {
-    label: '通义千问',
-    short: 'QW',
-    color: '#615ced',
-    bg: 'rgba(97, 92, 237, 0.12)',
-    baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
-    models: ['qwen-max', 'qwen-plus', 'qwen-turbo', 'qwen-long'],
+    models: ['deepseek-v4.1-flash', 'deepseek-v4-pro'],
   },
   kimi: {
     label: 'Kimi',
@@ -39,21 +23,56 @@ export const AI_PROVIDER_META: Record<string, AiProviderMeta> = {
     color: '#0f172a',
     bg: 'rgba(15, 23, 42, 0.08)',
     baseUrl: 'https://api.moonshot.cn/v1',
-    models: ['kimi-k3', 'kimi-k2.7-code', 'kimi-k2.7-code-highspeed', 'kimi-k2.6'],
+    models: ['kimi-k3.1-pro', 'kimi-k3.1-pro-highspeed', 'kimi-k3', 'kimi-k2.6'],
+  },
+  zhipu: {
+    label: 'GLM',
+    short: 'GLM',
+    color: '#3485ff',
+    bg: 'rgba(52, 133, 255, 0.12)',
+    baseUrl: 'https://open.bigmodel.cn/api/paas/v4',
+    models: ['glm-5.3', 'glm-5.3-flash', 'glm-5.2'],
+  },
+  custom: {
+    label: '自定义',
+    short: 'AI',
+    color: '#8b5cf6',
+    bg: 'rgba(139, 92, 246, 0.12)',
+    baseUrl: '',
+    models: [],
   },
 }
 
 export const AI_PROVIDER_KEYS = Object.keys(AI_PROVIDER_META)
 
+/** 接入协议元信息（与 PC 端 PROTOCOL_META 对齐） */
+export interface AiProtocolMeta {
+  label: string
+}
+
+export const AI_PROTOCOL_META: Record<string, AiProtocolMeta> = {
+  openai: {
+    label: 'OpenAI 兼容',
+  },
+  anthropic: {
+    label: 'Anthropic Messages',
+  },
+}
+
+export const AI_PROTOCOL_KEYS = Object.keys(AI_PROTOCOL_META)
+
+export function protocolMeta(protocol: string): AiProtocolMeta {
+  return AI_PROTOCOL_META[protocol] || AI_PROTOCOL_META.openai
+}
+
 export function providerMeta(provider: string): AiProviderMeta {
-  return (
-    AI_PROVIDER_META[provider] || {
-      label: provider,
-      short: 'AI',
-      color: '#64748b',
-      bg: 'rgba(100, 116, 139, 0.12)',
-      baseUrl: '',
-      models: [],
-    }
-  )
+  if (AI_PROVIDER_META[provider]) return AI_PROVIDER_META[provider]
+  return {
+    label: provider || '未知',
+    short: 'AI',
+    color: '#64748b',
+    bg: 'rgba(100, 116, 139, 0.12)',
+    baseUrl: '',
+    models: [],
+  }
 }

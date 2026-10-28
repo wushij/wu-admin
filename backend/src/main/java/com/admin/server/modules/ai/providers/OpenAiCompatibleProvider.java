@@ -8,6 +8,8 @@ import com.admin.server.common.exception.BusinessException;
 import com.admin.server.modules.ai.api.vo.AiChatStreamReqVO;
 import com.admin.server.modules.ai.dal.dataobject.AiModelDO;
 import com.admin.server.modules.ai.util.AiPromptTemplates;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.io.BufferedReader;
@@ -22,54 +24,52 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.TreeMap;
 
 /**
- * OpenAI 兼容协议统一实现
- * <p>DeepSeek / OpenAI / Qwen / Kimi 均遵循 /chat/completions SSE 协议，仅 baseUrl 与 model 不同，共用此类。</p>
+ * OpenAI 兼容协议实现。
+ * <p>DeepSeek / Kimi / GLM / 通义 / 豆包 / 千帆 / 混元 / MiniMax / SiliconFlow /
+ * OpenRouter / Groq / xAI / Ollama / vLLM / One-API 等均遵循
+ * {@code POST {baseUrl}/chat/completions} 的 SSE 协议，共用此类。</p>
  */
 @Component
 public class OpenAiCompatibleProvider implements AiProviderStrategy {
 
-    private static final Set<String> SUPPORTED = Set.of("deepseek", "openai", "qwen", "kimi");
+    private static final Logger log = LoggerFactory.getLogger(OpenAiCompatibleProvider.class);
+
+    private static final String PROTOCOL = "openai";
+
+    private static final String DEFAULT_SUFFIX = "/chat/completions";
 
     private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(15))
             .build();
 
-    @Override
-    public boolean supports(String provider) {
-        return provider != null && SUPPORTED.contains(provider.toLowerCase());
-    }
-
     /** 单轮对话最多允许的工具调用轮次（防模型死循环拉高成本，设计 §5.2） */
     private static final int MAX_TOOL_ROUNDS = 3;
+
+    /** 兼容降级最多尝试次数：原始请求 → 替换 max_tokens → 去掉扩展参数 */
+    private static final int MAX_COMPAT_ATTEMPTS = 3;
+
+    @Override
+    public String protocol() {
+        return PROTOCOL;
+    }
 
     @Override
     public void streamChat(AiModelDO model, String plainApiKey,
                            List<AiChatStreamReqVO.ChatMessage> messages, AiStreamListener listener) throws Exception {
         JSONArray runningMessages = buildInitialMessages(model, messages);
         String toolSpecs = listener.toolsEnabled() ? listener.toolSpecsJson() : null;
+        CompatState state = new CompatState();
         int totalPrompt = 0;
         int totalCompletion = 0;
 
         for (int round = 0; round <= MAX_TOOL_ROUNDS; round++) {
-            // 达到工具轮次上限后，最后一轮不再下发 tools，强制模型直接作答
-            String roundToolSpecs = round < MAX_TOOL_ROUNDS ? toolSpecs : null;
-            JSONObject body = buildStreamBody(model, runningMessages, roundToolSpecs);
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(chatCompletionsUrl(model.getBaseUrl())))
-                    .timeout(Duration.ofMinutes(5))
-                    .header("Content-Type", "application/json")
-                    .header("Authorization", "Bearer " + StrUtil.nullToEmpty(plainApiKey))
-                    .POST(HttpRequest.BodyPublishers.ofString(body.toString(), StandardCharsets.UTF_8))
-                    .build();
-
-            HttpResponse<InputStream> response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofInputStream());
-            if (response.statusCode() != 200) {
-                throw new BusinessException("大模型接口调用失败(HTTP " + response.statusCode() + "): " + readErrorBody(response.body()));
-            }
+            // 达到工具轮次上限或已确认模型不支持 tools 后，不再下发 tools，强制模型直接作答
+            String roundToolSpecs = (round < MAX_TOOL_ROUNDS && !state.toolsDisabled) ? toolSpecs : null;
+            JSONObject body = buildStreamBody(model, state, runningMessages, roundToolSpecs);
+            HttpResponse<InputStream> response = sendWithCompat(model, plainApiKey, state, body);
 
             StreamRoundResult roundResult = parseStream(response, listener);
             totalPrompt += roundResult.promptTokens;
@@ -77,7 +77,7 @@ public class OpenAiCompatibleProvider implements AiProviderStrategy {
 
             // 模型请求调用工具：执行后回填消息进入下一轮；否则本轮即最终回答
             if (roundToolSpecs != null && !roundResult.toolCalls.isEmpty() && !listener.isCancelled()) {
-                runningMessages.add(buildAssistantToolCallMessage(roundResult.toolCalls));
+                runningMessages.add(buildAssistantToolCallMessage(roundResult.toolCalls, roundResult.reasoning.toString()));
                 for (ToolCallAcc call : roundResult.toolCalls) {
                     listener.onToolStatus(call.name);
                     String result = listener.executeTool(call.name, call.args.toString());
@@ -93,7 +93,60 @@ public class OpenAiCompatibleProvider implements AiProviderStrategy {
         listener.onComplete(totalPrompt, totalCompletion);
     }
 
-    /** 解析一轮 SSE 流：发射内容增量、累积 tool_calls 与 usage */
+    /**
+     * 发送对话请求，并在厂商拒绝扩展参数时自动降级重试。
+     * <p>常见场景：模型不支持 tools / 不支持 stream_options.include_usage /
+     * 新版 OpenAI 推理模型要求 max_completion_tokens 而不是 max_tokens。</p>
+     */
+    private HttpResponse<InputStream> sendWithCompat(AiModelDO model, String plainApiKey,
+                                                     CompatState state, JSONObject body) throws Exception {
+        String url = ProviderHttpUtils.resolveUrl(model.getBaseUrl(), model.getPathTemplate(),
+                model.getModelName(), DEFAULT_SUFFIX);
+        for (int attempt = 0; attempt < MAX_COMPAT_ATTEMPTS; attempt++) {
+            HttpRequest request = buildRequest(url, model, plainApiKey, Duration.ofMinutes(5), body);
+            HttpResponse<InputStream> response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofInputStream());
+            if (response.statusCode() == 200) {
+                return response;
+            }
+            String errorBody = ProviderHttpUtils.readErrorBody(response.body());
+            if (!degradeIfPossible(body, state, response.statusCode(), errorBody)) {
+                throw ProviderHttpUtils.httpError(response.statusCode(), errorBody);
+            }
+            log.warn("OpenAI 兼容接口参数不被支持，已降级重试 model={} http={} toolsDisabled={} streamOptionsDisabled={} useCompletionTokens={} body={}",
+                    model.getModelName(), response.statusCode(), state.toolsDisabled,
+                    state.streamOptionsDisabled, state.useCompletionTokens, StrUtil.brief(errorBody, 200));
+        }
+        throw new BusinessException("大模型接口调用失败：兼容降级重试次数已用尽");
+    }
+
+    /** 根据错误信息调整请求体，返回是否发生了可重试的变化 */
+    private boolean degradeIfPossible(JSONObject body, CompatState state, int statusCode, String errorBody) {
+        // 新版 OpenAI 推理模型明确提示改用 max_completion_tokens，优先只改字段，不牺牲工具能力
+        if (!state.useCompletionTokens && body.containsKey("max_tokens")
+                && StrUtil.containsIgnoreCase(errorBody, "max_completion_tokens")) {
+            body.set("max_completion_tokens", body.remove("max_tokens"));
+            state.useCompletionTokens = true;
+            return true;
+        }
+        if (statusCode != 400 && statusCode != 422) {
+            return false;
+        }
+        boolean changed = false;
+        if (!state.streamOptionsDisabled && body.containsKey("stream_options")) {
+            body.remove("stream_options");
+            state.streamOptionsDisabled = true;
+            changed = true;
+        }
+        if (!state.toolsDisabled && body.containsKey("tools")) {
+            body.remove("tools");
+            body.remove("tool_choice");
+            state.toolsDisabled = true;
+            changed = true;
+        }
+        return changed;
+    }
+
+    /** 解析一轮 SSE 流：发射内容增量、累积 tool_calls / reasoning_content 与 usage */
     private StreamRoundResult parseStream(HttpResponse<InputStream> response, AiStreamListener listener) throws Exception {
         StreamRoundResult result = new StreamRoundResult();
         Map<Integer, ToolCallAcc> toolCallMap = new TreeMap<>();
@@ -110,7 +163,17 @@ public class OpenAiCompatibleProvider implements AiProviderStrategy {
                 if (payload.isEmpty() || "[DONE]".equals(payload)) {
                     continue;
                 }
-                JSONObject chunk = JSONUtil.parseObj(payload);
+                JSONObject chunk;
+                try {
+                    chunk = JSONUtil.parseObj(payload);
+                } catch (Exception e) {
+                    // 少数网关会插入非 JSON 心跳，忽略即可
+                    continue;
+                }
+                Object error = chunk.get("error");
+                if (error != null) {
+                    throw new BusinessException("大模型返回错误: " + ProviderHttpUtils.extractErrorMessage(error));
+                }
                 JSONArray choices = chunk.getJSONArray("choices");
                 if (choices != null && !choices.isEmpty()) {
                     JSONObject choice = choices.getJSONObject(0);
@@ -119,6 +182,11 @@ public class OpenAiCompatibleProvider implements AiProviderStrategy {
                         String content = delta.getStr("content");
                         if (StrUtil.isNotEmpty(content)) {
                             listener.onDelta(content);
+                        }
+                        // 推理模型（如 DeepSeek reasoner）的思维链，工具循环时需要回传
+                        String reasoning = delta.getStr("reasoning_content");
+                        if (reasoning != null) {
+                            result.reasoning.append(reasoning);
                         }
                         accumulateToolCalls(delta.getJSONArray("tool_calls"), toolCallMap);
                     }
@@ -161,7 +229,7 @@ public class OpenAiCompatibleProvider implements AiProviderStrategy {
         }
     }
 
-    private JSONObject buildAssistantToolCallMessage(List<ToolCallAcc> toolCalls) {
+    private JSONObject buildAssistantToolCallMessage(List<ToolCallAcc> toolCalls, String reasoning) {
         JSONArray arr = new JSONArray();
         for (ToolCallAcc call : toolCalls) {
             arr.add(new JSONObject()
@@ -171,7 +239,11 @@ public class OpenAiCompatibleProvider implements AiProviderStrategy {
                             .set("name", StrUtil.nullToEmpty(call.name))
                             .set("arguments", call.args.length() == 0 ? "{}" : call.args.toString())));
         }
-        return new JSONObject().set("role", "assistant").set("content", "").set("tool_calls", arr);
+        JSONObject message = new JSONObject().set("role", "assistant").set("content", "").set("tool_calls", arr);
+        if (StrUtil.isNotBlank(reasoning)) {
+            message.set("reasoning_content", reasoning);
+        }
+        return message;
     }
 
     /** tool_calls 分片累积器 */
@@ -185,7 +257,15 @@ public class OpenAiCompatibleProvider implements AiProviderStrategy {
     private static class StreamRoundResult {
         int promptTokens;
         int completionTokens;
+        final StringBuilder reasoning = new StringBuilder();
         final List<ToolCallAcc> toolCalls = new ArrayList<>();
+    }
+
+    /** 兼容降级状态，在一轮对话的多轮工具调用之间共享 */
+    private static class CompatState {
+        boolean toolsDisabled;
+        boolean streamOptionsDisabled;
+        boolean useCompletionTokens;
     }
 
     @Override
@@ -193,38 +273,43 @@ public class OpenAiCompatibleProvider implements AiProviderStrategy {
         JSONObject body = new JSONObject();
         body.set("model", model.getModelName());
         body.set("stream", false);
-        body.set("max_tokens", 1);
         JSONArray messages = new JSONArray();
         messages.add(new JSONObject().set("role", "user").set("content", "ping"));
         body.set("messages", messages);
 
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(chatCompletionsUrl(model.getBaseUrl())))
-                .timeout(Duration.ofSeconds(30))
-                .header("Content-Type", "application/json")
-                .header("Authorization", "Bearer " + StrUtil.nullToEmpty(plainApiKey))
-                .POST(HttpRequest.BodyPublishers.ofString(body.toString(), StandardCharsets.UTF_8))
-                .build();
+        String url = ProviderHttpUtils.resolveUrl(model.getBaseUrl(), model.getPathTemplate(),
+                model.getModelName(), DEFAULT_SUFFIX);
+        HttpRequest request = buildRequest(url, model, plainApiKey, Duration.ofSeconds(30), body);
 
         long start = System.currentTimeMillis();
         HttpResponse<String> response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
         long latency = System.currentTimeMillis() - start;
         if (response.statusCode() != 200) {
-            throw new BusinessException("连通性测试失败(HTTP " + response.statusCode() + "): " + StrUtil.brief(response.body(), 300));
+            throw ProviderHttpUtils.httpError(response.statusCode(), response.body());
         }
         return latency;
     }
 
-    /** baseUrl 智能补全 /chat/completions 后缀 */
-    private String chatCompletionsUrl(String baseUrl) {
-        String url = StrUtil.removeSuffix(StrUtil.trim(baseUrl), "/");
-        if (url.endsWith("/chat/completions")) {
-            return url;
-        }
-        return url + "/chat/completions";
+    @Override
+    public List<String> listModels(AiModelDO model, String plainApiKey) throws Exception {
+        return ProviderHttpUtils.fetchModelIds(model.getBaseUrl(), PROTOCOL,
+                model.getExtraHeaders(), plainApiKey);
     }
 
-    private JSONObject buildStreamBody(AiModelDO model, JSONArray messagesArray, String toolSpecsJson) {
+    private HttpRequest buildRequest(String url, AiModelDO model, String plainApiKey,
+                                     Duration timeout, JSONObject body) {
+        HttpRequest.Builder builder = HttpRequest.newBuilder()
+                .uri(URI.create(url))
+                .timeout(timeout)
+                .header("Content-Type", "application/json")
+                .header("Authorization", "Bearer " + StrUtil.nullToEmpty(plainApiKey))
+                .POST(HttpRequest.BodyPublishers.ofString(body.toString(), StandardCharsets.UTF_8));
+        ProviderHttpUtils.applyExtraHeaders(builder, model.getExtraHeaders());
+        return builder.build();
+    }
+
+    private JSONObject buildStreamBody(AiModelDO model, CompatState state,
+                                       JSONArray messagesArray, String toolSpecsJson) {
         JSONObject body = new JSONObject();
         body.set("model", model.getModelName());
         body.set("stream", true);
@@ -232,10 +317,16 @@ public class OpenAiCompatibleProvider implements AiProviderStrategy {
             body.set("temperature", model.getTemperature());
         }
         if (model.getMaxTokens() != null && model.getMaxTokens() > 0) {
-            body.set("max_tokens", model.getMaxTokens());
+            if (state.useCompletionTokens) {
+                body.set("max_completion_tokens", model.getMaxTokens());
+            } else {
+                body.set("max_tokens", model.getMaxTokens());
+            }
         }
-        // 请求供应商在最后一个 chunk 返回 usage 统计（OpenAI 兼容协议扩展，不支持的厂商会忽略）
-        body.set("stream_options", new JSONObject().set("include_usage", true));
+        // 请求供应商在最后一个 chunk 返回 usage 统计；不支持的厂商会在收到 400 后自动去掉该字段重试
+        if (!state.streamOptionsDisabled) {
+            body.set("stream_options", new JSONObject().set("include_usage", true));
+        }
         if (StrUtil.isNotBlank(toolSpecsJson)) {
             body.set("tools", JSONUtil.parseArray(toolSpecsJson));
             body.set("tool_choice", "auto");
@@ -258,13 +349,5 @@ public class OpenAiCompatibleProvider implements AiProviderStrategy {
             msgArray.add(new JSONObject().set("role", msg.getRole()).set("content", msg.getContent()));
         }
         return msgArray;
-    }
-
-    private String readErrorBody(InputStream body) {
-        try (InputStream is = body) {
-            return StrUtil.brief(new String(is.readAllBytes(), StandardCharsets.UTF_8), 300);
-        } catch (Exception e) {
-            return "";
-        }
     }
 }

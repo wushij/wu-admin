@@ -1,15 +1,24 @@
 <template>
   <view class="detail-row">
     <text class="detail-row__label">{{ label }}</text>
-    <text class="detail-row__value">{{ value || '—' }}</text>
+    <view class="detail-row__value">
+      <slot name="value">{{ displayValue }}</slot>
+    </view>
   </view>
 </template>
 
 <script setup lang="ts">
-defineProps<{
+import { computed } from 'vue'
+
+const props = defineProps<{
   label: string
   value?: string | number | null
 }>()
+
+/** 仅 null / undefined / 空串视为缺失，数字 0 等有效值照常展示 */
+const displayValue = computed(() =>
+  props.value === null || props.value === undefined || props.value === '' ? '—' : props.value
+)
 </script>
 
 <style lang="scss" scoped>

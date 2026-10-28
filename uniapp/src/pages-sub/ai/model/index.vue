@@ -34,16 +34,15 @@
       >
         <view class="aimodel-card__head">
           <view class="aimodel-card__badge" :style="providerBadgeStyle(item.provider)">
-            <text>{{ providerMeta(item.provider).short }}</text>
+            <AiProviderIcon :provider="item.provider" :size="24" />
           </view>
           <view class="aimodel-card__title-wrap">
             <view class="aimodel-card__name-row">
               <text class="aimodel-card__title">{{ item.name }}</text>
-              <view v-if="item.isDefault === 1" class="default-badge">
-                <text>★ 默认</text>
-              </view>
             </view>
-            <text class="aimodel-card__model">{{ providerMeta(item.provider).label }} · {{ item.modelName }}</text>
+            <view class="aimodel-card__sub-row">
+              <text class="aimodel-card__model">{{ providerMeta(item.provider).label }} · {{ item.modelName }}</text>
+            </view>
           </view>
           <view class="status-tag" :class="item.status === 1 ? 'is-active' : 'is-inactive'">
             <text>{{ item.status === 1 ? '已启用' : '已停用' }}</text>
@@ -65,7 +64,7 @@
           </view>
           <view class="info-row">
             <text class="info-label">模型参数</text>
-            <text class="info-val">温度 {{ item.temperature ?? 0.7 }} · 最大 {{ item.maxTokens ?? 4096 }} Tokens</text>
+            <text class="info-val">温度 {{ item.temperature ?? 0.7 }} · 最大 {{ item.maxTokens ?? 8192 }} Tokens</text>
           </view>
 
           <view
@@ -78,6 +77,9 @@
         </view>
 
         <view class="aimodel-card__foot">
+          <view v-if="item.isDefault === 1" class="default-badge">
+            <text>★ 默认</text>
+          </view>
           <view class="action-btn" @click.stop="handleTest(item)">
             <text>测试</text>
           </view>
@@ -127,7 +129,8 @@ import {
   type AiModelVO,
 } from '@/api/system/ai-model'
 import { providerMeta } from '@/constants/aiProviders'
-import { showConfirm } from '@/store/dialog'
+import AiProviderIcon from '@/components/business/ai/AiProviderIcon/index.vue'
+import { showConfirm, showActionSheet } from '@/store/dialog'
 
 const { allowed, hasPerm } = useModulePermission('system:ai-model:list')
 const canCreate = computed(() => hasPerm('system:ai-model:create'))
@@ -164,23 +167,27 @@ function providerBadgeStyle(provider: string) {
   return { background: meta.bg, color: meta.color }
 }
 
-function onItemMenu(item: AiModelVO) {
+async function onItemMenu(item: AiModelVO) {
   const actions: string[] = []
   if (canTest.value) actions.push('测试连接')
   if (canUpdate.value) actions.push('编辑')
   if (canUpdate.value && item.isDefault !== 1) actions.push('设为默认')
   if (canDelete.value) actions.push('删除')
   if (!actions.length) return
-  uni.showActionSheet({
-    itemList: actions,
-    success: async (res) => {
-      const action = actions[res.tapIndex]
-      if (action === '测试连接') await handleTest(item)
-      else if (action === '编辑') goEdit(item.id)
-      else if (action === '设为默认') await handleDefault(item)
-      else if (action === '删除') handleDelete(item)
-    },
-  })
+  let index: number
+  try {
+    index = await showActionSheet({
+      title: item.name,
+      items: actions.map((label) => ({ label, danger: label === '删除' })),
+    })
+  } catch {
+    return
+  }
+  const action = actions[index]
+  if (action === '测试连接') await handleTest(item)
+  else if (action === '编辑') goEdit(item.id)
+  else if (action === '设为默认') await handleDefault(item)
+  else if (action === '删除') handleDelete(item)
 }
 
 async function handleTest(item: AiModelVO) {
@@ -331,15 +338,26 @@ onPullDownRefresh(async () => {
   display: flex;
   align-items: center;
   gap: 12rpx;
+  min-width: 0;
 }
 
 .aimodel-card__title {
+  flex: 1;
+  min-width: 0;
   font-size: 30rpx;
   font-weight: 700;
   color: #0f172a;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.aimodel-card__sub-row {
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+  margin-top: 6rpx;
+  min-width: 0;
 }
 
 .default-badge {
@@ -358,7 +376,8 @@ onPullDownRefresh(async () => {
 
 .aimodel-card__model {
   display: block;
-  margin-top: 6rpx;
+  flex: 1;
+  min-width: 0;
   font-size: 23rpx;
   color: #64748b;
   overflow: hidden;
@@ -467,12 +486,15 @@ onPullDownRefresh(async () => {
   border-top: 1rpx dashed rgba(226, 232, 240, 0.8);
   padding-top: 18rpx;
 
+  .default-badge {
+    padding: 8rpx 16rpx;
+  }
+
   .action-btn {
     padding: 10rpx 20rpx;
     border-radius: 12rpx;
     background: #f1f5f9;
     color: #475569;
-
     text {
       font-size: 23rpx;
       font-weight: 500;

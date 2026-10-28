@@ -73,9 +73,12 @@
         <el-table-column label="提问内容" min-width="220" align="left" header-align="center" show-overflow-tooltip>
           <template #default="{ row }">{{ row.question || '—' }}</template>
         </el-table-column>
-        <el-table-column label="供应商" width="100" align="center" header-align="center">
+        <el-table-column label="供应商" width="120" align="center" header-align="center">
           <template #default="{ row }">
-            <el-tag size="small" effect="plain">{{ PROVIDER_LABELS[row.provider] || row.provider }}</el-tag>
+            <el-tag size="small" effect="plain" style="display: inline-flex; align-items: center; gap: 4px;">
+              <AiProviderIcon :provider="row.provider" :size="14" />
+              <span>{{ providerLabel(row.provider) }}</span>
+            </el-tag>
           </template>
         </el-table-column>
         <el-table-column prop="modelName" label="模型" min-width="130" align="center" header-align="center" show-overflow-tooltip />
@@ -131,7 +134,7 @@
       <el-descriptions :column="2" border size="small" class="detail-desc">
         <el-descriptions-item label="用户">{{ detail.username }}</el-descriptions-item>
         <el-descriptions-item label="来源">{{ detail.source === 'mobile' ? '移动端' : 'PC端' }}</el-descriptions-item>
-        <el-descriptions-item label="供应商">{{ PROVIDER_LABELS[detail.provider || ''] || detail.provider }}</el-descriptions-item>
+        <el-descriptions-item label="供应商">{{ providerLabel(detail.provider) }}</el-descriptions-item>
         <el-descriptions-item label="模型">{{ detail.modelName }}</el-descriptions-item>
         <el-descriptions-item label="状态">
           <el-tag :type="statusMeta(detail.chatStatus).type" size="small">{{ statusMeta(detail.chatStatus).label }}</el-tag>
@@ -182,14 +185,27 @@ import { Search, Refresh, User, MagicStick, Delete } from '@element-plus/icons-v
 import { ElMessage, ElMessageBox } from 'element-plus'
 import ModulePageIcon from '@/components/ModulePageIcon.vue'
 import AiWuMarkdown from '@/components/AiWu/AiWuMarkdown.vue'
+import AiProviderIcon from '@/components/AiProviderIcon.vue'
 import { MODULE_PAGE_ICON } from '@/constants/module-page-icons'
 import { pageAiChatLog, deleteAiChatLog, cleanAiChatLog, type AiChatLogVO, type AiChatLogPageQuery } from '@/api/system/ai-log'
 
+/** 可筛选的供应商（与「AI 模型」页供应商集合保持一致，后端白名单同源） */
 const PROVIDER_LABELS: Record<string, string> = {
   deepseek: 'DeepSeek',
-  openai: 'OpenAI',
-  qwen: '通义千问',
   kimi: 'Kimi',
+  zhipu: 'GLM',
+  openai: 'OpenAI',
+  custom: '自定义',
+}
+
+/** 历史数据可能存在的旧供应商标识，仅用于列表/详情的展示兜底，不进入筛选下拉 */
+const LEGACY_PROVIDER_LABELS: Record<string, string> = {
+  qwen: '通义千问',
+}
+
+function providerLabel(provider?: string) {
+  if (!provider) return '—'
+  return PROVIDER_LABELS[provider] || LEGACY_PROVIDER_LABELS[provider] || provider
 }
 
 const tableHeaderStyle = { textAlign: 'center' as const }

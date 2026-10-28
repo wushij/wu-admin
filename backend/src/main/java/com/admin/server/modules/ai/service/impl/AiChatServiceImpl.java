@@ -198,7 +198,7 @@ public class AiChatServiceImpl implements AiChatService {
             };
 
             try {
-                aiProviderFactory.getStrategy(model.getProvider()).streamChat(model, plainApiKey, messages, listener);
+                aiProviderFactory.getStrategy(model).streamChat(model, plainApiKey, messages, listener);
             } catch (Exception e) {
                 log.error("AI 流式对话失败 provider={} model={}: {}", model.getProvider(), model.getModelName(), e.getMessage());
                 String errMsg = e instanceof BusinessException ? e.getMessage() : "AI 服务暂时不可用，请稍后再试";

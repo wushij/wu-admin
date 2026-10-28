@@ -14,13 +14,19 @@ import lombok.EqualsAndHashCode;
 public class AiModelDO extends BaseEntity {
     /** 配置名称（展示用，如「DeepSeek 官方」） */
     private String name;
-    /** 供应商: deepseek/openai/qwen/kimi */
+    /** 供应商标识（仅用于展示与筛选，允许任意取值，不限制模型厂商） */
     private String provider;
-    /** 模型名称（如 deepseek-chat / qwen-plus） */
+    /** 接入协议: openai（OpenAI 兼容）/anthropic（Anthropic Messages） */
+    private String protocol;
+    /** 模型名称（如 deepseek-v4.1-flash / glm-5.3 / claude-4.6） */
     private String modelName;
-    /** API 基础地址（不含 /chat/completions） */
+    /** API 基础地址（不含具体接口路径） */
     private String baseUrl;
-    /** API 密钥（SM4-CBC 加密存储） */
+    /** 自定义请求路径模板，支持 {model} 占位；为空按协议内置规则拼接 */
+    private String pathTemplate;
+    /** 额外请求头 JSON，如 {"HTTP-Referer":"https://example.com"} */
+    private String extraHeaders;
+    /** API 密钥（SM4-GCM 加密存储） */
     private String apiKey;
     /** 采样温度 0~2 */
     private Double temperature;

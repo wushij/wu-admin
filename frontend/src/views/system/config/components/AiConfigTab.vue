@@ -57,8 +57,7 @@
             </div>
             <el-button
               type="primary"
-              plain
-              size="small"
+              class="add-role-btn"
               :icon="Plus"
               :disabled="!canEdit || draft.roleTokenQuotas.length >= 50"
               @click="addRow"
@@ -116,9 +115,9 @@
                 <template #default="{ $index }">
                   <el-button
                     type="danger"
-                    plain
+                    link
                     size="small"
-                    class="delete-pill-btn"
+                    class="delete-action-btn"
                     :disabled="!canEdit"
                     @click="removeRow($index)"
                   >
@@ -128,7 +127,18 @@
               </el-table-column>
               <template #empty>
                 <div class="empty-holder">
-                  <el-empty description="暂未配置角色差异化配额，全员使用默认配额" :image-size="48" />
+                  <el-empty description="暂未配置角色差异化配额，全员使用默认配额" :image-size="48">
+                    <el-button
+                      v-if="canEdit"
+                      type="primary"
+                      link
+                      :icon="Plus"
+                      class="empty-quick-add-btn"
+                      @click="addRow"
+                    >
+                      立即添加第一条角色配额
+                    </el-button>
+                  </el-empty>
                 </div>
               </template>
             </el-table>
@@ -327,15 +337,64 @@ async function removeRow(index: number) {
   color: var(--el-color-info, #909399);
 }
 
-.empty-holder {
-  padding: 16px 0;
+.add-role-btn {
+  height: 32px;
+  padding: 0 16px;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: var(--admin-radius-md, 8px) !important;
+  background: var(--el-color-primary, #409eff) !important;
+  border: 1px solid var(--el-color-primary, #409eff) !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 6px rgba(64, 158, 255, 0.22);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  letter-spacing: 0.3px;
 }
 
-.delete-pill-btn {
-  border-radius: 999px !important;
-  padding: 3px 12px !important;
-  height: 24px !important;
-  font-size: 12px !important;
+.add-role-btn:hover:not(.is-disabled) {
+  background: var(--el-color-primary-light-3, #79bbff) !important;
+  border-color: var(--el-color-primary-light-3, #79bbff) !important;
+  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.35);
+  transform: translateY(-1px);
+}
+
+.add-role-btn:active:not(.is-disabled) {
+  transform: translateY(0);
+  box-shadow: 0 1px 4px rgba(64, 158, 255, 0.2);
+}
+
+.add-role-btn.is-disabled {
+  background: var(--el-fill-color-light, #f5f7fa) !important;
+  border-color: var(--el-border-color-lighter, #e4e7ed) !important;
+  color: var(--el-text-color-placeholder, #a8abb2) !important;
+  box-shadow: none !important;
+  cursor: not-allowed;
+}
+
+.empty-holder {
+  padding: 20px 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.empty-quick-add-btn {
+  margin-top: 10px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.delete-action-btn {
+  font-size: 13px !important;
+  padding: 4px 8px !important;
+  transition: opacity 0.2s ease;
+}
+
+.delete-action-btn:hover:not(.is-disabled) {
+  opacity: 0.8;
 }
 </style>
 
