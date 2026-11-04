@@ -4,7 +4,7 @@ import com.admin.server.common.util.ClientIpUtils;
 import com.admin.server.modules.trade.dal.dataobject.sms.SmsLogDO;
 import com.admin.server.modules.trade.dal.mysql.sms.SmsLogMapper;
 import com.admin.server.modules.trade.service.sms.SmsLogService;
-import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.web.context.request.RequestContextHolder;

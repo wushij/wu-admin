@@ -1,4 +1,4 @@
-import Request from 'luch-request'
+import { createLuchRequest } from 'luch-request'
 import type { ApiResult } from '@/types/api'
 import { isApiSuccessCode } from '@/core/api-response'
 import { getToken, removeToken } from '@/core/auth'
@@ -109,14 +109,14 @@ function clearSessionAndRedirectLogin() {
   uni.reLaunch({ url: '/pages/login/index' })
 }
 
-const http = new Request({
+const http = createLuchRequest({
   baseURL: BASE_URL,
   timeout: REQUEST_TIMEOUT,
   header: {
     'Content-Type': 'application/json;charset=UTF-8',
   },
   // 4xx/5xx 若仍返回 JSON 体，由拦截器统一解析 message
-  validateStatus: (status) => status >= 200 && status < 600,
+  validateStatus: (status: number) => status >= 200 && status < 600,
 })
 
 http.interceptors.request.use(
@@ -305,13 +305,27 @@ http.interceptors.response.use(
     markErrorToastShown(err)
     return Promise.reject(err)
   }) as unknown as Parameters<typeof http.interceptors.response.use>[0],
-  (error: { data?: any; statusCode?: number; errMsg?: string; header?: any; config?: any }) => {
+  (rawError: unknown) => {
+    const error = rawError as {
+      data?: any
+      statusCode?: number
+      errMsg?: string
+      header?: any
+      config?: any
+      code?: string
+      raw?: { errMsg?: string; message?: string }
+      response?: { data?: any; statusCode?: number; header?: any }
+    }
     const secConfig = getSecurityConfig()
+    // 兼容 luch-request 4.x（响应信息位于 error.response 下）与旧版顶层结构
+    const resp = error?.response ?? error
+    const statusCode = resp?.statusCode ?? error?.statusCode
+    const header = resp?.header ?? error?.header
 
     // 401 必须优先于解密处理：会话失效时响应通常仍带加密头，
     // 若先走解密分支，并发请求会同时弹“凭据缺失”，把页面刷满重复提示。
-    const earlyUrl = (error as any)?.config?.url || ''
-    if (error?.statusCode === 401 && !isAuthPublicUrl(earlyUrl)) {
+    const earlyUrl = error?.config?.url || ''
+    if (statusCode === 401 && !isAuthPublicUrl(earlyUrl)) {
       showToastOnce('登录已过期')
       clearSessionAndRedirectLogin()
       const sessionErr = new Error('登录已过期')
@@ -320,11 +334,14 @@ http.interceptors.response.use(
     }
 
     // 仅信任后端明确声明的加密响应头，解密失败必须显式报错（Fail-Closed）
-    const payloadType = error?.header?.['x-encrypted-payload'] ?? error?.header?.['X-Encrypted-Payload']
-    const isEncrypted = error && (error.header?.['x-encrypted'] === '1'
-      || error.header?.['X-Encrypted'] === '1'
-      || (typeof payloadType === 'string' && payloadType.toUpperCase() === 'SM4-GCM'))
-    if (isEncrypted && typeof error.data === 'string') {
+    const payloadType = header?.['x-encrypted-payload'] ?? header?.['X-Encrypted-Payload']
+    const isEncrypted = Boolean(
+      header?.['x-encrypted'] === '1'
+      || header?.['X-Encrypted'] === '1'
+      || (typeof payloadType === 'string' && payloadType.toUpperCase() === 'SM4-GCM'),
+    )
+    const encryptedData = resp?.data ?? error?.data
+    if (isEncrypted && typeof encryptedData === 'string') {
       const { sm4Key } = secConfig
       if (!sm4Key) {
         showToastOnce('会话安全凭据缺失，请重新登录')
@@ -332,22 +349,27 @@ http.interceptors.response.use(
       }
       let plainJson: string
       try {
-        plainJson = decryptSm4(error.data, sm4Key)
+        plainJson = decryptSm4(encryptedData, sm4Key)
       } catch (err) {
         console.error('错误响应国密 SM4-GCM 认证解密失败:', err)
         showToastOnce('响应数据认证解密失败')
         return Promise.reject(new Error('响应数据认证解密失败'))
       }
+      let parsedData: unknown
       try {
-        error.data = JSON.parse(plainJson)
+        parsedData = JSON.parse(plainJson)
       } catch {
-        error.data = plainJson
+        parsedData = plainJson
       }
+      if (error?.response) {
+        error.response.data = parsedData
+      }
+      error.data = parsedData
     }
 
-    const url = (error as any)?.config?.url || ''
+    const url = error?.config?.url || ''
     if (url.includes('/auth/session-sign-init')) {
-      if (error?.statusCode === 401 && getToken()) {
+      if (statusCode === 401 && getToken()) {
         uni.showToast({ title: '登录已过期', icon: 'none' })
         clearSessionAndRedirectLogin()
       }
@@ -360,7 +382,7 @@ http.interceptors.response.use(
     }
 
     const msg = extractApiErrorMessage(error, '网络异常')
-    const cfg = (error as any)?.config
+    const cfg = error?.config
 
     // 只有签名密钥失效才重新协商；普通权限不足(403)不能重置会话密钥
     if (isSignKeyExpiredMessage(msg) && !cfg?._isRetrySign && !url.includes('/auth/session-sign-init')) {
@@ -380,7 +402,7 @@ export const get = <T = unknown>(
   params?: object,
   config?: { silent403?: boolean },
 ) =>
-  http.get(url, { params, ...config } as any) as Promise<ApiResult<T>>
+  http.get(url, { params, ...config } as any) as unknown as Promise<ApiResult<T>>
 
 export const post = <T = unknown>(
   url: string,
@@ -390,7 +412,7 @@ export const post = <T = unknown>(
   http.post(url, (data === null ? undefined : data) as Record<string, unknown> | undefined, {
     params: config?.params,
     skipEncrypt: config?.skipEncrypt,
-  } as any) as Promise<ApiResult<T>>
+  } as any) as unknown as Promise<ApiResult<T>>
 
 export const put = <T = unknown>(
   url: string,
@@ -399,14 +421,18 @@ export const put = <T = unknown>(
 ) =>
   http.put(url, (data === null ? undefined : data) as Record<string, unknown> | undefined, {
     params: config?.params,
-  }) as Promise<ApiResult<T>>
+  }) as unknown as Promise<ApiResult<T>>
 
+// luch-request 4.x 的 delete 快捷方法不再接受请求体，统一走 request 以保留 data 能力
 export const del = <T = unknown>(
   url: string,
   config?: { params?: Record<string, unknown>; data?: unknown },
 ) =>
-  http.delete(url, (config?.data ?? undefined) as Record<string, unknown> | undefined, {
+  http.request({
+    url,
+    method: 'DELETE',
     params: config?.params,
-  }) as Promise<ApiResult<T>>
+    data: config?.data,
+  }) as unknown as Promise<ApiResult<T>>
 
 export type { ApiResult } from '@/types/api'

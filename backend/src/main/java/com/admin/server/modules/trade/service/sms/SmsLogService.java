@@ -1,7 +1,7 @@
 package com.admin.server.modules.trade.service.sms;
 
 import com.admin.server.modules.trade.dal.dataobject.sms.SmsLogDO;
-import com.baomidou.mybatisplus.extension.service.IService;
+import com.baomidou.mybatisplus.spring.service.IService;
 
 public interface SmsLogService extends IService<SmsLogDO> {
 

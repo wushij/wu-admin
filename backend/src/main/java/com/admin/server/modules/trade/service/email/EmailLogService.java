@@ -1,7 +1,7 @@
 package com.admin.server.modules.trade.service.email;
 
 import com.admin.server.modules.trade.dal.dataobject.email.EmailLogDO;
-import com.baomidou.mybatisplus.extension.service.IService;
+import com.baomidou.mybatisplus.spring.service.IService;
 
 public interface EmailLogService extends IService<EmailLogDO> {
 

@@ -22,16 +22,6 @@
       "count": 1
     }
   },
-  "src/utils/request.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 3
-    }
-  },
-  "src/utils/security-config.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 4
-    }
-  },
   "src/views/ai/knowledge/components/KnowledgeDocTable.vue": {
     "no-useless-escape": {
       "count": 3
@@ -224,11 +214,6 @@
   "src/views/system/org/components/PostFormDialog.vue": {
     "vue/no-mutating-props": {
       "count": 6
-    }
-  },
-  "src/views/system/security-log/index.vue": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
     }
   },
   "src/views/system/user/components/UserFormDialog.vue": {

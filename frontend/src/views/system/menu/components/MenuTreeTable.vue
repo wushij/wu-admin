@@ -154,7 +154,7 @@ function toggleExpand(row: MenuVO) {
   tableRef.value?.toggleRowExpansion(row)
 }
 
-function onRowClick(row: MenuVO, column: { property?: string }) {
+function onRowClick(row: MenuVO, column: { property?: string } | null) {
   if (column?.property === 'name') {
     toggleExpand(row)
   }

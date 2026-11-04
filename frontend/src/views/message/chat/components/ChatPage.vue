@@ -681,4 +681,5 @@ const {
   avatarFallback,
   resolveChatAvatar,
 } = useChatPage()
+defineExpose({ groupInputRef, messageListRef, groupListRef })
 </script>

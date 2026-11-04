@@ -1,6 +1,7 @@
 package com.admin.server.framework.security.core.service;
 
-import cn.dev33.satoken.stp.SaLoginModel;
+import cn.dev33.satoken.SaManager;
+import cn.dev33.satoken.stp.parameter.SaLoginParameter;
 import cn.dev33.satoken.stp.StpUtil;
 import com.admin.server.framework.config.DynamicConfigProvider;
 import lombok.Data;
@@ -53,10 +54,19 @@ public class TokenService {
                 log.debug("logout previous session for user {} failed: {}", userId, e.getMessage());
             }
         }
-        SaLoginModel model = new SaLoginModel()
+        SaLoginParameter model = new SaLoginParameter()
+                // sa-token 1.46 起 SaLoginParameter 需先注入全局配置默认值，
+                // 否则会话 timeout 会保持 NOT_VALUE_EXPIRE(-2)，写 Redis 时报 PX -2000
+                .setDefaultValues(SaManager.getConfig())
                 .setTimeout(timeoutSeconds())
                 .setIsLastingCookie(false);
-        StpUtil.login(userId, model);
+        try {
+            StpUtil.login(userId, model);
+        } catch (Exception e) {
+            log.warn("Sa-Token login 遇到旧版会话异常，清理旧 Session 后重试 (userId={}): {}", userId, e.getMessage());
+            SaManager.getSaTokenDao().deleteSession(StpUtil.stpLogic.splicingKeySession(userId));
+            StpUtil.login(userId, model);
+        }
         StpUtil.getSession().set(SESSION_USERNAME, username);
         String token = StpUtil.getTokenValue();
         log.info("Sa-Token created for user: {}", username);

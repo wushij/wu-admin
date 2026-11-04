@@ -110,12 +110,12 @@ export function setDefaultAiModel(id: number) {
 export function testAiModel(data: AiModelTestDTO) {
   return http.post('/system/ai-model/test', data as unknown as Record<string, unknown>, {
     timeout: 40000,
-  }) as Promise<ApiResult<number>>
+  }) as unknown as Promise<ApiResult<number>>
 }
 
 /** 拉取供应商可用模型列表，供表单「获取模型」使用 */
 export function listAiModels(data: AiModelModelsDTO) {
   return http.post('/system/ai-model/models', data as unknown as Record<string, unknown>, {
     timeout: 30000,
-  }) as Promise<ApiResult<string[]>>
+  }) as unknown as Promise<ApiResult<string[]>>
 }

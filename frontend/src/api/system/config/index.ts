@@ -29,7 +29,7 @@ export function updateConfigGroup(groupCode: string, configValue: string) {
   return put(`/system/config-group/${groupCode}`, { configValue })
 }
 
-export function getStorageConfig(params?: Record<string, any>) {
+export function getStorageConfig(params?: Record<string, unknown>) {
   return get<import('@/types/config').StorageConfigVO>('/system/config-group/storage', params)
 }
 

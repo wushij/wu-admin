@@ -155,6 +155,7 @@ defineProps<{
 }>()
 
 const formRef = defineModel<FormInstance | undefined>('formRef')
+defineExpose({ formRef })
 
 defineEmits<{
   (e: 'update:modelValue', val: boolean): void

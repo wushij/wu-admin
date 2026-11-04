@@ -109,6 +109,7 @@ const {
   openMobileBindEditing, cancelMobileBindEditing,
   openEmailBindEditing, cancelEmailBindEditing,
 } = useProfileInfo()
+defineExpose({ avatarInputRef, basicInfoFormRef })
 
 const minPwdLen = computed(() => profile.value.minPasswordLength ?? 6)
 
@@ -197,5 +198,5 @@ onMounted(async () => {
 </script>
 
 <style lang="scss">
-@import './profile-page.scss';
+@use './profile-page.scss' as *;
 </style>

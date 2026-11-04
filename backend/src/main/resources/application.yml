@@ -116,7 +116,6 @@ sa-token:
   is-log: false
   is-read-cookie: true
   is-read-header: true
-  is-write-cookie: true
   is-read-body: false
 
 # 登录防爬：图形验证码开关与按 IP 分钟限流（0 表示不限制）

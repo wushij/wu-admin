@@ -3,7 +3,7 @@ package com.admin.server.modules.infra.service.file;
 import com.admin.server.common.core.PageParam;
 import com.admin.server.common.core.PageResult;
 import com.admin.server.modules.infra.dal.dataobject.file.SysFileDO;
-import com.baomidou.mybatisplus.extension.service.IService;
+import com.baomidou.mybatisplus.spring.service.IService;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;

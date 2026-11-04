@@ -4,10 +4,32 @@ import { logger } from '@/core/logger'
 
 let lastGlobalErrorToastAt = 0
 
+/** 从 luch-request 4 的 raw / errMsg 中提取原始平台错误信息 */
+function extractRawErrMsg(raw: unknown): string | null {
+  if (!raw) return null
+  if (typeof raw === 'string') return raw.trim() || null
+  if (typeof raw === 'object') {
+    const record = raw as { errMsg?: unknown; message?: unknown }
+    if (typeof record.errMsg === 'string' && record.errMsg.trim()) return record.errMsg.trim()
+    if (typeof record.message === 'string' && record.message.trim()) return record.message.trim()
+  }
+  return null
+}
+
+/** 将 uni.request 的原始失败信息映射为中文；非网络失败返回 null */
+function normalizeRequestFailMessage(raw: string): string | null {
+  const text = raw.trim()
+  if (!/^request:fail/i.test(text)) return null
+  if (/abort|cancel|interrupted/i.test(text)) return '请求已取消'
+  if (/timeout/i.test(text)) return '请求超时，请稍后重试'
+  return '网络连接失败，请稍后重试'
+}
+
 export function extractApiErrorMessage(source: unknown, fallback = '操作失败'): string {
   if (!source) return fallback
-  if (typeof source === 'string' && source.trim()) return source.trim()
-  if (source instanceof Error && source.message) return source.message
+  if (typeof source === 'string') {
+    return normalizeRequestFailMessage(source) ?? (source.trim() || fallback)
+  }
 
   const err = source as {
     data?: ApiResult
@@ -15,32 +37,75 @@ export function extractApiErrorMessage(source: unknown, fallback = '操作失败
     errMsg?: string
     message?: string
     msg?: string
+    code?: string
+    raw?: unknown
+    response?: { data?: ApiResult; statusCode?: number }
   }
+
+  // luch-request 4：失败响应体挂在 error.response.data
+  const responseBody = err.response?.data
+  const responseMessage = responseBody?.message || responseBody?.msg
+  if (responseMessage) return responseMessage
 
   const body = err.data
   const bodyMessage = body?.message || body?.msg
   if (bodyMessage) return bodyMessage
 
-  if (err.message) return err.message
-  if (err.msg) return err.msg
-  if (err.errMsg) {
-    const raw = err.errMsg.trim()
-    if (/^request:fail/i.test(raw)) return '网络连接失败，请稍后重试'
-    return raw
+  // 优先用平台原始 errMsg 做中文映射，避免把 "request:fail timeout" 直接抛给用户
+  const rawErrMsg = extractRawErrMsg(err.raw) || err.errMsg
+  if (rawErrMsg) {
+    const normalized = normalizeRequestFailMessage(rawErrMsg)
+    if (normalized) return normalized
+    if (err.code !== 'ERR_CANCELED') return rawErrMsg
   }
 
-  if (err.statusCode === 500) return '服务器内部错误，请稍后重试'
-  if (err.statusCode === 502 || err.statusCode === 503) return '服务暂时不可用，请稍后重试'
-  if (err.statusCode === 504) return '请求超时，请稍后重试'
+  // luch-request 4：网络类错误统一中文兜底
+  if (err.code === 'ERR_NETWORK') return '网络连接失败，请稍后重试'
+  if (err.code === 'ERR_CANCELED') return '请求已取消'
+
+  // HTTP 状态类失败优先按状态码映射，避免暴露 "Request failed with status code 502"
+  const statusCode = err.response?.statusCode ?? err.statusCode
+  if (err.code === 'ERR_BAD_STATUS' && statusCode !== undefined) {
+    if (statusCode === 401) return '登录已过期，请重新登录'
+    if (statusCode === 403) return '权限不足'
+    if (statusCode === 500) return '服务器内部错误，请稍后重试'
+    if (statusCode === 502 || statusCode === 503) return '服务暂时不可用，请稍后重试'
+    if (statusCode === 504) return '请求超时，请稍后重试'
+    return '请求失败，请稍后重试'
+  }
+
+  // 业务提示或运行时错误保留原始 message
+  if (err.message) return err.message
+  if (err.msg) return err.msg
+
+  if (statusCode === 500) return '服务器内部错误，请稍后重试'
+  if (statusCode === 502 || statusCode === 503) return '服务暂时不可用，请稍后重试'
+  if (statusCode === 504) return '请求超时，请稍后重试'
 
   return fallback
 }
 
 /** H5/小程序切后台时，进行中的请求常被 abort，不应弹全局错误 */
 export function isBenignRequestError(source: unknown): boolean {
-  const err = source as { errMsg?: string; message?: string }
-  const raw = (err?.errMsg || err?.message || '').toLowerCase()
+  if (!source) return false
+
+  const err = source as {
+    code?: string
+    errMsg?: string
+    message?: string
+    raw?: unknown
+  }
+
+  // luch-request 4：取消统一为 ERR_CANCELED，message 为 "Request canceled"，不再含 request:fail
+  if (err.code === 'ERR_CANCELED') return true
+
+  const candidates = [err.errMsg, err.message, extractRawErrMsg(err.raw)]
+  const raw = candidates
+    .filter((value): value is string => typeof value === 'string' && value.trim() !== '')
+    .join(' ')
+    .toLowerCase()
   if (!raw) return false
+
   return (
     raw.includes('request:fail') &&
     (raw.includes('abort') || raw.includes('cancel') || raw.includes('interrupted'))

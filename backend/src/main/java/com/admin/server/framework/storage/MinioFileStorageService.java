@@ -73,7 +73,7 @@ public class MinioFileStorageService implements FileStorageService {
                     PutObjectArgs.builder()
                             .bucket(bucket)
                             .object(cleanObjectName)
-                            .stream(inputStream, -1, 10485760)
+                            .stream(inputStream, -1L, 10485760L)
                             .contentType(StringUtils.hasText(contentType) ? contentType : "application/octet-stream")
                             .build()
             );

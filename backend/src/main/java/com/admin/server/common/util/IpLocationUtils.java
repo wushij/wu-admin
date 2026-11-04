@@ -5,10 +5,13 @@ import cn.hutool.http.HttpUtil;
 import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
 import lombok.extern.slf4j.Slf4j;
+import org.lionsoul.ip2region.xdb.LongByteArray;
 import org.lionsoul.ip2region.xdb.Searcher;
+import org.lionsoul.ip2region.xdb.Version;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.util.StringUtils;
 
+import java.io.InputStream;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -126,9 +129,12 @@ public final class IpLocationUtils {
                     if (!resource.exists()) {
                         throw new IllegalStateException("IP2Region 数据库不存在: ip2region/ip2region.xdb");
                     }
-                    byte[] dbBuff = resource.getInputStream().readAllBytes();
-                    searcher = Searcher.newWithBuffer(dbBuff);
-                    log.info("IP2Region 数据库已加载，大小 {} bytes", dbBuff.length);
+                    try (InputStream in = resource.getInputStream()) {
+                        LongByteArray dbBuff = Searcher.loadContentFromInputStream(in);
+                        // 全内存缓存模式：该 Searcher 实例本身线程安全，可作为全局单例复用
+                        searcher = Searcher.newWithBuffer(Version.IPv4, dbBuff);
+                        log.info("IP2Region 数据库已加载，大小 {} bytes", dbBuff.length());
+                    }
                 }
             }
         }
@@ -171,7 +177,10 @@ public final class IpLocationUtils {
     }
 
     /**
-     * 中国|0|江苏省|苏州市|电信 → 江苏苏州(电信)
+     * ip2region 3.x 格式：国家|省份|城市|ISP|国家代码
+     * <p>中国|江苏省|苏州市|电信|CN → 江苏苏州(电信)</p>
+     * <p>注：2.x 为「国家|区域|省份|城市|ISP」五段，3.x 起区域段取消、末尾追加国家代码，
+     * 字段整体左移一位，故此处按 3.x 下标解析。</p>
      */
     static String formatRegion(String region) {
         if (!StringUtils.hasText(region)) {
@@ -181,14 +190,14 @@ public final class IpLocationUtils {
         StringBuilder location = new StringBuilder();
 
         if (parts.length >= 5) {
+            if (!"0".equals(parts[1])) {
+                location.append(normalizePlace(parts[1]));
+            }
             if (!"0".equals(parts[2])) {
                 location.append(normalizePlace(parts[2]));
             }
             if (!"0".equals(parts[3])) {
-                location.append(normalizePlace(parts[3]));
-            }
-            if (!"0".equals(parts[4])) {
-                location.append("(").append(parts[4]).append(")");
+                location.append("(").append(parts[3]).append(")");
             }
         } else if (parts.length >= 3) {
             location.append(normalizePlace(parts[parts.length - 2]));
