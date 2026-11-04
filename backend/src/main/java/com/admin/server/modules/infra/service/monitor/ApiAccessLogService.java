@@ -2,7 +2,7 @@ package com.admin.server.modules.infra.service.monitor;
 
 import com.admin.server.common.core.PageResult;
 import com.admin.server.modules.infra.dal.dataobject.monitor.ApiAccessLogDO;
-import com.baomidou.mybatisplus.extension.service.IService;
+import com.baomidou.mybatisplus.spring.service.IService;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;

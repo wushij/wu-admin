@@ -265,7 +265,11 @@ export function bytesToBase64(bytes: Uint8Array): string {
     }
     return btoa(binary)
   }
-  return Buffer.from(bytes).toString('base64')
+  const nodeBuffer = (globalThis as unknown as { Buffer?: { from(input: Uint8Array): { toString(encoding: string): string } } }).Buffer
+  if (nodeBuffer) {
+    return nodeBuffer.from(bytes).toString('base64')
+  }
+  throw new Error('当前运行环境不支持 Base64 编码')
 }
 
 export function base64ToBytes(base64: string): Uint8Array {
@@ -277,7 +281,11 @@ export function base64ToBytes(base64: string): Uint8Array {
     }
     return bytes
   }
-  return new Uint8Array(Buffer.from(base64, 'base64'))
+  const nodeBuffer = (globalThis as unknown as { Buffer?: { from(input: string, encoding: string): ArrayLike<number> } }).Buffer
+  if (nodeBuffer) {
+    return new Uint8Array(nodeBuffer.from(base64, 'base64'))
+  }
+  throw new Error('当前运行环境不支持 Base64 解码')
 }
 
 export function generateRandomBytes(length: number): Uint8Array {

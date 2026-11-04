@@ -36,6 +36,7 @@ import { Connection, Refresh, TopRight } from '@element-plus/icons-vue'
 const docUrl = '/doc.html'
 
 const iframeRef = ref<HTMLIFrameElement | null>(null)
+defineExpose({ iframeRef })
 const loading = ref(true)
 const frameKey = ref(0)
 

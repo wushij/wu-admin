@@ -118,7 +118,13 @@ function isSignKeyExpiredMessage(text?: string): boolean {
   return text.includes('签名密钥') || text.includes('签名验证失败') || text.includes('X-Signature')
 }
 
-async function retryRequestWithNewSignKey(cfg: any): Promise<any> {
+type CustomAxiosRequestConfig = InternalAxiosRequestConfig & {
+  silent403?: boolean
+  _rawBody?: unknown
+  _isRetrySign?: boolean
+}
+
+async function retryRequestWithNewSignKey(cfg: CustomAxiosRequestConfig): Promise<AxiosResponse> {
   cfg._isRetrySign = true
   clearSignKeys()
   try {
@@ -139,7 +145,7 @@ service.interceptors.request.use(
     if (config.data === null) {
       config.data = undefined
     }
-    const customCfg = config as InternalAxiosRequestConfig & { _rawBody?: any; _isRetrySign?: boolean }
+    const customCfg = config as CustomAxiosRequestConfig
     if (customCfg._rawBody === undefined) {
       customCfg._rawBody = config.data
     } else {

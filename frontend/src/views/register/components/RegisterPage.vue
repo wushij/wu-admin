@@ -138,6 +138,7 @@ const {
   handleRegister,
   goLogin,
 } = useRegisterForm()
+defineExpose({ formRef })
 </script>
 
 <style scoped src="./register-form.css"></style>

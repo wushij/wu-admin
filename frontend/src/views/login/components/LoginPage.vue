@@ -256,6 +256,7 @@ const {
   onSliderSuccess,
   goRegister,
 } = useLoginForm()
+defineExpose({ formRef })
 </script>
 
 <style scoped src="./login-form.css"></style>

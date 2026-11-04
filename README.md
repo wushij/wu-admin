@@ -2,15 +2,23 @@
 
 # 🛡️ Admin Platform · Wu-Admin
 
-### 企业级后台 · RBAC 权限 · PC + 移动端一体
+### 企业级后台 · 细粒度权限 · PC + 移动端一体
 
 [![GitHub Repo](https://img.shields.io/badge/GitHub-wushij%2Fwu--admin-181717?style=flat-square&logo=github)](https://github.com/wushij/wu-admin)
 [![Gitee Repo](https://img.shields.io/badge/Gitee-wusj17%2Fwu--admin-C71D23?style=flat-square&logo=gitee)](https://gitee.com/wusj17/wu-admin)
 [![Online Demo](https://img.shields.io/badge/Demo-wushij.com-0078D4?style=flat-square&logo=googlechrome)](https://wushij.com)
-[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5+-6DB33F?style=flat-square&logo=springboot)](https://spring.io/projects/spring-boot)
-[![Vue 3](https://img.shields.io/badge/Vue-3.4+-4FC08D?style=flat-square&logo=vuedotjs)](https://vuejs.org)
-[![MySQL](https://img.shields.io/badge/MySQL-8.0+-4479A1?style=flat-square&logo=mysql)](https://www.mysql.com)
-[![Redis](https://img.shields.io/badge/Redis-7.x-DC382D?style=flat-square&logo=redis)](https://redis.io)
+[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5.16-6DB33F?style=flat-square&logo=springboot)](https://spring.io/projects/spring-boot)
+[![JDK](https://img.shields.io/badge/JDK-17-ED8B00?style=flat-square&logo=openjdk)](https://openjdk.org)
+[![MyBatis Plus](https://img.shields.io/badge/MyBatis%20Plus-3.5.18-1B6B93?style=flat-square)](https://baomidou.com)
+[![Sa-Token](https://img.shields.io/badge/Sa--Token-1.46.0-2E9E5B?style=flat-square)](https://sa-token.cc)
+[![Vue 3](https://img.shields.io/badge/Vue-3.5.44-4FC08D?style=flat-square&logo=vuedotjs)](https://vuejs.org)
+[![TypeScript](https://img.shields.io/badge/TypeScript-6.0.3-3178C6?style=flat-square&logo=typescript)](https://www.typescriptlang.org)
+[![Vite](https://img.shields.io/badge/Vite-8.3.5-646CFF?style=flat-square&logo=vite)](https://vite.dev)
+[![Element Plus](https://img.shields.io/badge/Element%20Plus-2.14.7-409EFF?style=flat-square)](https://element-plus.org)
+[![uni-app](https://img.shields.io/badge/uni--app-3.0-2B9939?style=flat-square)](https://uniapp.dcloud.net.cn)
+[![MySQL](https://img.shields.io/badge/MySQL-8.0-4479A1?style=flat-square&logo=mysql)](https://www.mysql.com)
+[![Redis](https://img.shields.io/badge/Redis-7.4-DC382D?style=flat-square&logo=redis)](https://redis.io)
+[![Node.js](https://img.shields.io/badge/Node.js-24-5FA04E?style=flat-square&logo=nodedotjs)](https://nodejs.org)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg?style=flat-square)](LICENSE)
 
 <p align="center">
@@ -27,7 +35,7 @@
 
 ---
 
-**Admin Platform（Wu-Admin）** 是一套基于 **Vue 3 + Spring Boot** 的企业级后台管理系统，配套 **uni-app 移动端（H5 / 微信小程序）**。覆盖组织（部门）数据隔离、RBAC 权限、工单审批、企业 IM、AI 智能助手与知识库、系统监控大屏、多引擎文件存储、代码生成、支付/短信集成等场景，已部署上线运行。
+**Admin Platform（Wu-Admin）** 是一套基于 **Vue 3 + Spring Boot** 的企业级后台管理系统，配套 **uni-app 移动端（H5 / 微信小程序）**。覆盖组织（部门）数据隔离、角色权限、工单审批、企业 IM、AI 智能助手与知识库、系统监控大屏、多引擎文件存储、代码生成、支付/短信集成等场景，已部署上线运行。
 
 > 🔗 **在线体验**：PC 端 <https://wushij.com> · 移动端 H5 <https://app.wushij.com> · 体验账号 `zhangsan` / `zhangsan123`
 
@@ -72,7 +80,7 @@
 - **标准组织与岗位**：内置「总公司 / 研发部 / 运营部」三级部门与「总经理 / 技术总监 / 研发工程师」三岗位，开箱即用
 - **五维组织架构**：用户 → 角色 → 菜单 → 部门 → 岗位，全关联管理
 - **数据权限五级范围**：全部/自定义/本部门/本部门及以下/仅本人，角色编辑页可视化配置，后端按可见部门集合过滤列表数据
-- **RBAC 权限模型**：菜单按角色动态渲染侧栏，按钮级权限指令 `v-permission`/`v-role`
+- **角色权限模型**：菜单按角色动态渲染侧栏，按钮级权限指令 `v-permission`/`v-role`
 - **系统配置热更新**：12 组配置（下表），Redis 缓存 + 数据库双写，运行时即时生效
 
 | 分组 | 名称 | 关键能力 |
@@ -176,24 +184,25 @@
 ## 🏗 技术栈
 
 **后端**
-- Spring Boot **3.5.13** · Sa-Token **1.39.0**（登录态 + `@RequirePermission` AOP 鉴权）
+- Spring Boot **3.5.16** · Sa-Token **1.46.0**（登录态 + `@RequirePermission` AOP 鉴权）
 - `spring-security-crypto`（仅保留 BCrypt，不引入 Web 安全过滤器）
-- MyBatis Plus 3.5.9（分页上限 500）· Druid 1.2.24 · Redis + Redisson 3.41.0
-- BouncyCastle **1.78.1**（SM4-GCM / SM2）· MinIO Java SDK **8.5.10**（S3 通道兼容阿里云 OSS / 腾讯云 COS）
-- Quartz · Knife4j 4.5.0 + Springdoc 2.8.9
-- Hutool / EasyExcel / ZXing / ip2region
+- MyBatis Plus 3.5.18（分页上限 500）· Druid 1.2.28 · Redis + Redisson 3.52.0
+- BouncyCastle **1.86**（SM4-GCM / SM2）· MinIO Java SDK **9.0.4**（S3 通道兼容阿里云 OSS / 腾讯云 COS）· OkHttp 5.5
+- Quartz · Knife4j 4.5.0 + Springdoc 2.10.0
+- 支付：微信支付 Java SDK **0.2.17** · 支付宝 SDK **4.40.1061**；短信：阿里云 **4.6.0** / 阿里云号码认证 **2.0.0** / 腾讯云 **3.2.18**
+- Hutool 5.8.48 · EasyExcel 4.0.3 · ZXing 3.5.4 · ip2region 3.3.7
 
 **前端**
-- Vue **3.4** + Composition API + TypeScript 5.3
-- Pinia 2.1.7 · Element Plus 2.4.0 · Vite 5
-- ECharts 5.6 · Three.js 0.184 · tsparticles（engine/slim 3.9 + vue3 3.0）· @iconify/vue 5
-- sm-crypto 0.5（浏览器端 SM2/SM3/SM4）· markdown-it 14 + highlight.js 11（AI 对话流式 Markdown 渲染与代码高亮）
+- Vue **3.5.44** + Composition API + TypeScript 6.0.3
+- Pinia 4.1 · Vue Router 5.4 · Element Plus 2.14.7 · Vite 8.3.5
+- ECharts 6.1 · Three.js 0.187 · tsparticles 4.5 · @iconify/vue 5
+- sm-crypto 0.5.8（浏览器端 SM2/SM3/SM4）· markdown-it 15 + highlight.js 11（AI 对话流式 Markdown 渲染与代码高亮）
 
-**移动端**：uni-app 3.0（Vue 3）· uv-ui 1.1.20 · luch-request 3.1.1 · sm-crypto · markdown-it/highlight.js
+**移动端**：uni-app 3.0（Vue 3.5）· uv-ui 1.1.20 · Pinia 4.1 · luch-request 4.0 · sm-crypto 0.5.8 · markdown-it 15 / highlight.js 11
 
-**运行时**：JDK **17** · MySQL **8.0** · Redis **7.x** · Node.js 18+ · Maven 3.6+
+**运行时**：JDK **17** · MySQL **8.0** · Redis **7.4** · Node.js 24+ · Maven 3.6+
 
-**测试**：Vitest（前端）· JUnit 5 + Mockito（后端）——具体用例数随发版变化，以 `npm run test` / `mvn test` 实际跑出为准
+**测试**：Vitest 5（前端）· JUnit 5 + Mockito（后端）——具体用例数随发版变化，以 `npm run test` / `mvn test` 实际跑出为准
 
 ---
 
@@ -249,11 +258,11 @@
 
 | 软件 | 版本 | 说明 |
 |------|------|------|
-| Node.js | 18+ | 前端 & uni-app |
+| Node.js | 24+ | 前端 & uni-app |
 | JDK | 17 | 后端 |
 | Maven | 3.6+ | 后端构建 |
 | MySQL | 8.0 | 本地库名 `wu-admin`，生产 `wuadmin` |
-| Redis | 7.x | database 1 |
+| Redis | 7.4 | database 1 |
 
 ### 1. 初始化数据库
 
@@ -606,7 +615,7 @@ uniapp/src/
 ### 运行测试
 
 ```powershell
-# 前端（Vitest + happy-dom）
+# 前端（Vitest 5 + happy-dom）
 cd frontend && npm run test
 
 # 后端（JUnit 5 + Mockito）
@@ -632,7 +641,7 @@ cd backend && mvn test -Dtest=AuthServiceImplTest
 | Job | 环境 | 步骤 |
 |-----|------|------|
 | Backend (Maven) | Ubuntu, JDK 17 | `mvn -B test` |
-| Frontend (Node) | Ubuntu, Node 20 | `npm run typecheck` → `npm run test` |
+| Frontend (Node) | Ubuntu, Node 24 | `npm run typecheck` → `npm run test` |
 
 > 并发控制：同一分支有新提交时旧 run 自动取消。配置见 `.github/workflows/ci.yml`。
 

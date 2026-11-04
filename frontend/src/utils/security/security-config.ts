@@ -75,7 +75,23 @@ function stopHeartbeatTimer(): void {
   }
 }
 
-function startHeartbeatTimer(axiosInstance: any): void {
+export interface SessionSignInitResponse {
+  data?: {
+    enabled?: boolean
+    sm3SignKey?: string
+    sm4Key?: string
+  }
+}
+
+export interface SessionSignHttpClient {
+  post(
+    url: string,
+    data?: unknown,
+    config?: { params?: Record<string, string> },
+  ): Promise<SessionSignInitResponse>
+}
+
+function startHeartbeatTimer(axiosInstance: SessionSignHttpClient): void {
   stopHeartbeatTimer()
   // 每 20 分钟自动静默刷新一次签名密钥，防止 Redis Key（120分钟）过期
   refreshTimer = setTimeout(() => {
@@ -102,7 +118,7 @@ export function clearSignKeys(): void {
   sessionSignRetryAfter = 0
 }
 
-let sessionSignPromise: Promise<any> | null = null
+let sessionSignPromise: Promise<SessionSignInitResponse | null> | null = null
 /** 初始化失败后的冷却截止时间：未登录/无凭证时避免每个请求都打一次 session-sign-init */
 let sessionSignRetryAfter = 0
 const SESSION_SIGN_FAIL_BACKOFF_MS = 30_000
@@ -116,7 +132,9 @@ const SESSION_SIGN_FAIL_BACKOFF_MS = 30_000
  * - 失败时才清空 Promise，允许下次重试。
  * - resetSecurityConfig（登出）时一并清空，保证下次登录重新初始化。
  */
-export function requestSessionSignKey(axiosInstance: any): Promise<any> {
+export function requestSessionSignKey(
+  axiosInstance: SessionSignHttpClient,
+): Promise<SessionSignInitResponse | null> {
   // 快速返回：密钥已在内存，无需再请求
   const existing = securityConfig
   if (existing.sm3SignKey || existing.sm4Key) {

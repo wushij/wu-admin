@@ -143,7 +143,7 @@ onLoad((options) => {
 </script>
 
 <style lang="scss" scoped>
-@import '@/styles/variables.scss';
-@import '@/styles/common.scss';
-@import '@/styles/module-form-page.scss';
+@use '@/styles/variables.scss' as *;
+@use '@/styles/common.scss' as *;
+@use '@/styles/module-form-page.scss' as *;
 </style>

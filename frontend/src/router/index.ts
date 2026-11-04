@@ -229,7 +229,7 @@ function hasRoutePermission(userStore: ReturnType<typeof useUserStore>, required
   return hasMenuPermission(userStore.menus || [], requiredPerm)
 }
 
-router.beforeEach(async (to, _from, next) => {
+router.beforeEach(async (to) => {
   const siteStore = useSiteStore()
   await siteStore.ensureConfigLoaded()
 
@@ -239,9 +239,7 @@ router.beforeEach(async (to, _from, next) => {
 
   if (to.meta.requiresAuth === false) {
     if (to.path === '/login' && userStore.isLoggedIn) {
-      next('/')
-    } else {
-      next()
+      return '/'
     }
     return
   }
@@ -251,14 +249,12 @@ router.beforeEach(async (to, _from, next) => {
       await userStore.refreshUserStore()
     } catch (error) {
       console.error('获取用户信息失败:', error)
-      next('/login')
-      return
+      return '/login'
     }
   }
 
   if (!userStore.isLoggedIn) {
-    next('/login')
-    return
+    return '/login'
   }
 
   const required = to.matched
@@ -267,11 +263,8 @@ router.beforeEach(async (to, _from, next) => {
     .find((record) => record.meta.permission)?.meta.permission
 
   if (required && !hasRoutePermission(userStore, required)) {
-    next('/403')
-    return
+    return '/403'
   }
-
-  next()
 })
 
 export default router

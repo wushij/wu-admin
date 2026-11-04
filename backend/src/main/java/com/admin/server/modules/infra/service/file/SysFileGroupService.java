@@ -1,7 +1,7 @@
 package com.admin.server.modules.infra.service.file;
 
 import com.admin.server.modules.infra.dal.dataobject.file.SysFileGroupDO;
-import com.baomidou.mybatisplus.extension.service.IService;
+import com.baomidou.mybatisplus.spring.service.IService;
 
 import java.util.Map;
 

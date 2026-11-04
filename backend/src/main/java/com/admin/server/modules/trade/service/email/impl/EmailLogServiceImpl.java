@@ -4,7 +4,7 @@ import com.admin.server.common.util.ClientIpUtils;
 import com.admin.server.modules.trade.dal.dataobject.email.EmailLogDO;
 import com.admin.server.modules.trade.dal.mysql.email.EmailLogMapper;
 import com.admin.server.modules.trade.service.email.EmailLogService;
-import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
 import jakarta.annotation.PostConstruct;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;

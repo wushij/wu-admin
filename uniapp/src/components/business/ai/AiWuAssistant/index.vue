@@ -655,5 +655,5 @@ function copyMessage(content: string, id: string | number) {
 </script>
 
 <style lang="scss" scoped>
-@import './ai-wu-assistant.scss';
+@use './ai-wu-assistant.scss' as *;
 </style>
