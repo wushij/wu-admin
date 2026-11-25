@@ -285,6 +285,9 @@ public class SysConfigGroupServiceImpl implements SysConfigGroupService {
             case SystemConfigHelper.GROUP_AI:
                 validateAiConfig(json);
                 break;
+            case SystemConfigHelper.GROUP_THIRD_PARTY:
+                validateThirdPartyConfig(json);
+                break;
             case SystemConfigHelper.GROUP_SECURITY:
                 validateSecurityConfig(json);
                 break;
@@ -511,6 +514,64 @@ public class SysConfigGroupServiceImpl implements SysConfigGroupService {
         }
         if (StrUtil.isBlank(provider) || (!"aliyunAuth".equals(provider) && !"tencent".equals(provider))) {
             throw new BusinessException("短信服务商仅支持 aliyunAuth 或 tencent");
+        }
+    }
+
+    /** 校验第三方配置中的 Tavily 与自定义联网搜索引擎参数合法性及 SSRF 安全边界。 */
+    private void validateThirdPartyConfig(JSONObject json) {
+        JSONObject tavily = json.getJSONObject("tavily");
+        if (tavily != null && tavily.containsKey("maxResults")) {
+            int maxResults = tavily.getInt("maxResults", 5);
+            if (maxResults < 1 || maxResults > 10) {
+                throw new BusinessException("Tavily 返回条数须在 1～10 之间");
+            }
+        }
+        JSONObject webSearch = json.getJSONObject("webSearch");
+        if (webSearch == null) {
+            return;
+        }
+        JSONArray customProviders = webSearch.getJSONArray("customProviders");
+        if (customProviders == null) {
+            return;
+        }
+        if (customProviders.size() > 20) {
+            throw new BusinessException("自定义联网搜索引擎最多配置 20 个");
+        }
+        for (int i = 0; i < customProviders.size(); i++) {
+            JSONObject item = customProviders.getJSONObject(i);
+            if (item == null) {
+                throw new BusinessException("自定义联网搜索引擎配置项格式非法");
+            }
+            if (StrUtil.isBlank(item.getStr("name"))) {
+                throw new BusinessException("自定义联网搜索引擎名称不能为空");
+            }
+            String endpointUrl = item.getStr("endpointUrl");
+            if (StrUtil.isNotBlank(endpointUrl)) {
+                try {
+                    WebhookUrlValidator.validateAllowingProxyDns(endpointUrl);
+                } catch (IllegalArgumentException e) {
+                    String msg = e.getMessage() != null ? e.getMessage().replace("告警 webhook", "接口地址") : "接口地址非法";
+                    throw new BusinessException("引擎「" + item.getStr("name") + "」" + msg);
+                }
+            } else if (Boolean.TRUE.equals(item.getBool("enabled"))) {
+                throw new BusinessException("启用的自定义搜索引擎「" + item.getStr("name") + "」接口地址不能为空");
+            }
+            String extraBodyJson = item.getStr("extraBodyJson");
+            if (StrUtil.isNotBlank(extraBodyJson)) {
+                try {
+                    String trimmed = extraBodyJson.trim();
+                    if (!trimmed.startsWith("{") || !trimmed.endsWith("}")) {
+                        throw new IllegalArgumentException("not object");
+                    }
+                    JSONUtil.parseObj(trimmed);
+                } catch (Exception ex) {
+                    throw new BusinessException("引擎「" + item.getStr("name") + "」扩展请求体必须是合法的 JSON 对象");
+                }
+            }
+            int timeoutMs = item.getInt("timeoutMs", 15000);
+            if (timeoutMs < 1000 || timeoutMs > 30000) {
+                throw new BusinessException("引擎「" + item.getStr("name") + "」超时时间须在 1000～30000 毫秒之间");
+            }
         }
     }
 }

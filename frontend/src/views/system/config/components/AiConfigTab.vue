@@ -26,7 +26,6 @@
       </div>
 
       <div class="card-body">
-        <!-- 默认每用户每日配额 -->
         <div class="quota-item default-quota-item">
           <div class="item-info">
             <div class="item-title">每用户默认每日配额</div>
@@ -48,7 +47,6 @@
 
         <el-divider class="quota-divider" />
 
-        <!-- 角色配额 -->
         <div class="quota-item role-quota-item">
           <div class="role-header-row">
             <div class="item-info">
@@ -57,7 +55,6 @@
             </div>
             <el-button
               type="primary"
-              class="add-role-btn"
               :icon="Plus"
               :disabled="!canEdit || draft.roleTokenQuotas.length >= 50"
               @click="addRow"
@@ -68,6 +65,7 @@
 
           <div class="role-table-container">
             <el-table
+              v-if="draft.roleTokenQuotas.length"
               :data="draft.roleTokenQuotas"
               size="default"
               stripe
@@ -108,7 +106,9 @@
               <el-table-column label="生效规则说明" width="130" align="center">
                 <template #default="{ row }">
                   <el-tag v-if="row.tokensDaily === 0" type="success" size="small" effect="light">无限制</el-tag>
-                  <el-tag v-else type="info" size="small" effect="plain">{{ row.tokensDaily?.toLocaleString() }} Tokens</el-tag>
+                  <el-tag v-else type="info" size="small" effect="plain" class="motion-tabular">
+                    {{ row.tokensDaily?.toLocaleString() }} Tokens
+                  </el-tag>
                 </template>
               </el-table-column>
               <el-table-column label="操作" width="90" align="center">
@@ -117,7 +117,6 @@
                     type="danger"
                     link
                     size="small"
-                    class="delete-action-btn"
                     :disabled="!canEdit"
                     @click="removeRow($index)"
                   >
@@ -125,29 +124,24 @@
                   </el-button>
                 </template>
               </el-table-column>
-              <template #empty>
-                <div class="empty-holder">
-                  <el-empty description="暂未配置角色差异化配额，全员使用默认配额" :image-size="48">
-                    <el-button
-                      v-if="canEdit"
-                      type="primary"
-                      link
-                      :icon="Plus"
-                      class="empty-quick-add-btn"
-                      @click="addRow"
-                    >
-                      立即添加第一条角色配额
-                    </el-button>
-                  </el-empty>
-                </div>
-              </template>
             </el-table>
+
+            <EmptyState
+              v-else
+              title="暂未配置角色差异化配额"
+              description="当前全员将统一按默认每日配额执行"
+            >
+              <template v-if="canEdit" #actions>
+                <el-button type="primary" plain :icon="Plus" @click="addRow">添加第一条角色配额</el-button>
+              </template>
+            </EmptyState>
           </div>
 
-          <div class="quota-rules-hint">
-            <el-icon class="hint-icon"><InfoFilled /></el-icon>
-            <span>多角色用户自动按最高配额生效；配额设为 0 表示该角色不限制使用 Token。</span>
-          </div>
+          <InlineAlert
+            type="info"
+            title="多角色用户自动按最高配额生效；配额设为 0 表示该角色不限制使用 Token。"
+            compact
+          />
         </div>
       </div>
     </div>
@@ -155,13 +149,16 @@
 </template>
 
 <script setup lang="ts">
-import { Coin, Plus, InfoFilled } from '@element-plus/icons-vue'
-import { ElMessageBox } from 'element-plus'
+import { Coin, Plus } from '@element-plus/icons-vue'
+import EmptyState from '@/components/ui/EmptyState.vue'
+import InlineAlert from '@/components/ui/InlineAlert.vue'
 import type { ConfigGroupMap } from '@/types/config'
 import type { RoleOption } from '../composables/useConfigDraft'
+import { showSnackbar } from '@/composables/ui/useSnackbar'
 
-const props = defineProps<{
-  draft: ConfigGroupMap['ai']
+const draft = defineModel<ConfigGroupMap['ai']>('draft', { required: true })
+
+defineProps<{
   canEdit: boolean
   roleOptions: RoleOption[]
 }>()
@@ -169,61 +166,60 @@ const props = defineProps<{
 /** 已被其它行选用的角色置灰（当前行已选值除外），避免重复配置同一角色 */
 function isRoleUsed(roleId: number, currentRoleId: number): boolean {
   if (roleId === currentRoleId) return false
-  return props.draft.roleTokenQuotas.some((q) => q.roleId === roleId)
+  return draft.value.roleTokenQuotas.some((q) => q.roleId === roleId)
 }
 
 function addRow() {
-  props.draft.roleTokenQuotas.push({ roleId: 0, tokensDaily: 0 })
+  draft.value.roleTokenQuotas.push({ roleId: 0, tokensDaily: 0 })
 }
 
-async function removeRow(index: number) {
-  try {
-    await ElMessageBox.confirm('确定要删除该角色的 Token 配额规则吗？', '提示', {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning',
-    })
-    props.draft.roleTokenQuotas.splice(index, 1)
-  } catch {
-    // 用户取消删除
-  }
+function removeRow(index: number) {
+  const removed = draft.value.roleTokenQuotas.splice(index, 1)[0]
+  if (!removed) return
+  showSnackbar({
+    message: '已移除一条角色 Token 配额规则',
+    variant: 'info',
+    actionLabel: '撤销',
+    onAction: () => {
+      draft.value.roleTokenQuotas.splice(index, 0, removed)
+    },
+  })
 }
 </script>
 
-<style scoped>
+<style scoped lang="scss">
 .ai-config-tab {
   max-width: 760px;
-  padding-top: 8px;
+  padding-top: var(--space-2);
 }
 
 .config-form {
-  margin-bottom: 20px;
+  margin-bottom: var(--space-5);
 }
 
 .switch-with-tip {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-3);
+  flex-wrap: wrap;
 }
 
 .form-item-tip {
-  font-size: 12px;
-  color: var(--el-text-color-secondary, #909399);
-  white-space: nowrap;
+  font-size: var(--text-caption);
+  color: var(--color-text-secondary);
 }
 
 .token-quota-card {
-  border: 1px solid var(--el-border-color-lighter, #e4e7ed);
-  border-radius: 8px;
-  background-color: var(--el-bg-color-overlay, #ffffff);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background-color: var(--color-bg-surface);
   overflow: hidden;
 }
 
 .card-header {
-  padding: 16px 20px;
-  background-color: var(--el-fill-color-light, #f8f9fa);
-  border-bottom: 1px solid var(--el-border-color-lighter, #e4e7ed);
+  padding: var(--space-4) var(--space-5);
+  background-color: var(--color-bg-subtle);
+  border-bottom: 1px solid var(--color-border-subtle);
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -232,61 +228,64 @@ async function removeRow(index: number) {
 .title-group {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .title-icon {
   font-size: 18px;
-  color: var(--el-color-primary, #409eff);
+  color: var(--el-color-primary);
 }
 
 .title-text {
   font-size: 15px;
   font-weight: 600;
-  color: var(--el-text-color-primary, #303133);
+  color: var(--color-text-primary);
 }
 
 .subtitle-text {
-  font-size: 12px;
-  color: var(--el-text-color-secondary, #909399);
+  font-size: var(--text-caption);
+  color: var(--color-text-secondary);
 }
 
 .card-body {
-  padding: 20px;
+  padding: var(--space-5);
 }
 
 .quota-item {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--space-3);
 }
 
 .default-quota-item {
   flex-direction: row;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-3);
 }
 
 .item-info {
   flex: 1;
+  min-width: 200px;
 }
 
 .item-title {
-  font-size: 14px;
+  font-size: var(--text-body);
   font-weight: 500;
-  color: var(--el-text-color-primary, #303133);
-  margin-bottom: 4px;
+  color: var(--color-text-primary);
+  margin-bottom: 2px;
 }
 
 .item-desc {
-  font-size: 12px;
-  color: var(--el-text-color-secondary, #909399);
+  font-size: var(--text-caption);
+  color: var(--color-text-secondary);
 }
 
 .item-control {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .quota-input-number {
@@ -295,106 +294,28 @@ async function removeRow(index: number) {
 
 .unit-text {
   font-size: 13px;
-  color: var(--el-text-color-regular, #606266);
+  color: var(--color-text-secondary);
   white-space: nowrap;
 }
 
 .quota-divider {
-  margin: 20px 0;
+  margin: var(--space-5) 0;
 }
 
 .role-header-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 14px;
+  gap: var(--space-3);
+  flex-wrap: wrap;
 }
 
 .role-table-container {
-  margin-bottom: 12px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   overflow: hidden;
 }
 
 .role-quota-table {
   width: 100%;
 }
-
-.quota-rules-hint {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  color: var(--el-text-color-secondary, #909399);
-  background-color: var(--el-fill-color-lighter, #fafafa);
-  padding: 8px 12px;
-  border-radius: 4px;
-  border: 1px solid var(--el-border-color-extra-light, #f2f3f5);
-}
-
-.hint-icon {
-  font-size: 14px;
-  color: var(--el-color-info, #909399);
-}
-
-.add-role-btn {
-  height: 32px;
-  padding: 0 16px;
-  font-size: 13px;
-  font-weight: 500;
-  border-radius: var(--admin-radius-md, 8px) !important;
-  background: var(--el-color-primary, #409eff) !important;
-  border: 1px solid var(--el-color-primary, #409eff) !important;
-  color: #ffffff !important;
-  box-shadow: 0 2px 6px rgba(64, 158, 255, 0.22);
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  letter-spacing: 0.3px;
-}
-
-.add-role-btn:hover:not(.is-disabled) {
-  background: var(--el-color-primary-light-3, #79bbff) !important;
-  border-color: var(--el-color-primary-light-3, #79bbff) !important;
-  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.35);
-  transform: translateY(-1px);
-}
-
-.add-role-btn:active:not(.is-disabled) {
-  transform: translateY(0);
-  box-shadow: 0 1px 4px rgba(64, 158, 255, 0.2);
-}
-
-.add-role-btn.is-disabled {
-  background: var(--el-fill-color-light, #f5f7fa) !important;
-  border-color: var(--el-border-color-lighter, #e4e7ed) !important;
-  color: var(--el-text-color-placeholder, #a8abb2) !important;
-  box-shadow: none !important;
-  cursor: not-allowed;
-}
-
-.empty-holder {
-  padding: 20px 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.empty-quick-add-btn {
-  margin-top: 10px;
-  font-size: 13px;
-  font-weight: 500;
-}
-
-.delete-action-btn {
-  font-size: 13px !important;
-  padding: 4px 8px !important;
-  transition: opacity 0.2s ease;
-}
-
-.delete-action-btn:hover:not(.is-disabled) {
-  opacity: 0.8;
-}
 </style>
-

@@ -1,6 +1,7 @@
 <template>
   <view class="register-page">
     <AuthParticleBackground />
+    <AuthGlassToast />
 
     <view class="register-page__content">
     <AuthGlassForm body-class="register-glass-body">
@@ -38,7 +39,14 @@
         </label>
       </view>
 
-      <button class="auth-submit" :loading="loading" @click="handleSubmit">注 册</button>
+      <AuthSubmitButton
+        variant="ice"
+        label="注 册"
+        loading-text="注册中…"
+        :loading="loading"
+        :success="registerSuccess"
+        @click="handleSubmit"
+      />
 
       <AuthFooterLink text="已有账号？" link-text="立即登录" @click="goLogin" />
     </AuthGlassForm>
@@ -49,17 +57,20 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, onMounted } from 'vue'
+import { reactive, ref, onMounted, onUnmounted } from 'vue'
 import { register, getCaptcha, getConfig } from '@/api/system/auth'
 import { useAppStore } from '@/store/app'
 import { sliderVerifyToRequest } from '@/utils/security/slider-captcha'
 import type { SliderVerifyPayload } from '@/utils/security/slider-captcha'
 import SliderCaptcha from '@/components/business/shared/SliderCaptcha/index.vue'
 import AuthParticleBackground from '@/components/business/auth/AuthParticleBackground/index.vue'
+import AuthGlassToast from '@/components/business/auth/AuthGlassToast/index.vue'
 import AuthGlassForm from '@/components/business/auth/AuthGlassForm/index.vue'
 import AuthInput from '@/components/business/auth/AuthInput/index.vue'
 import AuthPasswordInput from '@/components/business/auth/AuthPasswordInput/index.vue'
+import AuthSubmitButton from '@/components/business/auth/AuthSubmitButton/index.vue'
 import AuthFooterLink from '@/components/business/auth/AuthFooterLink/index.vue'
+import { showAuthToast } from '@/composables/auth/useAuthToast'
 import { toCaptchaDataUrl } from '@/utils/security/captcha'
 import { navigateToLogin } from '@/utils/nav/auth-route'
 import { useH5PageHead } from '@/composables/base/useH5PageHead'
@@ -69,6 +80,7 @@ useH5PageHead('注册')
 
 const appStore = useAppStore()
 const loading = ref(false)
+const registerSuccess = ref(false)
 const captchaEnabled = ref(true)
 const captchaType = ref<'image' | 'slider'>('image')
 const captchaImg = ref('')
@@ -78,6 +90,7 @@ const agreeTerms = ref(false)
 const agreeAlert = ref(false)
 let navigatingToLogin = false
 let refreshingCaptcha = false
+let redirectTimer: ReturnType<typeof setTimeout> | null = null
 
 const form = reactive({
   username: '',
@@ -114,19 +127,20 @@ async function refreshCaptcha() {
 }
 
 async function doRegister(sliderCaptcha?: { uuid: string; code: string }) {
+  if (loading.value || registerSuccess.value) return
   if (!agreeTerms.value) {
     agreeAlert.value = true
-    uni.showToast({ title: '请先同意用户协议', icon: 'none' })
+    showAuthToast('请先同意用户协议', 'warning')
     return
   }
   agreeAlert.value = false
   const username = form.username.trim()
   if (!username || !form.password) {
-    uni.showToast({ title: '请填写用户名和密码', icon: 'none' })
+    showAuthToast('请填写用户名和密码', 'warning')
     return
   }
   if (!/^[a-zA-Z0-9_]{4,12}$/.test(username)) {
-    uni.showToast({ title: '用户名只能包含字母、数字、下划线，长度4-12位', icon: 'none' })
+    showAuthToast('用户名只能包含字母、数字、下划线，长度4-12位', 'warning')
     return
   }
   loading.value = true
@@ -159,8 +173,12 @@ async function doRegister(sliderCaptcha?: { uuid: string; code: string }) {
       })
     } else {
       const msg = res.message || res.msg || '注册成功，请登录'
-      uni.showToast({ title: msg, icon: 'success' })
-      setTimeout(() => goLogin(), 500)
+      registerSuccess.value = true
+      showAuthToast(msg, 'success')
+      redirectTimer = setTimeout(() => {
+        redirectTimer = null
+        goLogin()
+      }, 780)
     }
   } catch (e) {
     console.error(e)
@@ -171,6 +189,7 @@ async function doRegister(sliderCaptcha?: { uuid: string; code: string }) {
 }
 
 function handleSubmit() {
+  if (loading.value || registerSuccess.value) return
   if (captchaEnabled.value && captchaType.value === 'slider') {
     showSlider.value = true
     return
@@ -194,6 +213,10 @@ function goLogin() {
 onMounted(async () => {
   await loadConfig()
   await refreshCaptcha()
+})
+
+onUnmounted(() => {
+  if (redirectTimer) clearTimeout(redirectTimer)
 })
 </script>
 
@@ -219,38 +242,38 @@ onMounted(async () => {
 }
 
 .auth-form__head {
-  margin-bottom: 8rpx;
+  margin-bottom: 12rpx;
   text-align: center;
 }
 
 .auth-form__title {
   display: block;
-  color: #fff;
-  font-size: 48rpx;
+  color: #f8fafc;
+  font-size: 50rpx;
   font-weight: 700;
-  letter-spacing: 0.04em;
-  text-shadow: 0 4rpx 24rpx rgba(0, 0, 0, 0.35);
+  letter-spacing: 0.02em;
+  line-height: 1.25;
 }
 
 .auth-form__platform {
   display: block;
-  margin-top: 12rpx;
-  color: rgba(230, 228, 250, 0.92);
-  font-size: 28rpx;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.35);
+  margin-top: 14rpx;
+  color: rgba(203, 213, 225, 0.72);
+  font-size: 26rpx;
+  font-weight: 400;
+  letter-spacing: 0.04em;
 }
 
 :deep(.register-glass-body) {
   display: flex;
   flex-direction: column;
-  gap: 24rpx;
+  gap: 28rpx;
 }
 
 .captcha-row {
   display: flex;
-  gap: 16rpx;
+  gap: 18rpx;
+  align-items: center;
 }
 
 .captcha-input {
@@ -258,30 +281,16 @@ onMounted(async () => {
 }
 
 .captcha-img {
-  width: 200rpx;
-  height: 96rpx;
-  border-radius: 16rpx;
-  background: #fff;
-}
-
-.auth-submit {
-  width: 100%;
-  height: 104rpx;
-  line-height: 104rpx;
-  margin-top: 8rpx;
-  border-radius: $radius-md;
-  font-size: 32rpx;
-  font-weight: 600;
-  letter-spacing: 4rpx;
-  border: 1px solid rgba(196, 181, 253, 0.42);
-  box-shadow:
-    0 20rpx 56rpx rgba(99, 102, 241, 0.38),
-    inset 0 1px 0 rgba(255, 255, 255, 0.18);
-  @include auth-submit-gradient;
+  width: 220rpx;
+  height: 92rpx;
+  border-radius: 9999rpx;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(248, 250, 252, 0.9);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35);
 }
 
 .agree-row {
-  padding: 4rpx 0;
+  padding: 0 8rpx;
 }
 
 .agree-row--alert {
@@ -290,11 +299,12 @@ onMounted(async () => {
 
 .agree-label {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 12rpx;
-  color: rgba(255, 255, 255, 0.85);
-  font-size: 24rpx;
+  color: rgba(226, 232, 240, 0.86);
+  font-size: 25rpx;
   line-height: 1.5;
+  @include auth-glass-checkbox;
 }
 
 @keyframes shake {
@@ -314,6 +324,6 @@ onMounted(async () => {
 <style lang="scss">
 page,
 uni-page-body {
-  background-color: #000000;
+  background-color: $color-auth-bg;
 }
 </style>

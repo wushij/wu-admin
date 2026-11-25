@@ -726,6 +726,7 @@ CREATE TABLE sys_ai_model (
     name VARCHAR(100) NOT NULL COMMENT '配置名称（展示用，如「DeepSeek 官方」）',
     provider VARCHAR(32) NOT NULL COMMENT '供应商标识: deepseek/kimi/zhipu/openai/custom',
     protocol VARCHAR(32) NOT NULL DEFAULT 'openai' COMMENT '接入协议: openai（OpenAI 兼容）/anthropic（Anthropic Messages）',
+    model_type VARCHAR(16) NOT NULL DEFAULT 'chat' COMMENT '模型类型: chat=对话模型 embedding=向量模型',
     model_name VARCHAR(100) NOT NULL COMMENT '模型名称（如 deepseek-v4.1-flash / glm-5.3 / claude-4.6）',
     base_url VARCHAR(255) NOT NULL COMMENT 'API 基础地址（不含具体接口路径）',
     path_template VARCHAR(500) DEFAULT '' COMMENT '自定义请求路径模板，支持 {model} 占位，空则按协议内置规则',
@@ -733,8 +734,10 @@ CREATE TABLE sys_ai_model (
     api_key VARCHAR(1024) DEFAULT '' COMMENT 'API 密钥（SM4-GCM 加密存储）',
     temperature DECIMAL(3,2) DEFAULT 0.70 COMMENT '采样温度 0~2',
     max_tokens INT DEFAULT 8192 COMMENT '单次回复最大 Token 数',
+    dimension INT NOT NULL DEFAULT 0 COMMENT '向量维度（向量模型必填，0=未声明）',
+    batch_size INT NOT NULL DEFAULT 16 COMMENT '向量化批量大小（单次请求文本条数）',
     system_prompt VARCHAR(2000) DEFAULT NULL COMMENT '系统提示词（角色设定）',
-    is_default TINYINT DEFAULT 0 COMMENT '是否默认模型 0:否 1:是（全局唯一）',
+    is_default TINYINT DEFAULT 0 COMMENT '是否默认模型 0:否 1:是（同类型内唯一）',
     status TINYINT DEFAULT 1 COMMENT '状态 0:禁用 1:启用',
     remark VARCHAR(500) DEFAULT NULL COMMENT '备注',
     create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
@@ -743,7 +746,8 @@ CREATE TABLE sys_ai_model (
     updater VARCHAR(64) DEFAULT '' COMMENT '更新者',
     deleted TINYINT DEFAULT 0 COMMENT '是否删除',
     INDEX idx_provider (provider),
-    INDEX idx_is_default (is_default)
+    INDEX idx_is_default (is_default),
+    INDEX idx_type_default (model_type, is_default)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='AI 模型供应商配置表';
 
 CREATE TABLE sys_ai_chat_log (
@@ -756,6 +760,11 @@ CREATE TABLE sys_ai_chat_log (
     model_name VARCHAR(100) DEFAULT '' COMMENT '模型名称',
     question TEXT COMMENT '用户提问（脱敏后）',
     answer MEDIUMTEXT COMMENT 'AI 回答',
+    reasoning MEDIUMTEXT DEFAULT NULL COMMENT '深度思考过程正文',
+    thinking_duration_ms BIGINT DEFAULT NULL COMMENT '深度思考耗时(毫秒)',
+    attachments_json MEDIUMTEXT DEFAULT NULL COMMENT '用户附件元数据(JSON数组)',
+    attachment_context MEDIUMTEXT DEFAULT NULL COMMENT '附件正文快照(用于历史上下文回放)',
+    citations_json MEDIUMTEXT DEFAULT NULL COMMENT '联网检索参考来源(JSON数组)',
     prompt_tokens INT DEFAULT 0 COMMENT '提问 Token 消耗',
     completion_tokens INT DEFAULT 0 COMMENT '回答 Token 消耗',
     total_tokens INT DEFAULT 0 COMMENT '总 Token 消耗',
@@ -790,6 +799,79 @@ CREATE TABLE IF NOT EXISTS sys_ai_knowledge (
     INDEX idx_status_category (status, category),
     FULLTEXT INDEX ft_knowledge (title, keywords, content) WITH PARSER ngram
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='AI 知识库';
+
+-- AI 知识库（RAG 三层结构：知识库 / 文档 / 切片）
+CREATE TABLE IF NOT EXISTS sys_ai_knowledge_base (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '知识库ID',
+    name VARCHAR(128) NOT NULL COMMENT '知识库名称',
+    description VARCHAR(500) NOT NULL DEFAULT '' COMMENT '知识库描述',
+    embedding_model_id BIGINT NOT NULL DEFAULT 0 COMMENT '向量模型ID（0=跟随默认向量模型）',
+    chunk_size INT NOT NULL DEFAULT 800 COMMENT '切片目标字符数',
+    chunk_overlap INT NOT NULL DEFAULT 128 COMMENT '切片重叠字符数',
+    document_count INT NOT NULL DEFAULT 0 COMMENT '文档数（冗余统计）',
+    chunk_count INT NOT NULL DEFAULT 0 COMMENT '切片数（冗余统计）',
+    index_status VARCHAR(16) NOT NULL DEFAULT 'IDLE' COMMENT '索引状态: IDLE/INDEXING/INDEXED/FAILED',
+    status TINYINT NOT NULL DEFAULT 1 COMMENT '状态: 1启用 0停用',
+    sort INT NOT NULL DEFAULT 0 COMMENT '排序权重（大者优先）',
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    creator VARCHAR(64) DEFAULT '' COMMENT '创建者',
+    updater VARCHAR(64) DEFAULT '' COMMENT '更新者',
+    deleted TINYINT DEFAULT 0 COMMENT '是否删除',
+    INDEX idx_status_sort (status, sort),
+    INDEX idx_index_status (index_status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='AI 知识库（RAG）';
+
+CREATE TABLE IF NOT EXISTS sys_ai_knowledge_document (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '文档ID',
+    knowledge_base_id BIGINT NOT NULL COMMENT '所属知识库ID',
+    legacy_knowledge_id BIGINT NOT NULL DEFAULT 0 COMMENT '迁移来源：旧 sys_ai_knowledge.id，0=非迁移',
+    file_id BIGINT NOT NULL DEFAULT 0 COMMENT '原始文件ID（sys_file，迁移数据为0）',
+    file_name VARCHAR(256) NOT NULL COMMENT '文件名',
+    file_type VARCHAR(32) NOT NULL DEFAULT 'md' COMMENT '文件类型: md/txt/pdf/docx',
+    file_size BIGINT NOT NULL DEFAULT 0 COMMENT '文件大小（字节）',
+    content_hash VARCHAR(64) NOT NULL DEFAULT '' COMMENT '正文哈希（去重）',
+    content MEDIUMTEXT COMMENT '解析后的正文（Markdown/纯文本）',
+    char_count INT NOT NULL DEFAULT 0 COMMENT '正文字符数',
+    chunk_count INT NOT NULL DEFAULT 0 COMMENT '切片数',
+    parse_status VARCHAR(16) NOT NULL DEFAULT 'PENDING' COMMENT '解析状态: PENDING/PARSING/SUCCESS/FAILED',
+    index_status VARCHAR(16) NOT NULL DEFAULT 'PENDING' COMMENT '向量状态: PENDING/INDEXING/INDEXED/PARTIAL/FAILED',
+    error_msg VARCHAR(500) NOT NULL DEFAULT '' COMMENT '最近一次处理失败原因',
+    status TINYINT NOT NULL DEFAULT 1 COMMENT '状态: 1启用 0停用',
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    creator VARCHAR(64) DEFAULT '' COMMENT '创建者',
+    updater VARCHAR(64) DEFAULT '' COMMENT '更新者',
+    deleted TINYINT DEFAULT 0 COMMENT '是否删除',
+    INDEX idx_kb_id (knowledge_base_id, id),
+    INDEX idx_legacy_knowledge_id (legacy_knowledge_id),
+    INDEX idx_content_hash (content_hash),
+    INDEX idx_index_status (index_status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='AI 知识库文档';
+
+CREATE TABLE IF NOT EXISTS sys_ai_knowledge_chunk (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '切片ID',
+    knowledge_base_id BIGINT NOT NULL COMMENT '所属知识库ID',
+    document_id BIGINT NOT NULL COMMENT '所属文档ID',
+    chunk_index INT NOT NULL DEFAULT 0 COMMENT '文档内切片序号（从0开始）',
+    heading VARCHAR(255) NOT NULL DEFAULT '' COMMENT '切片所属标题',
+    content TEXT NOT NULL COMMENT '切片正文',
+    char_count INT NOT NULL DEFAULT 0 COMMENT '字符数',
+    token_estimate INT NOT NULL DEFAULT 0 COMMENT 'Token 估算值',
+    embed_status VARCHAR(16) NOT NULL DEFAULT 'PENDING' COMMENT '向量状态: PENDING/INDEXED/FAILED',
+    embedding_model VARCHAR(100) NOT NULL DEFAULT '' COMMENT '向量化使用的模型名',
+    embedding_dim INT NOT NULL DEFAULT 0 COMMENT '向量维度',
+    embedding_vector MEDIUMTEXT COMMENT '向量 JSON 数组（进程内索引恢复用）',
+    error_msg VARCHAR(500) NOT NULL DEFAULT '' COMMENT '向量化失败原因',
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    creator VARCHAR(64) DEFAULT '' COMMENT '创建者',
+    updater VARCHAR(64) DEFAULT '' COMMENT '更新者',
+    deleted TINYINT DEFAULT 0 COMMENT '是否删除',
+    INDEX idx_doc_chunk (document_id, chunk_index),
+    INDEX idx_kb_embed (knowledge_base_id, embed_status),
+    INDEX idx_embed_status_id (embed_status, id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='AI 知识库切片';
 
 -- =============================================================================
 -- Part A.5  安全审计结构
@@ -897,7 +979,7 @@ INSERT INTO sys_config_group (group_code, group_name, config_value, remark) VALU
 ('rateLimit', '接口限流', '{"captchaPerIpMinute":40,"loginPerIpMinute":30,"registerPerIpMinute":10,"smsPerIpMinute":5,"smsSendIntervalSeconds":60,"smsPerPhoneDaily":10,"smsPerIpDaily":30,"apiPerIpMinute":240,"authPerIpMinute":60,"filesPerIpMinute":600}', '认证接口按 IP 限流；含应用层滑动窗口与短信防刷'),
 ('login', '登录配置', '{"captchaEnabled":true,"captchaType":"image","smsLoginEnabled":false,"smsLoginSliderCaptchaEnabled":false,"rememberMe":true,"maxRetryCount":5,"maxRetryCountIp":20,"lockTime":10}', '验证码 image/slider；smsLoginEnabled 短信登录；smsLoginSliderCaptchaEnabled 短信发送前滑块；maxRetryCount 账号锁定阈值；maxRetryCountIp IP 锁定阈值'),
 ('register', '注册配置', '{"enabled":true,"captchaEnabled":true,"captchaType":"image","defaultRoleCode":"user","needAudit":false,"minPasswordLength":6}', '开放注册、验证码类型、默认角色、是否审核'),
-('thirdParty', '第三方配置', '{"wechat":{"enabled":false,"appId":"","appSecret":""},"alipay":{"enabled":false,"appId":"","privateKey":"","publicKey":""},"github":{"enabled":false,"clientId":"","clientSecret":""},"google":{"enabled":false,"clientId":"","clientSecret":"","redirectUri":""}}', '微信/支付宝/GitHub/Google 第三方登录'),
+('thirdParty', '第三方配置', '{"wechat":{"enabled":false,"appId":"","appSecret":""},"alipay":{"enabled":false,"appId":"","privateKey":"","publicKey":""},"github":{"enabled":false,"clientId":"","clientSecret":""},"google":{"enabled":false,"clientId":"","clientSecret":"","redirectUri":""},"tavily":{"enabled":false,"apiKey":"","searchDepth":"basic","maxResults":5,"topic":"general","includeAnswer":true},"webSearch":{"enabled":true,"strategy":"custom_first","fallbackToDuckDuckGo":true,"customProviders":[]}}', '微信/支付宝/GitHub/Google 第三方登录及联网搜索配置'),
 ('payment', '支付配置', '{"wechatPay":{"enabled":false,"mchId":"","appId":"","apiV3Key":"","privateKey":"","certSerialNo":"","notifyUrl":""},"alipay":{"enabled":false,"appId":"","privateKey":"","publicKey":"","signType":"RSA2","gatewayUrl":"https://openapi.alipay.com/gateway.do","notifyUrl":"","returnUrl":""}}', '微信/支付宝支付与测试下单'),
 ('sms', '短信配置', '{"enabled":false,"provider":"aliyunAuth","accessKeyId":"","accessKeySecret":"","signName":"","tencentAppId":"","templateVerifyCode":"100001","templateModifyPhone":"100002","templateResetPassword":"100003","templateBindPhone":"100004","templateVerifyBindPhone":"100005","schemeName":"","codeExpireMinutes":5}', '阿里云短信认证/腾讯云'),
 ('email', '邮件配置', '{"enabled":false,"provider":"qq","host":"smtp.qq.com","port":465,"username":"","password":"","fromName":"wu-admin 系统团队","authEnabled":true,"securityType":"SSL","connectionTimeoutMs":5000,"timeoutMs":5000,"writeTimeoutMs":5000,"encoding":"UTF-8","debug":false,"codeExpireMinutes":5,"codeLength":6,"dailyLimitPerEmail":20,"sendIntervalSeconds":60}', '企业级 SMTP 邮件服务配置：发件人、SSL端口、超时限额与验证码防刷规则'),
@@ -1034,17 +1116,17 @@ INSERT INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, c
 (176, '通知删除', 'system:announce:delete', 3, 4, 171, '', '', '', 1),
 (177, '通知发布', 'system:announce:publish', 3, 5, 171, '', '', '', 1),
 (178, '聊天查询', 'system:chat:query', 3, 1, 172, '', '', '', 1),
--- AI 管理（顶级目录 210，排在开发工具之前）
-(210, 'AI 管理', '', 1, 8, 0, '/ai', 'Compass', '', 1),
+-- AI 运维（顶级目录 210，排在开发工具之前）
+(210, 'AI 运维', '', 1, 8, 0, '/ai', 'Compass', '', 1),
 (200, 'AI 模型配置', 'system:ai-model:list', 2, 1, 210, '/ai/model', 'AiModel', 'ai/model/index', 1),
 (207, 'AI模型查询', 'system:ai-model:query', 3, 1, 200, '', '', '', 1),
 (201, 'AI模型新增', 'system:ai-model:create', 3, 2, 200, '', '', '', 1),
 (202, 'AI模型修改', 'system:ai-model:update', 3, 3, 200, '', '', '', 1),
 (203, 'AI模型删除', 'system:ai-model:delete', 3, 4, 200, '', '', '', 1),
 (204, 'AI模型测试', 'system:ai-model:test', 3, 5, 200, '', '', '', 1),
-(205, 'AI 对话日志', 'system:ai-log:list', 2, 2, 210, '/ai/log', 'ChatDotRound', 'ai/log/index', 1),
-(208, 'AI日志查询', 'system:ai-log:query', 3, 1, 205, '', '', '', 1),
-(206, 'AI日志删除', 'system:ai-log:delete', 3, 2, 205, '', '', '', 1);
+(225, '知识文档上传', 'system:ai-knowledge:upload', 3, 5, 220, '', '', '', 1),
+(226, '知识向量重建', 'system:ai-knowledge:reindex', 3, 6, 220, '', '', '', 1),
+(227, '知识检索测试', 'system:ai-knowledge:retrieve', 3, 7, 220, '', '', '', 1);
 
 -- 内置定时任务（默认暂停 status=0，在「系统监控 → 定时任务」启用）
 INSERT INTO sys_job (id, job_name, job_group, invoke_target, cron_expression, misfire_policy, concurrent, status, remark) VALUES
@@ -1076,7 +1158,7 @@ INSERT INTO sys_role_menu (role_id, menu_id) VALUES
 (1, 105), (1, 110), (1, 111), (1, 112), (1, 113),
 (1, 150), (1, 151), (1, 164), (1, 165), (1, 166), (1, 167), (1, 168), (1, 169), (1, 179),
 (1, 170), (1, 171), (1, 172), (1, 173), (1, 174), (1, 175), (1, 176), (1, 177), (1, 178),
-(1, 210), (1, 200), (1, 207), (1, 201), (1, 202), (1, 203), (1, 204), (1, 205), (1, 208), (1, 206);
+(1, 210), (1, 200), (1, 207), (1, 201), (1, 202), (1, 203), (1, 204);
 
 -- 普通用户默认权限（与角色管理默认勾选一致；侧栏父级由 getUserMenuList 自动补齐）
 INSERT INTO sys_role_menu (role_id, menu_id) VALUES
@@ -1096,7 +1178,7 @@ INSERT INTO sys_role_menu (role_id, menu_id) VALUES
 -- 开发工具（已移除代码生成 164, 165, 169）
 (2, 151),
 -- AI 管理（已移除模型测试 204 与新增 201）
-(2, 200), (2, 207), (2, 205), (2, 208);
+(2, 200), (2, 207);
 
 -- =============================================================================
 -- ▼▼▼ MySQL 5.6 空库安装请在此停止 ▼▼▼
@@ -1171,8 +1253,8 @@ WHERE group_code = 'login'
 -- [附录·配置] 第三方 + 支付 + AI 助手分组（ON DUPLICATE 不覆盖已有 config_value）
 INSERT INTO sys_config_group (group_code, group_name, config_value, remark) VALUES
 ('thirdParty', '第三方配置',
- '{"wechat":{"enabled":false,"appId":"","appSecret":""},"alipay":{"enabled":false,"appId":"","privateKey":"","publicKey":""},"github":{"enabled":false,"clientId":"","clientSecret":""},"google":{"enabled":false,"clientId":"","clientSecret":"","redirectUri":""}}',
- '微信/支付宝/GitHub/Google 第三方登录密钥'),
+ '{"wechat":{"enabled":false,"appId":"","appSecret":""},"alipay":{"enabled":false,"appId":"","privateKey":"","publicKey":""},"github":{"enabled":false,"clientId":"","clientSecret":""},"google":{"enabled":false,"clientId":"","clientSecret":"","redirectUri":""},"tavily":{"enabled":false,"apiKey":"","searchDepth":"basic","maxResults":5,"topic":"general","includeAnswer":true},"webSearch":{"enabled":true,"strategy":"custom_first","fallbackToDuckDuckGo":true,"customProviders":[]}}',
+ '微信/支付宝/GitHub/Google 第三方登录及联网搜索密钥'),
 ('payment', '支付配置',
  '{"wechatPay":{"enabled":false,"mchId":"","appId":"","apiV3Key":"","privateKey":"","certSerialNo":"","notifyUrl":""},"alipay":{"enabled":false,"appId":"","privateKey":"","publicKey":"","signType":"RSA2","gatewayUrl":"https://openapi.alipay.com/gateway.do","notifyUrl":"","returnUrl":""}}',
  '微信/支付宝支付与测试下单'),
@@ -1192,6 +1274,25 @@ SET config_value = JSON_SET(
     )
 WHERE group_code = 'thirdParty'
   AND (JSON_EXTRACT(config_value, '$.google') IS NULL);
+
+-- [附录·配置] thirdParty 补 Tavily 与自定义联网搜索字段
+UPDATE sys_config_group
+SET config_value = JSON_SET(
+        config_value,
+        '$.tavily',
+        JSON_OBJECT('enabled', false, 'apiKey', '', 'searchDepth', 'basic', 'maxResults', 5, 'topic', 'general', 'includeAnswer', true)
+    )
+WHERE group_code = 'thirdParty'
+  AND (JSON_EXTRACT(config_value, '$.tavily') IS NULL);
+
+UPDATE sys_config_group
+SET config_value = JSON_SET(
+        config_value,
+        '$.webSearch',
+        JSON_OBJECT('enabled', true, 'strategy', 'custom_first', 'fallbackToDuckDuckGo', true, 'customProviders', JSON_ARRAY())
+    )
+WHERE group_code = 'thirdParty'
+  AND (JSON_EXTRACT(config_value, '$.webSearch') IS NULL);
 
 -- [附录·菜单] 系统配置页 160-162（INSERT IGNORE；强制同步见 sp_wu_admin_sync_builtin_menus）
 INSERT IGNORE INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, component, status) VALUES
@@ -1432,7 +1533,7 @@ INSERT IGNORE INTO sys_role_menu (role_id, menu_id) VALUES
 -- 开发工具（已移除代码生成 164, 165, 169）
 (2, 151),
 -- AI 管理（已移除模型新增 201 与测试 204）
-(2, 200), (2, 207), (2, 205), (2, 208),
+(2, 200), (2, 207),
 -- AI 知识库
 (2, 220), (2, 224);
 
@@ -2075,33 +2176,29 @@ SELECT rm.role_id, 191
 FROM sys_role_menu rm
 WHERE rm.menu_id = 163;
 
--- [附录·AI] add5：AI wu助手（sys_ai_model / sys_ai_chat_log + 「AI 管理」菜单，可重复执行）
+-- [附录·AI] add5：AI wu助手（sys_ai_model / sys_ai_chat_log + 「AI 运维」菜单，可重复执行）
 
 
--- 菜单：顶级目录「AI 管理」（id=210）+ AI 模型配置 / AI 对话日志 + 按钮权限
+-- 菜单：顶级目录「AI 运维」（id=210）+ AI 模型配置 + 按钮权限
 INSERT IGNORE INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, component, status) VALUES
-(210, 'AI 管理', '', 1, 8, 0, '/ai', 'Compass', '', 1),
+(210, 'AI 运维', '', 1, 8, 0, '/ai', 'Compass', '', 1),
 (200, 'AI 模型配置', 'system:ai-model:list', 2, 1, 210, '/ai/model', 'Operation', 'ai/model/index', 1),
 (207, 'AI模型查询', 'system:ai-model:query', 3, 1, 200, '', '', '', 1),
 (201, 'AI模型新增', 'system:ai-model:create', 3, 2, 200, '', '', '', 1),
 (202, 'AI模型修改', 'system:ai-model:update', 3, 3, 200, '', '', '', 1),
 (203, 'AI模型删除', 'system:ai-model:delete', 3, 4, 200, '', '', '', 1),
-(204, 'AI模型测试', 'system:ai-model:test', 3, 5, 200, '', '', '', 1),
-(205, 'AI 对话日志', 'system:ai-log:list', 2, 2, 210, '/ai/log', 'ChatDotRound', 'ai/log/index', 1),
-(208, 'AI日志查询', 'system:ai-log:query', 3, 1, 205, '', '', '', 1),
-(206, 'AI日志删除', 'system:ai-log:delete', 3, 2, 205, '', '', '', 1);
+(204, 'AI模型测试', 'system:ai-model:test', 3, 5, 200, '', '', '', 1);
 
--- 存量库迁移：早期版本曾将两个菜单挂在「系统管理」id=1 下，统一迁至「AI 管理」（可重复执行）
+-- 存量库迁移：早期版本曾将菜单挂在「系统管理」id=1 下，统一迁至「AI 运维」（可重复执行）
 UPDATE sys_menu SET parent_id = 210, sort = 1, path = '/ai/model', component = 'ai/model/index' WHERE id = 200;
-UPDATE sys_menu SET parent_id = 210, sort = 2, path = '/ai/log', component = 'ai/log/index' WHERE id = 205;
 
--- 顶级排序：「AI 管理」排在「开发工具」之前（可重复执行）
-UPDATE sys_menu SET sort = 8 WHERE id = 210;
+-- 顶级排序与命名：「AI 运维」排在「开发工具」之前（可重复执行）
+UPDATE sys_menu SET name = 'AI 运维', sort = 8 WHERE id = 210;
 UPDATE sys_menu SET sort = 9 WHERE id = 150;
 
 -- 超管默认拥有全部 AI 菜单权限
 INSERT IGNORE INTO sys_role_menu (role_id, menu_id) VALUES
-(1, 210), (1, 200), (1, 207), (1, 201), (1, 202), (1, 203), (1, 204), (1, 205), (1, 208), (1, 206);
+(1, 210), (1, 200), (1, 207), (1, 201), (1, 202), (1, 203), (1, 204);
 
 -- [附录·AI] add7：AI 知识库（RAG-lite）表 + 菜单与权限 + 示例知识（可重复执行）
 
@@ -2113,8 +2210,8 @@ INSERT IGNORE INTO sys_menu (id, name, permission, type, sort, parent_id, path, 
 (223, 'AI知识删除', 'system:ai-knowledge:delete', 3, 4, 220, '', '', '', 1);
 
 INSERT IGNORE INTO sys_role_menu (role_id, menu_id) VALUES
-(1, 220), (1, 224), (1, 221), (1, 222), (1, 223),
-(2, 220), (2, 224);
+(1, 220), (1, 224), (1, 221), (1, 222), (1, 223), (1, 225), (1, 226), (1, 227),
+(2, 220), (2, 224), (2, 225), (2, 226), (2, 227);
 
 INSERT IGNORE INTO sys_ai_knowledge (id, title, keywords, content, category, sort, status, creator, updater) VALUES
 (1, '忘记密码如何找回', '忘记密码,找回密码,重置密码,登录不了',
@@ -2123,6 +2220,48 @@ INSERT IGNORE INTO sys_ai_knowledge (id, title, keywords, content, category, sor
 (2, '如何提交与跟进工单', '工单,提交工单,报障,问题反馈',
  '## 工单提交流程\n1. 进入「系统管理 → 工单管理」，点击「新建工单」。\n2. 填写标题、问题描述与优先级后提交。\n3. 处理进度可在工单列表查看，处理完成后可进行确认或评价。',
  'manual', 5, 1, 'admin', 'admin');
+
+-- [附录·AI] add26：旧扁平知识库迁移为「默认知识库」文档（可重复执行）
+INSERT INTO sys_ai_knowledge_base (name, description, chunk_size, chunk_overlap, index_status, status, sort)
+SELECT '默认知识库', '旧版知识库迁移数据，重建索引后启用向量检索', 800, 128, 'IDLE', 1, 0
+FROM DUAL
+WHERE NOT EXISTS (SELECT 1 FROM sys_ai_knowledge_base WHERE name = '默认知识库' AND deleted = 0);
+
+-- [附录·AI] add29：清理默认知识库迁移描述（仅匹配迁移文案，不覆盖自定义描述）
+UPDATE sys_ai_knowledge_base
+SET description = ''
+WHERE name = '默认知识库'
+  AND description IN (
+      '由旧版 AI 知识库自动迁移，可在「重建索引」后启用向量检索',
+      '旧版知识库迁移数据，重建索引后启用向量检索'
+  );
+
+INSERT INTO sys_ai_knowledge_document
+    (knowledge_base_id, legacy_knowledge_id, file_id, file_name, file_type, file_size,
+     content_hash, content, char_count, chunk_count, parse_status, index_status, status, creator, updater)
+SELECT kb.id, k.id, 0, CONCAT(k.title, '.md'), 'md', 0,
+       '', k.content, CHAR_LENGTH(k.content), 0, 'SUCCESS', 'PENDING',
+       IF(k.status = 1, 1, 0), 'migration', 'migration'
+FROM sys_ai_knowledge k
+JOIN sys_ai_knowledge_base kb ON kb.name = '默认知识库' AND kb.deleted = 0
+WHERE k.deleted = 0
+  AND NOT EXISTS (SELECT 1 FROM sys_ai_knowledge_document d WHERE d.legacy_knowledge_id = k.id);
+
+UPDATE sys_ai_knowledge_base kb
+SET kb.document_count = (
+    SELECT COUNT(*) FROM sys_ai_knowledge_document d
+    WHERE d.knowledge_base_id = kb.id AND d.deleted = 0
+)
+WHERE kb.name = '默认知识库';
+
+-- 知识库新增按钮权限（文档上传 / 向量重建 / 检索测试）
+INSERT IGNORE INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, component, status) VALUES
+(225, '知识文档上传', 'system:ai-knowledge:upload', 3, 5, 220, '', '', '', 1),
+(226, '知识向量重建', 'system:ai-knowledge:reindex', 3, 6, 220, '', '', '', 1),
+(227, '知识检索测试', 'system:ai-knowledge:retrieve', 3, 7, 220, '', '', '', 1);
+
+INSERT IGNORE INTO sys_role_menu (role_id, menu_id) VALUES
+(1, 225), (1, 226), (1, 227), (2, 225), (2, 226), (2, 227);
 
 -- [附录·AI] add8：sys_ai_chat_log 增 tool_trace 列（L3 Function Calling 工具轨迹，幂等）
 SET @col_exists := (
@@ -2138,29 +2277,30 @@ PREPARE stmt FROM @sql;
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 
--- [附录·AI] add9：AI 模块查询按钮（207/208/224），与代码生成/用户管理风格一致（可重复执行）
+-- [附录·AI] add9：AI 模块查询按钮（207/224），与代码生成/用户管理风格一致（可重复执行）
 INSERT IGNORE INTO sys_menu (id, name, permission, type, sort, parent_id, path, icon, component, status) VALUES
 (207, 'AI模型查询', 'system:ai-model:query', 3, 1, 200, '', '', '', 1),
-(208, 'AI日志查询', 'system:ai-log:query', 3, 1, 205, '', '', '', 1),
 (224, 'AI知识查询', 'system:ai-knowledge:query', 3, 1, 220, '', '', '', 1);
 
 UPDATE sys_menu SET sort = 2 WHERE id = 201;
 UPDATE sys_menu SET sort = 3 WHERE id = 202;
 UPDATE sys_menu SET sort = 4 WHERE id = 203;
 UPDATE sys_menu SET sort = 5 WHERE id = 204;
-UPDATE sys_menu SET sort = 2 WHERE id = 206;
 UPDATE sys_menu SET sort = 2 WHERE id = 221;
 UPDATE sys_menu SET sort = 3 WHERE id = 222;
 UPDATE sys_menu SET sort = 4 WHERE id = 223;
 
-INSERT IGNORE INTO sys_role_menu (role_id, menu_id) VALUES (1, 207), (1, 208), (1, 224);
+INSERT IGNORE INTO sys_role_menu (role_id, menu_id) VALUES (1, 207), (1, 224);
 
 INSERT IGNORE INTO sys_role_menu (role_id, menu_id)
 SELECT role_id, 207 FROM sys_role_menu WHERE menu_id = 200;
 INSERT IGNORE INTO sys_role_menu (role_id, menu_id)
-SELECT role_id, 208 FROM sys_role_menu WHERE menu_id = 205;
-INSERT IGNORE INTO sys_role_menu (role_id, menu_id)
 SELECT role_id, 224 FROM sys_role_menu WHERE menu_id = 220;
+
+-- [附录·AI] 清理下线「AI 对话日志」管理模块菜单及按钮权限（205/206/208），保留 sys_ai_chat_log 表供 AI 助手会话恢复使用
+DELETE FROM sys_role_menu WHERE menu_id IN (205, 206, 208);
+DELETE FROM sys_menu WHERE id IN (205, 206, 208) OR path = '/ai/log';
+UPDATE sys_menu SET sort = 2 WHERE id = 220;
 
 -- [附录·AI] add9：纠偏 AI 菜单图标（告别魔法棒：AI 管理使用 Compass，AI 模型配置使用 Cpu，AI 知识库固定使用图3 Notebook）
 UPDATE sys_menu SET icon = 'Compass' WHERE id = 210 AND (icon = 'MagicStick' OR icon = '' OR icon IS NULL);

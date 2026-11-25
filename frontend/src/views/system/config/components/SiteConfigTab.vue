@@ -1,16 +1,16 @@
 <template>
   <el-form :model="draft" label-width="120px" class="config-form">
     <el-form-item label="平台名称">
-      <el-input v-model="draft.platformName" maxlength="50" :disabled="!canEdit" />
+      <el-input v-model="draft.platformName" maxlength="50" placeholder="请输入平台名称" :disabled="!canEdit" />
     </el-form-item>
     <el-form-item label="平台副标题">
-      <el-input v-model="draft.platformSubtitle" maxlength="80" :disabled="!canEdit" />
+      <el-input v-model="draft.platformSubtitle" maxlength="80" placeholder="请输入平台副标题" :disabled="!canEdit" />
     </el-form-item>
     <el-form-item label="登录页标题">
-      <el-input v-model="draft.loginWelcome" maxlength="30" :disabled="!canEdit" />
+      <el-input v-model="draft.loginWelcome" maxlength="30" placeholder="请输入登录页标题" :disabled="!canEdit" />
     </el-form-item>
     <el-form-item label="注册页标题">
-      <el-input v-model="draft.registerTitle" maxlength="30" :disabled="!canEdit" />
+      <el-input v-model="draft.registerTitle" maxlength="30" placeholder="请输入注册页标题" :disabled="!canEdit" />
     </el-form-item>
     <el-form-item label="页脚版权">
       <el-input v-model="draft.copyright" maxlength="120" placeholder="例如：Copyright © 2026 Admin Platform" :disabled="!canEdit" />

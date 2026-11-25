@@ -1,12 +1,13 @@
 import { ref, reactive, onMounted, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
-import { ElMessage, ElMessageBox, type FormInstance } from 'element-plus'
+import { ElMessage, type FormInstance } from 'element-plus'
 import type { ElTree } from 'element-plus'
 import {
   getUserPage,
   createUser,
   updateUser,
   deleteUser,
+  restoreUser,
   assignUserRole,
   updateUserStatus,
   resetUserPassword,
@@ -22,6 +23,8 @@ import { displayOrgTree } from '@/utils/org-tree'
 import { buildUnlockLoginConfirm } from '@/utils/login-lock'
 import { getPostList, type PostVO } from '@/api/system/post'
 import { encryptPasswordForTransport } from '@/utils/password-crypto'
+import { openAlertDialog } from '@/composables/ui/useAlertDialog'
+import { showSnackbar } from '@/composables/ui/useSnackbar'
 
 export function useUserPage() {
   const route = useRoute()
@@ -143,14 +146,42 @@ export function useUserPage() {
 
   const handleStatusChange = async (row: UserVO) => {
     if (row.status !== 0 && row.status !== 1) return
-    try {
-      const text = row.status === 1 ? '启用' : '禁用'
-      await ElMessageBox.confirm(`确认要${text}用户"${row.username}"吗？`, '提示', { type: 'warning' })
-      if (row.id == null || row.status == null) return
-      await updateUserStatus(row.id, row.status)
+    const nextStatus = row.status
+    const prevStatus = nextStatus === 1 ? 0 : 1
+    const text = nextStatus === 1 ? '启用' : '禁用'
+    if (nextStatus === 0) {
+      const ok = await openAlertDialog({
+        title: `禁用用户账号`,
+        targetName: row.username,
+        message: '禁用后该用户将无法继续登录控制台并立即失效。',
+        severity: 'warning',
+        confirmText: '确认禁用',
+        onConfirm: async () => {
+          if (row.id == null) return
+          await updateUserStatus(row.id, nextStatus)
+        },
+      })
+      if (!ok) {
+        row.status = prevStatus
+        return
+      }
       ElMessage.success(`${text}成功`)
+      return
+    }
+    try {
+      if (row.id == null) return
+      await updateUserStatus(row.id, nextStatus)
+      showSnackbar({
+        message: `已启用用户「${row.username}」`,
+        variant: 'success',
+        actionLabel: '撤销',
+        onAction: async () => {
+          await updateUserStatus(row.id, prevStatus)
+          row.status = prevStatus
+        },
+      })
     } catch {
-      row.status = row.status === 1 ? 0 : 1
+      row.status = prevStatus
     }
   }
 
@@ -179,18 +210,19 @@ export function useUserPage() {
   }
 
   const handleUnlockLogin = async (row: UserVO) => {
-    try {
-      const { title, content } = buildUnlockLoginConfirm(row)
-      await ElMessageBox.confirm(content, title, {
-        type: 'warning',
-        confirmButtonText: '解除锁定',
-      })
-      await unlockUserLogin(row.id)
-      ElMessage.success('已解除登录锁定')
-      getList()
-    } catch {
-      /* 用户取消 */
-    }
+    const { title, content } = buildUnlockLoginConfirm(row)
+    await openAlertDialog({
+      title,
+      targetName: row.username,
+      message: content,
+      severity: 'warning',
+      confirmText: '解除锁定',
+      onConfirm: async () => {
+        await unlockUserLogin(row.id)
+        ElMessage.success('已解除登录锁定')
+        getList()
+      },
+    })
   }
 
   const submitResetPwd = async () => {
@@ -204,7 +236,6 @@ export function useUserPage() {
     }
     if (resetPwdForm.id == null) return
     try {
-      // 后台重置密码与登录一致，走 SM2 传输加密
       await resetUserPassword(resetPwdForm.id, encryptPasswordForTransport(resetPwdForm.password))
       ElMessage.success('重置密码成功')
       resetPwdVisible.value = false
@@ -243,11 +274,20 @@ export function useUserPage() {
     dialogVisible.value = true
   }
 
+  /** 列表软删除进回收站：直接执行并提供 Snackbar 撤销恢复 */
   const handleDelete = async (row: UserVO) => {
-    await ElMessageBox.confirm('确定要删除该用户吗？', '提示', { type: 'warning' })
     await deleteUser(row.id)
-    ElMessage.success('删除成功')
     getList()
+    showSnackbar({
+      message: `已将用户「${row.username}」移至回收站`,
+      variant: 'info',
+      actionLabel: '撤销',
+      onAction: async () => {
+        await restoreUser(row.id)
+        ElMessage.success(`已恢复用户「${row.username}」`)
+        getList()
+      },
+    })
   }
 
   const handleAssignRole = async (row: UserVO) => {
@@ -294,7 +334,6 @@ export function useUserPage() {
       await updateUser(form)
       ElMessage.success('修改成功')
     } else {
-      // 新增用户的口令与登录保持一致，走 SM2 传输加密
       await createUser({
         ...form,
         password: form.password ? encryptPasswordForTransport(form.password) : form.password,

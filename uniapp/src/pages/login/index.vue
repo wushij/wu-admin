@@ -1,10 +1,11 @@
 <template>
   <view class="login-page">
     <AuthParticleBackground />
+    <AuthGlassToast />
 
-    <view class="login-page__content">
+    <view class="login-page__content" :class="{ 'login-page__content--centered': !showMobileEarth }">
       <!-- #ifdef H5 -->
-      <view class="login-page__brand">
+      <view v-if="showMobileEarth" class="login-page__brand">
         <AuthEarth
           class="login-page__globe"
           :size="globeSize"
@@ -156,7 +157,14 @@
           <text class="forgot-link" @click="goForgotPassword">忘记密码</text>
         </view>
 
-        <button class="auth-submit auth-anim auth-anim--5" :loading="loading" @click="handleSubmit">登 录</button>
+        <AuthSubmitButton
+          custom-class="auth-anim auth-anim--5"
+          label="登 录"
+          loading-text="登录中…"
+          :loading="loading"
+          :success="loginSuccess"
+          @click="handleSubmit"
+        />
 
         <AuthFooterLink
           v-if="registerEnabled"
@@ -203,14 +211,18 @@ import SliderCaptcha from '@/components/business/shared/SliderCaptcha/index.vue'
 import AuthEarth from '@/components/business/auth/AuthEarth/index.vue'
 // #endif
 import AuthParticleBackground from '@/components/business/auth/AuthParticleBackground/index.vue'
+import AuthGlassToast from '@/components/business/auth/AuthGlassToast/index.vue'
 import AuthGlassForm from '@/components/business/auth/AuthGlassForm/index.vue'
 import AuthInput from '@/components/business/auth/AuthInput/index.vue'
 import AuthPasswordInput from '@/components/business/auth/AuthPasswordInput/index.vue'
+import AuthSubmitButton from '@/components/business/auth/AuthSubmitButton/index.vue'
 import AuthFooterLink from '@/components/business/auth/AuthFooterLink/index.vue'
 import { useLoginForm } from '@/composables/auth/useLoginForm'
 import { useH5PageHead } from '@/composables/base/useH5PageHead'
 
 const pageReady = ref(false)
+/** 移动端登录页 3D 地球开关：默认关闭，改为 true 即可恢复顶部 3D 地球展示 */
+const showMobileEarth = ref(false)
 
 // #ifdef H5
 const globeSize = ref(240)
@@ -233,6 +245,7 @@ const {
   formData,
   passwordFieldKey,
   loading,
+  loginSuccess,
   sendingSms,
   sendingEmail,
   smsCountdown,
@@ -281,7 +294,7 @@ onShow(() => {
 .login-page {
   position: relative;
   min-height: 100vh;
-  background: #000;
+  background: $color-auth-bg;
   overflow: hidden;
 }
 
@@ -289,12 +302,17 @@ onShow(() => {
   position: relative;
   z-index: 1;
   min-height: 100vh;
-  padding: 12rpx 40rpx calc(48rpx + env(safe-area-inset-bottom));
+  padding: 24rpx 40rpx calc(48rpx + env(safe-area-inset-bottom));
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
   box-sizing: border-box;
+
+  &--centered {
+    justify-content: center;
+    padding-top: calc(48rpx + env(safe-area-inset-top));
+  }
 }
 
 /* #ifdef MP-WEIXIN */
@@ -319,76 +337,77 @@ onShow(() => {
 }
 
 .auth-form__head {
-  margin-bottom: 32rpx;
+  margin-bottom: 40rpx;
   text-align: center;
 }
 
 .auth-form__title {
   display: block;
-  color: #fff;
-  font-size: 48rpx;
+  color: #f8fafc;
+  font-size: 50rpx;
   font-weight: 700;
-  letter-spacing: 0.04em;
-  text-shadow: 0 4rpx 24rpx rgba(0, 0, 0, 0.35);
+  letter-spacing: 0.02em;
+  line-height: 1.25;
 }
 
 .auth-form__platform {
   display: block;
-  margin-top: 12rpx;
-  color: rgba(230, 228, 250, 0.92);
-  font-size: 28rpx;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.35);
+  margin-top: 14rpx;
+  color: rgba(203, 213, 225, 0.72);
+  font-size: 26rpx;
+  font-weight: 400;
+  letter-spacing: 0.04em;
 }
 
 .login-mode-switch {
   display: flex;
   gap: 8rpx;
   padding: 8rpx;
-  margin-bottom: 32rpx;
-  border-radius: 24rpx;
-  background: rgba(0, 0, 0, 0.22);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  margin-bottom: 36rpx;
+  border-radius: 9999rpx;
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.07);
 }
 
 .login-mode-switch__item {
   flex: 1;
-  height: 80rpx;
+  height: 72rpx;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 12rpx;
-  border-radius: 18rpx;
-  color: rgba(255, 255, 255, 0.65);
-  font-size: 28rpx;
+  border-radius: 9999rpx;
+  border: 1px solid transparent;
+  color: rgba(203, 213, 225, 0.75);
+  font-size: 27rpx;
   font-weight: 500;
-  transition: all 0.25s ease;
+  transition: all 0.22s ease;
 }
 
 .login-mode-switch__icon {
-  width: 32rpx;
-  height: 32rpx;
+  width: 30rpx;
+  height: 30rpx;
   flex-shrink: 0;
   color: currentColor;
 }
 
 .login-mode-switch__item--active {
-  background: rgba(255, 255, 255, 0.95);
-  color: #303133;
-  box-shadow: 0 4rpx 24rpx rgba(0, 0, 0, 0.15);
+  @include auth-pearl-ice-btn;
+  font-weight: 600;
 }
 
 .form-block {
   display: flex;
   flex-direction: column;
-  gap: 24rpx;
+  gap: 28rpx;
 }
 
 .captcha-row,
 .sms-row {
   display: flex;
-  gap: 16rpx;
+  gap: 18rpx;
   align-items: center;
 }
 
@@ -398,75 +417,61 @@ onShow(() => {
 }
 
 .captcha-img {
-  width: 200rpx;
-  height: 96rpx;
-  border-radius: 16rpx;
-  background: #fff;
+  width: 220rpx;
+  height: 92rpx;
+  border-radius: 9999rpx;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(248, 250, 252, 0.9);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35);
 }
 
 .sms-btn {
-  min-width: 200rpx;
-  height: 96rpx;
-  line-height: 96rpx;
-  padding: 0 16rpx;
-  font-size: 26rpx;
-  color: #303133;
-  background: rgba(255, 255, 255, 0.95);
-  border: 1px solid rgba(255, 255, 255, 0.35);
-  border-radius: 16rpx;
-  box-shadow: 0 8rpx 32rpx rgba(0, 0, 0, 0.2);
+  min-width: 224rpx;
+  height: 92rpx;
+  line-height: 92rpx;
+  padding: 0 28rpx;
+  font-size: 27rpx;
+  font-weight: 600;
+  @include auth-pearl-ice-btn;
 
   &[disabled] {
-    opacity: 0.45;
-    color: #909399;
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.14);
+    color: rgba(203, 213, 225, 0.6);
+    box-shadow: none;
   }
 }
 
 .slider-hint {
   padding: 24rpx;
   text-align: center;
-  color: rgba(255, 255, 255, 0.8);
+  color: rgba(203, 213, 225, 0.78);
   font-size: 24rpx;
-  border: 1px dashed rgba(255, 255, 255, 0.3);
-  border-radius: 16rpx;
+  border: 1px dashed rgba(255, 255, 255, 0.22);
+  border-radius: 9999rpx;
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .remember-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin: 24rpx 0;
+  margin: 28rpx 8rpx 32rpx;
 }
 
 .remember-label {
   display: flex;
   align-items: center;
   gap: 12rpx;
-  color: rgba(255, 255, 255, 0.92);
-  font-size: 26rpx;
-  text-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.5);
+  color: rgba(226, 232, 240, 0.86);
+  font-size: 27rpx;
+  @include auth-glass-checkbox;
 }
 
 .forgot-link {
-  color: rgba(255, 255, 255, 0.92);
-  font-size: 26rpx;
-  text-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.5);
-}
-
-.auth-submit {
-  width: 100%;
-  height: 104rpx;
-  line-height: 104rpx;
-  margin-top: 8rpx;
-  border-radius: $radius-md;
-  font-size: 32rpx;
-  font-weight: 600;
-  letter-spacing: 4rpx;
-  border: 1px solid rgba(196, 181, 253, 0.42);
-  box-shadow:
-    0 20rpx 56rpx rgba(99, 102, 241, 0.38),
-    inset 0 1px 0 rgba(255, 255, 255, 0.18);
-  @include auth-submit-gradient;
+  color: rgba(226, 232, 240, 0.88);
+  font-size: 27rpx;
+  font-weight: 500;
 }
 
 .auth-anim {
@@ -501,36 +506,34 @@ onShow(() => {
 }
 
 .login-page__footer {
-  margin-top: auto;
-  padding: 40rpx 20rpx 16rpx;
+  margin-top: 32rpx;
+  padding: 16rpx 20rpx 12rpx;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-wrap: wrap;
   gap: 12rpx;
   text-align: center;
-  font-size: 24rpx;
-  color: #000000;
+  font-size: 23rpx;
+  color: rgba(203, 213, 225, 0.56);
 }
 
 .footer-divider {
-  color: #000000;
-  opacity: 0.5;
+  color: rgba(203, 213, 225, 0.35);
 }
 
 .footer-text {
-  color: #000000;
+  color: rgba(203, 213, 225, 0.56);
 }
 
 .footer-icp-link {
-  color: #000000;
+  color: rgba(203, 213, 225, 0.68);
   text-decoration: none !important;
 }
 
 .footer-icp-link:hover {
-  color: #000000;
+  color: rgba(248, 250, 252, 0.9);
   text-decoration: none !important;
-  opacity: 0.75;
 }
 
 </style>
@@ -538,6 +541,6 @@ onShow(() => {
 <style lang="scss">
 page,
 uni-page-body {
-  background-color: #000000;
+  background-color: $color-auth-bg;
 }
 </style>

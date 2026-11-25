@@ -11,16 +11,22 @@
 .aiwu-markdown {
   @include chat-markdown-body;
 
-  /* 流式输出时在最后一个块元素尾部追加闪烁光标 */
-  &.is-streaming > *:last-child::after {
-    content: '';
-    display: inline-block;
-    width: 4rpx;
-    height: 26rpx;
-    margin-left: 4rpx;
-    vertical-align: -4rpx;
-    background: #6366f1;
-    animation: aiwu-md-cursor 0.9s steps(2) infinite;
+  /* 流式输出时在最后一个有效正文节点尾部追加唯一闪烁光标 */
+  &.is-streaming {
+    > *:not(ol):not(ul):not(blockquote):last-child::after,
+    > ol:last-child > li:last-child::after,
+    > ul:last-child > li:last-child::after,
+    > blockquote:last-child > p:last-child::after {
+      content: '';
+      display: inline-block;
+      width: 4rpx;
+      height: 28rpx;
+      margin-left: 6rpx;
+      vertical-align: -5rpx;
+      border-radius: 2rpx;
+      background: #2563eb;
+      animation: aiwu-md-cursor 0.9s steps(2) infinite;
+    }
   }
 }
 

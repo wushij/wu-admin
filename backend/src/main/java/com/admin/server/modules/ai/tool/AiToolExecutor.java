@@ -69,14 +69,21 @@ public class AiToolExecutor {
 
     /** 用户是否有任何可用工具 */
     public boolean hasAnyTool(Long userId) {
-        return !visibleTools(userId).isEmpty();
+        return !visibleTools(new AiToolContext(userId, null, false)).isEmpty();
     }
 
     /**
-     * 构建 OpenAI tools 声明数组 JSON（可见性过滤后），无可用工具返回 null
+     * 构建 OpenAI tools 声明数组 JSON（仅按用户角色权限过滤，默认关闭联网工具）
      */
     public String buildToolSpecs(Long userId) {
-        List<AiTool> visible = visibleTools(userId);
+        return buildToolSpecs(new AiToolContext(userId, null, false));
+    }
+
+    /**
+     * 构建 OpenAI tools 声明数组 JSON（按权限与会话上下文动态裁剪），无可用工具返回 null
+     */
+    public String buildToolSpecs(AiToolContext ctx) {
+        List<AiTool> visible = visibleTools(ctx);
         if (visible.isEmpty()) {
             return null;
         }
@@ -92,27 +99,33 @@ public class AiToolExecutor {
     }
 
     /**
-     * 执行工具：第二道闸门鉴权 + 硬超时熔断；任何失败都返回可回传模型的结果文本，绝不抛出
+     * 执行工具：第二道闸门鉴权 + 上下文可用性检查 + 硬超时熔断；任何失败都返回可回传模型的结果文本，绝不抛出
      */
     public ToolInvocationResult invoke(String toolName, String argsJson, AiToolContext ctx) {
         long start = System.currentTimeMillis();
+        AiToolContext safeCtx = ctx != null ? ctx : new AiToolContext(null, null, false);
         AiTool tool = toolByName.get(toolName);
         if (tool == null) {
             log.warn("AI 工具调用被拒绝：未注册工具 {}", toolName);
             return denied(toolName, "该工具不存在", start);
         }
-        if (!isAuthorized(tool, ctx.getUserId())) {
-            log.warn("AI 工具越权尝试：user={} tool={} 无权限 {}", ctx.getUserId(), toolName, tool.requiredPermission());
+        if (!isAuthorized(tool, safeCtx.getUserId())) {
+            log.warn("AI 工具越权尝试：user={} tool={} 无权限 {}", safeCtx.getUserId(), toolName, tool.requiredPermission());
             return denied(toolName, "无权查询该数据", start);
         }
+        if (!tool.isAvailable(safeCtx)) {
+            log.warn("AI 工具当前会话不可用：user={} tool={}", safeCtx.getUserId(), toolName);
+            return denied(toolName, "当前会话未开启该功能", start);
+        }
         JSONObject args = parseArgs(argsJson);
-        CompletableFuture<String> future = CompletableFuture.supplyAsync(() -> tool.execute(args, ctx), toolExecutor);
+        long effectiveTimeoutMs = tool.timeoutMs() > 0 ? tool.timeoutMs() : toolTimeoutMs;
+        CompletableFuture<String> future = CompletableFuture.supplyAsync(() -> tool.execute(args, safeCtx), toolExecutor);
         try {
-            String result = future.get(toolTimeoutMs, TimeUnit.MILLISECONDS);
+            String result = future.get(effectiveTimeoutMs, TimeUnit.MILLISECONDS);
             return new ToolInvocationResult(toolName, StrUtil.nullToEmpty(result), false, System.currentTimeMillis() - start);
         } catch (TimeoutException e) {
             future.cancel(true);
-            log.warn("AI 工具执行超时({}ms)：{}", toolTimeoutMs, toolName);
+            log.warn("AI 工具执行超时({}ms)：{}", effectiveTimeoutMs, toolName);
             return denied(toolName, "{\"error\":\"查询超时，请稍后再试\"}", start);
         } catch (Exception e) {
             future.cancel(true);
@@ -123,14 +136,14 @@ public class AiToolExecutor {
 
     // ------------------------------------------------------------------
 
-    /** 可见工具：USER 级全部可见；ADMIN 级需超管角色或对应权限 */
-    private List<AiTool> visibleTools(Long userId) {
+    /** 可见工具：USER 级全部可见，ADMIN 级需超管角色或对应权限，同时校验上下文可用性 */
+    private List<AiTool> visibleTools(AiToolContext ctx) {
         List<AiTool> result = new ArrayList<>();
-        if (userId == null || userId <= 0) {
+        if (ctx == null || ctx.getUserId() == null || ctx.getUserId() <= 0) {
             return result;
         }
         for (AiTool tool : tools) {
-            if (isAuthorized(tool, userId)) {
+            if (isAuthorized(tool, ctx.getUserId()) && tool.isAvailable(ctx)) {
                 result.add(tool);
             }
         }

@@ -1,20 +1,11 @@
 <template>
   <div class="app-container module-page">
-    <el-card class="search-card module-hero-card" shadow="never">
-      <div class="module-hero-row">
-        <div class="module-hero-text">
-          <div class="module-hero-title">
-            <ModulePageIcon :icon="MODULE_PAGE_ICON.loginLog" />
-            <span>登录日志</span>
-          </div>
-          <p class="module-hero-desc">记录用户登录行为，支持按账号、IP 与登录状态检索</p>
-        </div>
-        <div class="module-hero-stats">
-          <div class="stat-num">{{ total }}</div>
-          <div class="stat-label">日志总数</div>
-        </div>
-      </div>
-    </el-card>
+    <PageHeader
+      title="登录日志"
+      description="记录用户登录行为，支持按账号、IP 与登录状态检索"
+      :icon="MODULE_PAGE_ICON.loginLog"
+      :stats="[{ label: '日志总数', value: total }]"
+    />
 
     <el-card class="search-card module-search-card" shadow="never">
       <el-form :model="queryParams" inline class="module-search-form">
@@ -45,6 +36,7 @@
             <ListExportButton module="login-log" :query-params="queryParams" permission="system:loginLog:query" />
             <el-button
               type="danger"
+              plain
               v-permission="'system:loginLog:clear'"
               @click="handleClear"
             >
@@ -53,11 +45,12 @@
           </div>
         </div>
       </template>
+
       <el-table
+        v-if="logList.length || loading"
         :data="logList"
         v-loading="loading"
         border
-        stripe
         :header-cell-style="tableHeaderStyle"
         :cell-style="tableCellStyle"
       >
@@ -67,7 +60,7 @@
         <el-table-column prop="loginLocation" label="登录地点" width="150" align="center" header-align="center" show-overflow-tooltip />
         <el-table-column prop="status" label="状态" width="100" align="center" header-align="center">
           <template #default="{ row }">
-            <el-tag :type="row.status === 0 ? 'success' : 'danger'">
+            <el-tag :type="row.status === 0 ? 'success' : 'danger'" effect="plain">
               {{ row.status === 0 ? '成功' : '失败' }}
             </el-tag>
           </template>
@@ -81,6 +74,7 @@
             <div class="action-buttons">
               <el-button
                 type="danger"
+                plain
                 size="small"
                 v-permission="'system:loginLog:delete'"
                 @click="handleDelete(row)"
@@ -91,7 +85,10 @@
           </template>
         </el-table-column>
       </el-table>
+      <EmptyState v-else title="暂无登录日志" description="当前筛选条件下没有登录审计记录" />
+
       <el-pagination
+        v-if="total > 0"
         v-model:current-page="queryParams.pageNo"
         v-model:page-size="queryParams.pageSize"
         :total="total"
@@ -108,10 +105,12 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { Search, Refresh } from '@element-plus/icons-vue'
-import ModulePageIcon from '@/components/ModulePageIcon.vue'
+import { ElMessage } from 'element-plus'
+import PageHeader from '@/components/ui/PageHeader.vue'
+import EmptyState from '@/components/ui/EmptyState.vue'
 import { MODULE_PAGE_ICON } from '@/constants/module-page-icons'
-import { ElMessage, ElMessageBox } from 'element-plus'
 import ListExportButton from '@/components/ListExportButton.vue'
+import { openAlertDialog } from '@/composables/ui/useAlertDialog'
 import {
   getLoginLogList,
   deleteLoginLog,
@@ -132,7 +131,7 @@ const queryParams = reactive<LoginLogPageQuery>({
   pageSize: 10,
   username: '',
   ipaddr: '',
-  status: null
+  status: null,
 })
 
 const getList = async () => {
@@ -161,21 +160,37 @@ const resetQuery = () => {
 }
 
 const handleDelete = async (row: LoginLogVO) => {
-  await ElMessageBox.confirm('确定要删除该日志吗？', '提示', { type: 'warning' })
-  await deleteLoginLog(row.id)
-  ElMessage.success('删除成功')
-  getList()
+  await openAlertDialog({
+    title: '永久删除登录日志',
+    targetName: `${row.username} · ${row.ipaddr}`,
+    message: '删除后该条登录审计日志将被永久移除，不可恢复。',
+    severity: 'irreversible',
+    confirmText: '永久删除',
+    onConfirm: async () => {
+      await deleteLoginLog(row.id)
+      ElMessage.success('已永久删除')
+      getList()
+    },
+  })
 }
 
 const handleClear = async () => {
-  await ElMessageBox.confirm('确定要清空所有日志吗？此操作不可恢复！', '警告', { type: 'warning' })
-  await clearLoginLog()
-  ElMessage.success('清空成功')
-  getList()
+  await openAlertDialog({
+    title: '清空全部登录日志',
+    targetName: `共 ${total.value} 条登录记录`,
+    message: '此操作将永久清空全部登录审计日志且不可恢复，请确认已完成安全留档。',
+    severity: 'irreversible',
+    confirmText: '清空全部日志',
+    requireConfirmInput: '清空日志',
+    onConfirm: async () => {
+      await clearLoginLog()
+      ElMessage.success('已清空全部登录日志')
+      getList()
+    },
+  })
 }
 
 onMounted(() => {
   getList()
 })
 </script>
-

@@ -34,16 +34,22 @@
                 <span v-if="groupTabUnread" class="tab-unread-badge" />
               </button>
             </div>
-            <el-button
+            <el-tooltip
               v-if="chatMode === 'group' && canCreateGroup"
-              circle
-              size="small"
-              class="tab-add-btn"
-              title="创建群聊（仅管理员）"
-              @click="showCreateGroup = true"
+              content="创建群聊（仅管理员）"
+              placement="top"
+              :show-after="1000"
             >
-              <el-icon><Plus /></el-icon>
-            </el-button>
+              <el-button
+                circle
+                size="small"
+                class="tab-add-btn"
+                aria-label="创建群聊（仅管理员）"
+                @click="showCreateGroup = true"
+              >
+                <el-icon><Plus /></el-icon>
+              </el-button>
+            </el-tooltip>
           </div>
           <div v-if="chatMode === 'private'" class="contact-list">
             <div
@@ -118,7 +124,11 @@
               <div class="header-actions">
                 <el-popover placement="bottom-end" :width="300" trigger="click">
                   <template #reference>
-                    <el-button link title="搜索消息"><el-icon><Search /></el-icon></el-button>
+                    <span class="header-action-ref">
+                      <el-tooltip content="搜索消息" placement="bottom" :show-after="1000">
+                        <el-button link aria-label="搜索消息"><el-icon><Search /></el-icon></el-button>
+                      </el-tooltip>
+                    </span>
                   </template>
                   <div class="search-message-panel">
                     <el-input v-model="messageSearchKeyword" placeholder="输入关键词搜索消息" clearable size="small" :prefix-icon="Search" />
@@ -184,7 +194,7 @@
                       class="msg-file"
                       @click="openChatFile(item.message.content)"
                     >
-                      <el-icon class="msg-file-icon"><Document /></el-icon>
+                      <FileTypeIcon :file-name="fileDisplayName(item.message.content)" size="sm" class="msg-file-icon" />
                       <span class="msg-file-name">{{ fileDisplayName(item.message.content) }}</span>
                     </div>
                     <div v-else class="msg-bubble" v-html="renderTextContent(item.message.content)" />
@@ -200,14 +210,18 @@
                 <div class="input-toolbar">
                   <EmojiPicker @pick="(e) => (inputContent += e)" />
                   <el-upload :show-file-list="false" accept="image/*" :http-request="handleUploadImage">
-                    <el-button link class="toolbar-btn" title="发送图片">
-                      <ChatToolbarIcons name="image" />
-                    </el-button>
+                    <el-tooltip content="发送图片" placement="top" :show-after="1000">
+                      <el-button link class="toolbar-btn" aria-label="发送图片">
+                        <ChatToolbarIcons name="image" />
+                      </el-button>
+                    </el-tooltip>
                   </el-upload>
                   <el-upload :show-file-list="false" :http-request="handleUploadFile">
-                    <el-button link class="toolbar-btn" title="发送文件">
-                      <ChatToolbarIcons name="file" />
-                    </el-button>
+                    <el-tooltip content="发送文件" placement="top" :show-after="1000">
+                      <el-button link class="toolbar-btn" aria-label="发送文件">
+                        <ChatToolbarIcons name="file" />
+                      </el-button>
+                    </el-tooltip>
                   </el-upload>
                 </div>
                 <div class="chat-input-row">
@@ -244,7 +258,13 @@
               </div>
               <div class="header-actions">
                 <el-popover placement="bottom-end" :width="300" trigger="click">
-                  <template #reference><el-button link title="搜索消息"><el-icon><Search /></el-icon></el-button></template>
+                  <template #reference>
+                    <span class="header-action-ref">
+                      <el-tooltip content="搜索消息" placement="bottom" :show-after="1000">
+                        <el-button link aria-label="搜索消息"><el-icon><Search /></el-icon></el-button>
+                      </el-tooltip>
+                    </span>
+                  </template>
                   <div class="search-message-panel">
                     <el-input v-model="messageSearchKeyword" placeholder="输入关键词搜索消息" clearable size="small" :prefix-icon="Search" />
                     <div v-if="messageSearchKeyword.trim()" class="search-results">
@@ -256,7 +276,9 @@
                     </div>
                   </div>
                 </el-popover>
-                <el-button link title="群设置" @click="openGroupDetail"><el-icon><Setting /></el-icon></el-button>
+                <el-tooltip content="群设置" placement="bottom" :show-after="1000">
+                  <el-button link aria-label="群设置" @click="openGroupDetail"><el-icon><Setting /></el-icon></el-button>
+                </el-tooltip>
                 <el-button link @click="isFullscreen = !isFullscreen"><el-icon><FullScreen /></el-icon></el-button>
               </div>
             </div>
@@ -324,7 +346,7 @@
                       class="msg-file"
                       @click="openChatFile(item.message.content)"
                     >
-                      <el-icon class="msg-file-icon"><Document /></el-icon>
+                      <FileTypeIcon :file-name="fileDisplayName(item.message.content)" size="sm" class="msg-file-icon" />
                       <span class="msg-file-name">{{ fileDisplayName(item.message.content) }}</span>
                     </div>
                     <div v-else class="msg-bubble" v-html="renderTextContent(item.message.content)" />
@@ -354,14 +376,18 @@
                 <div class="input-toolbar">
                   <EmojiPicker @pick="(e) => (groupInput += e)" />
                   <el-upload :show-file-list="false" accept="image/*" :http-request="handleUploadGroupImage">
-                    <el-button link class="toolbar-btn" title="发送图片">
-                      <ChatToolbarIcons name="image" />
-                    </el-button>
+                    <el-tooltip content="发送图片" placement="top" :show-after="1000">
+                      <el-button link class="toolbar-btn" aria-label="发送图片">
+                        <ChatToolbarIcons name="image" />
+                      </el-button>
+                    </el-tooltip>
                   </el-upload>
                   <el-upload :show-file-list="false" :http-request="handleUploadGroupFile">
-                    <el-button link class="toolbar-btn" title="发送文件">
-                      <ChatToolbarIcons name="file" />
-                    </el-button>
+                    <el-tooltip content="发送文件" placement="top" :show-after="1000">
+                      <el-button link class="toolbar-btn" aria-label="发送文件">
+                        <ChatToolbarIcons name="file" />
+                      </el-button>
+                    </el-tooltip>
                   </el-upload>
                 </div>
                 <div class="chat-input-row">
@@ -418,7 +444,7 @@
       <el-form label-width="80px">
         <el-form-item label="群名称"><el-input v-model="newGroupName" maxlength="20" placeholder="请输入群名称" /></el-form-item>
         <el-form-item label="群成员">
-          <el-select v-model="newGroupMembers" multiple filterable style="width:100%">
+          <el-select v-model="newGroupMembers" multiple filterable placeholder="请选择群成员" style="width:100%">
             <el-option v-for="u in userOptions" :key="u.id" :label="u.nickname || u.username" :value="u.id" />
           </el-select>
         </el-form-item>
@@ -462,7 +488,7 @@
           <el-tab-pane label="基本信息" name="info">
             <el-form label-width="96px" class="group-form">
               <el-form-item label="群名称">
-                <el-input v-model="editGroupName" :disabled="!canEditGroup" />
+                <el-input v-model="editGroupName" :disabled="!canEditGroup" placeholder="请输入群名称" />
               </el-form-item>
               <el-form-item label="群公告">
                 <el-input
@@ -471,6 +497,7 @@
                   type="textarea"
                   :autosize="{ minRows: 3 }"
                   resize="none"
+                  placeholder="请输入群公告"
                 />
                 <div v-else class="group-announcement-readonly">
                   {{ editGroupAnnouncement || '暂无公告' }}
@@ -561,6 +588,7 @@
 <script setup lang="ts">
 import ChatToolbarIcons from '@/components/chat/ChatToolbarIcons.vue'
 import EmojiPicker from '@/components/EmojiPicker.vue'
+import FileTypeIcon from '@/components/ui/FileTypeIcon.vue'
 import { groupMemberDisplayName } from '@/utils/chat-message'
 import { useChatPage } from '../composables/useChatPage'
 import '../styles/chat-page.css'
@@ -671,7 +699,6 @@ const {
   FullScreen,
   Setting,
   ChatDotRound,
-  Document,
   Bell,
   ArrowRight,
   formatSearchPreview,

@@ -1,5 +1,5 @@
 <template>
-  <div class="dashboard-container">
+  <div ref="rootRef" class="dashboard-container">
     <WelcomeBanner
       :nickname="userStore.userInfo.nickname || '管理员'"
       :avatar-src="avatarSrc"
@@ -11,9 +11,9 @@
       :stats="stats"
     />
 
-    <DashboardStatsGrid :stats="stats" :trends="trends" />
+    <DashboardStatsGrid :loading="loading" :stats="stats" :trends="trends" />
 
-    <el-row :gutter="24" class="content-row">
+    <el-row :gutter="20" class="content-row motion-reveal">
       <el-col :xs="24" :lg="16">
         <QuickEntriesPanel />
       </el-col>
@@ -22,7 +22,7 @@
       </el-col>
     </el-row>
 
-    <el-row :gutter="24" class="content-row">
+    <el-row :gutter="20" class="content-row motion-reveal">
       <el-col :span="24">
         <RecentLoginsTable :rows="recentLogins" />
       </el-col>
@@ -31,9 +31,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useUserStore } from '@/store/user'
 import { resolveChatAvatar, avatarFallback as getAvatarFallback } from '@/utils/chat-avatar'
+import { useScrollReveal } from '@/composables/useMotion'
 import WelcomeBanner from './components/WelcomeBanner.vue'
 import DashboardStatsGrid from './components/DashboardStatsGrid.vue'
 import QuickEntriesPanel from './components/QuickEntriesPanel.vue'
@@ -43,6 +44,8 @@ import { useDashboardData } from './composables/useDashboardData'
 import { useDashboardClock } from './composables/useDashboardClock'
 
 const userStore = useUserStore()
+const rootRef = ref<HTMLElement | null>(null)
+useScrollReveal(rootRef)
 
 const avatarSrc = computed(() =>
   resolveChatAvatar(undefined, new Map(), userStore.userInfo.avatar),
@@ -53,6 +56,7 @@ const avatarFallback = computed(() =>
 )
 
 const {
+  loading,
   platformName,
   platformSubtitle,
   stats,
@@ -75,9 +79,16 @@ onMounted(async () => {
 <style scoped>
 .dashboard-container {
   padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
 }
 
 .content-row {
-  margin-top: 8px;
+  margin-bottom: var(--space-5);
+}
+
+.content-row:last-child {
+  margin-bottom: 0;
 }
 </style>

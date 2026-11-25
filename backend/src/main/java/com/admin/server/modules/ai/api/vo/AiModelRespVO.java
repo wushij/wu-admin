@@ -14,6 +14,8 @@ public class AiModelRespVO {
     private String provider;
     /** 接入协议: openai（OpenAI 兼容）/anthropic（Anthropic Messages） */
     private String protocol;
+    /** 模型类型: chat=对话模型 / embedding=向量模型 */
+    private String modelType;
     private String modelName;
     private String baseUrl;
     /** 自定义请求路径模板，支持 {model} 占位 */
@@ -26,6 +28,10 @@ public class AiModelRespVO {
     private Boolean hasApiKey;
     private Double temperature;
     private Integer maxTokens;
+    /** 向量维度（向量模型） */
+    private Integer dimension;
+    /** 向量化批量大小（向量模型） */
+    private Integer batchSize;
     private String systemPrompt;
     private Integer isDefault;
     private Integer status;

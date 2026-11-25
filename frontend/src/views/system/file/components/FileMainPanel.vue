@@ -97,13 +97,18 @@
             <div class="file-checkbox" @click.stop>
               <el-checkbox :model-value="isFileSelected(file)" @change="$emit('toggle-select', file)" />
             </div>
-            <div class="file-preview" @click.stop="$emit('preview', file)">
+            <div
+              :class="['file-preview', { 'is-doc': !isImage(file) && !isVideo(file) }]"
+              @click.stop="$emit('preview', file)"
+            >
               <img v-if="isImage(file)" :src="fileDisplayUrl(file)" alt="" />
               <video v-else-if="isVideo(file)" :src="fileDisplayUrl(file)" muted preload="metadata" playsinline />
               <div v-else class="file-icon-wrap">
-                <el-icon :size="48" :color="getFileIconColor(file)">
-                  <component :is="getFileIcon(file)" />
-                </el-icon>
+                <FileTypeIcon
+                  :file-name="file.originalName"
+                  :file-type="file.fileSuffix || file.fileType"
+                  size="lg"
+                />
               </div>
             </div>
             <div class="file-name" :title="file.originalName">{{ file.originalName }}</div>
@@ -134,11 +139,17 @@
             <div class="file-checkbox" @click.stop>
               <el-checkbox :model-value="isFileSelected(file)" @change="$emit('toggle-select', file)" />
             </div>
-            <div class="file-preview-small" @click.stop="$emit('preview', file)">
+            <div
+              :class="['file-preview-small', { 'is-doc': !isImage(file) }]"
+              @click.stop="$emit('preview', file)"
+            >
               <img v-if="isImage(file)" :src="fileDisplayUrl(file)" alt="" />
-              <el-icon v-else :size="32" :color="getFileIconColor(file)">
-                <component :is="getFileIcon(file)" />
-              </el-icon>
+              <FileTypeIcon
+                v-else
+                :file-name="file.originalName"
+                :file-type="file.fileSuffix || file.fileType"
+                size="sm"
+              />
             </div>
             <div class="file-info">
               <div class="file-name">{{ file.originalName }}</div>
@@ -184,14 +195,13 @@
 import type { CheckboxValueType, UploadRequestOptions } from 'element-plus'
 import { Upload, Search, List, Grid } from '@element-plus/icons-vue'
 import RecycleCenterLink from '@/components/RecycleCenterLink.vue'
+import FileTypeIcon from '@/components/ui/FileTypeIcon.vue'
 import { fileDisplayUrl, type FileRecord } from '@/api/system/file'
 import {
   formatSize,
   isImage,
   isVideo,
   isPreviewable,
-  getFileIcon,
-  getFileIconColor,
 } from '../utils/fileTypeHelpers'
 
 defineProps<{
@@ -280,6 +290,15 @@ function getStorageLabel(type?: string): string {
   display: flex;
   align-items: center;
   gap: 8px;
+
+  :deep(.el-upload) {
+    display: inline-flex;
+    align-items: center;
+  }
+
+  :deep(.el-button + .el-button) {
+    margin-left: 0;
+  }
 }
 
 .search-icon {
@@ -332,21 +351,23 @@ function getStorageLabel(type?: string): string {
 
 .file-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(156px, 1fr));
+  gap: var(--space-3);
 }
 
 .file-card {
-  border: 1px solid var(--el-border-color-lighter);
-  border-radius: var(--admin-radius-lg, 12px);
-  padding: 12px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface);
+  padding: 10px;
   cursor: pointer;
   position: relative;
-  transition: all 0.2s;
+  transition:
+    border-color var(--duration-fast) var(--ease-out),
+    background-color var(--duration-fast) var(--ease-out);
 
   &:hover {
-    border-color: var(--el-color-primary);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    border-color: var(--el-color-primary-light-5);
   }
 
   &.selected {
@@ -357,27 +378,45 @@ function getStorageLabel(type?: string): string {
 
 .file-card .file-checkbox {
   position: absolute;
-  top: 8px;
-  left: 8px;
-  z-index: 1;
+  top: 14px;
+  left: 14px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--color-bg-surface) 78%, transparent);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+
+  :deep(.el-checkbox) {
+    height: auto;
+  }
 }
 
 .file-preview {
   width: 100%;
-  height: 100px;
+  height: 96px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--el-fill-color-light);
-  border-radius: var(--admin-radius-md, 8px);
+  background: var(--color-bg-subtle);
+  border-radius: var(--radius-sm);
   overflow: hidden;
   margin-bottom: 8px;
 
+  &.is-doc {
+    background: transparent;
+  }
+
   img,
   video {
-    max-width: 100%;
-    max-height: 100%;
-    object-fit: contain;
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: cover;
   }
 }
 
@@ -443,13 +482,18 @@ function getStorageLabel(type?: string): string {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--el-fill-color-light);
-  border-radius: var(--admin-radius-md, 8px);
+  background: var(--color-bg-subtle);
+  border-radius: var(--radius-sm);
   overflow: hidden;
+
+  &.is-doc {
+    background: transparent;
+  }
 
   img {
     width: 100%;
     height: 100%;
+    display: block;
     object-fit: cover;
   }
 }

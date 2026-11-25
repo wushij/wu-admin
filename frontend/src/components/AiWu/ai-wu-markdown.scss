@@ -1,0 +1,872 @@
+/**
+ * AI 助手正文 Markdown 排版（与 EduMind 全局助手同一套表面规范）
+ * 作用域限定在抽屉面板与思考详情内，避免影响全站其它 Markdown 区域。
+ */
+
+.ai-wu-drawer-panel {
+  .chat-md-content {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    font-size: 13.5px;
+    line-height: 1.7;
+    color: var(--aiwu-text);
+    word-break: break-word;
+    overflow-wrap: anywhere;
+    overflow-y: visible;
+    overflow-x: visible;
+    height: auto;
+    max-height: none;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+
+    &::-webkit-scrollbar {
+      display: none;
+      width: 0;
+      height: 0;
+    }
+
+    p {
+      margin: 8px 0;
+
+      &:first-child {
+        margin-top: 0;
+      }
+
+      &:last-child {
+        margin-bottom: 0;
+      }
+    }
+
+    strong {
+      /* 模型爱逐词加粗：句中强调降为正常字重，仅结构化标签保留强调 */
+      font-weight: 400;
+      color: inherit;
+
+      &.chat-md-label {
+        font-weight: 700;
+        color: var(--aiwu-primary-strong);
+      }
+    }
+
+    h1,
+    h2,
+    h3,
+    h4 {
+      margin: 14px 0 8px;
+      color: var(--aiwu-text);
+      font-weight: 700;
+      line-height: 1.4;
+
+      &.chat-md-heading-with-icon {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2, 8px);
+      }
+    }
+
+    h1 {
+      font-size: 1.25em;
+    }
+
+    h2 {
+      font-size: 1.15em;
+      padding-bottom: 4px;
+      border-bottom: 1px solid var(--aiwu-border-subtle);
+    }
+
+    h3 {
+      font-size: 1.05em;
+    }
+
+    /* 独立小节标题行（兼容「Emoji + 加粗短语」规范化后的样式） */
+    p.chat-md-section-title {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2, 8px);
+      margin: 14px 0 8px;
+      line-height: 1.45;
+
+      &:first-child {
+        margin-top: 0;
+      }
+
+      .chat-md-label {
+        font-size: 1.02em;
+        font-weight: 700;
+        color: var(--aiwu-primary-strong);
+      }
+    }
+
+    /* 语义矢量图标徽章（替代原生 Emoji） */
+    .chat-md-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      width: 22px;
+      height: 22px;
+      border-radius: 6px;
+      color: var(--aiwu-primary);
+      background: var(--aiwu-primary-soft);
+      border: 1px solid var(--aiwu-primary-border);
+
+      svg {
+        width: 13px;
+        height: 13px;
+        display: block;
+      }
+
+      &--amber,
+      &--warning {
+        color: var(--color-warning);
+        background: var(--color-warning-soft);
+        border-color: var(--color-warning-border);
+      }
+
+      &--success {
+        color: var(--color-success);
+        background: var(--color-success-soft);
+        border-color: var(--color-success-border);
+      }
+
+      &--danger {
+        color: var(--color-danger);
+        background: var(--color-danger-soft);
+        border-color: var(--color-danger-border);
+      }
+
+      &--inline {
+        width: 18px;
+        height: 18px;
+        border-radius: 5px;
+        margin-right: 6px;
+        vertical-align: -3.5px;
+
+        svg {
+          width: 11px;
+          height: 11px;
+        }
+      }
+    }
+
+    ul,
+    ol {
+      margin: 8px 0;
+      padding-left: 1.6em;
+    }
+
+    li {
+      margin: 3px 0;
+      line-height: 1.6;
+
+      > p {
+        margin: 0;
+        display: inline;
+      }
+
+      &::marker {
+        color: var(--aiwu-primary);
+      }
+    }
+
+    blockquote {
+      margin: 10px 0;
+      padding: 8px 12px;
+      border-left: 3px solid var(--aiwu-primary);
+      border-radius: var(--radius-sm);
+      background: var(--aiwu-surface-muted);
+      color: var(--aiwu-text-secondary);
+      font-size: 12.5px;
+    }
+
+    hr {
+      margin: 14px 0;
+      border: none;
+      border-top: 1px solid var(--aiwu-border);
+    }
+
+    a,
+    a.chat-link {
+      color: var(--aiwu-primary);
+      text-decoration: underline;
+      text-underline-offset: 2px;
+      cursor: pointer;
+
+      &:hover {
+        opacity: 0.82;
+      }
+    }
+
+    img {
+      max-width: 100%;
+      height: auto;
+      display: block;
+      margin: 10px 0;
+      border-radius: var(--radius-sm);
+    }
+
+    /* 块级公式：超长等式独立横向滑动，绝不撑爆气泡 */
+    .katex-block-wrapper {
+      display: block;
+      width: 100%;
+      max-width: 100%;
+      overflow-x: auto;
+      overflow-y: hidden;
+      -webkit-overflow-scrolling: touch;
+      box-sizing: border-box;
+      margin: 6px 0;
+      padding: 2px 4px;
+      text-align: center;
+      scrollbar-width: thin;
+      scrollbar-color: var(--aiwu-primary-border) transparent;
+
+      &::-webkit-scrollbar {
+        height: 4px;
+      }
+
+      &::-webkit-scrollbar-thumb {
+        background: var(--aiwu-primary-border);
+        border-radius: 4px;
+      }
+
+      .katex-display {
+        margin: 0;
+        padding: 0;
+        display: inline-block;
+        text-align: center;
+      }
+
+      > .katex {
+        max-width: none;
+        text-align: center;
+      }
+    }
+
+    br + .katex-block-wrapper,
+    .katex-block-wrapper + br {
+      display: none;
+    }
+
+    .katex {
+      max-width: 100%;
+      word-break: normal;
+      overflow-wrap: normal;
+    }
+
+    :not(pre) > code,
+    code.chat-inline-code:not(pre *) {
+      padding: 0 2px;
+      border: none;
+      border-radius: 0;
+      background: transparent;
+      color: var(--aiwu-primary-strong);
+      font-family: var(--font-mono);
+      font-size: 0.92em;
+      font-weight: 500;
+      word-break: break-all;
+      overflow-wrap: anywhere;
+    }
+
+    /* 表格：细边框数据容器 */
+    .table-wrap {
+      width: 100%;
+      max-width: 100%;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      margin: 10px 0 12px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--aiwu-border);
+      background: var(--aiwu-surface-muted);
+      box-sizing: border-box;
+      scrollbar-width: thin;
+
+      &::-webkit-scrollbar {
+        height: 4px;
+      }
+
+      &::-webkit-scrollbar-thumb {
+        background: var(--aiwu-primary-border);
+        border-radius: 4px;
+      }
+    }
+
+    table {
+      width: 100%;
+      min-width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      line-height: 1.55;
+      table-layout: auto;
+    }
+
+    th,
+    td {
+      border: 1px solid var(--aiwu-border);
+      padding: 6px 10px;
+      text-align: left;
+      vertical-align: top;
+      word-break: break-word;
+      min-width: 72px;
+    }
+
+    th {
+      background: var(--aiwu-surface-muted);
+      color: var(--aiwu-primary-strong);
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    td {
+      background: var(--aiwu-surface);
+      color: var(--aiwu-text);
+    }
+
+    /* 表格单元格内嵌代码块 */
+    .chat-table-code-block {
+      margin: 6px 0;
+      border-radius: var(--radius-sm);
+      background: #1e1e1e;
+      border: 1px solid #333333;
+      overflow: hidden;
+      max-width: 100%;
+      box-sizing: border-box;
+
+      .chat-table-code-header {
+        background: #252526;
+        padding: 4px 10px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border-bottom: 1px solid #2d2d2d;
+      }
+
+      .chat-table-code-lang {
+        font-family: var(--font-mono);
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+        color: #9cdcfe;
+      }
+
+      .chat-table-code-pre {
+        margin: 0;
+        padding: 8px 10px;
+        overflow-x: auto;
+        background: transparent;
+        color: #d4d4d4;
+        font-family: var(--font-mono);
+        font-size: 11.5px;
+        line-height: 1.5;
+        white-space: pre-wrap;
+        word-break: break-all;
+
+        code {
+          padding: 0;
+          background: transparent;
+          color: inherit;
+          font-family: inherit;
+          font-size: inherit;
+        }
+      }
+    }
+
+    /* 通用代码块：固定深色 IDE 表面（亮暗主题下均保证代码可读性） */
+    .code-block-wrapper:not(.ascii-tree-wrapper):not(.ascii-diagram-wrapper) {
+      margin: 12px 0;
+      border-radius: var(--radius-sm);
+      border: 1px solid #333333;
+      background: #1e1e1e;
+      overflow: hidden;
+
+      .code-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        box-sizing: border-box;
+        padding: 6px 12px;
+        background: #252526;
+
+        .code-lang {
+          font-family: var(--font-mono);
+          font-size: 11px;
+          font-weight: 700;
+          letter-spacing: 0.5px;
+          text-transform: uppercase;
+          color: #9cdcfe;
+        }
+
+        .code-copy-btn {
+          padding: 3px 10px;
+          border: none;
+          border-radius: var(--radius-pill);
+          background: #3c3c3c;
+          color: #cccccc;
+          font-size: 10.5px;
+          line-height: 1.4;
+          cursor: pointer;
+          transition:
+            background-color var(--duration-fast) var(--ease-out),
+            color var(--duration-fast) var(--ease-out);
+
+          &:hover {
+            background: #505050;
+            color: #ffffff;
+          }
+
+          &.is-copied {
+            background: rgba(74, 222, 128, 0.16);
+            color: #4ade80;
+            box-shadow: inset 0 0 0 1px rgba(74, 222, 128, 0.35);
+          }
+        }
+      }
+
+      pre {
+        margin: 0;
+        padding: 10px 12px;
+        overflow-x: auto;
+        background: transparent;
+        color: #e2e8f0;
+        font-family: var(--font-mono);
+        font-size: 12.5px;
+        line-height: 1.5;
+        white-space: pre-wrap;
+        word-break: break-word;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
+
+      pre.hljs,
+      pre.hljs code {
+        background: transparent;
+        color: #e2e8f0;
+        font-family: inherit;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+    }
+
+    /* 字符树知识结构 */
+    .ascii-tree-wrapper {
+      border-color: var(--aiwu-primary-border);
+      background: var(--aiwu-surface-muted);
+
+      .code-header {
+        background: var(--aiwu-primary-soft);
+      }
+
+      .code-lang {
+        color: var(--aiwu-primary-strong);
+        text-transform: none;
+      }
+
+      .code-copy-btn {
+        background: var(--aiwu-primary-soft-strong);
+        color: var(--aiwu-primary);
+
+        &:hover {
+          background: var(--aiwu-primary-border);
+          color: var(--aiwu-text);
+        }
+
+        &.is-copied {
+          background: var(--color-success-soft);
+          color: var(--color-success);
+          box-shadow: inset 0 0 0 1px var(--color-success-border);
+        }
+      }
+
+      .ascii-tree-pre,
+      .ascii-tree-pre code {
+        display: block;
+        margin: 0;
+        padding: 14px 16px;
+        background: transparent;
+        color: var(--aiwu-text);
+        font-family: var(--font-mono);
+        font-size: 13px;
+        line-height: 1.55;
+        white-space: pre;
+        word-break: normal;
+        overflow-wrap: normal;
+        overflow-x: auto;
+      }
+    }
+
+    /* ASCII 框线板书 */
+    .ascii-diagram-wrapper {
+      margin: 12px 0;
+      border-radius: var(--radius-sm);
+      border: 1px solid #3f3f46;
+      background: #18181b;
+      overflow: hidden;
+
+      .code-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 6px 12px;
+        background: #27272a;
+
+        .code-lang {
+          font-size: 11px;
+          font-weight: 700;
+          letter-spacing: 0.5px;
+          color: #60a5fa;
+          text-transform: none;
+        }
+
+        .code-copy-btn {
+          padding: 3px 10px;
+          border: none;
+          border-radius: var(--radius-pill);
+          background: #3f3f46;
+          color: #e2e8f0;
+          font-size: 10.5px;
+          line-height: 1.4;
+          cursor: pointer;
+
+          &:hover {
+            background: #52525b;
+            color: #ffffff;
+          }
+
+          &.is-copied {
+            background: rgba(74, 222, 128, 0.16);
+            color: #4ade80;
+          }
+        }
+      }
+
+      .ascii-diagram-pre,
+      .ascii-diagram-pre code {
+        margin: 0;
+        padding: 14px 16px;
+        background: transparent;
+        color: #f1f5f9;
+        font-family: 'Cascadia Code', 'Cascadia Mono', Consolas, var(--font-mono);
+        font-size: 13px;
+        line-height: 1.38;
+        letter-spacing: 0;
+        white-space: pre;
+        word-break: normal;
+        overflow-wrap: normal;
+        overflow-x: auto;
+        font-feature-settings: 'liga' 0, 'calt' 0;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        text-rendering: geometricPrecision;
+      }
+    }
+
+    /* Mermaid 流程图卡片 */
+    .mermaid-diagram-wrapper {
+      margin: 14px 0;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--aiwu-primary-border);
+      background: var(--aiwu-surface);
+      overflow: hidden;
+      box-shadow: var(--shadow-xs);
+      transition:
+        border-color var(--duration-fast) var(--ease-out),
+        box-shadow var(--duration-fast) var(--ease-out);
+
+      &:hover {
+        border-color: var(--aiwu-primary-border-strong);
+        box-shadow: 0 4px 14px var(--aiwu-primary-glow);
+      }
+
+      .mermaid-source {
+        display: none;
+      }
+
+      .mermaid-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--space-2);
+        padding: 6px 12px;
+        background: var(--aiwu-primary-soft);
+        border-bottom: 1px solid var(--aiwu-primary-border);
+        color: var(--aiwu-primary);
+        font-size: 11px;
+        font-weight: 600;
+      }
+
+      .mermaid-header-title {
+        flex: 1;
+        min-width: 0;
+      }
+
+      .mermaid-toolbar {
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .mermaid-btn--zoom {
+        height: 24px;
+        padding: 0 8px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        border: 1px solid var(--aiwu-primary-border);
+        border-radius: var(--radius-sm);
+        background: var(--aiwu-surface);
+        color: var(--aiwu-primary);
+        font-size: 11px;
+        font-weight: 600;
+        cursor: pointer;
+        transition:
+          background-color var(--duration-fast) var(--ease-out),
+          border-color var(--duration-fast) var(--ease-out);
+
+        &:hover:not(:disabled) {
+          background: var(--aiwu-primary-soft-strong);
+          border-color: var(--aiwu-primary-border-strong);
+        }
+
+        &:disabled {
+          opacity: 0.45;
+          cursor: not-allowed;
+        }
+      }
+
+      &:not([data-mermaid-done='true']) .mermaid-btn--zoom {
+        opacity: 0.45;
+        pointer-events: none;
+      }
+
+      .mermaid-diagram {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 12px 14px;
+        max-width: 100%;
+        max-height: 350px;
+        overflow-x: auto;
+        overflow-y: hidden;
+        background: var(--aiwu-surface);
+        cursor: zoom-in;
+
+        svg {
+          display: block;
+          max-width: 100%;
+          max-height: 320px;
+          width: auto;
+          height: auto;
+          margin: 0 auto;
+          object-fit: contain;
+        }
+
+        .mermaid-loading {
+          color: var(--aiwu-text-muted);
+          font-size: 12px;
+        }
+
+        .mermaid-error {
+          color: var(--aiwu-danger);
+          font-size: 12px;
+        }
+
+        .mermaid-outline-fallback {
+          padding: 4px 2px 8px;
+
+          .mermaid-outline-title {
+            margin: 0 0 8px;
+            color: var(--aiwu-text-secondary);
+            font-size: 12px;
+          }
+
+          ul {
+            margin: 0;
+            padding-left: 20px;
+            color: var(--aiwu-text);
+            font-size: 13px;
+            line-height: 1.65;
+          }
+        }
+
+        .mermaid-fallback-box pre {
+          margin: 0;
+          padding: 10px 12px;
+          border-radius: var(--radius-sm);
+          background: var(--aiwu-surface-muted);
+          font-size: 12px;
+          line-height: 1.55;
+          white-space: pre-wrap;
+          word-break: break-word;
+        }
+      }
+    }
+
+    .math-fallback {
+      color: var(--aiwu-text-secondary);
+      font-family: var(--font-mono);
+      font-size: 12px;
+    }
+  }
+}
+
+/* 思考步骤详情内更紧凑的 Markdown 排版 */
+.aiwu-thinking-detail {  .chat-md-content {
+    font-size: 12.5px;
+    line-height: 1.68;
+    color: var(--aiwu-text-secondary);
+
+    p {
+      margin: 6px 0;
+    }
+
+    strong {
+      font-weight: 400;
+      color: inherit;
+
+      &.chat-md-label {
+        font-weight: 600;
+        color: var(--aiwu-primary-strong);
+      }
+    }
+
+    h1,
+    h2,
+    h3,
+    h4 {
+      margin: 10px 0 6px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--aiwu-text);
+    }
+
+    ul,
+    ol {
+      margin: 6px 0 10px;
+      padding-left: 1.45em;
+    }
+
+    blockquote {
+      margin: 8px 0;
+      padding: 6px 10px;
+      background: var(--aiwu-surface-muted);
+      border-left-color: var(--aiwu-primary-border-strong);
+      color: var(--aiwu-text-secondary);
+    }
+
+    .mermaid-diagram-wrapper {
+      display: none;
+    }
+
+    .code-block-wrapper {
+      margin: 10px 0;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--aiwu-border);
+      background: var(--aiwu-surface);
+
+      .code-header {
+        padding: 6px 12px;
+        background: var(--aiwu-surface-muted);
+
+        .code-lang {
+          color: var(--aiwu-text-secondary);
+          text-transform: none;
+        }
+
+        .code-copy-btn {
+          background: var(--aiwu-surface-muted);
+          color: var(--aiwu-text-secondary);
+
+          &:hover {
+            background: var(--aiwu-border);
+          }
+        }
+      }
+
+      pre,
+      pre.hljs {
+        padding: 10px 12px;
+        background: var(--aiwu-surface-muted);
+        color: var(--aiwu-text);
+        font-size: 12px;
+      }
+
+      pre.hljs code {
+        background: transparent;
+        color: var(--aiwu-text);
+      }
+    }
+  }
+}
+
+/* 用户消息气泡：提高优先级，确保正文与全部 Markdown 子元素在深色主色气泡上保持白色 */
+.ai-wu-drawer-panel .aiwu-bubble.is-user .chat-md-content {
+  color: #ffffff;
+
+  p,
+  li,
+  strong,
+  em,
+  h1,
+  h2,
+  h3,
+  h4,
+  span,
+  div,
+  blockquote,
+  a,
+  td,
+  th {
+    color: #ffffff;
+  }
+
+  strong {
+    font-weight: 700;
+  }
+
+  blockquote {
+    background: rgba(255, 255, 255, 0.14);
+    border-left-color: rgba(255, 255, 255, 0.7);
+  }
+
+  :not(pre) > code {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.16);
+    border-color: rgba(255, 255, 255, 0.24);
+  }
+
+  .table-wrap {
+    border-color: rgba(255, 255, 255, 0.3);
+    background: rgba(0, 0, 0, 0.14);
+  }
+
+  th,
+  td {
+    color: #ffffff;
+    border-color: rgba(255, 255, 255, 0.24);
+    background: transparent;
+  }
+
+  th {
+    background: rgba(255, 255, 255, 0.16);
+  }
+
+  .katex,
+  .katex * {
+    color: #ffffff;
+  }
+
+  a {
+    color: #ffffff;
+    text-decoration-color: rgba(255, 255, 255, 0.6);
+  }
+
+  .chat-md-icon {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.16);
+    border-color: rgba(255, 255, 255, 0.28);
+  }
+}

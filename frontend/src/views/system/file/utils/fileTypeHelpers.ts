@@ -1,10 +1,3 @@
-import {
-  Document,
-  DocumentCopy,
-  Picture,
-  VideoCamera,
-  Headset,
-} from '@element-plus/icons-vue'
 import type { FileRecord } from '@/api/system/file'
 
 export function formatSize(bytes: number | undefined) {
@@ -55,21 +48,4 @@ export function isPreviewable(file: FileRecord | null | undefined) {
 
 export function useStreamPreview(file: FileRecord): boolean {
   return isVideo(file) || isAudio(file) || isImage(file) || isPdf(file)
-}
-
-export function getFileIcon(file: FileRecord | null | undefined) {
-  const s = file?.fileSuffix?.toLowerCase() || ''
-  if (['.doc', '.docx', '.xls', '.xlsx', '.pdf', '.txt', '.md'].includes(s)) return DocumentCopy
-  if (file?.fileType?.startsWith('image/')) return Picture
-  if (file?.fileType?.startsWith('video/')) return VideoCamera
-  if (file?.fileType?.startsWith('audio/')) return Headset
-  return Document
-}
-
-export function getFileIconColor(file: FileRecord | null | undefined) {
-  const s = file?.fileSuffix?.toLowerCase() || ''
-  if (['.doc', '.docx'].includes(s)) return '#2b579a'
-  if (['.xls', '.xlsx'].includes(s)) return '#217346'
-  if (s === '.pdf') return '#f40f02'
-  return '#9ca3af'
 }

@@ -1,17 +1,22 @@
 <template>
-  <div class="job-hero">
+  <header class="job-hero">
     <div class="job-hero-left">
-      <h2 class="job-hero-title">
-        <ModulePageIcon :icon="MODULE_PAGE_ICON.job" class="job-hero-title-icon" />
-        定时任务调度中心
-      </h2>
-      <p class="job-hero-desc">基于 Quartz 管理维护任务：日志归档、聊天消息清理、通知与回收站清理等</p>
+      <div class="job-hero-head">
+        <div class="job-hero-icon" aria-hidden="true">
+          <ModulePageIcon :icon="MODULE_PAGE_ICON.job" :size="20" />
+        </div>
+        <div class="job-hero-text">
+          <h1 class="job-hero-title">定时任务调度中心</h1>
+          <p class="job-hero-desc">基于 Quartz 管理维护任务：日志归档、聊天消息清理、通知与回收站清理等</p>
+        </div>
+      </div>
       <div class="job-hero-tags">
         <el-tag type="info" effect="plain">任务 {{ overview.totalJobs ?? 0 }}</el-tag>
         <el-tag type="success" effect="plain">运行中 {{ overview.runningJobs ?? 0 }}</el-tag>
         <el-tag type="warning" effect="plain">已暂停 {{ overview.pausedJobs ?? 0 }}</el-tag>
       </div>
     </div>
+
     <el-row :gutter="12" class="job-hero-stats">
       <el-col :span="6" :xs="12">
         <div class="job-hero-stat">
@@ -20,25 +25,25 @@
         </div>
       </el-col>
       <el-col :span="6" :xs="12">
-        <div class="job-hero-stat success">
+        <div class="job-hero-stat is-success">
           <div class="job-hero-stat-value">{{ overview.successCount ?? 0 }}</div>
           <div class="job-hero-stat-label">成功</div>
         </div>
       </el-col>
       <el-col :span="6" :xs="12">
-        <div class="job-hero-stat fail">
+        <div class="job-hero-stat is-fail">
           <div class="job-hero-stat-value">{{ overview.failCount ?? 0 }}</div>
           <div class="job-hero-stat-label">失败</div>
         </div>
       </el-col>
       <el-col :span="6" :xs="12">
-        <div class="job-hero-stat rate">
+        <div class="job-hero-stat is-rate">
           <div class="job-hero-stat-value">{{ overview.successRate ?? 100 }}%</div>
           <div class="job-hero-stat-label">成功率</div>
         </div>
       </el-col>
     </el-row>
-  </div>
+  </header>
 </template>
 
 <script setup lang="ts">
@@ -49,70 +54,116 @@ import { MODULE_PAGE_ICON } from '@/constants/module-page-icons'
 defineProps<{ overview: JobOverview }>()
 </script>
 
-<style scoped>
+<style scoped lang="scss">
 .job-hero {
+  position: relative;
+  overflow: hidden;
   display: flex;
   flex-wrap: wrap;
-  gap: 20px;
+  gap: var(--space-5);
   justify-content: space-between;
   align-items: center;
-  padding: 24px 28px;
-  margin-bottom: 16px;
-  border-radius: 12px;
-  background: linear-gradient(135deg, var(--theme-primary, #111827) 0%, #374151 100%);
-  color: #fff;
+  padding: var(--space-4) var(--space-5);
+  border-radius: var(--radius-lg);
+  background-color: var(--color-bg-surface);
+  background-image:
+    radial-gradient(ellipse 58% 115% at 96% -12%, var(--el-color-primary-light-9) 0%, transparent 66%),
+    radial-gradient(ellipse 42% 90% at 4% 112%, var(--el-color-primary-light-9) 0%, transparent 62%);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-primary);
 }
+
 .job-hero-left {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
+  gap: var(--space-3);
   flex: 1;
   min-width: 280px;
 }
-.job-hero-title {
+
+.job-hero-head {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin: 0 0 8px;
-  font-size: 22px;
-  font-weight: 700;
+  gap: var(--space-3);
+  min-width: 0;
 }
-.job-hero-title-icon {
+
+.job-hero-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: var(--radius-md);
+  background: var(--el-color-primary-light-9);
+  color: var(--el-color-primary);
+  border: 1px solid var(--el-color-primary-light-7);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
 }
+
+.job-hero-text {
+  min-width: 0;
+}
+
+.job-hero-title {
+  margin: 0;
+  font-size: var(--text-h2);
+  font-weight: 600;
+  line-height: var(--leading-h2);
+  color: var(--color-text-primary);
+}
+
 .job-hero-desc {
-  margin: 0 0 12px;
+  margin: 2px 0 0;
   font-size: 13px;
-  opacity: 0.85;
-  max-width: 480px;
+  color: var(--color-text-secondary);
   line-height: 1.5;
 }
+
 .job-hero-tags {
   display: flex;
-  gap: 8px;
+  gap: var(--space-2);
   flex-wrap: wrap;
 }
+
 .job-hero-stats {
   flex: 1;
   min-width: 280px;
   max-width: 520px;
 }
+
 .job-hero-stat {
   text-align: center;
-  padding: 12px 8px;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.12);
+  padding: var(--space-3) var(--space-2);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-subtle);
+  border: 1px solid var(--color-border-subtle);
 }
+
 .job-hero-stat-value {
-  font-size: 24px;
+  font-size: 22px;
   font-weight: 700;
+  line-height: 1.25;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-primary);
 }
+
 .job-hero-stat-label {
-  font-size: 12px;
-  opacity: 0.8;
+  font-size: var(--text-caption);
+  color: var(--color-text-secondary);
   margin-top: 4px;
 }
-.job-hero-stat.success .job-hero-stat-value { color: #95de64; }
-.job-hero-stat.fail .job-hero-stat-value { color: #ff9c9c; }
-.job-hero-stat.rate .job-hero-stat-value { color: #91d5ff; }
+
+.job-hero-stat.is-success .job-hero-stat-value {
+  color: var(--color-success);
+}
+
+.job-hero-stat.is-fail .job-hero-stat-value {
+  color: var(--color-danger);
+}
+
+.job-hero-stat.is-rate .job-hero-stat-value {
+  color: var(--el-color-primary);
+}
 </style>

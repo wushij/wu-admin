@@ -65,6 +65,7 @@
               v-if="canUnlockLoginLock(row)"
               :content="buildUsernameLockTooltip(row)"
               placement="top"
+              :show-after="1000"
             >
               <el-icon
                 class="user-name-cell__lock"

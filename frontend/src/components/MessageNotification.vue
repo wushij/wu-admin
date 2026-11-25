@@ -79,10 +79,11 @@ async function handleView() {
   left: 20px;
   bottom: 20px;
   width: 320px;
-  background: #fff;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  z-index: 9999;
+  background: var(--color-bg-elevated, #ffffff);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-float);
+  z-index: var(--z-snackbar, 2400);
   overflow: hidden;
 }
 
@@ -90,7 +91,7 @@ async function handleView() {
   display: flex;
   align-items: center;
   padding: 12px 16px;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--color-border-subtle);
   gap: 8px;
 }
 
@@ -102,6 +103,7 @@ async function handleView() {
   flex: 1;
   font-weight: 500;
   font-size: 14px;
+  color: var(--color-text-primary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -110,7 +112,7 @@ async function handleView() {
 .notification-content {
   padding: 12px 16px;
   font-size: 13px;
-  color: #666;
+  color: var(--color-text-secondary);
   line-height: 1.5;
   max-height: 60px;
   overflow: hidden;
@@ -128,12 +130,12 @@ async function handleView() {
 
 .notification-time {
   font-size: 12px;
-  color: #999;
+  color: var(--color-text-muted);
 }
 
 .slide-up-enter-active,
 .slide-up-leave-active {
-  transition: all 0.3s ease;
+  transition: transform 0.3s var(--ease-out), opacity 0.3s var(--ease-out);
 }
 
 .slide-up-enter-from,

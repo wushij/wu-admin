@@ -53,7 +53,7 @@
             </div>
           </div>
         </template>
-        <el-descriptions :column="4" border size="small">
+        <el-descriptions :column="4" border size="small" class="monitor-descriptions">
           <el-descriptions-item label="版本">{{ info.redisVersion || '-' }}</el-descriptions-item>
           <el-descriptions-item label="模式">{{ info.redisMode || '-' }}</el-descriptions-item>
           <el-descriptions-item label="运行天数">{{ info.uptimeInDays ?? '-' }}</el-descriptions-item>
@@ -149,7 +149,7 @@
           </el-form-item>
         </el-form>
 
-        <div class="keys-table-wrap" v-loading="keysLoading" element-loading-background="rgba(255, 255, 255, 0.65)">
+        <div class="keys-table-wrap" v-loading="keysLoading">
         <el-table
           :data="pagedKeys"
           :height="keysTableHeight"
@@ -206,7 +206,7 @@
       </el-card>
 
       <el-dialog v-model="detailVisible" title="缓存详情" width="720px" destroy-on-close>
-        <el-descriptions :column="1" border>
+        <el-descriptions :column="1" border class="monitor-descriptions">
           <el-descriptions-item label="键名">{{ cacheDetail.key }}</el-descriptions-item>
           <el-descriptions-item label="类型">
             <el-tag type="info" size="small">{{ cacheDetail.type }}</el-tag>
@@ -296,8 +296,8 @@ const {
       gap: 12px;
       flex-shrink: 0;
 
-      :deep(.el-switch) {
-        min-width: 56px;
+      :deep(.el-switch .el-switch__core) {
+        min-width: 60px;
       }
 
       .monitor-refresh-btn {

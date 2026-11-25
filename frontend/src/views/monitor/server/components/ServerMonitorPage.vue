@@ -77,7 +77,7 @@
             </el-button>
           </div>
         </div>
-        <el-descriptions :column="4" border size="small" class="host-desc">
+        <el-descriptions :column="4" border size="small" class="host-desc monitor-descriptions">
           <el-descriptions-item label="主机名">{{ info.sys?.hostName || '-' }}</el-descriptions-item>
           <el-descriptions-item label="IP">{{ info.sys?.hostAddress || '-' }}</el-descriptions-item>
           <el-descriptions-item label="操作系统">{{ info.sys?.osName || '-' }}</el-descriptions-item>
@@ -93,11 +93,11 @@
           <el-card shadow="never" class="detail-card">
             <template #header>
               <div class="detail-header">
-                <el-icon class="detail-icon cpu"><Cpu /></el-icon>
+                <el-icon class="detail-icon cpu"><Odometer /></el-icon>
                 <span>CPU 信息</span>
               </div>
             </template>
-            <el-descriptions :column="1" border size="small">
+            <el-descriptions :column="1" border size="small" class="monitor-descriptions">
               <el-descriptions-item label="操作系统">{{ info.cpu?.name || '-' }}</el-descriptions-item>
               <el-descriptions-item label="架构">{{ info.cpu?.arch || '-' }}</el-descriptions-item>
               <el-descriptions-item label="核心数">{{ info.cpu?.availableProcessors ?? '-' }}</el-descriptions-item>
@@ -117,7 +117,7 @@
                 <span>内存信息</span>
               </div>
             </template>
-            <el-descriptions :column="1" border size="small">
+            <el-descriptions :column="1" border size="small" class="monitor-descriptions">
               <el-descriptions-item label="堆已用">{{ info.memory?.heapUsed || '-' }}</el-descriptions-item>
               <el-descriptions-item label="堆最大">{{ info.memory?.heapMax || '-' }}</el-descriptions-item>
               <el-descriptions-item label="堆提交">{{ info.memory?.heapCommitted || '-' }}</el-descriptions-item>
@@ -135,7 +135,7 @@
                 <span>JVM 信息</span>
               </div>
             </template>
-            <el-descriptions :column="1" border size="small">
+            <el-descriptions :column="1" border size="small" class="monitor-descriptions">
               <el-descriptions-item label="名称">{{ info.jvm?.name || '-' }}</el-descriptions-item>
               <el-descriptions-item label="厂商">{{ info.jvm?.vendor || '-' }}</el-descriptions-item>
               <el-descriptions-item label="版本">{{ info.jvm?.version || '-' }}</el-descriptions-item>
@@ -153,7 +153,7 @@
                 <span>服务器信息</span>
               </div>
             </template>
-            <el-descriptions :column="1" border size="small">
+            <el-descriptions :column="1" border size="small" class="monitor-descriptions">
               <el-descriptions-item label="主机名">{{ info.sys?.hostName || '-' }}</el-descriptions-item>
               <el-descriptions-item label="IP 地址">{{ info.sys?.hostAddress || '-' }}</el-descriptions-item>
               <el-descriptions-item label="操作系统">{{ info.sys?.osName || '-' }}</el-descriptions-item>
@@ -221,7 +221,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { Coin, Cpu, Loading, Monitor, Platform } from '@element-plus/icons-vue'
+import { Coin, Loading, Monitor, Odometer, Platform } from '@element-plus/icons-vue'
 import ModulePageIcon from '@/components/ModulePageIcon.vue'
 import { MODULE_PAGE_ICON } from '@/constants/module-page-icons'
 import { useServerMonitorPage } from '../composables/useServerMonitorPage'
@@ -358,8 +358,8 @@ function formatLoad(val?: number | null) {
       gap: 12px;
       flex-shrink: 0;
 
-      :deep(.el-switch) {
-        min-width: 56px;
+      :deep(.el-switch .el-switch__core) {
+        min-width: 60px;
       }
 
       .monitor-refresh-btn {

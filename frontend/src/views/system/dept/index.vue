@@ -1,20 +1,11 @@
 <template>
   <div class="app-container module-page">
-    <el-card class="search-card module-hero-card" shadow="never">
-      <div class="module-hero-row">
-        <div class="module-hero-text">
-          <div class="module-hero-title">
-            <ModulePageIcon :icon="MODULE_PAGE_ICON.org" />
-            <span>部门管理</span>
-          </div>
-          <p class="module-hero-desc">维护组织部门树结构，支持负责人与联系方式配置</p>
-        </div>
-        <div class="module-hero-stats">
-          <div class="stat-num">{{ deptCount }}</div>
-          <div class="stat-label">部门总数</div>
-        </div>
-      </div>
-    </el-card>
+    <PageHeader
+      title="部门管理"
+      description="维护组织部门树结构，支持负责人与联系方式配置"
+      :icon="MODULE_PAGE_ICON.org"
+      :stats="[{ label: '部门总数', value: deptCount }]"
+    />
 
     <el-card class="search-card module-search-card" shadow="never">
       <el-form :model="queryParams" inline class="module-search-form">
@@ -37,7 +28,6 @@
       </el-form>
     </el-card>
 
-    <!-- 数据表格 -->
     <el-card>
       <template #header>
         <div class="card-header">
@@ -48,7 +38,9 @@
           </div>
         </div>
       </template>
+
       <el-table
+        v-if="deptList.length || loading"
         :data="deptList"
         v-loading="loading"
         row-key="id"
@@ -76,26 +68,17 @@
         <el-table-column label="操作" width="220" fixed="right" align="center" header-align="center">
           <template #default="{ row }">
             <div class="action-buttons">
-              <el-button 
-                type="primary" 
-                size="small"
-                v-permission="'system:dept:create'" 
-                @click="handleAdd(row)"
-              >
+              <el-button type="primary" size="small" v-permission="'system:dept:create'" @click="handleAdd(row)">
                 新增
               </el-button>
-              <el-button 
-                type="primary" 
-                size="small"
-                v-permission="'system:dept:update'" 
-                @click="handleEdit(row)"
-              >
+              <el-button type="primary" size="small" v-permission="'system:dept:update'" @click="handleEdit(row)">
                 编辑
               </el-button>
-              <el-button 
-                type="danger" 
+              <el-button
+                type="danger"
+                plain
                 size="small"
-                v-permission="'system:dept:delete'" 
+                v-permission="'system:dept:delete'"
                 @click="handleDelete(row)"
               >
                 删除
@@ -104,9 +87,9 @@
           </template>
         </el-table-column>
       </el-table>
+      <EmptyState v-else title="暂无部门数据" description="点击右上角新增部门构建组织结构" />
     </el-card>
 
-    <!-- 新增/编辑对话框 -->
     <el-dialog v-model="dialogVisible" :title="dialogTitle" width="600px" :lock-scroll="false">
       <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
         <el-form-item label="上级部门" prop="parentId">
@@ -150,6 +133,7 @@
 
     <el-dialog v-model="recycleVisible" title="部门回收站" width="940px" :lock-scroll="false">
       <el-table
+        v-if="recycleList.length || recycleLoading"
         :data="recycleList"
         v-loading="recycleLoading"
         border
@@ -163,25 +147,30 @@
         <el-table-column prop="phone" label="联系电话" width="150" />
         <el-table-column prop="status" label="状态" width="100">
           <template #default="{ row }">
-            <el-tag :type="row.status === 1 ? 'success' : 'info'">{{ row.status === 1 ? '启用' : '禁用' }}</el-tag>
+            <el-tag :type="row.status === 1 ? 'success' : 'info'" effect="plain">
+              {{ row.status === 1 ? '启用' : '禁用' }}
+            </el-tag>
           </template>
         </el-table-column>
         <el-table-column prop="updateTime" label="删除时间" width="180" />
-        <el-table-column label="操作" width="170" fixed="right">
+        <el-table-column label="操作" width="190" fixed="right">
           <template #default="{ row }">
             <div class="action-buttons">
-              <el-button size="small" type="success" @click="handleRestore(row)">恢复</el-button>
-              <el-button size="small" type="danger" @click="handlePermanentDelete(row)">清除</el-button>
+              <el-button size="small" type="primary" plain @click="handleRestore(row)">恢复</el-button>
+              <el-button size="small" type="danger" plain @click="handlePermanentDelete(row)">彻底清除</el-button>
             </div>
           </template>
         </el-table-column>
       </el-table>
+      <EmptyState v-else title="部门回收站为空" />
       <el-pagination
+        v-if="recycleTotal > 0"
         v-model:current-page="recycleQuery.pageNo"
         v-model:page-size="recycleQuery.pageSize"
         :total="recycleTotal"
         :page-sizes="[10, 20, 50, 100]"
         layout="total, sizes, prev, pager, next, jumper"
+        class="table-pagination"
         @size-change="getRecycleList"
         @current-change="getRecycleList"
       />
@@ -192,12 +181,24 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed } from 'vue'
 import { Search, Refresh } from '@element-plus/icons-vue'
-import ModulePageIcon from '@/components/ModulePageIcon.vue'
+import { ElMessage, type FormInstance } from 'element-plus'
+import PageHeader from '@/components/ui/PageHeader.vue'
+import EmptyState from '@/components/ui/EmptyState.vue'
 import { MODULE_PAGE_ICON } from '@/constants/module-page-icons'
-import { ElMessage, ElMessageBox, type FormInstance } from 'element-plus'
 import type { DeptVO, DeptSaveDTO, DeptRecycleQuery, DeptTreeQuery } from '@/api/system/dept'
-import { getDeptList, createDept, updateDept, deleteDept, updateDeptStatus, getRecycleDeptPage, restoreDept, deleteDeptPermanent } from '@/api/system/dept'
+import {
+  getDeptList,
+  createDept,
+  updateDept,
+  deleteDept,
+  updateDeptStatus,
+  getRecycleDeptPage,
+  restoreDept,
+  deleteDeptPermanent,
+} from '@/api/system/dept'
 import DeptLeaderSelect from '@/components/DeptLeaderSelect.vue'
+import { openAlertDialog } from '@/composables/ui/useAlertDialog'
+import { showSnackbar } from '@/composables/ui/useSnackbar'
 
 const tableHeaderStyle = { textAlign: 'center' as const }
 const tableCellStyle = { textAlign: 'center' as const }
@@ -215,13 +216,13 @@ const recycleTotal = ref(0)
 
 const queryParams = reactive<DeptTreeQuery>({
   name: '',
-  status: null
+  status: null,
 })
 const recycleQuery = reactive<DeptRecycleQuery>({
   pageNo: 1,
   pageSize: 10,
   name: '',
-  status: null
+  status: null,
 })
 
 const form = reactive<DeptSaveDTO>({
@@ -232,11 +233,11 @@ const form = reactive<DeptSaveDTO>({
   phone: '',
   email: '',
   sort: 0,
-  status: 1
+  status: 1,
 })
 
 const rules = {
-  name: [{ required: true, message: '请输入部门名称', trigger: 'blur' }]
+  name: [{ required: true, message: '请输入部门名称', trigger: 'blur' }],
 }
 
 const countDeptNodes = (list: DeptVO[]): number =>
@@ -258,9 +259,7 @@ const getList = async () => {
   }
 }
 
-const handleQuery = () => {
-  getList()
-}
+const handleQuery = () => getList()
 
 const resetQuery = () => {
   queryParams.name = ''
@@ -270,9 +269,7 @@ const resetQuery = () => {
 
 const handleAdd = (row?: DeptVO) => {
   resetForm()
-  if (row) {
-    form.parentId = row.id
-  }
+  if (row) form.parentId = row.id
   dialogTitle.value = '新增部门'
   dialogVisible.value = true
 }
@@ -284,11 +281,20 @@ const handleEdit = (row: DeptVO) => {
   dialogVisible.value = true
 }
 
+/** 部门软删除进回收站：直接执行 + Snackbar 一键撤销 */
 const handleDelete = async (row: DeptVO) => {
-  await ElMessageBox.confirm('确定要删除该部门吗？', '提示', { type: 'warning' })
   await deleteDept(row.id)
-  ElMessage.success('删除成功')
   getList()
+  showSnackbar({
+    message: `已将部门「${row.name}」移至回收站`,
+    variant: 'info',
+    actionLabel: '撤销',
+    onAction: async () => {
+      await restoreDept(row.id)
+      ElMessage.success(`已恢复部门「${row.name}」`)
+      getList()
+    },
+  })
 }
 
 const getRecycleList = async () => {
@@ -316,22 +322,53 @@ const handleRestore = async (row: DeptVO) => {
 }
 
 const handlePermanentDelete = async (row: DeptVO) => {
-  await ElMessageBox.confirm('确定彻底删除该部门吗？该操作不可恢复', '提示', { type: 'warning' })
-  await deleteDeptPermanent(row.id)
-  ElMessage.success('清除成功')
-  await getRecycleList()
+  await openAlertDialog({
+    title: '彻底清除部门',
+    targetName: row.name,
+    message: '彻底清除后该部门数据将从数据库物理删除，不可恢复。',
+    severity: 'irreversible',
+    confirmText: '彻底清除',
+    onConfirm: async () => {
+      await deleteDeptPermanent(row.id)
+      ElMessage.success('已彻底清除')
+      await getRecycleList()
+    },
+  })
 }
 
-// 状态切换
 const handleStatusChange = async (row: DeptVO) => {
+  const nextStatus = row.status
+  const prevStatus = nextStatus === 1 ? 0 : 1
+  if (nextStatus === 0) {
+    const ok = await openAlertDialog({
+      title: '禁用部门',
+      targetName: row.name,
+      message: '禁用后该部门在新建用户或组织筛选中将不可选用。',
+      severity: 'warning',
+      confirmText: '确认禁用',
+      onConfirm: async () => {
+        if (row.id == null || nextStatus == null) return
+        await updateDeptStatus(row.id, nextStatus)
+      },
+    })
+    if (!ok) row.status = prevStatus
+    else ElMessage.success('禁用成功')
+    return
+  }
   try {
-    const text = row.status === 1 ? '启用' : '禁用'
-    await ElMessageBox.confirm(`确认要${text}部门"${row.name}"吗？`, '提示', { type: 'warning' })
-    if (row.id == null || row.status == null) return
-    await updateDeptStatus(row.id, row.status)
-    ElMessage.success(`${text}成功`)
+    if (row.id == null || nextStatus == null) return
+    await updateDeptStatus(row.id, nextStatus)
+    showSnackbar({
+      message: `已启用部门「${row.name}」`,
+      variant: 'success',
+      actionLabel: '撤销',
+      onAction: async () => {
+        await updateDeptStatus(row.id, prevStatus)
+        row.status = prevStatus
+      },
+    })
   } catch {
-    row.status = row.status === 1 ? 0 : 1
+    row.status = prevStatus
   }
 }
 
@@ -368,8 +405,5 @@ const submitForm = async () => {
   })
 }
 
-onMounted(() => {
-  getList()
-})
+onMounted(() => getList())
 </script>
-

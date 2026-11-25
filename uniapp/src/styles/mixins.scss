@@ -34,10 +34,44 @@
   color: #f8f7ff;
 }
 
-/** 认证页玻璃卡片外框（与 PC login-form.css 一致） */
+/** 认证主操作长圆胶囊按钮（1:1 复刻 PC 端浅柔紫明珠胶囊） */
+@mixin auth-pearl-primary-btn {
+  border-radius: 9999rpx;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.98) 0%,
+    rgba(238, 242, 255, 0.96) 52%,
+    rgba(243, 232, 255, 0.96) 100%
+  );
+  border: 3rpx solid rgba(99, 102, 241, 0.42);
+  color: #4338ca;
+  box-shadow:
+    0 12rpx 36rpx rgba(99, 102, 241, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95);
+}
+
+/** 认证辅助/注册/切换胶囊按钮（1:1 复刻 PC 端浅柔冰蓝薄荷明珠胶囊） */
+@mixin auth-pearl-ice-btn {
+  border-radius: 9999rpx;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.98) 0%,
+    rgba(240, 249, 255, 0.96) 55%,
+    rgba(236, 253, 245, 0.96) 100%
+  );
+  border: 2rpx solid rgba(14, 165, 233, 0.42);
+  color: #0369a1;
+  box-shadow:
+    0 8rpx 28rpx rgba(14, 165, 233, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95);
+}
+
+/** 认证页玻璃卡片外框（1:1 复刻 PC auth-glass-form.css） */
 @mixin auth-glass-form-shell {
-  border: 1px solid $color-auth-glass-border;
-  box-shadow: $shadow-auth, inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  box-shadow:
+    0 48rpx 112rpx rgba(0, 0, 0, 0.48),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14);
   background: transparent;
   overflow: hidden;
   transform: translateZ(0);
@@ -45,14 +79,34 @@
 
 /** 毛玻璃背景层（独立层以保证 H5 backdrop-filter 生效） */
 @mixin auth-glass-form-backdrop {
-  background: linear-gradient(
-    160deg,
-    rgba(255, 255, 255, 0.055) 0%,
-    rgba(255, 255, 255, 0.02) 45%,
-    rgba(255, 255, 255, 0.035) 100%
-  );
-  backdrop-filter: blur(10px) saturate(135%);
-  -webkit-backdrop-filter: blur(10px) saturate(135%);
+  background: rgba(255, 255, 255, 0.045);
+  backdrop-filter: blur(22px) saturate(155%);
+  -webkit-backdrop-filter: blur(22px) saturate(155%);
+}
+
+/** 深空玻璃态复选框（H5 复刻 PC auth-glass-form.css；小程序同步圆角与缩放） */
+@mixin auth-glass-checkbox {
+  /* #ifdef H5 */
+  :deep(.uni-checkbox-input) {
+    width: 32rpx !important;
+    height: 32rpx !important;
+    border-radius: 10rpx !important;
+    background-color: rgba(255, 255, 255, 0.08) !important;
+    border: 1px solid rgba(255, 255, 255, 0.28) !important;
+    transition: background-color 0.18s ease, border-color 0.18s ease;
+  }
+
+  :deep(.uni-checkbox-input.uni-checkbox-input-checked) {
+    background-color: rgba(248, 250, 252, 0.92) !important;
+    border-color: rgba(248, 250, 252, 0.92) !important;
+    color: #0f172a !important;
+  }
+
+  :deep(.uni-checkbox-input.uni-checkbox-input-checked::before) {
+    color: #0f172a !important;
+    font-size: 24rpx !important;
+  }
+  /* #endif */
 }
 
 @mixin card-elevated {

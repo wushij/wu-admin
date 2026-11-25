@@ -572,21 +572,6 @@
           }
         },
         {
-          "path": "log/index",
-          "style": {
-            "navigationBarTitleText": "AI 对话日志",
-            "navigationStyle": "custom",
-            "enablePullDownRefresh": true
-          }
-        },
-        {
-          "path": "log/detail",
-          "style": {
-            "navigationBarTitleText": "日志详情",
-            "navigationStyle": "custom"
-          }
-        },
-        {
           "path": "knowledge/index",
           "style": {
             "navigationBarTitleText": "AI 知识库",
@@ -595,9 +580,16 @@
           }
         },
         {
-          "path": "knowledge/edit",
+          "path": "knowledge/form",
           "style": {
-            "navigationBarTitleText": "编辑知识",
+            "navigationBarTitleText": "编辑知识库",
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "knowledge/detail/index",
+          "style": {
+            "navigationBarTitleText": "知识库详情",
             "navigationStyle": "custom"
           }
         }

@@ -1,0 +1,336 @@
+/**
+ * 16 种标准 UI 动效词库工程样式实现
+ * 工程铁律：
+ * 1. 仅动画化合成层属性 transform / opacity，严禁触发布局重排的属性
+ * 2. 禁止 transition: all，显式声明过渡属性与标准缓动曲线
+ * 3. 指针悬停特效仅在精准指针设备上启用（@media (hover: hover) and (pointer: fine)）
+ * 4. 全局适配 @media (prefers-reduced-motion: reduce)
+ */
+
+/* 1. Ease Out（默认微交互与进场缓动） */
+.motion-ease-out {
+  transition:
+    transform var(--duration-fast) var(--ease-out),
+    opacity var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out),
+    background-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+}
+
+/* 2. Spring Animation（弹性微交互） */
+.motion-spring {
+  transition:
+    transform var(--duration-normal) var(--ease-spring),
+    opacity var(--duration-fast) var(--ease-out);
+}
+
+/* 3. Hover Lift（悬停高亮反馈，零位移防抖动） */
+@media (hover: hover) and (pointer: fine) {
+  .motion-hover-lift {
+    transition:
+      box-shadow var(--duration-normal) var(--ease-out),
+      border-color var(--duration-fast) var(--ease-out),
+      background-color var(--duration-fast) var(--ease-out);
+  }
+
+  .motion-hover-lift:hover {
+    box-shadow: var(--shadow-md);
+  }
+}
+
+/* 4. Magnetic Button（磁吸按钮，坐标由 useMagneticButton 驱动） */
+.motion-magnetic {
+  will-change: transform;
+  transition: transform 220ms var(--ease-out);
+}
+
+/* 5. Spotlight（鼠标聚光灯，局部 CSS 变量 --spot-x / --spot-y 驱动） */
+.motion-spotlight {
+  position: relative;
+  overflow: hidden;
+  --spot-x: 50%;
+  --spot-y: 50%;
+}
+
+.motion-spotlight::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  background: radial-gradient(
+    360px circle at var(--spot-x) var(--spot-y),
+    var(--color-spotlight),
+    transparent 68%
+  );
+  transition: opacity var(--duration-normal) var(--ease-out);
+  z-index: 0;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .motion-spotlight:hover::before {
+    opacity: 1;
+  }
+}
+
+/* 6. Border Beam（边缘流光，单点克制强调，仅推荐/默认卡使用） */
+.motion-border-beam {
+  position: relative;
+  overflow: hidden;
+}
+
+.motion-border-beam::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1.5px;
+  background: conic-gradient(
+    from var(--beam-angle, 0deg),
+    transparent 0deg 260deg,
+    var(--el-color-primary, #3b82f6) 310deg,
+    rgba(255, 255, 255, 0.85) 340deg,
+    transparent 360deg
+  );
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  pointer-events: none;
+  animation: motion-beam-spin 4.2s linear infinite;
+}
+
+@property --beam-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
+@keyframes motion-beam-spin {
+  to {
+    --beam-angle: 360deg;
+  }
+}
+
+/* 7. 3D Tilt（3D 倾斜容器，倾角由 useTilt3D 限制在 <= 6deg） */
+.motion-tilt {
+  transform-style: preserve-3d;
+  transition: transform 240ms var(--ease-out);
+}
+
+/* 8. Scroll Reveal（滚动显示，由 IntersectionObserver 触发 is-revealed） */
+.motion-reveal {
+  opacity: 0;
+  transform: translateY(14px);
+  transition:
+    opacity var(--duration-normal) var(--ease-out),
+    transform var(--duration-normal) var(--ease-out);
+}
+
+.motion-reveal.is-revealed {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* 9. Stagger Animation（错峰入场，最大延迟封顶 8 项） */
+.motion-stagger-item {
+  opacity: 0;
+  transform: translateY(10px);
+  animation: motion-stagger-in var(--duration-normal) var(--ease-out) both;
+  animation-delay: calc(min(var(--stagger-index, 0), 7) * 45ms);
+}
+
+@keyframes motion-stagger-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 10. Scroll Storytelling & 11. Parallax Scrolling（使用 translate3d） */
+.motion-parallax {
+  will-change: transform;
+  transform: translate3d(0, var(--parallax-y, 0px), 0);
+}
+
+/* 12. Shimmer（流光扫过骨架屏，仅用伪元素 translateX） */
+.motion-shimmer {
+  position: relative;
+  overflow: hidden;
+  background: var(--color-bg-muted);
+  border-radius: var(--radius-sm);
+}
+
+.motion-shimmer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.38) 50%,
+    transparent 100%
+  );
+  animation: motion-shimmer-sweep 1.5s var(--ease-out) infinite;
+}
+
+html.dark .motion-shimmer::after {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.08) 50%,
+    transparent 100%
+  );
+}
+
+@keyframes motion-shimmer-sweep {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+/* 13. Count Up（等宽数字防宽度抖动） */
+.motion-tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* 14. Typewriter（打字机闪烁光标，仅动画化 opacity） */
+.motion-typewriter-cursor {
+  display: inline-block;
+  width: 2px;
+  height: 1.05em;
+  margin-left: 2px;
+  vertical-align: -0.15em;
+  background: currentColor;
+  border-radius: var(--radius-pill);
+  animation: motion-cursor-blink 0.9s steps(2, start) infinite;
+}
+
+@keyframes motion-cursor-blink {
+  0%, 49% {
+    opacity: 1;
+  }
+  50%, 100% {
+    opacity: 0;
+  }
+}
+
+/* 15. Text Scramble（文字解码等宽稳定态） */
+.motion-scramble {
+  font-variant-numeric: tabular-nums;
+}
+
+/* 16. Marquee（无缝跑马灯，支持悬停与聚焦暂停） */
+.motion-marquee {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  mask-image: linear-gradient(90deg, transparent 0%, #000 8%, #000 92%, transparent 100%);
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 8%, #000 92%, transparent 100%);
+}
+
+.motion-marquee-track {
+  display: flex;
+  width: max-content;
+  gap: var(--space-3);
+  animation: motion-marquee-scroll var(--marquee-duration, 28s) linear infinite;
+}
+
+.motion-marquee:hover .motion-marquee-track,
+.motion-marquee:focus-visible .motion-marquee-track {
+  animation-play-state: paused;
+}
+
+@keyframes motion-marquee-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+/* ── 全局减少动态效果无障碍降级 ─────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .motion-reveal {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .motion-stagger-item {
+    opacity: 1 !important;
+    transform: none !important;
+    animation: none !important;
+  }
+
+  .motion-marquee-track {
+    animation: none !important;
+    transform: none !important;
+  }
+
+  .motion-border-beam::after {
+    animation: none !important;
+  }
+
+  ::view-transition-new(root),
+  ::view-transition-old(root) {
+    animation: none !important;
+  }
+}
+
+/* ── 主题切色：View Transitions 丝滑圆形水波扩散与平滑降级 ── */
+::view-transition-image-pair(root) {
+  isolation: isolate;
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+::view-transition-old(root) {
+  z-index: 1;
+}
+
+::view-transition-new(root) {
+  z-index: 2;
+  animation: theme-circle-reveal 440ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes theme-circle-reveal {
+  from {
+    clip-path: circle(0px at var(--theme-vt-x, 50%) var(--theme-vt-y, 50%));
+  }
+  to {
+    clip-path: circle(var(--theme-vt-r, 150vmax) at var(--theme-vt-x, 50%) var(--theme-vt-y, 50%));
+  }
+}
+
+html.theme-transitioning *,
+html.theme-transitioning *::before,
+html.theme-transitioning *::after {
+  transition:
+    background-color 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+    color 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.28s cubic-bezier(0.22, 1, 0.36, 1) !important;
+}

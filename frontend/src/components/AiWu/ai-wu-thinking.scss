@@ -1,0 +1,405 @@
+/**
+ * 深度思考卡片样式（1:1 复刻 EduMind AIThinking：无内部竖向滚动条 + 淡蓝渐变胶囊卡）
+ */
+
+.aiwu-thinking {
+  box-sizing: border-box;
+  width: 100%;
+  margin-bottom: 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(22, 119, 255, 0.2);
+  background: linear-gradient(180deg, rgba(235, 245, 255, 0.8) 0%, rgba(248, 250, 252, 0.95) 100%);
+  box-shadow: 0 2px 8px rgba(22, 119, 255, 0.05);
+  overflow: hidden;
+  overflow-anchor: none;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+
+  &.is-active {
+    border-color: rgba(22, 119, 255, 0.45);
+    box-shadow:
+      0 0 12px rgba(22, 119, 255, 0.15),
+      inset 0 0 0 1px rgba(22, 119, 255, 0.1);
+  }
+}
+
+.aiwu-thinking-head {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  min-width: 0;
+  padding: 8px 12px;
+  border: none;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.18s ease;
+
+  &:hover {
+    background: rgba(22, 119, 255, 0.06);
+
+    .aiwu-thinking-toggle-text {
+      color: #1677ff;
+    }
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--aiwu-primary);
+    outline-offset: -2px;
+  }
+}
+
+.aiwu-thinking-head-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.aiwu-thinking-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #1677ff;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.aiwu-thinking-icon {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  color: #1677ff;
+
+  .thinking-pulse {
+    position: absolute;
+    inset: -2px;
+    border-radius: 50%;
+    border: 1.5px solid rgba(22, 119, 255, 0.6);
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  &.is-pulsing {
+    .thinking-pulse {
+      animation: aiwu-thinking-pulse 2.1s ease-out infinite;
+    }
+
+    .thinking-compass-star {
+      transform-origin: center;
+      animation: aiwu-thinking-star 2.4s ease-in-out infinite;
+    }
+  }
+}
+
+.thinking-compass-icon {
+  position: relative;
+  z-index: 1;
+  width: 16px;
+  height: 16px;
+  overflow: visible;
+}
+
+.aiwu-thinking-title {
+  flex-shrink: 0;
+  font-size: 12.5px;
+  color: #1d39c4;
+  font-weight: 600;
+}
+
+.aiwu-thinking-time {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+  padding: 1px 8px;
+  border-radius: 999px;
+  border: 1px solid #bfdbfe;
+  background: #eff6ff;
+  color: #2563eb;
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.4;
+
+  &.is-ticking {
+    color: #1d4ed8;
+    background: rgba(37, 99, 235, 0.12);
+    border-color: rgba(37, 99, 235, 0.35);
+  }
+
+  .time-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #3b82f6;
+    animation: aiwu-thinking-dot 1.2s ease-in-out infinite;
+  }
+}
+
+.aiwu-thinking-toggle-text {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 500;
+  color: #8c8c8c;
+  transition: color 0.18s ease;
+}
+
+/* 展开内容区：自然撑开，禁止出现内部竖向滚动条 */
+.aiwu-thinking-body {
+  position: relative;
+  box-sizing: border-box;
+  padding: 10px 14px 30px 16px;
+  border-top: 1px dashed rgba(22, 119, 255, 0.15);
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.aiwu-thinking-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.aiwu-thinking-tool-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--aiwu-border);
+  background: var(--aiwu-surface);
+  color: var(--aiwu-text-secondary);
+  font-size: 11.5px;
+  line-height: 1.5;
+
+  .tool-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--color-success);
+    flex-shrink: 0;
+  }
+
+  &.is-running {
+    border-color: rgba(22, 119, 255, 0.35);
+    background: rgba(22, 119, 255, 0.08);
+    color: #1677ff;
+
+    .tool-dot {
+      background: #1677ff;
+      animation: aiwu-thinking-dot 1.2s ease-in-out infinite;
+    }
+  }
+}
+
+.aiwu-thinking-prose {
+  min-width: 0;
+
+  :deep(.chat-md-content) {
+    font-size: 12.5px;
+    line-height: 1.65;
+    color: var(--aiwu-text-secondary);
+
+    p,
+    li {
+      color: var(--aiwu-text-secondary);
+    }
+
+    strong {
+      color: var(--aiwu-text);
+    }
+
+    h1,
+    h2,
+    h3,
+    h4 {
+      margin: 10px 0 6px;
+      font-size: 13px;
+      color: var(--aiwu-text);
+    }
+  }
+}
+
+.aiwu-thinking-inline-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--aiwu-text-muted);
+  font-size: 12px;
+  padding: 6px 0;
+
+  .thinking-spinner {
+    width: 14px;
+    height: 14px;
+    border: 2px solid rgba(22, 119, 255, 0.2);
+    border-top-color: #1677ff;
+    border-radius: 50%;
+    animation: aiwu-thinking-spin 0.8s linear infinite;
+    display: inline-block;
+    flex-shrink: 0;
+  }
+}
+
+.aiwu-thinking-collapse-btn {
+  position: absolute;
+  right: 8px;
+  bottom: 6px;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.88);
+  color: #94a3b8;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.06);
+  transition:
+    color 0.18s ease,
+    border-color 0.18s ease,
+    background-color 0.18s ease,
+    box-shadow 0.18s ease;
+
+  &:hover {
+    color: #1677ff;
+    border-color: rgba(22, 119, 255, 0.35);
+    background: rgba(235, 245, 255, 0.95);
+    box-shadow: 0 2px 6px rgba(22, 119, 255, 0.12);
+  }
+}
+
+.aiwu-thinking-collapse-icon {
+  width: 12px;
+  height: 12px;
+}
+
+/* 暗黑主题适配 */
+html.dark {
+  .aiwu-thinking {
+    border-color: color-mix(in srgb, var(--aiwu-primary) 28%, transparent);
+    background: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--aiwu-primary) 10%, var(--aiwu-surface)) 0%,
+      color-mix(in srgb, var(--aiwu-surface-muted) 88%, transparent) 100%
+    );
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);
+
+    &.is-active {
+      border-color: var(--aiwu-primary-border-strong);
+      box-shadow: 0 0 14px var(--aiwu-primary-glow);
+    }
+  }
+
+  .aiwu-thinking-title {
+    color: var(--aiwu-primary);
+  }
+
+  .aiwu-thinking-time {
+    background: color-mix(in srgb, var(--aiwu-primary) 14%, var(--aiwu-surface));
+    border-color: var(--aiwu-primary-border);
+    color: var(--aiwu-primary);
+  }
+
+  .aiwu-thinking-toggle-text {
+    color: var(--aiwu-text-muted);
+  }
+
+  .aiwu-thinking-body {
+    border-top-color: color-mix(in srgb, var(--aiwu-primary) 20%, transparent);
+  }
+
+  .aiwu-thinking-collapse-btn {
+    background: var(--aiwu-surface);
+    border-color: var(--aiwu-border);
+    color: var(--aiwu-text-muted);
+
+    &:hover {
+      color: var(--aiwu-primary);
+      border-color: var(--aiwu-primary-border);
+      background: var(--aiwu-primary-soft);
+    }
+  }
+}
+
+@keyframes aiwu-thinking-pulse {
+  0% {
+    transform: scale(0.7);
+    opacity: 0.6;
+  }
+  60% {
+    opacity: 0.22;
+  }
+  100% {
+    transform: scale(1.5);
+    opacity: 0;
+  }
+}
+
+@keyframes aiwu-thinking-star {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.95;
+    filter: drop-shadow(0 0 1px rgba(22, 119, 255, 0.2));
+  }
+  50% {
+    transform: scale(1.08);
+    opacity: 1;
+    filter: drop-shadow(0 0 3px rgba(22, 119, 255, 0.45));
+  }
+}
+
+@keyframes aiwu-thinking-dot {
+  0%,
+  100% {
+    transform: scale(0.8);
+    opacity: 0.6;
+  }
+  50% {
+    transform: scale(1.3);
+    opacity: 1;
+  }
+}
+
+@keyframes aiwu-thinking-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aiwu-thinking-icon.is-pulsing .thinking-pulse,
+  .aiwu-thinking-icon.is-pulsing .thinking-compass-star,
+  .aiwu-thinking-time .time-dot,
+  .aiwu-thinking-tool-chip.is-running .tool-dot,
+  .aiwu-thinking-inline-status .thinking-spinner {
+    animation: none !important;
+  }
+}
+
+@media (max-width: 767px) {
+  .aiwu-thinking-head {
+    padding: 7px 10px;
+  }
+
+  .aiwu-thinking-body {
+    padding: 8px 10px 26px;
+  }
+}

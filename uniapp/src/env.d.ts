@@ -19,3 +19,9 @@ declare module '*.vue' {
   const component: DefineComponent<object, object, unknown>
   export default component
 }
+
+// uni-h5 运行时包内没有类型声明，这里只声明本项目用到的形态
+declare module '@dcloudio/uni-h5' {
+  const runtime: Record<string, unknown>
+  export = runtime
+}

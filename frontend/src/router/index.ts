@@ -134,24 +134,20 @@ const routes: RouteRecordRaw[] = [
         meta: { title: 'AI 模型配置', icon: 'AiModel', permission: 'system:ai-model:list' }
       },
       {
-        path: 'ai/log',
-        name: 'AiLog',
-        component: () => import('@/views/ai/log/index.vue'),
-        meta: { title: 'AI 对话日志', icon: 'ChatDotRound', permission: 'system:ai-log:list' }
-      },
-      {
         path: 'ai/knowledge',
         name: 'AiKnowledge',
         component: () => import('@/views/ai/knowledge/index.vue'),
         meta: { title: 'AI 知识库', icon: 'Reading', permission: 'system:ai-knowledge:list' }
       },
       {
-        path: 'system/ai-model',
-        redirect: '/ai/model'
+        path: 'ai/knowledge/:id',
+        name: 'AiKnowledgeDetail',
+        component: () => import('@/views/ai/knowledge/detail/index.vue'),
+        meta: { title: '知识库详情', icon: 'Reading', permission: 'system:ai-knowledge:list' }
       },
       {
-        path: 'system/ai-log',
-        redirect: '/ai/log'
+        path: 'system/ai-model',
+        redirect: '/ai/model'
       },
       {
         path: 'monitor/api-access',
@@ -181,7 +177,7 @@ const routes: RouteRecordRaw[] = [
         path: 'monitor/server',
         name: 'MonitorServer',
         component: () => import('@/views/monitor/server/index.vue'),
-        meta: { title: '服务监控', icon: 'Cpu', permission: 'monitor:server:list' }
+        meta: { title: '服务监控', icon: 'Monitor', permission: 'monitor:server:list' }
       },
       {
         path: 'tool/api-doc',

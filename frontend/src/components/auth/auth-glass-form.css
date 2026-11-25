@@ -1,0 +1,351 @@
+/**
+ * 登录 / 注册认证区统一深空液态毛玻璃胶囊样式体系
+ * 遵循 ui-design 与 senior-frontend 规范：
+ * 1. 所有交互件（输入框、切换器、验证码容器、按钮）统一长圆胶囊边框（--radius-pill: 9999px）
+ * 2. 卡片外框采用克制的 Border Beam 边缘流光（支持 prefers-reduced-motion 降级）
+ * 3. 主按钮与输入框统一通透液态毛玻璃质感，摒弃生硬色块与高饱和塑料渐变
+ * 4. 彻底消除浏览器 :-webkit-autofill 注入的灰蓝直角色块
+ */
+
+@property --auth-beam-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
+.auth-form-wrapper {
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.auth-glass-form {
+  /* 认证页始终位于深空星空之上，锁定高明度明珠胶囊色，不受暗黑主题切色影响 */
+  --capsule-pearl-primary-bg: linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(238, 242, 255, 0.96) 52%, rgba(243, 232, 255, 0.96) 100%);
+  --capsule-pearl-primary-bg-hover: linear-gradient(135deg, #ffffff 0%, #e0e7ff 52%, #ede9fe 100%);
+  --capsule-pearl-primary-border: rgba(99, 102, 241, 0.42);
+  --capsule-pearl-primary-border-hover: #6366f1;
+  --capsule-pearl-primary-text: #4338ca;
+  --capsule-pearl-primary-text-hover: #3730a3;
+  --capsule-pearl-primary-shadow: 0 6px 18px rgba(99, 102, 241, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.95);
+  --capsule-pearl-primary-shadow-hover: 0 8px 24px rgba(99, 102, 241, 0.34), inset 0 1px 0 #ffffff;
+  --capsule-pearl-ice-bg: linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(240, 249, 255, 0.96) 55%, rgba(236, 253, 245, 0.96) 100%);
+  --capsule-pearl-ice-bg-hover: linear-gradient(135deg, #ffffff 0%, #e0f2fe 55%, #d1fae5 100%);
+  --capsule-pearl-ice-border: rgba(14, 165, 233, 0.42);
+  --capsule-pearl-ice-border-hover: #0ea5e9;
+  --capsule-pearl-ice-text: #0369a1;
+  --capsule-pearl-ice-text-hover: #0284c7;
+  --capsule-pearl-ice-shadow: 0 4px 14px rgba(14, 165, 233, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.95);
+  --capsule-pearl-ice-shadow-hover: 0 6px 18px rgba(14, 165, 233, 0.26), inset 0 1px 0 #ffffff;
+
+  position: relative;
+  width: 100%;
+  padding: 34px 32px 30px;
+  border-radius: 26px;
+  background: rgba(255, 255, 255, 0.045);
+  backdrop-filter: blur(22px) saturate(155%);
+  -webkit-backdrop-filter: blur(22px) saturate(155%);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  box-shadow:
+    0 28px 64px rgba(0, 0, 0, 0.48),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  box-sizing: border-box;
+  isolation: isolate;
+}
+
+/* 卡片外框流光（Border Beam）：沿圆角边框流动的淡靛紫与冰蓝微光 */
+.auth-glass-form::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1.25px;
+  background: conic-gradient(
+    from var(--auth-beam-angle, 0deg),
+    transparent 0deg 210deg,
+    rgba(129, 140, 248, 0.62) 258deg,
+    rgba(255, 255, 255, 0.88) 298deg,
+    rgba(56, 189, 248, 0.65) 336deg,
+    transparent 360deg
+  );
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0.9;
+  animation: auth-beam-spin 7.5s linear infinite;
+}
+
+@keyframes auth-beam-spin {
+  to {
+    --auth-beam-angle: 360deg;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-glass-form::before {
+    animation: none !important;
+    opacity: 0.45;
+  }
+}
+
+.auth-form__head {
+  margin-bottom: 24px;
+  text-align: center;
+}
+
+.auth-form__title {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1.25;
+  color: #f8fafc;
+}
+
+.auth-form__sub {
+  margin: 8px 0 0;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: rgba(203, 213, 225, 0.72);
+}
+
+.auth-inline-alert {
+  margin-bottom: 16px;
+}
+
+/* 认证表单容器 */
+.form-container {
+  width: 100%;
+  background: transparent !important;
+}
+
+.form-item {
+  margin-bottom: 16px;
+}
+
+/* ── 长圆毛玻璃胶囊输入框（透明玻璃边框 + 彻底覆盖 Element Plus 变量） ── */
+.form-input {
+  --el-input-bg-color: transparent;
+  --el-input-border-color: transparent;
+  --el-input-hover-border-color: transparent;
+  --el-input-focus-border-color: transparent;
+  --el-fill-color-blank: transparent;
+}
+
+.form-input :deep(.el-input__wrapper) {
+  height: 46px;
+  padding: 0 18px !important;
+  border-radius: var(--radius-pill) !important;
+  background-color: rgba(255, 255, 255, 0.07) !important;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid rgba(255, 255, 255, 0.09) !important;
+  transition:
+    background-color var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .form-input :deep(.el-input__wrapper:hover) {
+    background-color: rgba(255, 255, 255, 0.11) !important;
+    border-color: rgba(255, 255, 255, 0.18) !important;
+  }
+}
+
+.form-input :deep(.el-input__wrapper.is-focus) {
+  background-color: rgba(255, 255, 255, 0.13) !important;
+  border-color: rgba(186, 230, 253, 0.42) !important;
+  box-shadow:
+    0 0 0 3px rgba(148, 163, 184, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16) !important;
+}
+
+.form-input :deep(.el-input__inner) {
+  height: 44px !important;
+  font-size: 14.5px !important;
+  color: #f8fafc !important;
+  caret-color: #e2e8f0;
+  background: transparent !important;
+}
+
+.form-input :deep(.el-input__inner::placeholder) {
+  color: rgba(148, 163, 184, 0.74) !important;
+  font-size: 13.5px !important;
+}
+
+/* 彻底消除 Chrome / Edge 自动填充的直角灰蓝底块 */
+.form-input :deep(.el-input__inner:-webkit-autofill),
+.form-input :deep(.el-input__inner:-webkit-autofill:hover),
+.form-input :deep(.el-input__inner:-webkit-autofill:focus),
+.form-input :deep(.el-input__inner:-webkit-autofill:active) {
+  -webkit-text-fill-color: #f8fafc !important;
+  caret-color: #e2e8f0 !important;
+  -webkit-box-shadow: 0 0 0 1000px transparent inset !important;
+  box-shadow: 0 0 0 1000px transparent inset !important;
+  background-color: transparent !important;
+  background-clip: text !important;
+  transition:
+    background-color 99999s ease-in-out 0s,
+    color 99999s ease-in-out 0s !important;
+}
+
+.form-input :deep(.el-input__prefix) {
+  margin-right: 10px;
+}
+
+.form-input :deep(.el-input__suffix) {
+  color: rgba(203, 213, 225, 0.7);
+}
+
+.form-input :deep(.el-input__password),
+.form-input :deep(.el-input__clear) {
+  color: rgba(203, 213, 225, 0.7) !important;
+  transition: color var(--duration-fast) var(--ease-out);
+}
+
+.form-input :deep(.el-input__password:hover),
+.form-input :deep(.el-input__clear:hover) {
+  color: #f8fafc !important;
+}
+
+.input-icon {
+  color: rgba(203, 213, 225, 0.75) !important;
+  font-size: 17px !important;
+  transition: color var(--duration-fast) var(--ease-out);
+}
+
+.form-input :deep(.el-input__wrapper.is-focus) .input-icon {
+  color: #f8fafc !important;
+}
+
+/* 认证表单统一采用顶部胶囊轻提示（ElMessage），彻底屏蔽字段下方红字报错 */
+.form-container :deep(.el-form-item__error) {
+  display: none !important;
+}
+
+/* ── 深空玻璃态 InlineAlert 适配 ────────────────────────────── */
+.auth-glass-form :deep(.ui-inline-alert) {
+  border-radius: var(--radius-lg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: #f8fafc;
+}
+
+.auth-glass-form :deep(.ui-inline-alert .ui-inline-alert__title) {
+  color: #f8fafc;
+}
+
+.auth-glass-form :deep(.ui-inline-alert .ui-inline-alert__desc) {
+  color: rgba(226, 232, 240, 0.8);
+}
+
+/* ── 深空玻璃态复选框 ──────────────────────────────────────── */
+.auth-glass-form :deep(.el-checkbox__label) {
+  color: rgba(226, 232, 240, 0.86) !important;
+  font-size: 13.5px !important;
+}
+
+.auth-glass-form :deep(.el-checkbox__inner) {
+  background-color: rgba(255, 255, 255, 0.06) !important;
+  border-color: rgba(255, 255, 255, 0.25) !important;
+  border-radius: 5px !important;
+  width: 16px !important;
+  height: 16px !important;
+  transition:
+    background-color var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out);
+}
+
+.auth-glass-form :deep(.el-checkbox__input.is-checked .el-checkbox__inner) {
+  background-color: rgba(248, 250, 252, 0.9) !important;
+  border-color: rgba(248, 250, 252, 0.9) !important;
+}
+
+/* 勾形按容器中心几何居中：50% 定位 + translate 回正，
+   不再用 left/top 硬编码，避免容器放大到 16px 后勾偏左上 */
+.auth-glass-form :deep(.el-checkbox__inner::after) {
+  content: '' !important;
+  left: 50% !important;
+  top: 50% !important;
+  width: 3px !important;
+  height: 6px !important;
+  border: 2px solid transparent !important;
+  border-left: 0 !important;
+  border-top: 0 !important;
+  transform-origin: center !important;
+  transform: translate(-50%, -56%) rotate(45deg) scaleY(0) !important;
+  transition: transform var(--duration-fast) var(--ease-out) !important;
+}
+
+.auth-glass-form :deep(.el-checkbox__input.is-checked .el-checkbox__inner::after) {
+  border-color: #0f172a !important;
+  transform: translate(-50%, -56%) rotate(45deg) scaleY(1) !important;
+}
+
+/* ── 主操作长圆胶囊 CTA 按钮（1:1 复刻 EduMind 浅柔紫珠光胶囊） ── */
+.auth-magnetic-wrap {
+  width: 100%;
+}
+
+.auth-submit-btn {
+  --el-button-text-color: var(--capsule-pearl-primary-text);
+  --el-button-hover-text-color: var(--capsule-pearl-primary-text-hover);
+  --el-button-active-text-color: var(--capsule-pearl-primary-text-hover);
+  width: 100% !important;
+  height: 48px !important;
+  font-size: 15.5px !important;
+  font-weight: 600 !important;
+  letter-spacing: 3px;
+  border-radius: var(--radius-pill) !important;
+  background: var(--capsule-pearl-primary-bg) !important;
+  border: 1.5px solid var(--capsule-pearl-primary-border) !important;
+  color: var(--capsule-pearl-primary-text) !important;
+  box-shadow: var(--capsule-pearl-primary-shadow) !important;
+  transition:
+    transform var(--duration-fast) var(--ease-out),
+    background var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out),
+    opacity var(--duration-fast) var(--ease-out) !important;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .auth-submit-btn:hover:not(:disabled) {
+    background: var(--capsule-pearl-primary-bg-hover) !important;
+    border-color: var(--capsule-pearl-primary-border-hover) !important;
+    color: var(--capsule-pearl-primary-text-hover) !important;
+    box-shadow: var(--capsule-pearl-primary-shadow-hover) !important;
+  }
+}
+
+.auth-submit-btn:active:not(:disabled) {
+  box-shadow: 0 3px 10px rgba(99, 102, 241, 0.22) !important;
+}
+
+.auth-submit-btn:focus-visible {
+  outline: 2px solid rgba(165, 180, 252, 0.9);
+  outline-offset: 2px;
+}
+
+@media (max-width: 768px) {
+  .auth-form-wrapper {
+    max-width: 100%;
+  }
+
+  .auth-glass-form {
+    padding: 26px 20px 24px;
+    border-radius: 22px;
+  }
+}

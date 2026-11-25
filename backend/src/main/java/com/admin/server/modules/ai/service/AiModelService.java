@@ -17,8 +17,11 @@ public interface AiModelService {
 
     PageResult<AiModelRespVO> page(AiModelPageReqVO reqVO);
 
-    /** 启用中的模型列表（供对话面板模型选择器使用） */
+    /** 启用中的对话模型列表（供对话面板模型选择器使用） */
     List<AiModelRespVO> listEnabled();
+
+    /** 启用中的向量模型列表（供知识库选择 embedding 模型） */
+    List<AiModelRespVO> listEnabledEmbedding();
 
     AiModelRespVO detail(Long id);
 
@@ -39,6 +42,9 @@ public interface AiModelService {
 
     /** 获取可用模型：modelId 为空时取默认模型，均校验启用状态 */
     AiModelDO getAvailableModel(Long modelId);
+
+    /** 获取可用的向量模型：指定 ID 时校验类型必须为 embedding，否则取默认或首个启用的向量模型 */
+    AiModelDO getAvailableEmbeddingModel(Long modelId);
 
     /** 解密模型的 API Key 明文 */
     String decryptApiKey(AiModelDO model);

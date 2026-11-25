@@ -1,8 +1,16 @@
 import { ref, reactive } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import { testSms, getRecentSmsLogs, getSmsLogs, deleteSmsLog, deleteBatchSmsLogs, cleanSmsLogs } from '@/api/system/config'
+import { ElMessage } from 'element-plus'
+import {
+  testSms,
+  getRecentSmsLogs,
+  getSmsLogs,
+  deleteSmsLog,
+  deleteBatchSmsLogs,
+  cleanSmsLogs,
+} from '@/api/system/config'
 import { getErrorMessage } from '@/utils/axiosError'
 import type { SmsLogRecord } from '@/types/config'
+import { openAlertDialog } from '@/composables/ui/useAlertDialog'
 
 export function useSmsTest(isDirty: () => boolean, getProvider: () => string) {
   const smsTesting = ref(false)
@@ -31,21 +39,35 @@ export function useSmsTest(isDirty: () => boolean, getProvider: () => string) {
     try {
       const res = await getRecentSmsLogs(5)
       recentSmsLogs.value = res.data || []
-    } catch { recentSmsLogs.value = [] }
+    } catch {
+      recentSmsLogs.value = []
+    }
   }
 
   async function handleTestSms() {
-    if (isDirty()) { ElMessage.warning('请先保存短信配置，再发送测试短信'); return }
-    if (!testSmsPhone.value) { ElMessage.warning('请输入手机号'); return }
-    if (!/^1[3-9]\d{9}$/.test(testSmsPhone.value)) { ElMessage.warning('请输入正确的手机号格式'); return }
+    if (isDirty()) {
+      ElMessage.warning('请先保存短信配置，再发送测试短信')
+      return
+    }
+    if (!testSmsPhone.value) {
+      ElMessage.warning('请输入手机号')
+      return
+    }
+    if (!/^1[3-9]\d{9}$/.test(testSmsPhone.value)) {
+      ElMessage.warning('请输入正确的手机号格式')
+      return
+    }
     smsTesting.value = true
     try {
       const templateCode = getProvider() === 'aliyunAuth' ? testSmsTemplate.value : undefined
       await testSms(testSmsPhone.value, templateCode)
       ElMessage.success('测试短信发送成功')
       await loadRecentSmsLogs()
-    } catch { await loadRecentSmsLogs() }
-    finally { smsTesting.value = false }
+    } catch {
+      await loadRecentSmsLogs()
+    } finally {
+      smsTesting.value = false
+    }
   }
 
   function handleShowAllSmsLogs() {
@@ -57,21 +79,34 @@ export function useSmsTest(isDirty: () => boolean, getProvider: () => string) {
     smsLogsLoading.value = true
     try {
       const res = await getSmsLogs({
-        page: smsLogsPagination.page, size: smsLogsPagination.size,
-        phone: smsLogsSearch.phone || undefined, status: smsLogsSearch.status,
+        page: smsLogsPagination.page,
+        size: smsLogsPagination.size,
+        phone: smsLogsSearch.phone || undefined,
+        status: smsLogsSearch.status,
       })
       smsLogsData.value = res.data?.list || []
       smsLogsPagination.total = res.data?.total || 0
-    } catch (e) { ElMessage.error(getErrorMessage(e) || '加载短信记录失败') }
-    finally { smsLogsLoading.value = false }
+    } catch (e) {
+      ElMessage.error(getErrorMessage(e) || '加载短信记录失败')
+    } finally {
+      smsLogsLoading.value = false
+    }
   }
 
-  function handleSearchSmsLogs() { smsLogsPagination.page = 1; loadSmsLogs() }
-  function handleResetSmsLogsSearch() {
-    smsLogsSearch.phone = ''; smsLogsSearch.status = null
-    smsLogsPagination.page = 1; loadSmsLogs()
+  function handleSearchSmsLogs() {
+    smsLogsPagination.page = 1
+    loadSmsLogs()
   }
-  function handleSmsLogsSizeChange() { smsLogsPagination.page = 1; loadSmsLogs() }
+  function handleResetSmsLogsSearch() {
+    smsLogsSearch.phone = ''
+    smsLogsSearch.status = null
+    smsLogsPagination.page = 1
+    loadSmsLogs()
+  }
+  function handleSmsLogsSizeChange() {
+    smsLogsPagination.page = 1
+    loadSmsLogs()
+  }
 
   const selectedSmsLogIds = ref<(number | string)[]>([])
 
@@ -80,59 +115,55 @@ export function useSmsTest(isDirty: () => boolean, getProvider: () => string) {
   }
 
   async function handleDeleteSmsLog(id: number | string) {
-    try {
-      await deleteSmsLog(id)
-      ElMessage.success('删除成功')
-      await Promise.all([
-        loadRecentSmsLogs(),
-        showSmsLogsModal.value ? loadSmsLogs() : Promise.resolve(),
-      ])
-    } catch (e) {
-      ElMessage.error(getErrorMessage(e) || '删除失败')
-    }
+    await openAlertDialog({
+      title: '永久删除短信记录',
+      targetName: `记录 #${id}`,
+      message: '删除后该条短信发送记录将被永久清除，无法恢复。',
+      severity: 'irreversible',
+      confirmText: '永久删除',
+      onConfirm: async () => {
+        await deleteSmsLog(id)
+        ElMessage.success('删除成功')
+        await Promise.all([
+          loadRecentSmsLogs(),
+          showSmsLogsModal.value ? loadSmsLogs() : Promise.resolve(),
+        ])
+      },
+    })
   }
 
   async function handleBatchDeleteSmsLogs() {
     if (!selectedSmsLogIds.value.length) return
-    try {
-      await ElMessageBox.confirm(`确定删除选中的 ${selectedSmsLogIds.value.length} 条短信记录吗？`, '批量删除确认', {
-        type: 'warning',
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-      })
-      await deleteBatchSmsLogs(selectedSmsLogIds.value)
-      ElMessage.success('批量删除成功')
-      selectedSmsLogIds.value = []
-      await Promise.all([
-        loadRecentSmsLogs(),
-        loadSmsLogs(),
-      ])
-    } catch (e) {
-      if (e !== 'cancel') {
-        ElMessage.error(getErrorMessage(e) || '批量删除失败')
-      }
-    }
+    const count = selectedSmsLogIds.value.length
+    await openAlertDialog({
+      title: '批量删除短信记录',
+      targetName: `选中的 ${count} 条记录`,
+      message: '删除后这些短信发送记录将被永久清除且无法找回。',
+      severity: 'irreversible',
+      confirmText: `永久删除 (${count})`,
+      onConfirm: async () => {
+        await deleteBatchSmsLogs(selectedSmsLogIds.value)
+        ElMessage.success('批量删除成功')
+        selectedSmsLogIds.value = []
+        await Promise.all([loadRecentSmsLogs(), loadSmsLogs()])
+      },
+    })
   }
 
   async function handleCleanSmsLogs() {
-    try {
-      await ElMessageBox.confirm('确定要清空全部短信发送记录吗？该操作不可恢复！', '清空警告', {
-        type: 'warning',
-        confirmButtonText: '清空',
-        cancelButtonText: '取消',
-      })
-      await cleanSmsLogs()
-      ElMessage.success('已清空全部短信记录')
-      selectedSmsLogIds.value = []
-      await Promise.all([
-        loadRecentSmsLogs(),
-        loadSmsLogs(),
-      ])
-    } catch (e) {
-      if (e !== 'cancel') {
-        ElMessage.error(getErrorMessage(e) || '清空失败')
-      }
-    }
+    await openAlertDialog({
+      title: '清空全部短信发送记录',
+      targetName: `共 ${smsLogsPagination.total} 条记录`,
+      message: '此操作将永久清空全部短信发送日志且不可恢复。',
+      severity: 'irreversible',
+      confirmText: '清空全部记录',
+      onConfirm: async () => {
+        await cleanSmsLogs()
+        ElMessage.success('已清空全部短信记录')
+        selectedSmsLogIds.value = []
+        await Promise.all([loadRecentSmsLogs(), loadSmsLogs()])
+      },
+    })
   }
 
   function syncTemplateFromConfig(templateVerifyCode?: string) {
@@ -140,12 +171,29 @@ export function useSmsTest(isDirty: () => boolean, getProvider: () => string) {
   }
 
   return {
-    smsTesting, testSmsPhone, testSmsTemplate, recentSmsLogs,
-    showSmsLogsModal, smsLogsLoading, smsLogsData, smsLogsPagination, smsLogsSearch,
-    smsStatusText, smsStatusTagType,
-    loadRecentSmsLogs, handleTestSms, handleShowAllSmsLogs,
-    loadSmsLogs, handleSearchSmsLogs, handleResetSmsLogsSearch, handleSmsLogsSizeChange,
+    smsTesting,
+    testSmsPhone,
+    testSmsTemplate,
+    recentSmsLogs,
+    showSmsLogsModal,
+    smsLogsLoading,
+    smsLogsData,
+    smsLogsPagination,
+    smsLogsSearch,
+    smsStatusText,
+    smsStatusTagType,
+    loadRecentSmsLogs,
+    handleTestSms,
+    handleShowAllSmsLogs,
+    loadSmsLogs,
+    handleSearchSmsLogs,
+    handleResetSmsLogsSearch,
+    handleSmsLogsSizeChange,
     syncTemplateFromConfig,
-    selectedSmsLogIds, handleSmsSelectionChange, handleDeleteSmsLog, handleBatchDeleteSmsLogs, handleCleanSmsLogs,
+    selectedSmsLogIds,
+    handleSmsSelectionChange,
+    handleDeleteSmsLog,
+    handleBatchDeleteSmsLogs,
+    handleCleanSmsLogs,
   }
 }

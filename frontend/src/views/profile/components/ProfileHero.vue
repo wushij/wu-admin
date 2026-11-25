@@ -1,12 +1,18 @@
 <template>
   <div class="profile-hero">
-    <div class="hero-bg-pattern" />
     <div class="hero-content">
       <div class="hero-left">
-        <div class="avatar-uploader" @click="$emit('triggerAvatar')">
-          <el-avatar :size="88" :src="avatarSrc" class="hero-avatar">{{ avatarFallback }}</el-avatar>
+        <div
+          class="avatar-uploader"
+          role="button"
+          tabindex="0"
+          aria-label="更换头像"
+          @click="$emit('triggerAvatar')"
+          @keydown.enter.prevent="$emit('triggerAvatar')"
+        >
+          <el-avatar :size="82" :src="avatarSrc" class="hero-avatar">{{ avatarFallback }}</el-avatar>
           <div class="avatar-mask">
-            <el-icon :size="22"><Camera /></el-icon>
+            <el-icon :size="20"><Camera /></el-icon>
             <span>更换头像</span>
           </div>
         </div>
@@ -14,17 +20,28 @@
           <h1 class="hero-name">{{ profile.nickname || profile.username || '用户' }}</h1>
           <p class="hero-username">@{{ profile.username }}</p>
           <div class="hero-tags">
-            <el-tag v-for="role in profile.roleNames || []" :key="role" effect="dark" round class="role-tag">{{ role }}</el-tag>
+            <el-tag v-for="role in profile.roleNames || []" :key="role" effect="plain" round class="role-tag">
+              {{ role }}
+            </el-tag>
             <el-tag :type="statusTagType" effect="plain" round>{{ statusLabel }}</el-tag>
           </div>
         </div>
       </div>
       <div class="hero-stats">
-        <div class="stat-item"><div class="stat-value">{{ profile.deptName || '未分配' }}</div><div class="stat-label">所属部门</div></div>
-        <div class="stat-divider" />
-        <div class="stat-item"><div class="stat-value">{{ postDisplay }}</div><div class="stat-label">岗位</div></div>
-        <div class="stat-divider" />
-        <div class="stat-item"><div class="stat-value">{{ lastLoginDisplay }}</div><div class="stat-label">最近登录</div></div>
+        <div class="stat-item">
+          <div class="stat-value">{{ profile.deptName || '未分配' }}</div>
+          <div class="stat-label">所属部门</div>
+        </div>
+        <div class="stat-divider" aria-hidden="true" />
+        <div class="stat-item">
+          <div class="stat-value">{{ postDisplay }}</div>
+          <div class="stat-label">岗位</div>
+        </div>
+        <div class="stat-divider" aria-hidden="true" />
+        <div class="stat-item">
+          <div class="stat-value motion-tabular">{{ lastLoginDisplay }}</div>
+          <div class="stat-label">最近登录</div>
+        </div>
       </div>
     </div>
   </div>

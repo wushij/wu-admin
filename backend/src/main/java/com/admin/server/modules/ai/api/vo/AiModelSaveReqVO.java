@@ -13,6 +13,8 @@ public class AiModelSaveReqVO {
     private String provider;
     /** 接入协议: openai / anthropic，留空默认 openai */
     private String protocol;
+    /** 模型类型: chat=对话模型（默认）/ embedding=向量模型 */
+    private String modelType;
     private String modelName;
     private String baseUrl;
     /** 自定义请求路径模板，支持 {model} 占位；为空按协议内置规则拼接 */
@@ -23,6 +25,10 @@ public class AiModelSaveReqVO {
     private String apiKey;
     private Double temperature;
     private Integer maxTokens;
+    /** 向量维度（向量模型必填） */
+    private Integer dimension;
+    /** 向量化批量大小（向量模型可选） */
+    private Integer batchSize;
     private String systemPrompt;
     private Integer isDefault;
     private Integer status;

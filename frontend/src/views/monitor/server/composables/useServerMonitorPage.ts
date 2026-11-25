@@ -14,6 +14,14 @@ import {
   stopServerMonitorBackground,
 } from '../serverMonitorChart'
 import { isAdmin } from '@/composables/useMonitorBackground'
+import {
+  buildCategoryXAxis,
+  buildChartTooltip,
+  buildValueYAxis,
+  createGradientAreaLineSeries,
+  readChartTheme,
+  useChartThemeObserver,
+} from '@/utils/chartTheme'
 
 const LINE_CHART_GRID = {
   left: 8,
@@ -90,55 +98,67 @@ export function useServerMonitorPage(chartRefs: ServerMonitorChartRefs) {
 
   async function updateCharts() {
     const echarts = await ensureEcharts()
+    const theme = readChartTheme()
+    const { palette } = theme
     const { timeLabels, cpuData, heapData } = serverChartHistory
 
     if (cpuChartRef.value) {
       if (!cpuChart) cpuChart = echarts.init(cpuChartRef.value)
-      cpuChart.setOption({
-        tooltip: {
-          trigger: 'axis',
-          formatter: (params: unknown) => {
-            const list = Array.isArray(params) ? params : [params]
-            const p = list[0] as { axisValue?: string; data?: number | null }
-            return p.data == null
-              ? `${p.axisValue}<br/>暂无 CPU 采样`
-              : `${p.axisValue}<br/>CPU: ${p.data}%`
+      cpuChart.setOption(
+        {
+          tooltip: {
+            ...buildChartTooltip(theme, 'axis'),
+            formatter: (params: unknown) => {
+              const list = Array.isArray(params) ? params : [params]
+              const p = list[0] as { axisValue?: string; data?: number | null }
+              return p.data == null
+                ? `${p.axisValue}<br/>暂无 CPU 采样`
+                : `${p.axisValue}<br/>CPU: ${p.data}%`
+            },
           },
+          grid: { ...LINE_CHART_GRID },
+          xAxis: buildCategoryXAxis(timeLabels, theme),
+          yAxis: buildValueYAxis(theme, { name: 'CPU%', min: 0, max: 100 }),
+          series: [
+            createGradientAreaLineSeries({
+              echarts,
+              name: 'CPU',
+              data: cpuData,
+              color: palette.sky,
+              connectNulls: false,
+            }),
+          ],
         },
-        grid: { ...LINE_CHART_GRID },
-        xAxis: { type: 'category', data: [...timeLabels], boundaryGap: false },
-        yAxis: { type: 'value', name: 'CPU%', nameGap: 12, min: 0, max: 100 },
-        series: [{
-          data: [...cpuData],
-          type: 'line',
-          smooth: true,
-          connectNulls: false,
-          areaStyle: { opacity: 0.15 },
-          itemStyle: { color: '#409eff' },
-        }],
-      })
+        true,
+      )
     }
 
     if (memoryChartRef.value) {
       if (!memoryChart) memoryChart = echarts.init(memoryChartRef.value)
-      memoryChart.setOption({
-        tooltip: { trigger: 'axis', formatter: '{b}<br/>JVM 堆: {c}%' },
-        grid: { ...LINE_CHART_GRID },
-        xAxis: { type: 'category', data: [...timeLabels], boundaryGap: false },
-        yAxis: { type: 'value', name: '堆内存%', nameGap: 12, min: 0, max: 100 },
-        series: [{
-          data: [...heapData],
-          type: 'line',
-          smooth: true,
-          areaStyle: { opacity: 0.15 },
-          itemStyle: { color: '#67c23a' },
-        }],
-      })
+      memoryChart.setOption(
+        {
+          tooltip: { ...buildChartTooltip(theme, 'axis'), formatter: '{b}<br/>JVM 堆: {c}%' },
+          grid: { ...LINE_CHART_GRID },
+          xAxis: buildCategoryXAxis(timeLabels, theme),
+          yAxis: buildValueYAxis(theme, { name: '堆内存%', min: 0, max: 100 }),
+          series: [
+            createGradientAreaLineSeries({
+              echarts,
+              name: 'JVM 堆',
+              data: heapData,
+              color: palette.indigo,
+            }),
+          ],
+        },
+        true,
+      )
     }
 
     cpuChart?.resize()
     memoryChart?.resize()
   }
+
+  useChartThemeObserver(() => updateCharts())
 
   function diskProgressStatus(percent: number) {
     if (percent >= 90) return 'exception'

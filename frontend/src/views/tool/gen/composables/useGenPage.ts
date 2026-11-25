@@ -1,6 +1,8 @@
 import { ref, reactive, computed } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
 import axios from 'axios'
+import { openAlertDialog } from '@/composables/ui/useAlertDialog'
+import { showSnackbar } from '@/composables/ui/useSnackbar'
 import { listDictType } from '@/api/system/dict'
 import {
   dbTableList,
@@ -9,6 +11,7 @@ import {
   getGenTable,
   updateGenTable,
   deleteGenTable,
+  restoreGenTable,
   previewGenCode,
   previewGenerateFiles,
   generateToProject,
@@ -147,19 +150,36 @@ export function useGenPage() {
   }
 
   async function handleDelete(row: GenTable) {
-    await ElMessageBox.confirm(`确认删除表「${row.tableName}」的配置？`, '提示', { type: 'warning' })
     await deleteGenTable([row.id!])
-    ElMessage.success('删除成功')
     loadData()
+    showSnackbar({
+      message: `已将表「${row.tableName}」配置移至回收站`,
+      variant: 'info',
+      actionLabel: '撤销',
+      onAction: async () => {
+        await restoreGenTable(row.id!)
+        ElMessage.success(`已恢复表「${row.tableName}」配置`)
+        loadData()
+      },
+    })
   }
 
   async function batchDelete() {
     if (!selectedIds.value.length) return
-    await ElMessageBox.confirm(`确认删除选中的 ${selectedIds.value.length} 项？`, '提示', { type: 'warning' })
-    await deleteGenTable(selectedIds.value)
-    ElMessage.success('删除成功')
-    selectedIds.value = []
-    loadData()
+    const count = selectedIds.value.length
+    await openAlertDialog({
+      title: '批量删除代码生成配置',
+      targetName: `选中的 ${count} 张表配置`,
+      message: '删除后这些表配置将移入回收站，可在回收中心恢复。',
+      severity: 'danger',
+      confirmText: `确认删除 (${count})`,
+      onConfirm: async () => {
+        await deleteGenTable(selectedIds.value)
+        ElMessage.success('删除成功')
+        selectedIds.value = []
+        loadData()
+      },
+    })
   }
 
   async function handlePreview(row: GenTable) {
@@ -240,14 +260,18 @@ export function useGenPage() {
   }
 
   async function handleSync(row: GenTable) {
-    await ElMessageBox.confirm(
-      `将从数据库重新读取表「${row.tableName}」的字段结构并更新生成配置：新增字段会自动加入，已删字段会从配置中移除，已有字段的类型会更新。不会修改业务表数据。`,
-      '同步确认',
-      { type: 'warning', confirmButtonText: '确认同步', cancelButtonText: '取消' },
-    )
-    await syncGenTable(row.id!)
-    ElMessage.success('同步成功')
-    loadData()
+    await openAlertDialog({
+      title: '同步数据库表结构',
+      targetName: row.tableName,
+      message: '将从数据库重新读取字段结构并更新生成配置：新增字段会自动加入，已删字段会从配置中移除，不会修改业务表数据。',
+      severity: 'warning',
+      confirmText: '确认同步',
+      onConfirm: async () => {
+        await syncGenTable(row.id!)
+        ElMessage.success('同步成功')
+        loadData()
+      },
+    })
   }
 
   async function downloadZip(ids: number[]) {

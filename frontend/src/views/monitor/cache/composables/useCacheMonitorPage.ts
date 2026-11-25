@@ -1,5 +1,6 @@
 import { computed, nextTick, onMounted, onUnmounted, ref, watch, type Ref } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
+import { openAlertDialog } from '@/composables/ui/useAlertDialog'
 import type { EChartsType } from 'echarts'
 import {
   deleteCacheKey,
@@ -23,6 +24,14 @@ import {
   stopCacheMonitorBackground,
 } from '../cacheMonitorChart'
 import { isAdmin } from '@/composables/useMonitorBackground'
+import {
+  buildCategoryXAxis,
+  buildChartTooltip,
+  buildValueYAxis,
+  createGradientAreaLineSeries,
+  readChartTheme,
+  useChartThemeObserver,
+} from '@/utils/chartTheme'
 
 /** 表格固定高度，避免切换筛选时行数变化导致页面跳动 */
 const KEYS_TABLE_HEIGHT = 480
@@ -119,134 +128,179 @@ export function useCacheMonitorPage(chartRefs: CacheMonitorChartRefs) {
 
   async function updateCharts(stats: CacheStats = cacheChartHistory.lastMemoryStats ?? {}) {
     const echarts = await ensureEcharts()
+    const theme = readChartTheme()
+    const { palette } = theme
     const { timeLabels, qpsData, hitRateData, clientsData } = cacheChartHistory
 
     const used = stats.usedMemory ?? 0
     const max = stats.maxMemory ?? 0
     const showQuotaPie = stats.maxMemoryConfigured === true && max > 0 && max >= used
     const remainValue = showQuotaPie ? Math.max(max - used, 0) : 0
+    const ringGradientColor = new echarts.graphic.LinearGradient(0, 0, 1, 1, [
+      { offset: 0, color: palette.ringGradient[0] },
+      { offset: 1, color: palette.ringGradient[1] },
+    ])
 
     if (memoryChartRef.value) {
       if (!memoryChart) memoryChart = echarts.init(memoryChartRef.value)
       if (showQuotaPie) {
-        memoryChart.setOption({
-          tooltip: {
-            trigger: 'item',
-            formatter: (p: { name?: string; value?: number; percent?: number }) => {
-              const pct = p.percent != null ? p.percent.toFixed(1) : '0'
-              return `${p.name}<br/>${formatBytes(Number(p.value))}（${pct}%）`
+        memoryChart.setOption(
+          {
+            tooltip: {
+              ...buildChartTooltip(theme, 'item'),
+              formatter: (p: { name?: string; value?: number; percent?: number }) => {
+                const pct = p.percent != null ? p.percent.toFixed(1) : '0'
+                return `${p.name}<br/>${formatBytes(Number(p.value))}（${pct}%）`
+              },
             },
+            title: {
+              text: stats.usedMemoryHuman || formatBytes(used),
+              subtext: 'Redis 已用内存',
+              left: 'center',
+              top: '44%',
+              textStyle: { fontSize: 18, fontWeight: 700, color: theme.textPrimary },
+              subtextStyle: { fontSize: 12, color: theme.textSecondary },
+            },
+            series: [{
+              type: 'pie',
+              radius: ['52%', '72%'],
+              center: ['50%', '52%'],
+              itemStyle: {
+                borderRadius: 6,
+                borderColor: theme.surfaceBg,
+                borderWidth: 2,
+              },
+              label: {
+                show: true,
+                color: theme.textSecondary,
+                formatter: (p: { name?: string; percent?: number }) =>
+                  `${p.name}\n${p.percent != null ? p.percent.toFixed(1) : '0'}%`,
+              },
+              labelLine: {
+                lineStyle: { color: theme.border },
+              },
+              data: [
+                { value: used, name: '已用', itemStyle: { color: ringGradientColor } },
+                { value: remainValue, name: '剩余配额', itemStyle: { color: theme.borderSubtle } },
+              ],
+            }],
           },
-          series: [{
-            type: 'pie',
-            radius: ['48%', '68%'],
-            center: ['50%', '54%'],
-            label: {
-              show: true,
-              formatter: (p: { name?: string; percent?: number }) =>
-                `${p.name}\n${p.percent != null ? p.percent.toFixed(1) : '0'}%`,
-            },
-            data: [
-              { value: used, name: '已用', itemStyle: { color: '#67c23a' } },
-              { value: remainValue, name: '剩余配额', itemStyle: { color: '#e5e7eb' } },
-            ],
-          }],
-        })
+          true,
+        )
       } else {
-        memoryChart.setOption({
-          tooltip: { show: false },
-          title: {
-            text: stats.usedMemoryHuman || formatBytes(used),
-            subtext: 'Redis 当前占用',
-            left: 'center',
-            top: '42%',
-            textStyle: { fontSize: 18, fontWeight: 600 },
-            subtextStyle: { fontSize: 12, color: '#909399' },
+        memoryChart.setOption(
+          {
+            tooltip: { show: false },
+            title: {
+              text: stats.usedMemoryHuman || formatBytes(used),
+              subtext: 'Redis 当前占用',
+              left: 'center',
+              top: '42%',
+              textStyle: { fontSize: 20, fontWeight: 700, color: theme.textPrimary },
+              subtextStyle: { fontSize: 12, color: theme.textSecondary },
+            },
+            series: [
+              {
+                type: 'pie',
+                radius: ['52%', '72%'],
+                center: ['50%', '52%'],
+                silent: true,
+                label: { show: false },
+                itemStyle: {
+                  borderRadius: 8,
+                },
+                data: [{ value: 1, name: '已用', itemStyle: { color: ringGradientColor } }],
+              },
+            ],
           },
-          series: [{
-            type: 'pie',
-            radius: ['48%', '68%'],
-            center: ['50%', '54%'],
-            label: { show: false },
-            data: [{ value: 1, name: '已用', itemStyle: { color: '#67c23a' } }],
-          }],
-        })
+          true,
+        )
       }
     }
 
     if (qpsChartRef.value) {
       if (!qpsChart) qpsChart = echarts.init(qpsChartRef.value)
-      qpsChart.setOption({
-        tooltip: { trigger: 'axis' },
-        grid: { ...LINE_CHART_GRID },
-        xAxis: { type: 'category', data: [...timeLabels], boundaryGap: false },
-        yAxis: { type: 'value', name: 'QPS', nameGap: 12, minInterval: 1 },
-        series: [{
-          data: [...qpsData],
-          type: 'line',
-          smooth: true,
-          areaStyle: { opacity: 0.15 },
-          itemStyle: { color: '#67c23a' },
-        }],
-      })
+      qpsChart.setOption(
+        {
+          tooltip: buildChartTooltip(theme, 'axis'),
+          grid: { ...LINE_CHART_GRID },
+          xAxis: buildCategoryXAxis(timeLabels, theme),
+          yAxis: buildValueYAxis(theme, { name: 'QPS', minInterval: 1 }),
+          series: [
+            createGradientAreaLineSeries({
+              echarts,
+              name: 'QPS',
+              data: qpsData,
+              color: palette.indigo,
+            }),
+          ],
+        },
+        true,
+      )
     }
 
     if (hitRateChartRef.value) {
       if (!hitRateChart) hitRateChart = echarts.init(hitRateChartRef.value)
-      hitRateChart.setOption({
-        tooltip: {
-          trigger: 'axis',
-          formatter: (params: unknown) => {
-            const list = Array.isArray(params) ? params : [params]
-            const p = list[0] as { axisValue?: string; data?: number | null }
-            const val = p.data
-            return val == null ? `${p.axisValue}<br/>本周期无读写` : `${p.axisValue}<br/>命中率: ${val}%`
+      hitRateChart.setOption(
+        {
+          tooltip: {
+            ...buildChartTooltip(theme, 'axis'),
+            formatter: (params: unknown) => {
+              const list = Array.isArray(params) ? params : [params]
+              const p = list[0] as { axisValue?: string; data?: number | null }
+              const val = p.data
+              return val == null ? `${p.axisValue}<br/>本周期无读写` : `${p.axisValue}<br/>命中率: ${val}%`
+            },
           },
+          grid: { ...LINE_CHART_GRID },
+          xAxis: buildCategoryXAxis(timeLabels, theme),
+          yAxis: buildValueYAxis(theme, { name: '命中率%', min: 0, max: 100 }),
+          series: [
+            createGradientAreaLineSeries({
+              echarts,
+              name: '命中率',
+              data: hitRateData,
+              color: palette.sky,
+              connectNulls: false,
+            }),
+          ],
         },
-        grid: { ...LINE_CHART_GRID },
-        xAxis: { type: 'category', data: [...timeLabels], boundaryGap: false },
-        yAxis: { type: 'value', name: '命中率%', nameGap: 12, min: 0, max: 100 },
-        series: [{
-          data: [...hitRateData],
-          type: 'line',
-          smooth: true,
-          connectNulls: false,
-          areaStyle: { opacity: 0.15 },
-          itemStyle: { color: '#409eff' },
-        }],
-      })
+        true,
+      )
     }
 
     if (clientsChartRef.value) {
       if (!clientsChart) clientsChart = echarts.init(clientsChartRef.value)
       const clientRange = calcYAxisRange(clientsData)
-      clientsChart.setOption({
-        tooltip: {
-          trigger: 'axis',
-          formatter: (params: unknown) => {
-            const list = Array.isArray(params) ? params : [params]
-            const p = list[0] as { axisValue?: string; data?: number }
-            return `${p.axisValue}<br/>连接数: ${p.data ?? 0}`
+      clientsChart.setOption(
+        {
+          tooltip: {
+            ...buildChartTooltip(theme, 'axis'),
+            formatter: (params: unknown) => {
+              const list = Array.isArray(params) ? params : [params]
+              const p = list[0] as { axisValue?: string; data?: number }
+              return `${p.axisValue}<br/>连接数: ${p.data ?? 0}`
+            },
           },
+          grid: { ...LINE_CHART_GRID },
+          xAxis: buildCategoryXAxis(timeLabels, theme),
+          yAxis: buildValueYAxis(theme, {
+            name: '连接数',
+            minInterval: 1,
+            min: clientRange.min,
+            max: clientRange.max,
+          }),
+          series: [
+            createGradientAreaLineSeries({
+              echarts,
+              name: '连接数',
+              data: clientsData,
+              color: palette.violet,
+            }),
+          ],
         },
-        grid: { ...LINE_CHART_GRID },
-        xAxis: { type: 'category', data: [...timeLabels], boundaryGap: false },
-        yAxis: {
-          type: 'value',
-          name: '连接数',
-          nameGap: 12,
-          minInterval: 1,
-          min: clientRange.min,
-          max: clientRange.max,
-        },
-        series: [{
-          data: [...clientsData],
-          type: 'line',
-          smooth: true,
-          areaStyle: { opacity: 0.15 },
-          itemStyle: { color: '#e6a23c' },
-        }],
-      })
+        true,
+      )
     }
 
     memoryChart?.resize()
@@ -254,6 +308,8 @@ export function useCacheMonitorPage(chartRefs: CacheMonitorChartRefs) {
     hitRateChart?.resize()
     clientsChart?.resize()
   }
+
+  useChartThemeObserver(() => updateCharts(cacheChartHistory.lastMemoryStats ?? {}))
 
   async function loadKeys() {
     keysLoading.value = true
@@ -313,19 +369,19 @@ export function useCacheMonitorPage(chartRefs: CacheMonitorChartRefs) {
   }
 
   async function handleDelete(key: string) {
-    try {
-      await ElMessageBox.confirm(`确定删除缓存键「${key}」吗？此操作不可恢复。`, '删除确认', {
-        type: 'warning',
-        confirmButtonText: '删除',
-        cancelButtonText: '取消',
-      })
-      await deleteCacheKey(key)
-      ElMessage.success('删除成功')
-      keys.value = keys.value.filter((item) => item.key !== key)
-      loadInfo()
-    } catch {
-      /* cancel or error */
-    }
+    await openAlertDialog({
+      title: '永久删除缓存键',
+      targetName: key,
+      message: '删除后该 Redis 缓存键值将立即被清除，可能触发对应业务缓存回源重建。',
+      severity: 'irreversible',
+      confirmText: '永久删除键',
+      onConfirm: async () => {
+        await deleteCacheKey(key)
+        ElMessage.success('删除成功')
+        keys.value = keys.value.filter((item) => item.key !== key)
+        loadInfo()
+      },
+    })
   }
 
   function formatTTL(ttl?: number) {

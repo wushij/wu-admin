@@ -1,6 +1,6 @@
 import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
 import type { ElTree } from 'element-plus'
 import { getUserPage, type UserVO, type UserPageQuery } from '@/api/system/user'
 import type { DeptVO, DeptSaveDTO } from '@/api/system/dept'
@@ -11,6 +11,7 @@ import {
   createDept,
   updateDept,
   deleteDept,
+  restoreDept,
   moveDept,
 } from '@/api/system/dept'
 import {
@@ -19,10 +20,12 @@ import {
   createPost,
   updatePost,
   deletePost,
+  restorePost,
   movePost,
 } from '@/api/system/post'
 import { unwrapOrgTreeNode } from '@/types/org'
 import { displayOrgTree, resolveDeptRootParentId } from '@/utils/org-tree'
+import { showSnackbar } from '@/composables/ui/useSnackbar'
 
 export function useOrgPage() {
   const router = useRouter()
@@ -36,7 +39,7 @@ export function useOrgPage() {
       if ((tab === 'post' || tab === 'dept') && tab !== activeTab.value) {
         activeTab.value = tab
       }
-    }
+    },
   )
   const treeSearch = ref('')
   const deptTreeRef = ref<InstanceType<typeof ElTree> | null>(null)
@@ -173,7 +176,7 @@ export function useOrgPage() {
     dragging: unknown,
     drop: unknown,
     dropType: 'before' | 'after' | 'inner',
-    _evt?: DragEvent
+    _evt?: DragEvent,
   ) {
     const dragData = unwrapOrgTreeNode<DeptVO>(dragging)
     const dropData = unwrapOrgTreeNode<DeptVO>(drop)
@@ -188,7 +191,7 @@ export function useOrgPage() {
     dragging: unknown,
     drop: unknown,
     dropType: 'before' | 'after' | 'inner',
-    _evt?: DragEvent
+    _evt?: DragEvent,
   ) {
     const dragData = unwrapOrgTreeNode<PostVO>(dragging)
     const dropData = unwrapOrgTreeNode<PostVO>(drop)
@@ -336,21 +339,33 @@ export function useOrgPage() {
     }
   }
 
+  /** 组织节点软删除进回收站：接入 Snackbar 撤销 */
   async function handleDeleteNode() {
     if (selectedId.value == null) return
     const nodeId = selectedId.value
     const name = selectedName.value
-    await ElMessageBox.confirm(`确定删除「${name}」？`, '提示', { type: 'warning' })
-    if (activeTab.value === 'dept') {
+    const tab = activeTab.value
+    if (tab === 'dept') {
       await deleteDept(nodeId)
     } else {
       await deletePost(nodeId)
     }
-    ElMessage.success('删除成功')
     selectedId.value = null
     selectedName.value = ''
     loadTree()
     loadUsers()
+    showSnackbar({
+      message: `已将${tab === 'dept' ? '部门' : '岗位'}「${name}」移至回收站`,
+      variant: 'info',
+      actionLabel: '撤销',
+      onAction: async () => {
+        if (tab === 'dept') await restoreDept(nodeId)
+        else await restorePost(nodeId)
+        ElMessage.success(`已恢复「${name}」`)
+        loadTree()
+        loadUsers()
+      },
+    })
   }
 
   onMounted(() => {

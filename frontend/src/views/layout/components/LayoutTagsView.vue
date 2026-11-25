@@ -1,5 +1,5 @@
 <template>
-  <div class="tags-view">
+  <nav class="tags-view" aria-label="已打开页面标签">
     <div ref="scrollRef" class="tags-view-scroll">
       <button
         v-for="tag in visitedViews"
@@ -13,13 +13,14 @@
         <el-icon
           v-if="!tag.affix"
           class="tags-view-close"
+          aria-label="关闭页签"
           @click.stop="close(tag)"
         >
           <Close />
         </el-icon>
       </button>
     </div>
-  </div>
+  </nav>
 </template>
 
 <script setup lang="ts">
@@ -28,6 +29,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { Close } from '@element-plus/icons-vue'
 import { useTagsViewStore, type TagView } from '@/store/tagsView'
+import { showSnackbar } from '@/composables/ui/useSnackbar'
 
 const route = useRoute()
 const router = useRouter()
@@ -58,15 +60,24 @@ function go(tag: TagView) {
     router.push(tag.fullPath)
     return
   }
-  // 已在当前页：仅确保标签可见，不触发重排
   scrollActiveIntoView(false)
 }
 
 function close(tag: TagView) {
+  const closedSnapshot = { ...tag }
   const next = tagsStore.delView(tag, route.path)
   if (next && route.path === tag.path) {
     router.push(next)
   }
+  showSnackbar({
+    message: `已关闭「${closedSnapshot.title}」页签`,
+    variant: 'info',
+    actionLabel: '重新打开',
+    duration: 4200,
+    onAction: () => {
+      router.push(closedSnapshot.fullPath)
+    },
+  })
 }
 
 async function scrollActiveIntoView(alignEnd = true) {

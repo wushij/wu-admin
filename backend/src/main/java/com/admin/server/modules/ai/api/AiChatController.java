@@ -2,13 +2,16 @@ package com.admin.server.modules.ai.api;
 
 import com.admin.server.common.core.CommonResult;
 import com.admin.server.framework.security.core.service.SecurityUtils;
+import com.admin.server.modules.ai.api.vo.AiChatAttachmentVO;
 import com.admin.server.modules.ai.api.vo.AiChatHistoryItemVO;
 import com.admin.server.modules.ai.api.vo.AiChatStreamReqVO;
 import com.admin.server.modules.ai.api.vo.AiConversationVO;
 import com.admin.server.modules.ai.api.vo.AiModelRespVO;
+import com.admin.server.modules.ai.service.AiChatAttachmentService;
 import com.admin.server.modules.ai.service.AiChatLogService;
 import com.admin.server.modules.ai.service.AiChatService;
 import com.admin.server.modules.ai.service.AiModelService;
+import com.admin.server.modules.ai.service.search.WebSearchService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.MediaType;
@@ -20,11 +23,13 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletResponse;
 import java.util.List;
+import java.util.Map;
 
 /**
  * AI wu助手对话 API（登录即可使用，无需菜单权限）
@@ -43,6 +48,12 @@ public class AiChatController {
     @Resource
     private AiChatLogService aiChatLogService;
 
+    @Resource
+    private AiChatAttachmentService aiChatAttachmentService;
+
+    @Resource
+    private WebSearchService webSearchService;
+
     @PostMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     @Operation(summary = "流式对话（SSE 增量推送，事件: delta/done/error）")
     public SseEmitter stream(@RequestBody AiChatStreamReqVO reqVO, HttpServletResponse response) {
@@ -59,6 +70,17 @@ public class AiChatController {
     @Operation(summary = "启用中的模型列表（悬浮窗模型选择器）")
     public CommonResult<List<AiModelRespVO>> models() {
         return CommonResult.success(aiModelService.listEnabled());
+    }
+
+    @GetMapping("/capabilities")
+    @Operation(summary = "查询 AI 助手当前联网搜索可用能力与生效引擎摘要")
+    public CommonResult<Map<String, Object>> capabilities() {
+        boolean enabled = webSearchService.isCapabilityEnabled();
+        String summary = enabled ? webSearchService.resolveActiveSummary() : "未启用联网搜索";
+        return CommonResult.success(Map.of(
+                "webSearchEnabled", enabled,
+                "engineSummary", summary
+        ));
     }
 
     @GetMapping("/conversations")
@@ -95,5 +117,39 @@ public class AiChatController {
         }
         aiChatLogService.deleteConversation(userId, conversationId);
         return CommonResult.success(true);
+    }
+
+    @PostMapping(value = "/attachment", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "上传并解析对话附件（图片/文档，登录即可使用）")
+    public CommonResult<AiChatAttachmentVO> uploadAttachment(@RequestParam("file") MultipartFile file) {
+        Long userId = SecurityUtils.getLoginUserIdOrZero();
+        if (userId <= 0) {
+            return CommonResult.error(401, "请先登录后使用附件上传");
+        }
+        return CommonResult.success(aiChatAttachmentService.uploadAndParse(file));
+    }
+
+    @DeleteMapping("/messages/{logId}")
+    @Operation(summary = "删除本人的单轮问答记录（同步移除该轮上下文）")
+    public CommonResult<Map<String, Object>> deleteMessage(@PathVariable Long logId) {
+        Long userId = SecurityUtils.getLoginUserIdOrZero();
+        if (userId <= 0) {
+            return CommonResult.error(401, "请先登录");
+        }
+        boolean deleted = aiChatLogService.deleteMessageRound(userId, logId);
+        return CommonResult.success(Map.of(
+                "deleted", deleted,
+                "deletedIds", deleted ? List.of(logId) : List.of()
+        ));
+    }
+
+    @DeleteMapping("/conversations/{conversationId}/last-round")
+    @Operation(summary = "删除指定会话的最后一条记录（中断/失败轮次兜底）")
+    public CommonResult<Boolean> deleteLastRound(@PathVariable String conversationId) {
+        Long userId = SecurityUtils.getLoginUserIdOrZero();
+        if (userId <= 0) {
+            return CommonResult.error(401, "请先登录");
+        }
+        return CommonResult.success(aiChatLogService.deleteLastRound(userId, conversationId));
     }
 }

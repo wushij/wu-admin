@@ -1,36 +1,105 @@
 /* #ifdef H5 */
-.uni-toast,
-uni-toast .uni-toast {
-  top: calc(env(safe-area-inset-top, 0px) + 72px) !important;
+/**
+ * 移动端 H5 全局 Toast 样式覆写
+ * 1:1 复刻登录成功（AuthGlassToast）与 PC 端（.el-message.auth-glass-message）样式：
+ * 彻底消除 UniApp 原生 .uni-toast 140px 高大白方块的缺陷，
+ * 对齐顶部居中的长圆毛玻璃胶囊（带图标横向单行排版，同时统一 .uni-sample-toast 纯文字提示）。
+ */
+uni-toast .uni-toast,
+body .uni-toast .uni-toast,
+uni-toast .uni-sample-toast {
+  position: fixed !important;
+  top: calc(env(safe-area-inset-top, 0px) + 18px) !important;
   bottom: auto !important;
   left: 50% !important;
   transform: translateX(-50%) !important;
+  margin: 0 !important;
   width: auto !important;
+  height: auto !important;
   min-width: 0 !important;
-  max-width: min(560px, 88vw) !important;
-  padding: 12px 22px !important;
-  background: rgba(255, 255, 255, 0.98) !important;
-  border-radius: 16px !important;
+  min-height: 0 !important;
+  max-width: min(560px, calc(100vw - 32px)) !important;
+  display: inline-flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  padding: 9px 18px !important;
+  border-radius: 9999px !important;
+  background: rgba(15, 23, 42, 0.84) !important;
+  backdrop-filter: blur(18px) saturate(150%) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(150%) !important;
+  border: 1px solid rgba(165, 180, 252, 0.34) !important;
   box-shadow:
-    0 10px 28px rgba(15, 23, 42, 0.1),
-    0 0 0 1px rgba(99, 102, 241, 0.1) !important;
-  backdrop-filter: blur(8px);
+    0 12px 32px rgba(15, 23, 42, 0.28),
+    0 0 20px rgba(99, 102, 241, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16) !important;
+  color: #f8fafc !important;
+  box-sizing: border-box !important;
 }
 
-.uni-toast .uni-toast__icon,
-uni-toast .uni-toast__icon {
+/* 将 UniApp 55px 竖排大图标收敛为 17px 精致横向状态图标 */
+uni-toast .uni-toast .uni-toast__icon,
+uni-toast .uni-toast .uni-icon_toast {
+  width: 17px !important;
+  height: 17px !important;
+  min-width: 17px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  flex-shrink: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 0 !important;
+  line-height: 1 !important;
+  background-repeat: no-repeat !important;
+  background-position: center !important;
+  background-size: contain !important;
+}
+
+uni-toast .uni-toast .uni-icon_toast::before {
   display: none !important;
+  content: none !important;
 }
 
-.uni-toast .uni-toast__content,
-uni-toast .uni-toast__content {
-  color: #334155 !important;
-  font-size: 14px !important;
+uni-toast .uni-toast .uni-icon-success-no-circle {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none'%3E%3Ccircle cx='12' cy='12' r='9.5' stroke='%23a5b4fc' stroke-width='1.9' opacity='0.42'/%3E%3Cpath d='M7.5 12.4l3.1 3.1 6-6.6' stroke='%23a5b4fc' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") !important;
+}
+
+uni-toast .uni-toast .uni-icon-error {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none'%3E%3Ccircle cx='12' cy='12' r='9.5' stroke='%23fca5a5' stroke-width='1.9' opacity='0.42'/%3E%3Cpath d='M9 9l6 6M15 9l-6 6' stroke='%23fca5a5' stroke-width='2.2' stroke-linecap='round'/%3E%3C/svg%3E") !important;
+}
+
+uni-toast .uni-toast .uni-loading {
+  width: 16px !important;
+  height: 16px !important;
+  min-width: 16px !important;
+  border-radius: 50% !important;
+  border: 2px solid rgba(165, 180, 252, 0.28) !important;
+  border-top-color: #a5b4fc !important;
+  animation: uni-toast-spin 0.8s linear infinite !important;
+}
+
+uni-toast .uni-toast .uni-toast__content,
+uni-toast .uni-sample-toast .uni-simple-toast__text {
+  display: block !important;
+  -webkit-line-clamp: unset !important;
+  overflow: visible !important;
+  color: #f8fafc !important;
+  font-size: 13.5px !important;
   font-weight: 500 !important;
-  line-height: 1.45 !important;
+  line-height: 1.4 !important;
+  letter-spacing: 0.02em !important;
   padding: 0 !important;
   margin: 0 !important;
-  text-align: center;
-  word-break: keep-all;
+  text-align: center !important;
+  white-space: normal !important;
+  word-break: break-word !important;
+}
+
+@keyframes uni-toast-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 /* #endif */

@@ -14,6 +14,7 @@ import com.admin.server.modules.ai.convert.AiModelConvert;
 import com.admin.server.modules.ai.dal.dataobject.AiModelDO;
 import com.admin.server.modules.ai.dal.mysql.AiModelMapper;
 import com.admin.server.modules.ai.providers.AiProviderFactory;
+import com.admin.server.modules.ai.providers.EmbeddingClient;
 import com.admin.server.modules.ai.service.AiModelService;
 import com.admin.server.modules.ai.util.AiKeyCrypto;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
@@ -42,11 +43,26 @@ public class AiModelServiceImpl extends ServiceImpl<AiModelMapper, AiModelDO> im
     private static final int MIN_MAX_TOKENS = 128;
     private static final int MAX_MAX_TOKENS = 32768;
 
+    /** 模型类型：对话模型 */
+    public static final String MODEL_TYPE_CHAT = "chat";
+    /** 模型类型：向量模型 */
+    public static final String MODEL_TYPE_EMBEDDING = "embedding";
+
+    /** 向量维度与批量大小的允许区间 */
+    private static final int MIN_DIMENSION = 1;
+    private static final int MAX_DIMENSION = 8192;
+    private static final int MIN_BATCH_SIZE = 1;
+    private static final int MAX_BATCH_SIZE = 128;
+    private static final int DEFAULT_BATCH_SIZE = 16;
+
     @Resource
     private AiKeyCrypto aiKeyCrypto;
 
     @Resource
     private AiProviderFactory aiProviderFactory;
+
+    @Resource
+    private EmbeddingClient embeddingClient;
 
     @Override
     public PageResult<AiModelRespVO> page(AiModelPageReqVO reqVO) {
@@ -54,6 +70,7 @@ public class AiModelServiceImpl extends ServiceImpl<AiModelMapper, AiModelDO> im
         LambdaQueryWrapper<AiModelDO> wrapper = new LambdaQueryWrapper<AiModelDO>()
                 .like(StrUtil.isNotBlank(reqVO.getName()), AiModelDO::getName, reqVO.getName())
                 .eq(StrUtil.isNotBlank(reqVO.getProvider()), AiModelDO::getProvider, reqVO.getProvider())
+                .eq(StrUtil.isNotBlank(reqVO.getModelType()), AiModelDO::getModelType, reqVO.getModelType())
                 .eq(reqVO.getStatus() != null, AiModelDO::getStatus, reqVO.getStatus())
                 .orderByDesc(AiModelDO::getIsDefault)
                 .orderByDesc(AiModelDO::getUpdateTime);
@@ -67,8 +84,18 @@ public class AiModelServiceImpl extends ServiceImpl<AiModelMapper, AiModelDO> im
 
     @Override
     public List<AiModelRespVO> listEnabled() {
+        return listEnabledByType(MODEL_TYPE_CHAT);
+    }
+
+    @Override
+    public List<AiModelRespVO> listEnabledEmbedding() {
+        return listEnabledByType(MODEL_TYPE_EMBEDDING);
+    }
+
+    private List<AiModelRespVO> listEnabledByType(String modelType) {
         List<AiModelDO> list = list(new LambdaQueryWrapper<AiModelDO>()
                 .eq(AiModelDO::getStatus, 1)
+                .eq(AiModelDO::getModelType, modelType)
                 .orderByDesc(AiModelDO::getIsDefault)
                 .orderByAsc(AiModelDO::getId));
         List<AiModelRespVO> voList = new ArrayList<>(list.size());
@@ -98,21 +125,32 @@ public class AiModelServiceImpl extends ServiceImpl<AiModelMapper, AiModelDO> im
         if (model.getStatus() == null) {
             model.setStatus(1);
         }
-        if (model.getTemperature() == null) {
-            model.setTemperature(0.7);
-        }
-        if (model.getMaxTokens() == null) {
-            model.setMaxTokens(DEFAULT_MAX_TOKENS);
+        String modelType = normalizeModelType(model.getModelType());
+        model.setModelType(modelType);
+        if (MODEL_TYPE_EMBEDDING.equals(modelType)) {
+            // 向量模型不使用采样温度与系统提示词，避免脏数据混淆展示
+            model.setTemperature(null);
+            model.setSystemPrompt(null);
+            if (model.getBatchSize() == null) {
+                model.setBatchSize(DEFAULT_BATCH_SIZE);
+            }
+        } else {
+            if (model.getTemperature() == null) {
+                model.setTemperature(0.7);
+            }
+            if (model.getMaxTokens() == null) {
+                model.setMaxTokens(DEFAULT_MAX_TOKENS);
+            }
         }
         if (model.getIsDefault() == null) {
             model.setIsDefault(0);
         }
-        // 首个模型自动设为默认
-        if (count() == 0) {
+        // 同类型首个模型自动设为默认（对话模型与向量模型各自独立）
+        if (count(new LambdaQueryWrapper<AiModelDO>().eq(AiModelDO::getModelType, modelType)) == 0) {
             model.setIsDefault(1);
         }
         if (model.getIsDefault() == 1) {
-            clearDefault();
+            clearDefault(modelType);
         }
         save(model);
     }
@@ -137,8 +175,14 @@ public class AiModelServiceImpl extends ServiceImpl<AiModelMapper, AiModelDO> im
                 && model.getIsDefault() != null && model.getIsDefault() == 0) {
             throw new BusinessException("默认模型不可取消默认，请先将其他模型设为默认");
         }
+        String oldType = normalizeModelType(old.getModelType());
+        String newType = normalizeModelType(model.getModelType());
+        if (!oldType.equals(newType) && old.getIsDefault() != null && old.getIsDefault() == 1) {
+            throw new BusinessException("默认模型不可直接切换类型，请先将其他模型设为默认");
+        }
+        model.setModelType(newType);
         if (model.getIsDefault() != null && model.getIsDefault() == 1 && old.getIsDefault() != 1) {
-            clearDefault();
+            clearDefault(newType);
         }
         updateById(model);
     }
@@ -159,7 +203,7 @@ public class AiModelServiceImpl extends ServiceImpl<AiModelMapper, AiModelDO> im
         if (model.getStatus() == null || model.getStatus() != 1) {
             throw new BusinessException("禁用中的模型不能设为默认");
         }
-        clearDefault();
+        clearDefault(normalizeModelType(model.getModelType()));
         update(new LambdaUpdateWrapper<AiModelDO>()
                 .eq(AiModelDO::getId, id)
                 .set(AiModelDO::getIsDefault, 1));
@@ -184,6 +228,18 @@ public class AiModelServiceImpl extends ServiceImpl<AiModelMapper, AiModelDO> im
         }
         validateBaseUrl(model.getBaseUrl());
         validateExtraHeaders(model.getExtraHeaders());
+        // 向量模型走 /embeddings 探测，并校验返回向量维度
+        if (MODEL_TYPE_EMBEDDING.equals(resolveModelTypeForProbe(reqVO))) {
+            model.setModelType(MODEL_TYPE_EMBEDDING);
+            model.setDimension(resolveDimensionForProbe(reqVO));
+            try {
+                return embeddingClient.testConnection(model, plainKey);
+            } catch (BusinessException e) {
+                throw e;
+            } catch (Exception e) {
+                throw new BusinessException("向量连通性测试失败: " + e.getMessage());
+            }
+        }
         try {
             return aiProviderFactory.getStrategy(model).testConnection(model, plainKey);
         } catch (BusinessException e) {
@@ -191,6 +247,34 @@ public class AiModelServiceImpl extends ServiceImpl<AiModelMapper, AiModelDO> im
         } catch (Exception e) {
             throw new BusinessException("连通性测试失败: " + e.getMessage());
         }
+    }
+
+    /** 探测请求的模型类型：表单显式指定优先，其次沿用已保存配置，缺省按对话模型 */
+    private String resolveModelTypeForProbe(AiModelTestReqVO reqVO) {
+        if (StrUtil.isNotBlank(reqVO.getModelType())) {
+            return normalizeModelType(reqVO.getModelType());
+        }
+        if (reqVO.getId() != null) {
+            AiModelDO saved = getById(reqVO.getId());
+            if (saved != null) {
+                return normalizeModelType(saved.getModelType());
+            }
+        }
+        return MODEL_TYPE_CHAT;
+    }
+
+    /** 探测请求的向量维度：表单优先，其次已保存配置，0 表示未声明（不做维度校验） */
+    private Integer resolveDimensionForProbe(AiModelTestReqVO reqVO) {
+        if (reqVO.getDimension() != null && reqVO.getDimension() > 0) {
+            return reqVO.getDimension();
+        }
+        if (reqVO.getId() != null) {
+            AiModelDO saved = getById(reqVO.getId());
+            if (saved != null && saved.getDimension() != null) {
+                return saved.getDimension();
+            }
+        }
+        return 0;
     }
 
     @Override
@@ -223,8 +307,12 @@ public class AiModelServiceImpl extends ServiceImpl<AiModelMapper, AiModelDO> im
         AiModelDO model;
         if (modelId != null) {
             model = getById(modelId);
+            if (model != null && !MODEL_TYPE_CHAT.equals(normalizeModelType(model.getModelType()))) {
+                throw new BusinessException("所选模型不是对话模型，请重新选择");
+            }
         } else {
             model = getOne(new LambdaQueryWrapper<AiModelDO>()
+                    .eq(AiModelDO::getModelType, MODEL_TYPE_CHAT)
                     .eq(AiModelDO::getIsDefault, 1)
                     .last("LIMIT 1"));
         }
@@ -233,6 +321,37 @@ public class AiModelServiceImpl extends ServiceImpl<AiModelMapper, AiModelDO> im
         }
         if (model.getStatus() == null || model.getStatus() != 1) {
             throw new BusinessException("当前 AI 模型已被禁用，请联系管理员");
+        }
+        return model;
+    }
+
+    @Override
+    public AiModelDO getAvailableEmbeddingModel(Long modelId) {
+        AiModelDO model;
+        if (modelId != null && modelId > 0) {
+            model = getById(modelId);
+            if (model == null) {
+                throw new BusinessException(404, "向量模型不存在");
+            }
+            if (!MODEL_TYPE_EMBEDDING.equals(normalizeModelType(model.getModelType()))) {
+                throw new BusinessException("所选模型不是向量模型，请重新选择");
+            }
+        } else {
+            model = getOne(new LambdaQueryWrapper<AiModelDO>()
+                    .eq(AiModelDO::getModelType, MODEL_TYPE_EMBEDDING)
+                    .eq(AiModelDO::getStatus, 1)
+                    .orderByDesc(AiModelDO::getIsDefault)
+                    .orderByAsc(AiModelDO::getId)
+                    .last("LIMIT 1"));
+        }
+        if (model == null) {
+            throw new BusinessException("尚未配置可用的向量模型，请在「AI 模型配置」中添加类型为向量模型的配置");
+        }
+        if (model.getStatus() == null || model.getStatus() != 1) {
+            throw new BusinessException("当前向量模型已被禁用，请联系管理员");
+        }
+        if (StrUtil.isBlank(model.getModelName())) {
+            throw new BusinessException("向量模型缺少模型名称，请补充配置");
         }
         return model;
     }
@@ -254,6 +373,23 @@ public class AiModelServiceImpl extends ServiceImpl<AiModelMapper, AiModelDO> im
         String protocol = normalizeProtocol(reqVO.getProtocol());
         if (!SUPPORTED_PROTOCOLS.contains(protocol)) {
             throw new BusinessException("接入协议不合法，仅支持 openai/anthropic");
+        }
+        String modelType = normalizeModelType(reqVO.getModelType());
+        if (!MODEL_TYPE_CHAT.equals(modelType) && !MODEL_TYPE_EMBEDDING.equals(modelType)) {
+            throw new BusinessException("模型类型不合法，仅支持 chat（对话模型）/ embedding（向量模型）");
+        }
+        if (MODEL_TYPE_EMBEDDING.equals(modelType)) {
+            if (!"openai".equals(protocol)) {
+                throw new BusinessException("向量模型仅支持 OpenAI 兼容协议（/embeddings）");
+            }
+            if (reqVO.getDimension() == null
+                    || reqVO.getDimension() < MIN_DIMENSION || reqVO.getDimension() > MAX_DIMENSION) {
+                throw new BusinessException("向量维度取值范围为 " + MIN_DIMENSION + " ~ " + MAX_DIMENSION);
+            }
+            if (reqVO.getBatchSize() != null
+                    && (reqVO.getBatchSize() < MIN_BATCH_SIZE || reqVO.getBatchSize() > MAX_BATCH_SIZE)) {
+                throw new BusinessException("向量化批量大小取值范围为 " + MIN_BATCH_SIZE + " ~ " + MAX_BATCH_SIZE);
+            }
         }
         if (StrUtil.isBlank(reqVO.getModelName())) {
             throw new BusinessException("模型名称不能为空");
@@ -286,6 +422,9 @@ public class AiModelServiceImpl extends ServiceImpl<AiModelMapper, AiModelDO> im
         if (StrUtil.isNotBlank(model.getProtocol())) {
             model.setProtocol(normalizeProtocol(model.getProtocol()));
         }
+        if (StrUtil.isNotBlank(model.getModelType())) {
+            model.setModelType(normalizeModelType(model.getModelType()));
+        }
         model.setModelName(StrUtil.trim(model.getModelName()));
         model.setBaseUrl(StrUtil.trim(model.getBaseUrl()));
         if (model.getPathTemplate() != null) {
@@ -304,6 +443,12 @@ public class AiModelServiceImpl extends ServiceImpl<AiModelMapper, AiModelDO> im
     private String normalizeProtocol(String protocol) {
         String normalized = StrUtil.nullToEmpty(StrUtil.trim(protocol)).toLowerCase();
         return StrUtil.blankToDefault(normalized, "openai");
+    }
+
+    /** 模型类型留空按对话模型处理，兼容升级前的存量配置 */
+    private String normalizeModelType(String modelType) {
+        String normalized = StrUtil.nullToEmpty(StrUtil.trim(modelType)).toLowerCase();
+        return StrUtil.blankToDefault(normalized, MODEL_TYPE_CHAT);
     }
 
     /**
@@ -410,8 +555,10 @@ public class AiModelServiceImpl extends ServiceImpl<AiModelMapper, AiModelDO> im
     private record ProbeTarget(AiModelDO model, String plainApiKey) {
     }
 
-    private void clearDefault() {
+    /** 重置指定类型下的默认标记（对话模型与向量模型的默认项互不影响） */
+    private void clearDefault(String modelType) {
         update(new LambdaUpdateWrapper<AiModelDO>()
+                .eq(AiModelDO::getModelType, normalizeModelType(modelType))
                 .eq(AiModelDO::getIsDefault, 1)
                 .set(AiModelDO::getIsDefault, 0));
     }

@@ -28,6 +28,16 @@ public class AiChatLogDO extends BaseEntity {
     private String question;
     /** AI 回答 */
     private String answer;
+    /** 深度思考过程正文（供历史会话回放） */
+    private String reasoning;
+    /** 深度思考耗时（毫秒） */
+    private Long thinkingDurationMs;
+    /** 本轮用户附件元数据（JSON 数组，供历史会话回放展示） */
+    private String attachmentsJson;
+    /** 本轮附件正文快照（供历史会话续聊回放上下文） */
+    private String attachmentContext;
+    /** 本轮联网检索参考来源列表（JSON 数组，供历史回放展示） */
+    private String citationsJson;
     /** 提问 Token 消耗 */
     private Integer promptTokens;
     /** 回答 Token 消耗 */

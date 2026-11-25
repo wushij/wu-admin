@@ -1,20 +1,11 @@
 <template>
   <div class="app-container module-page dict-page">
-    <el-card class="search-card module-hero-card" shadow="never">
-      <div class="module-hero-row">
-        <div class="module-hero-text">
-          <div class="module-hero-title">
-            <ModulePageIcon :icon="MODULE_PAGE_ICON.dict" />
-            <span>字典管理</span>
-          </div>
-          <p class="module-hero-desc">左侧选择字典类型，右侧维护选项；业务表单通过 DictSelect / DictTag 引用类型编码</p>
-        </div>
-        <div class="module-hero-stats">
-          <div class="stat-num">{{ total }}</div>
-          <div class="stat-label">字典类型</div>
-        </div>
-      </div>
-    </el-card>
+    <PageHeader
+      title="字典管理"
+      description="左侧选择字典类型，右侧维护选项；业务表单通过 DictSelect / DictTag 引用类型编码"
+      :icon="MODULE_PAGE_ICON.dict"
+      :stats="[{ label: '字典类型', value: total }]"
+    />
 
     <DictSearchCard :query-params="queryParams" @query="handleQuery" @reset="resetQuery" />
 
@@ -70,7 +61,7 @@
 
 <script setup lang="ts">
 import { ref, watchEffect, defineAsyncComponent } from 'vue'
-import ModulePageIcon from '@/components/ModulePageIcon.vue'
+import PageHeader from '@/components/ui/PageHeader.vue'
 import { MODULE_PAGE_ICON } from '@/constants/module-page-icons'
 import DictSearchCard from './DictSearchCard.vue'
 import DictTypePanel from './DictTypePanel.vue'
@@ -130,7 +121,13 @@ watchEffect(() => {
 <style scoped lang="scss">
 .dict-layout {
   display: flex;
-  gap: 12px;
+  gap: var(--space-4);
   min-height: 520px;
+}
+
+@media (max-width: 960px) {
+  .dict-layout {
+    flex-direction: column;
+  }
 }
 </style>

@@ -132,6 +132,12 @@ public class OpenAiCompatibleProvider implements AiProviderStrategy {
             return false;
         }
         boolean changed = false;
+        // 模型不支持视觉输入时，剥离图片 block 降级为纯文本重试
+        if (!state.imagesDisabled && hasImageContent(body)) {
+            stripImageContent(body);
+            state.imagesDisabled = true;
+            changed = true;
+        }
         if (!state.streamOptionsDisabled && body.containsKey("stream_options")) {
             body.remove("stream_options");
             state.streamOptionsDisabled = true;
@@ -144,6 +150,53 @@ public class OpenAiCompatibleProvider implements AiProviderStrategy {
             changed = true;
         }
         return changed;
+    }
+
+    /** 请求体消息中是否包含图片 block */
+    private boolean hasImageContent(JSONObject body) {
+        JSONArray messages = body.getJSONArray("messages");
+        if (messages == null) {
+            return false;
+        }
+        for (Object item : messages) {
+            if (!(item instanceof JSONObject message)) {
+                continue;
+            }
+            Object content = message.get("content");
+            if (!(content instanceof JSONArray blocks)) {
+                continue;
+            }
+            for (Object block : blocks) {
+                if (block instanceof JSONObject obj && "image_url".equals(obj.getStr("type"))) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /** 剥离图片 block，仅保留文本并提示模型图片未参与识别 */
+    private void stripImageContent(JSONObject body) {
+        JSONArray messages = body.getJSONArray("messages");
+        if (messages == null) {
+            return;
+        }
+        for (Object item : messages) {
+            if (!(item instanceof JSONObject message)) {
+                continue;
+            }
+            Object content = message.get("content");
+            if (!(content instanceof JSONArray blocks)) {
+                continue;
+            }
+            StringBuilder text = new StringBuilder();
+            for (Object block : blocks) {
+                if (block instanceof JSONObject obj && "text".equals(obj.getStr("type"))) {
+                    text.append(StrUtil.nullToEmpty(obj.getStr("text")));
+                }
+            }
+            message.set("content", text.append("\n（当前模型不支持图片视觉输入，已忽略图片内容）").toString());
+        }
     }
 
     /** 解析一轮 SSE 流：发射内容增量、累积 tool_calls / reasoning_content 与 usage */
@@ -183,10 +236,14 @@ public class OpenAiCompatibleProvider implements AiProviderStrategy {
                         if (StrUtil.isNotEmpty(content)) {
                             listener.onDelta(content);
                         }
-                        // 推理模型（如 DeepSeek reasoner）的思维链，工具循环时需要回传
+                        // 推理模型（如 DeepSeek reasoner）的思维链：实时下发前端用于分段思考展示，
+                        // 同时累积以便工具调用轮次回传给供应商
                         String reasoning = delta.getStr("reasoning_content");
                         if (reasoning != null) {
                             result.reasoning.append(reasoning);
+                            if (!reasoning.isEmpty()) {
+                                listener.onReasoning(reasoning);
+                            }
                         }
                         accumulateToolCalls(delta.getJSONArray("tool_calls"), toolCallMap);
                     }
@@ -266,6 +323,7 @@ public class OpenAiCompatibleProvider implements AiProviderStrategy {
         boolean toolsDisabled;
         boolean streamOptionsDisabled;
         boolean useCompletionTokens;
+        boolean imagesDisabled;
     }
 
     @Override
@@ -346,7 +404,24 @@ public class OpenAiCompatibleProvider implements AiProviderStrategy {
             msgArray.add(new JSONObject().set("role", "system").set("content", systemPrompt));
         }
         for (AiChatStreamReqVO.ChatMessage msg : messages) {
-            msgArray.add(new JSONObject().set("role", msg.getRole()).set("content", msg.getContent()));
+            JSONObject message = new JSONObject().set("role", msg.getRole());
+            if ("user".equals(msg.getRole()) && msg.getImages() != null && !msg.getImages().isEmpty()) {
+                // 多模态输入：文本与图片按 content block 数组下发（OpenAI 兼容视觉模型格式）
+                JSONArray content = new JSONArray();
+                content.add(new JSONObject().set("type", "text")
+                        .set("text", StrUtil.nullToEmpty(msg.getContent())));
+                for (String imageUrl : msg.getImages()) {
+                    if (StrUtil.isBlank(imageUrl)) {
+                        continue;
+                    }
+                    content.add(new JSONObject().set("type", "image_url")
+                            .set("image_url", new JSONObject().set("url", imageUrl)));
+                }
+                message.set("content", content);
+            } else {
+                message.set("content", StrUtil.nullToEmpty(msg.getContent()));
+            }
+            msgArray.add(message);
         }
         return msgArray;
     }

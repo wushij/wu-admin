@@ -49,6 +49,7 @@ function captchaTypeLabel(type: string | undefined) {
 }
 
 export function useDashboardData() {
+  const loading = ref(true)
   const platformName = ref('Admin Platform')
   const platformSubtitle = ref('')
   const stats = ref<DashboardStats>(defaultStats())
@@ -136,10 +137,16 @@ export function useDashboardData() {
   }
 
   async function initDashboard() {
-    await Promise.all([loadStats(), loadRecentLogins(), recordVisit()])
+    loading.value = true
+    try {
+      await Promise.all([loadStats(), loadRecentLogins(), recordVisit()])
+    } finally {
+      loading.value = false
+    }
   }
 
   return {
+    loading,
     platformName,
     platformSubtitle,
     stats,

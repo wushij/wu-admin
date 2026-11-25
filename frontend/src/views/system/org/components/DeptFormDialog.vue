@@ -14,16 +14,16 @@
         />
       </el-form-item>
       <el-form-item label="部门名称" prop="name">
-        <el-input v-model="form.name" />
+        <el-input v-model="form.name" placeholder="请输入部门名称" />
       </el-form-item>
       <el-form-item label="负责人">
         <DeptLeaderSelect v-model="form.leaderUserId" />
       </el-form-item>
       <el-form-item label="联系电话">
-        <el-input v-model="form.phone" />
+        <el-input v-model="form.phone" placeholder="请输入联系电话" />
       </el-form-item>
       <el-form-item label="邮箱">
-        <el-input v-model="form.email" />
+        <el-input v-model="form.email" placeholder="请输入邮箱" />
       </el-form-item>
       <el-form-item label="排序">
         <el-input-number v-model="form.sort" :min="0" style="width: 100%" />

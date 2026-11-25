@@ -10,7 +10,7 @@
               <span class="unit">开启后业务侧可发送验证码短信</span>
             </el-form-item>
             <el-form-item label="短信服务商">
-              <el-select v-model="draft.provider" style="width: 100%" :disabled="!canEdit">
+              <el-select v-model="draft.provider" placeholder="请选择短信服务商" style="width: 100%" :disabled="!canEdit">
                 <el-option label="阿里云" value="aliyunAuth" /><el-option label="腾讯云" value="tencent" />
               </el-select>
             </el-form-item>
@@ -54,7 +54,7 @@
           <template #header><span class="sms-card-title">测试发送</span></template>
           <el-form label-width="72px" class="sms-test-form" autocomplete="off" @submit.prevent>
             <el-form-item v-if="draft.provider === 'aliyunAuth'" label="模板">
-              <el-select v-model="testSmsTemplate" style="width: 100%" :disabled="!canEdit">
+              <el-select v-model="testSmsTemplate" placeholder="请选择模板" style="width: 100%" :disabled="!canEdit">
                 <el-option label="100001 登录/注册" value="100001" />
                 <el-option label="100002 修改绑定手机号" value="100002" />
                 <el-option label="100003 重置密码" value="100003" />
@@ -87,13 +87,11 @@
               </template>
             </el-table-column>
             <el-table-column prop="createTime" label="时间" min-width="150" show-overflow-tooltip />
-            <el-table-column label="操作" width="60" fixed="right">
+            <el-table-column label="操作" width="68" fixed="right">
               <template #default="{ row }">
-                <el-popconfirm title="确定删除该条记录吗？" @confirm="$emit('deleteSmsLog', row.id)">
-                  <template #reference>
-                    <el-button link type="danger" size="small" :disabled="!canEdit">删除</el-button>
-                  </template>
-                </el-popconfirm>
+                <el-button link type="danger" size="small" :disabled="!canEdit" @click="$emit('deleteSmsLog', row.id)">
+                  删除
+                </el-button>
               </template>
             </el-table-column>
           </el-table>

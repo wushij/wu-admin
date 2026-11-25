@@ -1,6 +1,7 @@
 import type { App } from 'vue'
 import type { ApiResult } from '@/types/api'
 import { logger } from '@/core/logger'
+import { hasActiveAuthToastHost, showAuthToast } from '@/composables/auth/useAuthToast'
 
 let lastGlobalErrorToastAt = 0
 
@@ -25,10 +26,21 @@ function normalizeRequestFailMessage(raw: string): string | null {
   return '网络连接失败，请稍后重试'
 }
 
+/** 框架或第三方库抛出的英文运行时错误，统一收敛成中文，避免直接弹给用户 */
+function normalizeRuntimeErrorMessage(text: string): string | null {
+  if (/is not supported in (the )?current runtime/i.test(text)) return '当前环境不支持该操作'
+  if (/^uni API is not available/i.test(text)) return '当前环境不支持该操作'
+  return null
+}
+
 export function extractApiErrorMessage(source: unknown, fallback = '操作失败'): string {
   if (!source) return fallback
   if (typeof source === 'string') {
-    return normalizeRequestFailMessage(source) ?? (source.trim() || fallback)
+    return (
+      normalizeRuntimeErrorMessage(source) ??
+      normalizeRequestFailMessage(source) ??
+      (source.trim() || fallback)
+    )
   }
 
   const err = source as {
@@ -75,7 +87,7 @@ export function extractApiErrorMessage(source: unknown, fallback = '操作失败
   }
 
   // 业务提示或运行时错误保留原始 message
-  if (err.message) return err.message
+  if (err.message) return normalizeRuntimeErrorMessage(err.message) ?? err.message
   if (err.msg) return err.msg
 
   if (statusCode === 500) return '服务器内部错误，请稍后重试'
@@ -130,6 +142,12 @@ export function showGlobalErrorToast(message: string) {
   const now = Date.now()
   if (now - lastGlobalErrorToastAt < 1200) return
   lastGlobalErrorToastAt = now
+
+  // 认证页已挂载玻璃提示宿主时，与 PC 端保持一致使用顶部悬浮毛玻璃胶囊提示
+  if (hasActiveAuthToastHost()) {
+    showAuthToast(text, 'error', 2600)
+    return
+  }
 
   uni.showToast({ title: text, icon: 'none', duration: 2600 })
 }

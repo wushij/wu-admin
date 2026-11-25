@@ -52,6 +52,9 @@ export const Workflow = defineComponent({
 
 /** 自定义图标集合（统一支持驼峰与小写索引） */
 export const CUSTOM_ICONS: Record<string, Component> = {
+  // 工作台：Element Plus 官方数据看板图标（风格与全站菜单完全统一）
+  dashboard: ElementPlusIconsVue.DataAnalysis,
+  Dashboard: ElementPlusIconsVue.DataAnalysis,
   // 安全风控：彻底弃用笨重黑实心盾牌，换为 Element Plus 官方经典的优雅安全锁 Lock
   Shield: ElementPlusIconsVue.Lock,
   shield: ElementPlusIconsVue.Lock,
@@ -84,7 +87,7 @@ const LEGACY_ICON_MAP: Record<string, string> = {
   'tree-table': 'Menu',
   tree: 'OfficeBuilding',
   document: 'Document',
-  dashboard: 'ElementPlus',
+  dashboard: 'DataAnalysis',
   monitor: 'Monitor',
   'data-line': 'DataLine',
   suitcase: 'Suitcase',

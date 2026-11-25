@@ -6,6 +6,8 @@
 import MarkdownIt from 'markdown-it'
 import hljs from 'highlight.js/lib/common'
 import 'highlight.js/styles/github-dark.css'
+import katex from 'katex'
+import 'katex/dist/katex.min.css'
 
 function highlightCode(str: string, lang: string): string {
   if (lang && hljs.getLanguage(lang)) {
@@ -105,9 +107,116 @@ function unwrapUrlInlineCode(content: string): string {
   })
 }
 
+const FENCED_CODE_BLOCK_RE = /(````[\s\S]*?````|```[\s\S]*?```)/g
+
+/** 统一将 \[...\] 与 \(...\) 定界符转换为 $$...$$ 与 $...$ */
+function normalizeLatexDelimiters(text: string): string {
+  return text
+    .replace(/\\\[([\s\S]+?)\\\]/g, (_m, inner: string) => `$$\n${inner.trim()}\n$$`)
+    .replace(/\\\(([^()\n]+?)\\\)/g, (_m, inner: string) => `$${inner.trim()}$`)
+}
+
+function replaceLiteral(source: string, search: string, replacement: string): string {
+  return source.split(search).join(replacement)
+}
+
+function renderKatexHtml(formula: string, displayMode: boolean): string {
+  const normalized = formula.trim().replace(/，/g, ', ').replace(/；/g, '; ')
+  return katex.renderToString(normalized, {
+    displayMode,
+    throwOnError: false,
+    strict: 'ignore',
+    errorColor: 'inherit',
+  })
+}
+
+function extractMathPlaceholders(
+  segment: string,
+  blockKatexMap: Map<string, string>,
+  inlineKatexMap: Map<string, string>,
+  counters: { blockIdx: number; inlineIdx: number },
+): string {
+  let s = normalizeLatexDelimiters(segment)
+
+  // 1. 先隔离行内代码 `...`，防止代码里的 $PATH / ${var} 与正文 $ 误配对
+  const inlineCodeList: string[] = []
+  s = s.replace(/`[^`\n]+`/g, (codeSpan) => {
+    const key = `%%%MD_INLINE_CODE_${inlineCodeList.length}%%%`
+    inlineCodeList.push(codeSpan)
+    return key
+  })
+
+  // 2. 隔离常见货币价格（如 $100、$12.5 元），防止多个价格之间的 $ 跨文配对
+  const currencyList: string[] = []
+  s = s.replace(
+    /(?<![$\\a-zA-Z0-9])\$(?:\d[\d,]*(?:\.\d+)?[ \t]*(?:[kKmMbBwW]|元|美元|万元|块|刀|美金|RMB|CNY|USD)|\d[\d,]*(?:\.\d+)?(?=[ \t]*(?:[\u4e00-\u9fa5]|[-~至到][ \t]*\$\d)|[，。；、！？：）)\]】」』]|(?:\r?\n|$)))(?!\$)/g,
+    (currencySpan) => {
+      const key = `%%%MD_CURRENCY_${currencyList.length}%%%`
+      currencyList.push(currencySpan)
+      return key
+    },
+  )
+
+  // 3. 提取块级公式 $$ ... $$
+  s = s.replace(/\$\$([\s\S]+?)\$\$/g, (_m, math: string) => {
+    const key = `%%%KATEX_BLOCK_${counters.blockIdx++}%%%`
+    blockKatexMap.set(key, `<div class="katex-block-wrapper">${renderKatexHtml(math, true)}</div>`)
+    return key
+  })
+
+  // 4. 提取单行行内公式 $ ... $（排除跨句自然语言与含全角句末标点的文本）
+  s = s.replace(/(?<!\$)\$(?!\$)([^$\n]+?)(?<!\$)\$(?!\$)/g, (match, math: string) => {
+    const trimmed = math.trim()
+    if (!trimmed || /[。！？]/.test(trimmed)) {
+      return match
+    }
+    if (/[，；]/.test(trimmed) && !/[=<>+\-*/^_\\≤≥≠≈()]/.test(trimmed)) {
+      return match
+    }
+    const key = `%%%KATEX_INLINE_${counters.inlineIdx++}%%%`
+    inlineKatexMap.set(key, renderKatexHtml(trimmed, false))
+    return key
+  })
+
+  currencyList.forEach((val, idx) => {
+    s = replaceLiteral(s, `%%%MD_CURRENCY_${idx}%%%`, val)
+  })
+  inlineCodeList.forEach((val, idx) => {
+    s = replaceLiteral(s, `%%%MD_INLINE_CODE_${idx}%%%`, val)
+  })
+  return s
+}
+
 export function renderMarkdown(content: string): string {
   if (!content.trim()) return ''
-  return md.render(unwrapUrlInlineCode(normalizeMarkdown(content)))
+  const normalized = unwrapUrlInlineCode(normalizeMarkdown(content))
+
+  const blockKatexMap = new Map<string, string>()
+  const inlineKatexMap = new Map<string, string>()
+  const counters = { blockIdx: 0, inlineIdx: 0 }
+
+  // 仅对非围栏代码块部分解析 LaTeX 数学公式，避免误伤源码里的 $ 变量
+  const processed = normalized
+    .split(FENCED_CODE_BLOCK_RE)
+    .map((segment) => {
+      if (segment.startsWith('```')) return segment
+      return extractMathPlaceholders(segment, blockKatexMap, inlineKatexMap, counters)
+    })
+    .join('')
+
+  let html = md.render(processed)
+  blockKatexMap.forEach((htmlVal, key) => {
+    html = replaceLiteral(html, `<p>${key}</p>`, htmlVal)
+    html = replaceLiteral(html, `<br>\n${key}`, htmlVal)
+    html = replaceLiteral(html, `<br>${key}`, htmlVal)
+    html = replaceLiteral(html, `${key}\n<br>`, htmlVal)
+    html = replaceLiteral(html, `${key}<br>`, htmlVal)
+    html = replaceLiteral(html, key, htmlVal)
+  })
+  inlineKatexMap.forEach((htmlVal, key) => {
+    html = replaceLiteral(html, key, htmlVal)
+  })
+  return html
 }
 
 // 中文全角标点（紧贴 ** 时会让 CommonMark 强调边界判定失败，导致 ** 原样显示）

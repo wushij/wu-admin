@@ -1,5 +1,5 @@
 import { ref, reactive, computed, onMounted } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
 import type { DictDataItem } from '@/types/api'
 import type { DictTypeVO, DictTypeSaveDTO, DictDataSaveDTO, DictTypePageQuery } from '@/api/system/dict'
 import {
@@ -13,9 +13,13 @@ import {
   updateDictData,
   deleteDictData,
   refreshDictCache,
+  restoreDictType,
+  restoreDictData,
 } from '@/api/system/dict'
 import { clearDictCache, preloadDicts, reloadDictTypes } from '@/composables/useDict'
 import { COMMON_DICT_TYPES } from '@/constants/dict'
+import { openAlertDialog } from '@/composables/ui/useAlertDialog'
+import { showSnackbar } from '@/composables/ui/useSnackbar'
 
 export function useDictPage() {
   const loading = ref(false)
@@ -38,7 +42,7 @@ export function useDictPage() {
     return tableData.value.filter(
       (r) =>
         (r.dictName && r.dictName.toLowerCase().includes(kw)) ||
-        (r.dictType && r.dictType.toLowerCase().includes(kw))
+        (r.dictType && r.dictType.toLowerCase().includes(kw)),
     )
   })
 
@@ -75,7 +79,7 @@ export function useDictPage() {
     return dictDataList.value.filter(
       (r) =>
         (r.dictLabel && r.dictLabel.toLowerCase().includes(kw)) ||
-        (r.dictValue && String(r.dictValue).toLowerCase().includes(kw))
+        (r.dictValue && String(r.dictValue).toLowerCase().includes(kw)),
     )
   })
 
@@ -191,29 +195,51 @@ export function useDictPage() {
     }
   }
 
+  /** 字典类型删除会级联删除字典数据（回收站提示不会还原已级联删除的数据项），因此属于高风险需 Alert Dialog 确认 */
   async function handleDeleteType(row: DictTypeVO) {
     const n = row.dataCount ?? 0
-    await ElMessageBox.confirm(
-      `确定删除字典类型「${row.dictName}」吗？将同时删除其下 ${n} 条字典数据，且业务表单将无法再加载该字典。`,
-      '提示',
-      { type: 'warning' }
-    )
-    await deleteDictType(row.id)
-    if (selectedType.value?.id === row.id) selectedType.value = null
-    ElMessage.success('删除成功')
-    await loadTypes()
-    await afterDictChanged(row.dictType)
+    await openAlertDialog({
+      title: '删除字典类型',
+      targetName: `${row.dictName} (${row.dictType})`,
+      message: `删除后将同时级联移除其下 ${n} 条字典数据，业务表单将无法继续加载该字典。`,
+      severity: 'danger',
+      confirmText: '确认删除类型',
+      onConfirm: async () => {
+        await deleteDictType(row.id)
+        if (selectedType.value?.id === row.id) selectedType.value = null
+        await loadTypes()
+        await afterDictChanged(row.dictType)
+        showSnackbar({
+          message: `已将字典类型「${row.dictName}」移至回收站`,
+          variant: 'info',
+          actionLabel: '撤销',
+          onAction: async () => {
+            await restoreDictType(row.id)
+            await loadTypes()
+            await afterDictChanged(row.dictType)
+            ElMessage.success('已恢复字典类型')
+          },
+        })
+      },
+    })
   }
 
   async function handleCopyType() {
     if (!selectedType.value) return
-    await ElMessageBox.confirm(`复制「${selectedType.value.dictName}」及其全部数据？`, '提示', {
-      type: 'info',
+    const target = selectedType.value
+    await openAlertDialog({
+      title: '复制字典类型',
+      targetName: target.dictName,
+      message: '将创建该字典类型及其全部数据项的副本。',
+      severity: 'warning',
+      confirmText: '确认复制',
+      onConfirm: async () => {
+        await copyDictType(target.id)
+        ElMessage.success('复制成功')
+        await loadTypes()
+        await afterDictChanged()
+      },
     })
-    await copyDictType(selectedType.value.id)
-    ElMessage.success('复制成功')
-    await loadTypes()
-    await afterDictChanged()
   }
 
   async function handleRefreshCache() {
@@ -288,14 +314,26 @@ export function useDictPage() {
     }
   }
 
+  /** 单条字典数据软删除：直接执行 + Snackbar 撤销 */
   async function handleDeleteData(row: DictDataItem) {
     if (row.id == null) return
-    await ElMessageBox.confirm(`确定要删除字典数据「${row.dictLabel}」吗？`, '提示', { type: 'warning' })
-    await deleteDictData(row.id)
-    ElMessage.success('删除成功')
+    const id = row.id
+    await deleteDictData(id)
     await loadDictData()
     await loadTypes()
     await afterDictChanged(row.dictType)
+    showSnackbar({
+      message: `已将字典项「${row.dictLabel}」移至回收站`,
+      variant: 'info',
+      actionLabel: '撤销',
+      onAction: async () => {
+        await restoreDictData(id)
+        await loadDictData()
+        await loadTypes()
+        await afterDictChanged(row.dictType)
+        ElMessage.success('已恢复字典项')
+      },
+    })
   }
 
   onMounted(async () => {

@@ -63,6 +63,9 @@ public class SysFileServiceImpl extends ServiceImpl<SysFileMapper, SysFileDO> im
     private DataScopeService dataScopeService;
 
     @Resource
+    private com.admin.server.framework.config.DynamicConfigProvider dynamicConfigProvider;
+
+    @Resource
     private com.admin.server.modules.infra.dal.mysql.file.SysFileGroupMapper fileGroupMapper;
 
     @Value("${app.job.file-recycle-retention-days:30}")
@@ -186,6 +189,72 @@ public class SysFileServiceImpl extends ServiceImpl<SysFileMapper, SysFileDO> im
         String originalName = normalizeOriginalName(file.getOriginalFilename());
         String objectName = StorageObjectKeyBuilder.chatFile(originalName);
         return uploadAndPersist(file, originalName, objectName, null, dataScopeService.getCurrentDeptId());
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public SysFileDO uploadAiChatFile(MultipartFile file) {
+        validateAiChatUpload(file);
+        String originalName = normalizeOriginalName(file.getOriginalFilename());
+        String objectName = StorageObjectKeyBuilder.chatFile(originalName);
+        return uploadAndPersist(file, originalName, objectName, null, dataScopeService.getCurrentDeptId());
+    }
+
+    /**
+     * AI 对话资料仅限制大小与文件名，不套用文件中心扩展名白名单：
+     * 对话附件可能是代码、Markdown 等工程资料，但仍限制系统配置的单文件大小。
+     */
+    private void validateAiChatUpload(MultipartFile file) {
+        if (file == null || file.getSize() <= 0) {
+            throw new IllegalArgumentException("文件为空");
+        }
+        int maxMb = dynamicConfigProvider.getFileMaxSizeMb();
+        if (file.getSize() > (long) maxMb * 1024 * 1024) {
+            throw new IllegalArgumentException("文件大小不能超过 " + maxMb + "MB");
+        }
+        String originalName = file.getOriginalFilename();
+        if (!StringUtils.hasText(originalName)) {
+            throw new IllegalArgumentException("文件名不能为空");
+        }
+        String ext = LocalFileStorage.getSuffix(originalName).replace(".", "").trim();
+        if (!StringUtils.hasText(ext)) {
+            throw new IllegalArgumentException("文件必须包含扩展名");
+        }
+        // 同源文件服务会按扩展名返回 Content-Type，禁止可直接渲染脚本的网页类附件，避免存储型 XSS
+        if (Set.of("html", "htm", "xhtml", "svg").contains(ext.toLowerCase(Locale.ROOT))) {
+            throw new IllegalArgumentException("不允许上传网页类文件: ." + ext);
+        }
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public SysFileDO uploadAiKnowledgeFile(MultipartFile file, Long knowledgeBaseId) {
+        validateAiKnowledgeUpload(file);
+        String originalName = normalizeOriginalName(file.getOriginalFilename());
+        String objectName = StorageObjectKeyBuilder.aiKnowledgeDocument(knowledgeBaseId, originalName);
+        return uploadAndPersist(file, originalName, objectName, null, dataScopeService.getCurrentDeptId());
+    }
+
+    /**
+     * AI 知识库文档：只允许可解析的文档格式（pdf/doc/docx/md/txt），并限制单文件大小。
+     * 不使用文件中心的全量白名单，避免图片、压缩包等无法解析的文件进入知识库。
+     */
+    private void validateAiKnowledgeUpload(MultipartFile file) {
+        if (file == null || file.getSize() <= 0) {
+            throw new IllegalArgumentException("文件为空");
+        }
+        int maxMb = dynamicConfigProvider.getFileMaxSizeMb();
+        if (file.getSize() > (long) maxMb * 1024 * 1024) {
+            throw new IllegalArgumentException("文件大小不能超过 " + maxMb + "MB");
+        }
+        String originalName = file.getOriginalFilename();
+        if (!StringUtils.hasText(originalName)) {
+            throw new IllegalArgumentException("文件名不能为空");
+        }
+        String ext = LocalFileStorage.getSuffix(originalName).replace(".", "").trim().toLowerCase(Locale.ROOT);
+        if (!Set.of("pdf", "doc", "docx", "md", "txt").contains(ext)) {
+            throw new IllegalArgumentException("知识库仅支持 PDF、Word(.doc/.docx)、Markdown(.md) 与 TXT 文档");
+        }
     }
 
     private SysFileDO uploadAndPersist(MultipartFile file, String originalName, String objectName,
@@ -411,9 +480,20 @@ public class SysFileServiceImpl extends ServiceImpl<SysFileMapper, SysFileDO> im
     @Override
     public byte[] getFileBytes(Long id) {
         SysFileDO record = requireVisibleFile(id);
+        return readStoredBytes(record);
+    }
+
+    @Override
+    public byte[] getFileBytesInternal(Long id) {
+        SysFileDO record = id == null ? null : getById(id);
         if (record == null) {
             throw new BusinessException(404, "文件不存在");
         }
+        return readStoredBytes(record);
+    }
+
+    /** 按存储类型读取对象字节（本地直读、对象存储回源），不含任何可见性校验 */
+    private byte[] readStoredBytes(SysFileDO record) {
         String storageType = record.getStorageType();
         if ("local".equalsIgnoreCase(storageType) || !StringUtils.hasText(storageType)) {
             try {

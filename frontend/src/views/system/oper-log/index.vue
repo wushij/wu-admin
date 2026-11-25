@@ -1,20 +1,11 @@
 <template>
   <div class="app-container module-page">
-    <el-card class="search-card module-hero-card" shadow="never">
-      <div class="module-hero-row">
-        <div class="module-hero-text">
-          <div class="module-hero-title">
-            <ModulePageIcon :icon="MODULE_PAGE_ICON.operLog" />
-            <span>操作日志</span>
-          </div>
-          <p class="module-hero-desc">记录系统操作行为，支持按模块、人员与状态检索</p>
-        </div>
-        <div class="module-hero-stats">
-          <div class="stat-num">{{ total }}</div>
-          <div class="stat-label">日志总数</div>
-        </div>
-      </div>
-    </el-card>
+    <PageHeader
+      title="操作日志"
+      description="记录系统操作行为，支持按模块、人员与状态检索"
+      :icon="MODULE_PAGE_ICON.operLog"
+      :stats="[{ label: '日志总数', value: total }]"
+    />
 
     <el-card class="search-card module-search-card" shadow="never">
       <el-form :model="queryParams" inline class="module-search-form">
@@ -45,6 +36,7 @@
             <ListExportButton module="oper-log" :query-params="queryParams" permission="system:operLog:query" />
             <el-button
               type="danger"
+              plain
               v-permission="'system:operLog:clear'"
               @click="handleClean"
             >
@@ -55,6 +47,7 @@
       </template>
 
       <el-table
+        v-if="tableData.length || loading"
         :data="tableData"
         v-loading="loading"
         border
@@ -77,13 +70,15 @@
         <el-table-column prop="operIp" label="IP地址" width="130" align="center" header-align="center" />
         <el-table-column label="状态" width="80" align="center" header-align="center">
           <template #default="{ row }">
-            <el-tag :type="row.status === 0 ? 'success' : 'danger'" size="small">
+            <el-tag :type="row.status === 0 ? 'success' : 'danger'" size="small" effect="plain">
               {{ row.status === 0 ? '正常' : '异常' }}
             </el-tag>
           </template>
         </el-table-column>
         <el-table-column label="耗时" width="90" align="center" header-align="center">
-          <template #default="{ row }">{{ row.costTime }}ms</template>
+          <template #default="{ row }">
+            <span class="motion-tabular">{{ row.costTime }}ms</span>
+          </template>
         </el-table-column>
         <el-table-column prop="operTime" label="操作时间" width="170" align="center" header-align="center" />
         <el-table-column label="操作" width="160" fixed="right" align="center" header-align="center">
@@ -93,6 +88,7 @@
               <el-button
                 v-permission="'system:operLog:delete'"
                 type="danger"
+                plain
                 size="small"
                 @click="handleDelete(row)"
               >
@@ -102,8 +98,10 @@
           </template>
         </el-table-column>
       </el-table>
+      <EmptyState v-else title="暂无操作日志" description="当前筛选条件下没有操作审计记录" />
 
       <el-pagination
+        v-if="total > 0"
         v-model:current-page="queryParams.pageNo"
         v-model:page-size="queryParams.pageSize"
         :total="total"
@@ -132,7 +130,7 @@
         </el-descriptions-item>
         <el-descriptions-item label="操作时间">{{ detail.operTime }}</el-descriptions-item>
         <el-descriptions-item v-if="parsedAction" label="操作内容" :span="2">
-          <el-alert type="info" :closable="false" show-icon :title="parsedAction" />
+          <InlineAlert type="info" :title="parsedAction" compact />
         </el-descriptions-item>
         <el-descriptions-item v-if="parsedDiffItems.length" label="变更明细" :span="2">
           <div class="diff-tags-wrapper">
@@ -158,10 +156,13 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { Search, Refresh } from '@element-plus/icons-vue'
-import ModulePageIcon from '@/components/ModulePageIcon.vue'
+import { ElMessage } from 'element-plus'
+import PageHeader from '@/components/ui/PageHeader.vue'
+import EmptyState from '@/components/ui/EmptyState.vue'
+import InlineAlert from '@/components/ui/InlineAlert.vue'
 import { MODULE_PAGE_ICON } from '@/constants/module-page-icons'
-import { ElMessage, ElMessageBox } from 'element-plus'
 import ListExportButton from '@/components/ListExportButton.vue'
+import { openAlertDialog } from '@/composables/ui/useAlertDialog'
 import { pageOperLog, deleteOperLog, cleanOperLog, type OperLogVO, type OperLogPageQuery } from '@/api/system/oper-log'
 
 const tableHeaderStyle = { textAlign: 'center' as const }
@@ -178,7 +179,7 @@ const queryParams = reactive<OperLogPageQuery>({
   pageSize: 10,
   title: '',
   operName: '',
-  status: null
+  status: null,
 })
 
 const businessTypeMap: Record<number, string> = {
@@ -196,31 +197,36 @@ function businessTypeLabel(type: number | undefined) {
   return businessTypeMap[type] ?? '其他'
 }
 
-function getActionSummary(row: OperLogVO): string {
-  const cleanTitle = (t: string | undefined) => t ? (t.endsWith('管理') ? t.slice(0, -2) : t) : ''
+function extractSummary(row: Partial<OperLogVO>, emptyFallback: string) {
+  const cleanTitle = (t: string | undefined) => (t ? (t.endsWith('管理') ? t.slice(0, -2) : t) : '')
   const t = cleanTitle(row.title)
   if (!row.operParam) {
     if (t) {
       const typeLabel = row.businessType === 0 ? '' : businessTypeLabel(row.businessType)
       return `${typeLabel}${t}`
     }
-    return '—'
+    return emptyFallback
   }
   try {
     const obj = JSON.parse(row.operParam)
     let name = ''
     if (obj && typeof obj === 'object') {
-      if (obj.action) {
-        return String(obj.action)
-      }
+      if (obj.action) return String(obj.action)
       const params = obj.params || obj
       if (Array.isArray(params)) {
         name = 'ID: ' + params.join(', ')
       } else if (params && typeof params === 'object') {
-        name = params.username || params.nickname || params.name || params.label || params.title || params.groupName || params.dictType || params.id || ''
-        if (typeof name === 'object') {
-          name = ''
-        }
+        name =
+          params.username ||
+          params.nickname ||
+          params.name ||
+          params.label ||
+          params.title ||
+          params.groupName ||
+          params.dictType ||
+          params.id ||
+          ''
+        if (typeof name === 'object') name = ''
       } else if (params != null && typeof params !== 'function') {
         name = String(params)
       }
@@ -228,59 +234,20 @@ function getActionSummary(row: OperLogVO): string {
       name = String(obj)
     }
     const typeLabel = row.businessType === 0 ? '' : businessTypeLabel(row.businessType)
-    if (t) {
-      return `${typeLabel}${t}${name ? `「${name}」` : ''}`
-    }
+    if (t) return `${typeLabel}${t}${name ? `「${name}」` : ''}`
   } catch {}
   if (t) {
     const typeLabel = row.businessType === 0 ? '' : businessTypeLabel(row.businessType)
     return `${typeLabel}${t}`
   }
-  return '—'
+  return emptyFallback
 }
 
-const parsedAction = computed(() => {
-  const cleanTitle = (t: string | undefined) => t ? (t.endsWith('管理') ? t.slice(0, -2) : t) : ''
-  const t = cleanTitle(detail.value.title)
-  if (!detail.value.operParam) {
-    if (t) {
-      const typeLabel = detail.value.businessType === 0 ? '' : businessTypeLabel(detail.value.businessType)
-      return `${typeLabel}${t}`
-    }
-    return ''
-  }
-  try {
-    const obj = JSON.parse(detail.value.operParam)
-    let name = ''
-    if (obj && typeof obj === 'object') {
-      if (obj.action) {
-        return String(obj.action)
-      }
-      const params = obj.params || obj
-      if (Array.isArray(params)) {
-        name = 'ID: ' + params.join(', ')
-      } else if (params && typeof params === 'object') {
-        name = params.username || params.nickname || params.name || params.label || params.title || params.groupName || params.dictType || params.id || ''
-        if (typeof name === 'object') {
-          name = ''
-        }
-      } else if (params != null && typeof params !== 'function') {
-        name = String(params)
-      }
-    } else if (obj != null && typeof obj !== 'function') {
-      name = String(obj)
-    }
-    const typeLabel = detail.value.businessType === 0 ? '' : businessTypeLabel(detail.value.businessType)
-    if (t) {
-      return `${typeLabel}${t}${name ? `「${name}」` : ''}`
-    }
-  } catch {}
-  if (t) {
-    const typeLabel = detail.value.businessType === 0 ? '' : businessTypeLabel(detail.value.businessType)
-    return `${typeLabel}${t}`
-  }
-  return ''
-})
+function getActionSummary(row: OperLogVO): string {
+  return extractSummary(row, '—')
+}
+
+const parsedAction = computed(() => extractSummary(detail.value, ''))
 
 const parsedDiffItems = computed<string[]>(() => {
   if (!detail.value.operParam) return []
@@ -314,7 +281,7 @@ async function loadData() {
       pageSize: queryParams.pageSize,
       title: queryParams.title || undefined,
       operName: queryParams.operName || undefined,
-      status: queryParams.status
+      status: queryParams.status,
     })
     tableData.value = res.data?.list || []
     total.value = Number(res.data?.total) || 0
@@ -341,17 +308,34 @@ function openDetail(row: OperLogVO) {
 }
 
 async function handleDelete(row: OperLogVO) {
-  await ElMessageBox.confirm('确定要删除该日志吗？', '提示', { type: 'warning' })
-  await deleteOperLog(row.id)
-  ElMessage.success('删除成功')
-  loadData()
+  await openAlertDialog({
+    title: '永久删除操作日志',
+    targetName: `${row.title} · #${row.id}`,
+    message: '删除后该条操作审计记录将被永久销毁，无法找回。',
+    severity: 'irreversible',
+    confirmText: '永久删除',
+    onConfirm: async () => {
+      await deleteOperLog(row.id)
+      ElMessage.success('已永久删除')
+      loadData()
+    },
+  })
 }
 
 async function handleClean() {
-  await ElMessageBox.confirm('确定要清空所有操作日志吗？此操作不可恢复！', '警告', { type: 'warning' })
-  await cleanOperLog()
-  ElMessage.success('清空成功')
-  loadData()
+  await openAlertDialog({
+    title: '清空全部操作日志',
+    targetName: `共 ${total.value} 条操作记录`,
+    message: '此操作将永久清空全部操作审计日志且不可恢复，请确认已完成审计留档。',
+    severity: 'irreversible',
+    confirmText: '清空全部日志',
+    requireConfirmInput: '清空日志',
+    onConfirm: async () => {
+      await cleanOperLog()
+      ElMessage.success('已清空全部操作日志')
+      loadData()
+    },
+  })
 }
 
 onMounted(() => loadData())
@@ -363,24 +347,30 @@ onMounted(() => loadData())
   flex-wrap: wrap;
   gap: 6px;
 }
+
 .diff-tag {
   white-space: normal;
   height: auto;
-  padding: 4px 8px;
+  padding: 4px 10px;
 }
+
 .code-block {
   margin: 0;
   max-height: 200px;
   overflow: auto;
-  padding: 8px;
-  background: var(--el-fill-color-light);
-  border-radius: 8px;
+  padding: var(--space-3);
+  background: var(--color-bg-subtle);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
   font-size: 12px;
   white-space: pre-wrap;
   word-break: break-all;
   text-align: left;
+  color: var(--color-text-primary);
 }
+
 .error-text {
-  color: var(--el-color-danger);
+  color: var(--color-danger);
 }
 </style>

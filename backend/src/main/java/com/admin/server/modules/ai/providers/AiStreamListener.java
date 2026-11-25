@@ -8,6 +8,13 @@ public interface AiStreamListener {
     /** 收到一段增量文本 */
     void onDelta(String delta);
 
+    /**
+     * 收到一段推理模型思维链增量（如 DeepSeek reasoner 的 reasoning_content）。
+     * 默认忽略，旧实现无需改动。
+     */
+    default void onReasoning(String delta) {
+    }
+
     /** 流结束，回传 Token 统计（供应商未返回时为 0） */
     void onComplete(int promptTokens, int completionTokens);
 

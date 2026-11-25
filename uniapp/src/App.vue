@@ -67,4 +67,5 @@ onHide(() => {
 @use '@/styles/common.scss';
 @use '@/styles/toast-h5.scss';
 @use '@/styles/chat-markdown-global.scss';
+@use '@/components/business/ai/AiWuAssistant/ai-wu-assistant.scss';
 </style>

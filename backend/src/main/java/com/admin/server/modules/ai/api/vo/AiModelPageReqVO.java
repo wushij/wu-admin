@@ -12,5 +12,7 @@ import lombok.EqualsAndHashCode;
 public class AiModelPageReqVO extends PageParam {
     private String name;
     private String provider;
+    /** 模型类型筛选: chat / embedding，留空查全部 */
+    private String modelType;
     private Integer status;
 }

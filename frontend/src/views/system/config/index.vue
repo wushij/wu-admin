@@ -1,20 +1,11 @@
 <template>
   <div class="app-container module-page config-page">
-    <el-card class="search-card module-hero-card" shadow="never">
-      <div class="module-hero-row">
-        <div class="module-hero-text">
-          <div class="module-hero-title">
-            <ModulePageIcon :icon="MODULE_PAGE_ICON.config" />
-            <span>系统配置</span>
-          </div>
-          <p class="module-hero-desc">平台运行参数集中维护，修改后请点击底部「保存全部」生效</p>
-        </div>
-        <div class="module-hero-stats">
-          <div class="stat-num">{{ configTabCount }}</div>
-          <div class="stat-label">配置分组</div>
-        </div>
-      </div>
-    </el-card>
+    <PageHeader
+      title="系统配置"
+      description="平台运行参数集中维护，修改后请点击底部「保存全部」生效"
+      :icon="MODULE_PAGE_ICON.config"
+      :stats="[{ label: '配置分组', value: configTabCount }]"
+    />
 
     <el-card v-loading="loading">
       <template #header>
@@ -49,7 +40,7 @@
           <RegisterConfigTab :draft="draft.register" :can-edit="canEdit" :role-options="roleOptions" :user-options="userOptions" />
         </el-tab-pane>
         <el-tab-pane label="第三方配置" name="thirdParty">
-          <ThirdPartyConfigTab :draft="draft.thirdParty" :can-edit="canEdit" />
+          <ThirdPartyConfigTab v-model:draft="draft.thirdParty" :can-edit="canEdit" />
         </el-tab-pane>
         <el-tab-pane label="支付配置" name="payment">
           <PaymentConfigTab
@@ -85,7 +76,7 @@
           <SecurityConfigTab :draft="draft.security" :can-edit="canEdit" v-model:forbid-concurrent-login="forbidConcurrentLogin" />
         </el-tab-pane>
         <el-tab-pane label="AI 助手" name="ai">
-          <AiConfigTab :draft="draft.ai" :can-edit="canEdit" :role-options="roleOptions" />
+          <AiConfigTab v-model:draft="draft.ai" :can-edit="canEdit" :role-options="roleOptions" />
         </el-tab-pane>
       </el-tabs>
 
@@ -101,7 +92,7 @@
         <div class="payment-info">
           <p>支付方式：{{ paymentResult.type === 'wechat' ? '微信支付' : '支付宝' }}</p>
           <p>订单号：{{ paymentResult.orderNo }}</p>
-          <p>金额：<span class="amount">¥ 0.01</span></p>
+          <p>金额：<span class="amount motion-tabular">¥ 0.01</span></p>
           <p>支付状态：<el-tag :type="payOrderStatus === 'PAID' ? 'success' : 'warning'" size="small">{{ payOrderStatus === 'PAID' ? '已支付' : '待支付' }}</el-tag></p>
         </div>
         <div v-if="paymentResult.qrcode" class="qrcode-container">
@@ -141,13 +132,9 @@
         </el-table-column>
         <el-table-column prop="resultMsg" label="结果信息" min-width="130" show-overflow-tooltip />
         <el-table-column prop="createTime" label="发送时间" width="156" />
-        <el-table-column label="操作" width="60" fixed="right">
+        <el-table-column label="操作" width="76" fixed="right">
           <template #default="{ row }">
-            <el-popconfirm title="确定删除该条记录吗？" @confirm="handleDeleteSmsLog(row.id)">
-              <template #reference>
-                <el-button link type="danger" size="small">删除</el-button>
-              </template>
-            </el-popconfirm>
+            <el-button link type="danger" size="small" @click="handleDeleteSmsLog(row.id)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -188,13 +175,9 @@
         </el-table-column>
         <el-table-column prop="resultMsg" label="结果明细" min-width="130" show-overflow-tooltip />
         <el-table-column prop="createTime" label="发送时间" width="156" />
-        <el-table-column label="操作" width="60" fixed="right">
+        <el-table-column label="操作" width="76" fixed="right">
           <template #default="{ row }">
-            <el-popconfirm title="确定删除该条记录吗？" @confirm="handleDeleteEmailLog(row.id)">
-              <template #reference>
-                <el-button link type="danger" size="small">删除</el-button>
-              </template>
-            </el-popconfirm>
+            <el-button link type="danger" size="small" @click="handleDeleteEmailLog(row.id)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -212,7 +195,7 @@
 
 <script setup lang="ts">
 import { computed, watch, onMounted } from 'vue'
-import ModulePageIcon from '@/components/ModulePageIcon.vue'
+import PageHeader from '@/components/ui/PageHeader.vue'
 import { MODULE_PAGE_ICON } from '@/constants/module-page-icons'
 
 const configTabCount = 12
@@ -247,7 +230,7 @@ const {
   paymentResult, pollPayOrderStatus, handleTestPayment,
 } = usePaymentTest(() => isDirty.value)
 
-function stopPayPolling() { /* handled by composable onUnmounted */ }
+function stopPayPolling() {}
 
 const {
   smsTesting, testSmsPhone, testSmsTemplate, recentSmsLogs,
@@ -283,19 +266,92 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.card-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.dirty-hint { font-size: 13px; color: #e6a23c; }
-.footer-actions { margin-top: 20px; padding-top: 16px; border-top: 1px solid #ebeef5; }
-.payment-test-modal { text-align: center; }
-.payment-test-modal .payment-info { margin-bottom: 20px; text-align: left; padding: 16px; background: #f9fafb; border-radius: 8px; }
-.payment-test-modal .payment-info p { margin: 8px 0; color: #374151; }
-.payment-test-modal .amount { font-size: 24px; font-weight: 600; color: #ef4444; }
-.payment-test-modal .qrcode-container { padding: 20px; background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; display: inline-block; }
-.payment-test-modal .qrcode-img { width: 200px; height: 200px; }
-.payment-test-modal .qrcode-tip { margin-top: 12px; color: #6b7280; font-size: 14px; }
-.payment-test-modal .payment-actions { margin-top: 20px; display: flex; justify-content: center; }
-.sms-logs-toolbar { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; }
-.sms-logs-pagination { display: flex; justify-content: flex-start; margin-top: 14px; }
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.dirty-hint {
+  padding: 2px 10px;
+  border-radius: var(--radius-pill);
+  font-size: var(--text-caption);
+  font-weight: 600;
+  color: var(--color-warning);
+  background: var(--color-warning-soft);
+  border: 1px solid var(--color-warning-border);
+}
+
+.footer-actions {
+  margin-top: var(--space-5);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border-subtle);
+  display: flex;
+  gap: var(--space-2);
+}
+
+.payment-test-modal {
+  text-align: center;
+}
+
+.payment-test-modal .payment-info {
+  margin-bottom: var(--space-5);
+  text-align: left;
+  padding: var(--space-4);
+  background: var(--color-bg-subtle);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+}
+
+.payment-test-modal .payment-info p {
+  margin: 8px 0;
+  color: var(--color-text-primary);
+}
+
+.payment-test-modal .amount {
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--color-danger);
+}
+
+.payment-test-modal .qrcode-container {
+  padding: var(--space-4);
+  background: #ffffff;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  display: inline-block;
+}
+
+.payment-test-modal .qrcode-img {
+  width: 200px;
+  height: 200px;
+}
+
+.payment-test-modal .qrcode-tip {
+  margin-top: var(--space-3);
+  color: var(--color-text-secondary);
+  font-size: var(--text-body);
+}
+
+.payment-test-modal .payment-actions {
+  margin-top: var(--space-5);
+  display: flex;
+  justify-content: center;
+}
+
+.sms-logs-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.sms-logs-pagination {
+  display: flex;
+  justify-content: flex-start;
+  margin-top: var(--space-3);
+}
 </style>
 
 <style src="./styles/config-shared.css"></style>

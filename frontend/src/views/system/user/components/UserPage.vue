@@ -1,20 +1,11 @@
 <template>
   <div class="app-container module-page user-page">
-    <el-card class="search-card module-hero-card" shadow="never">
-      <div class="module-hero-row">
-        <div class="module-hero-text">
-          <div class="module-hero-title">
-            <ModulePageIcon :icon="MODULE_PAGE_ICON.user" />
-            <span>用户管理</span>
-          </div>
-          <p class="module-hero-desc">管理系统账号，支持部门筛选、角色分配与状态控制</p>
-        </div>
-        <div class="module-hero-stats">
-          <div class="stat-num">{{ total }}</div>
-          <div class="stat-label">用户总数</div>
-        </div>
-      </div>
-    </el-card>
+    <PageHeader
+      title="用户管理"
+      description="管理系统账号，支持部门筛选、角色分配与状态控制"
+      :icon="MODULE_PAGE_ICON.user"
+      :stats="[{ label: '用户总数', value: total }]"
+    />
 
     <div class="user-layout">
       <aside class="user-layout__side">
@@ -63,13 +54,12 @@
       :form="resetPwdForm"
       @submit="submitResetPwd"
     />
-
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, watchEffect, defineAsyncComponent } from 'vue'
-import ModulePageIcon from '@/components/ModulePageIcon.vue'
+import PageHeader from '@/components/ui/PageHeader.vue'
 import { MODULE_PAGE_ICON } from '@/constants/module-page-icons'
 import UserDeptTree from './UserDeptTree.vue'
 import UserMainPanel from './UserMainPanel.vue'
@@ -132,7 +122,7 @@ watchEffect(() => {
 
 .user-layout {
   display: flex;
-  gap: 16px;
+  gap: var(--space-4);
   align-items: stretch;
   flex: 1 0 auto;
 }
@@ -149,5 +139,14 @@ watchEffect(() => {
   min-width: 0;
   display: flex;
   flex-direction: column;
+}
+
+@media (max-width: 960px) {
+  .user-layout {
+    flex-direction: column;
+  }
+  .user-layout__side {
+    width: 100%;
+  }
 }
 </style>

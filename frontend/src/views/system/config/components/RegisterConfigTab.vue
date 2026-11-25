@@ -16,7 +16,7 @@
       <el-input-number v-model="draft.minPasswordLength" :min="6" :max="32" :disabled="!canEdit || !draft.enabled" />
     </el-form-item>
     <el-form-item label="默认角色">
-      <el-select v-model="draft.defaultRoleCode" :disabled="!canEdit || !draft.enabled" style="width: 260px">
+      <el-select v-model="draft.defaultRoleCode" placeholder="请选择默认角色" :disabled="!canEdit || !draft.enabled" style="width: 260px">
         <el-option v-for="role in roleOptions" :key="role.code" :label="`${role.name}（${role.code}）`" :value="role.code" />
       </el-select>
     </el-form-item>

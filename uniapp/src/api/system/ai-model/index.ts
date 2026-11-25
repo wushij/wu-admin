@@ -7,12 +7,17 @@ export type AiProvider = 'deepseek' | 'kimi' | 'zhipu' | 'openai' | 'custom' | s
 /** 接入协议 */
 export type AiProtocol = 'openai' | 'anthropic'
 
+/** 模型类型：chat=对话模型 / embedding=向量模型 */
+export type AiModelType = 'chat' | 'embedding'
+
 export interface AiModelVO {
   id: number
   name: string
   provider: AiProvider
   /** 接入协议：openai（兼容协议）/ anthropic（Messages 协议） */
   protocol?: AiProtocol | string
+  /** 模型类型：chat（默认）/ embedding */
+  modelType?: AiModelType | string
   modelName: string
   baseUrl: string
   /** 自定义请求路径模板，支持 {model} 占位 */
@@ -25,6 +30,10 @@ export interface AiModelVO {
   hasApiKey?: boolean
   temperature?: number
   maxTokens?: number
+  /** 向量维度（向量模型） */
+  dimension?: number
+  /** 向量化批量大小（向量模型） */
+  batchSize?: number
   systemPrompt?: string
   isDefault?: number
   status?: number
@@ -38,6 +47,8 @@ export interface AiModelSaveDTO {
   name: string
   provider: AiProvider | string
   protocol?: AiProtocol | string
+  /** 模型类型：chat（默认）/ embedding */
+  modelType?: AiModelType | string
   modelName: string
   baseUrl: string
   pathTemplate?: string
@@ -46,6 +57,10 @@ export interface AiModelSaveDTO {
   apiKey?: string
   temperature?: number
   maxTokens?: number
+  /** 向量维度（向量模型必填） */
+  dimension?: number
+  /** 向量化批量大小（向量模型可选） */
+  batchSize?: number
   systemPrompt?: string
   isDefault?: number
   status?: number
@@ -79,6 +94,8 @@ export interface AiModelPageQuery {
   pageSize?: number
   name?: string
   provider?: string
+  /** chat / embedding */
+  modelType?: string
   status?: number | null
 }
 

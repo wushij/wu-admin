@@ -38,7 +38,7 @@
             <el-button
               type="success"
               v-permission="'tool:gen:code'"
-              :icon="Cpu"
+              :icon="MagicStick"
               :disabled="!selectedIds.length"
               @click="batchGenerate"
             >
@@ -110,7 +110,7 @@
     <el-dialog v-model="importVisible" title="导入数据库表" width="900px" destroy-on-close>
       <el-form inline>
         <el-form-item label="表名">
-          <el-input v-model="importQuery.tableName" clearable @keyup.enter="loadDbTables" />
+          <el-input v-model="importQuery.tableName" placeholder="请输入表名" clearable @keyup.enter="loadDbTables" />
         </el-form-item>
         <el-form-item>
           <el-button type="primary" @click="loadDbTables">搜索</el-button>
@@ -157,25 +157,25 @@
                 <el-form-item label="表名"><el-input v-model="editForm.tableName" disabled /></el-form-item>
               </el-col>
               <el-col :span="12">
-                <el-form-item label="表描述"><el-input v-model="editForm.tableComment" /></el-form-item>
+                <el-form-item label="表描述"><el-input v-model="editForm.tableComment" placeholder="请输入表描述" /></el-form-item>
               </el-col>
               <el-col :span="12">
-                <el-form-item label="实体类名"><el-input v-model="editForm.className" /></el-form-item>
+                <el-form-item label="实体类名"><el-input v-model="editForm.className" placeholder="请输入实体类名" /></el-form-item>
               </el-col>
               <el-col :span="12">
-                <el-form-item label="包路径"><el-input v-model="editForm.packageName" /></el-form-item>
+                <el-form-item label="包路径"><el-input v-model="editForm.packageName" placeholder="请输入包路径" /></el-form-item>
               </el-col>
               <el-col :span="12">
-                <el-form-item label="模块名"><el-input v-model="editForm.moduleName" /></el-form-item>
+                <el-form-item label="模块名"><el-input v-model="editForm.moduleName" placeholder="请输入模块名" /></el-form-item>
               </el-col>
               <el-col :span="12">
-                <el-form-item label="业务名"><el-input v-model="editForm.businessName" /></el-form-item>
+                <el-form-item label="业务名"><el-input v-model="editForm.businessName" placeholder="请输入业务名" /></el-form-item>
               </el-col>
               <el-col :span="12">
-                <el-form-item label="功能名称"><el-input v-model="editForm.functionName" /></el-form-item>
+                <el-form-item label="功能名称"><el-input v-model="editForm.functionName" placeholder="请输入功能名称" /></el-form-item>
               </el-col>
               <el-col :span="12">
-                <el-form-item label="作者"><el-input v-model="editForm.author" /></el-form-item>
+                <el-form-item label="作者"><el-input v-model="editForm.author" placeholder="请输入作者" /></el-form-item>
               </el-col>
               <el-col :span="12">
                 <el-form-item label="上级菜单ID">
@@ -198,13 +198,13 @@
             <el-table-column prop="columnName" label="字段名" width="120" fixed align="center" header-align="center" />
             <el-table-column label="描述" width="140" align="center" header-align="center">
               <template #default="{ row }">
-                <div class="cell-control"><el-input v-model="row.columnComment" size="small" /></div>
+                <div class="cell-control"><el-input v-model="row.columnComment" size="small" placeholder="请输入描述" /></div>
               </template>
             </el-table-column>
             <el-table-column label="Java类型" width="128" align="center" header-align="center">
               <template #default="{ row }">
                 <div class="cell-control">
-                  <el-select v-model="row.javaType" size="small">
+                  <el-select v-model="row.javaType" size="small" placeholder="请选择">
                     <el-option v-for="t in JAVA_TYPES" :key="t" :label="t" :value="t" />
                   </el-select>
                 </div>
@@ -234,7 +234,7 @@
             <el-table-column label="查询方式" width="108" align="center" header-align="center">
               <template #default="{ row }">
                 <div class="cell-control">
-                  <el-select v-model="row.queryType" size="small">
+                  <el-select v-model="row.queryType" size="small" placeholder="请选择">
                     <el-option v-for="q in QUERY_TYPES" :key="q.value" :label="q.label" :value="q.value" />
                   </el-select>
                 </div>
@@ -243,7 +243,7 @@
             <el-table-column label="显示类型" width="116" align="center" header-align="center">
               <template #default="{ row }">
                 <div class="cell-control">
-                  <el-select v-model="row.htmlType" size="small">
+                  <el-select v-model="row.htmlType" size="small" placeholder="请选择">
                     <el-option v-for="h in HTML_TYPES" :key="h.value" :label="h.label" :value="h.value" />
                   </el-select>
                 </div>
@@ -252,7 +252,7 @@
             <el-table-column label="字典类型" min-width="150" align="center" header-align="center">
               <template #default="{ row }">
                 <div class="cell-control">
-                  <el-select v-model="row.dictType" size="small" clearable filterable>
+                  <el-select v-model="row.dictType" size="small" clearable filterable placeholder="请选择字典">
                     <el-option v-for="d in dictTypeOptions" :key="d.value" :label="d.label" :value="d.value" />
                   </el-select>
                 </div>
@@ -395,7 +395,7 @@
 <script setup lang="ts">
 import { onMounted } from 'vue'
 import {
-  Search, Refresh, Upload, Delete, Cpu,
+  Search, Refresh, Upload, Delete, MagicStick,
   FolderOpened, Download,
 } from '@element-plus/icons-vue'
 import RecycleCenterLink from '@/components/RecycleCenterLink.vue'
@@ -498,15 +498,15 @@ onMounted(() => loadData())
     align-items: flex-start;
     gap: 14px;
     padding: 16px;
-    border: 2px solid #e5e7eb;
+    border: 2px solid var(--color-border);
     border-radius: 12px;
     cursor: pointer;
     transition: all 0.2s;
 
-    &:hover { border-color: var(--theme-primary, #111827); }
+    &:hover { border-color: var(--el-color-primary); }
     &.selected {
-      border-color: var(--theme-primary, #111827);
-      background: rgba(17, 24, 39, 0.04);
+      border-color: var(--el-color-primary);
+      background: color-mix(in srgb, var(--el-color-primary) 10%, transparent);
     }
   }
 

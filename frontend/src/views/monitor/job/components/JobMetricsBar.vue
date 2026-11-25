@@ -44,10 +44,10 @@ const items = computed(() => [
 
 .job-metric-card {
   padding: 18px 12px;
-  border-radius: 10px;
-  background: #fff;
-  border: 1px solid var(--el-border-color-lighter);
-  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-subtle);
+  box-shadow: var(--shadow-xs);
   text-align: center;
 }
 

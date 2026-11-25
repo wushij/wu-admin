@@ -35,6 +35,22 @@ public final class WebhookUrlValidator {
      * @return 通过校验的 URI
      */
     public static URI validate(String url) {
+        return validateInternal(url, true);
+    }
+
+    /**
+     * 校验管理员手动配置的外部服务地址（如联网搜索引擎），域名不做本机 DNS 解析。
+     *
+     * <p>本机开启代理（TUN fake-ip）或 DNS 被污染时，公网域名会被解析成 198.18.0.0/15
+     * 这类保留地址，若按解析结果判断会把 {@code api.deepseek.com} 等合法地址误判为内网。
+     * 因此这里只对 IP 字面量和明显指向本机的主机名做拦截：
+     * 真正访问内网时仍受「关闭重定向 + 请求超时」约束，且该类配置仅管理员可写。</p>
+     */
+    public static URI validateAllowingProxyDns(String url) {
+        return validateInternal(url, false);
+    }
+
+    private static URI validateInternal(String url, boolean resolveHost) {
         if (StrUtil.isBlank(url)) {
             throw new IllegalArgumentException("告警 webhook 不能为空");
         }
@@ -55,6 +71,17 @@ public final class WebhookUrlValidator {
         if (StrUtil.isBlank(host)) {
             throw new IllegalArgumentException("告警 webhook 缺少主机名");
         }
+        if (!resolveHost) {
+            if (isIpLiteral(host)) {
+                // IP 字面量不会触发 DNS 解析，可直接按网段判断
+                if (isForbiddenAddress(parseIpLiteral(host))) {
+                    throw new IllegalArgumentException("告警 webhook 不允许指向回环、内网或链路本地地址");
+                }
+            } else if (isLocalHostName(host)) {
+                throw new IllegalArgumentException("告警 webhook 不允许指向本机主机名: " + host);
+            }
+            return uri;
+        }
         InetAddress[] addresses;
         try {
             addresses = InetAddress.getAllByName(host);
@@ -67,6 +94,32 @@ public final class WebhookUrlValidator {
             }
         }
         return uri;
+    }
+
+    /** 解析 IP 字面量（不会触发 DNS 查询），非法时抛出可直接展示的异常 */
+    private static InetAddress parseIpLiteral(String host) {
+        try {
+            return InetAddress.getByName(host);
+        } catch (UnknownHostException e) {
+            throw new IllegalArgumentException("告警 webhook 主机地址非法: " + host);
+        }
+    }
+
+    /** 是否为 IP 字面量（IPv4 点分十进制或 IPv6） */
+    private static boolean isIpLiteral(String host) {
+        if (host == null) {
+            return false;
+        }
+        if (host.indexOf(':') >= 0) {
+            return true;
+        }
+        return host.matches("^(\\d{1,3}\\.){3}\\d{1,3}$");
+    }
+
+    /** 明显指向本机的主机名（localhost / *.localhost / *.local） */
+    private static boolean isLocalHostName(String host) {
+        String lower = host.toLowerCase(Locale.ROOT);
+        return "localhost".equals(lower) || lower.endsWith(".localhost") || lower.endsWith(".local");
     }
 
     /** 是否为禁止访问的地址（非公网） */

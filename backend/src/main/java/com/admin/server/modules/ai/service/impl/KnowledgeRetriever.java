@@ -39,6 +39,9 @@ public class KnowledgeRetriever {
     @Resource
     private AiKnowledgeMapper aiKnowledgeMapper;
 
+    @Resource
+    private com.admin.server.modules.ai.service.rag.KnowledgeVectorSearchService knowledgeVectorSearchService;
+
     /**
      * 检索结果与命中方式，供管理端“测试检索”复用同一套逻辑。
      */
@@ -46,14 +49,61 @@ public class KnowledgeRetriever {
     }
 
     /**
-     * 依据用户问题检索知识并拼装 &lt;knowledge_base&gt; 块；无命中或查询为空时返回空串
+     * 依据用户问题检索知识并拼装 &lt;knowledge_base&gt; 块；无命中或查询为空时返回空串。
+     * <p>优先向量语义检索（新知识库三层结构），向量不可用或无命中时回退旧全文检索。</p>
      */
     public String retrieveReferenceBlock(String query) {
         String q = StrUtil.trim(query);
         if (StrUtil.isBlank(q)) {
             return "";
         }
+        try {
+            List<com.admin.server.modules.ai.service.rag.KnowledgeVectorSearchService.ChunkHit> vectorHits =
+                    knowledgeVectorSearchService.searchAcrossEnabledBases(
+                            q, TOP_N, com.admin.server.modules.ai.service.rag.KnowledgeVectorSearchService.DEFAULT_MIN_SCORE);
+            if (CollUtil.isNotEmpty(vectorHits)) {
+                return buildVectorReferenceBlock(vectorHits);
+            }
+        } catch (Exception e) {
+            log.warn("知识库向量检索不可用，回退全文检索: {}", e.getMessage());
+        }
         return buildReferenceBlock(search(q, TOP_N));
+    }
+
+    /**
+     * 向量检索命中拼装：保留文档名与切片标题，便于模型引用来源。
+     */
+    public String buildVectorReferenceBlock(
+            List<com.admin.server.modules.ai.service.rag.KnowledgeVectorSearchService.ChunkHit> hits) {
+        if (CollUtil.isEmpty(hits)) {
+            return "";
+        }
+        StringBuilder sb = new StringBuilder();
+        sb.append("<knowledge_base>\n");
+        sb.append("【知识库语义检索结果（必须首先依此回答）】：\n");
+        sb.append("系统已按语义相似度检索知识库。若以下内容与用户提问相关，你必须【严格以知识库为准】回答，严禁编造；")
+                .append("知识库未覆盖时再结合系统通用功能作答。\n\n");
+        int used = sb.length();
+        int index = 1;
+        for (com.admin.server.modules.ai.service.rag.KnowledgeVectorSearchService.ChunkHit hit : hits) {
+            String body = AiKnowledgeSanitizer.sanitizeForPrompt(
+                    StrUtil.brief(StrUtil.nullToEmpty(hit.content()), PER_ITEM_MAX_CHARS));
+            String source = StrUtil.isBlank(hit.heading())
+                    ? "《" + StrUtil.nullToEmpty(hit.documentName()) + "》"
+                    : "《" + StrUtil.nullToEmpty(hit.documentName()) + "》 · " + hit.heading();
+            String section = "### [" + index + "] " + source + "\n" + body + "\n\n";
+            if (used + section.length() > TOTAL_MAX_CHARS) {
+                break;
+            }
+            sb.append(section);
+            used += section.length();
+            index++;
+        }
+        if (index == 1) {
+            return "";
+        }
+        sb.append("</knowledge_base>");
+        return sb.toString();
     }
 
     /**

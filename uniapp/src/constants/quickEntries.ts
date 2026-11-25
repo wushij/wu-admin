@@ -134,18 +134,9 @@ export const mobileQuickEntries: QuickEntry[] = [
     path: '/pages-sub/ai/model/index',
   },
   {
-    key: 'ai-log',
-    name: 'AI 对话日志',
-    desc: '问答审计',
-    permission: 'system:ai-log:list',
-    icon: 'records-o',
-    theme: 'ai',
-    path: '/pages-sub/ai/log/index',
-  },
-  {
     key: 'ai-knowledge',
     name: 'AI 知识库',
-    desc: '知识条目维护',
+    desc: '知识库与切片管理',
     permission: 'system:ai-knowledge:list',
     icon: 'notes-o',
     theme: 'ai',
@@ -230,7 +221,7 @@ export const quickEntryGroups: QuickEntryGroup[] = [
   { title: '文件管理', keys: ['file'] },
   { title: '流程中心', keys: ['approval', 'ticket'] },
   { title: '消息协作', keys: ['chat', 'notice'] },
-  { title: 'AI 管理', keys: ['ai-model', 'ai-knowledge', 'ai-log'] },
+  { title: 'AI 管理', keys: ['ai-model', 'ai-knowledge'] },
   { title: '监控运维', keys: ['online', 'server', 'cache', 'job', 'api-access'] },
   { title: '日志审计', keys: ['security', 'oper-log', 'login-log'] },
 ]

@@ -271,6 +271,90 @@ export interface ThirdPartyOAuthConfig {
   clientSecret?: string
 }
 
+export interface TavilyWebSearchConfig {
+  enabled: boolean
+  apiKey: string
+  searchDepth: 'basic' | 'advanced'
+  maxResults: number
+  topic: 'general' | 'news'
+  includeAnswer: boolean
+}
+
+export interface CustomWebSearchEngine {
+  id: string
+  name: string
+  preset?: string
+  protocol: 'openai_search' | 'http_json'
+  enabled: boolean
+  priority: number
+  endpointUrl: string
+  httpMethod?: 'POST' | 'GET'
+  apiKey?: string
+  authHeader?: string
+  authPrefix?: string
+  modelName?: string
+  extraBodyJson?: string
+  requestTemplate?: string
+  itemsPath?: string
+  titleField?: string
+  urlField?: string
+  snippetField?: string
+  timeoutMs?: number
+  remark?: string
+}
+
+export interface WebSearchConfig {
+  enabled: boolean
+  strategy: 'custom_first' | 'tavily_first'
+  fallbackToDuckDuckGo: boolean
+  customProviders: CustomWebSearchEngine[]
+}
+
+/** Tavily 官方账户额度与连通性（字段与后端 TavilyUsageVO 保持一致） */
+export interface TavilyUsageVO {
+  /** 密钥是否有效且连通成功 */
+  valid: boolean
+  /** 状态描述文案，失败时为可操作提示 */
+  message?: string
+  /** 当月已使用总次数 */
+  usage?: number
+  /** 当月总配额上限，官方未返回明确上限时为 null */
+  limit?: number | null
+  /** 当月剩余可用次数 */
+  remaining?: number | null
+  /** 已消耗比例（0~100） */
+  percent?: number
+  /** 当前套餐名称 */
+  currentPlan?: string
+  /** 搜索调用次数 */
+  searchUsage?: number
+  /** 站点爬取调用次数 */
+  crawlUsage?: number
+  /** 正文提取调用次数 */
+  extractUsage?: number
+  /** 站点地图调用次数 */
+  mapUsage?: number
+  /** 深度研究调用次数 */
+  researchUsage?: number
+  /** 超额按量次数 */
+  paygoUsage?: number
+  /** 按量补充额度上限 */
+  paygoLimit?: number | null
+}
+
+export interface WebSearchTestResultVO {
+  success: boolean
+  engineName: string
+  latencyMs: number
+  message: string
+  results: Array<{
+    title: string
+    url: string
+    snippet?: string
+    source?: string
+  }>
+}
+
 export interface ThirdPartyConfig {
   wechat: Pick<ThirdPartyOAuthConfig, 'enabled' | 'appId' | 'appSecret'>
   alipay: Pick<ThirdPartyOAuthConfig, 'enabled' | 'appId' | 'privateKey' | 'publicKey'>
@@ -278,6 +362,8 @@ export interface ThirdPartyConfig {
   google: Pick<ThirdPartyOAuthConfig, 'enabled' | 'clientId' | 'clientSecret'> & {
     redirectUri?: string
   }
+  tavily: TavilyWebSearchConfig
+  webSearch: WebSearchConfig
 }
 
 export interface WechatPayConfig {

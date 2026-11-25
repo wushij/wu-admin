@@ -200,6 +200,14 @@ import type { ECharts } from 'echarts'
 import type { CallbackDataParams } from 'echarts/types/dist/shared'
 import { hasPermission } from '@/directives/permission'
 import {
+  buildCategoryXAxis,
+  buildChartTooltip,
+  buildValueYAxis,
+  createGradientAreaLineSeries,
+  readChartTheme,
+  useChartThemeObserver,
+} from '@/utils/chartTheme'
+import {
   getApiAccessPage,
   getApiAccessStatistics,
   createEmptyApiAccessStats,
@@ -308,14 +316,33 @@ async function loadStatistics() {
 
 async function updateCharts() {
   const echarts = await ensureEcharts()
+  const theme = readChartTheme()
+  const { palette } = theme
 
   if (methodChartRef.value && stats.methodCount) {
     if (!methodChart) methodChart = echarts.init(methodChartRef.value)
     const data = Object.entries(stats.methodCount).map(([name, value]) => ({ name, value }))
-    methodChart.setOption({
-      tooltip: { trigger: 'item' },
-      series: [{ type: 'pie', radius: '60%', data }]
-    })
+    methodChart.setOption(
+      {
+        tooltip: buildChartTooltip(theme, 'item'),
+        color: palette.seriesColors,
+        series: [
+          {
+            type: 'pie',
+            radius: ['42%', '68%'],
+            itemStyle: {
+              borderRadius: 6,
+              borderColor: theme.surfaceBg,
+              borderWidth: 2,
+            },
+            label: { color: theme.textSecondary, fontSize: 12 },
+            labelLine: { lineStyle: { color: theme.border } },
+            data,
+          },
+        ],
+      },
+      true,
+    )
   }
 
   if (pathChartRef.value && stats.topPaths?.length) {
@@ -326,25 +353,43 @@ async function updateCharts() {
       return path.length > 20 ? path.slice(0, 17) + '...' : path
     })
     const yData = paths.map((p) => p.count)
-    pathChart.setOption({
-      tooltip: {
-        trigger: 'axis',
-        formatter(params: CallbackDataParams | CallbackDataParams[]) {
-          const list = Array.isArray(params) ? params : [params]
-          const idx = list[0]?.dataIndex
-          const full = paths[idx as number]?.apiPath ?? list[0]?.name
-          return `${full}<br/>次数: ${list[0]?.value ?? 0}`
-        }
+    pathChart.setOption(
+      {
+        tooltip: {
+          ...buildChartTooltip(theme, 'axis'),
+          formatter(params: CallbackDataParams | CallbackDataParams[]) {
+            const list = Array.isArray(params) ? params : [params]
+            const idx = list[0]?.dataIndex
+            const full = paths[idx as number]?.apiPath ?? list[0]?.name
+            return `${full}<br/>次数: ${list[0]?.value ?? 0}`
+          },
+        },
+        grid: { left: 50, right: 24, bottom: 88, top: 24 },
+        xAxis: {
+          type: 'category',
+          data: xData,
+          axisLine: { lineStyle: { color: theme.border } },
+          axisTick: { show: false },
+          axisLabel: { rotate: 35, interval: 0, fontSize: 11, color: theme.textMuted },
+        },
+        yAxis: buildValueYAxis(theme, { minInterval: 1 }),
+        series: [
+          {
+            type: 'bar',
+            barMaxWidth: 28,
+            data: yData,
+            itemStyle: {
+              borderRadius: [6, 6, 0, 0],
+              color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                { offset: 0, color: palette.indigo },
+                { offset: 1, color: palette.sky },
+              ]),
+            },
+          },
+        ],
       },
-      grid: { left: 50, right: 24, bottom: 88, top: 24 },
-      xAxis: {
-        type: 'category',
-        data: xData,
-        axisLabel: { rotate: 35, interval: 0, fontSize: 11 }
-      },
-      yAxis: { type: 'value', minInterval: 1 },
-      series: [{ type: 'bar', data: yData }]
-    })
+      true,
+    )
   }
 
   if (lineChartRef.value) {
@@ -353,19 +398,25 @@ async function updateCharts() {
     const totalData = keys.map((k) => stats.dailyStats[k]?.total ?? 0)
     const successData = keys.map((k) => stats.dailyStats[k]?.success ?? 0)
     const failData = keys.map((k) => stats.dailyStats[k]?.fail ?? 0)
-    lineChart.setOption({
-      tooltip: { trigger: 'axis' },
-      legend: { data: ['总数', '成功', '失败'] },
-      xAxis: { type: 'category', data: keys },
-      yAxis: { type: 'value' },
-      series: [
-        { name: '总数', type: 'line', smooth: true, data: totalData },
-        { name: '成功', type: 'line', smooth: true, data: successData },
-        { name: '失败', type: 'line', smooth: true, data: failData }
-      ]
-    })
+    lineChart.setOption(
+      {
+        tooltip: buildChartTooltip(theme, 'axis'),
+        legend: { data: ['总数', '成功', '失败'], textStyle: { color: theme.textSecondary } },
+        grid: { left: 48, right: 20, top: 40, bottom: 28 },
+        xAxis: buildCategoryXAxis(keys, theme),
+        yAxis: buildValueYAxis(theme),
+        series: [
+          createGradientAreaLineSeries({ echarts, name: '总数', data: totalData, color: palette.indigo }),
+          createGradientAreaLineSeries({ echarts, name: '成功', data: successData, color: palette.sky }),
+          createGradientAreaLineSeries({ echarts, name: '失败', data: failData, color: palette.rose }),
+        ],
+      },
+      true,
+    )
   }
 }
+
+useChartThemeObserver(() => updateCharts())
 
 async function loadPage() {
   loading.value = true

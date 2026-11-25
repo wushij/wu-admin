@@ -1,5 +1,18 @@
 <template>
   <view class="auth-particles">
+    <!-- 与 PC 端同源的暗夜极光竖版底图（使用 image 标签以兼容微信小程序 / App / H5 全端） -->
+    <image
+      class="auth-particles__artwork"
+      src="/static/themes/auth-bg-aurora-mobile.webp"
+      mode="aspectFill"
+    />
+    <!-- 上半区轻盈同心圆弧线：复刻 PC 原图左上角几何星环元素，衬托顶部 3D 地球与标题 -->
+    <view class="auth-particles__rings">
+      <view class="auth-particles__ring auth-particles__ring--1" />
+      <view class="auth-particles__ring auth-particles__ring--2" />
+      <view class="auth-particles__ring auth-particles__ring--3" />
+      <view class="auth-particles__ring auth-particles__ring--4" />
+    </view>
     <!-- #ifdef H5 -->
     <canvas ref="canvasRef" class="auth-particles__canvas" />
     <!-- #endif -->
@@ -228,12 +241,66 @@ function dotStyle(index: number) {
   position: fixed;
   inset: 0;
   z-index: 0;
-  background: #000;
+  background: $color-auth-bg;
   overflow: hidden;
   pointer-events: none;
 }
 
+.auth-particles__artwork {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  opacity: 0.94;
+}
+
+.auth-particles__rings {
+  position: absolute;
+  left: 50%;
+  top: 18%;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.auth-particles__ring {
+  position: absolute;
+  left: 0;
+  top: 0;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  border: 1px solid rgba(148, 163, 184, 0.08);
+  box-sizing: border-box;
+
+  &--1 {
+    width: 340rpx;
+    height: 340rpx;
+    border-color: rgba(148, 163, 184, 0.11);
+  }
+
+  &--2 {
+    width: 480rpx;
+    height: 480rpx;
+    border-color: rgba(148, 163, 184, 0.085);
+  }
+
+  &--3 {
+    width: 630rpx;
+    height: 630rpx;
+    border-color: rgba(125, 211, 252, 0.06);
+  }
+
+  &--4 {
+    width: 790rpx;
+    height: 790rpx;
+    border-color: rgba(129, 140, 248, 0.045);
+  }
+}
+
 .auth-particles__canvas {
+  position: relative;
+  z-index: 1;
   display: block;
   width: 100%;
   height: 100%;
@@ -242,11 +309,8 @@ function dotStyle(index: number) {
 .auth-particles__fallback {
   position: absolute;
   inset: 0;
-  background:
-    radial-gradient(ellipse 90% 55% at 50% 16%, rgba(99, 102, 241, 0.26), transparent 62%),
-    radial-gradient(ellipse 70% 45% at 18% 78%, rgba(168, 85, 247, 0.16), transparent 58%),
-    radial-gradient(ellipse 55% 35% at 82% 68%, rgba(56, 189, 248, 0.1), transparent 55%),
-    #000;
+  z-index: 1;
+  background: transparent;
 }
 
 .auth-particles__dot {
@@ -260,12 +324,15 @@ function dotStyle(index: number) {
 .auth-particles__gradient {
   position: absolute;
   inset: 0;
-  background: radial-gradient(
-    ellipse at center,
-    transparent 42%,
-    rgba(0, 0, 0, 0.22) 72%,
-    rgba(0, 0, 0, 0.55) 100%
-  );
+  z-index: 2;
+  background:
+    radial-gradient(ellipse 85% 45% at 50% 20%, rgba(56, 189, 248, 0.07), transparent 65%),
+    radial-gradient(
+      ellipse at center,
+      transparent 35%,
+      rgba(6, 9, 19, 0.24) 76%,
+      rgba(6, 9, 19, 0.56) 100%
+    );
   pointer-events: none;
 }
 

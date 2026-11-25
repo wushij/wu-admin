@@ -25,8 +25,14 @@ import java.util.Map;
 import java.util.Objects;
 
 import cn.hutool.core.util.StrUtil;
+import cn.hutool.json.JSONArray;
 import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
+import com.admin.server.modules.ai.service.search.impl.CustomWebSearchExecutor;
+import com.admin.server.modules.ai.service.search.impl.TavilyWebSearchService;
+import com.admin.server.modules.ai.service.search.vo.CustomWebSearchEngineConfig;
+import com.admin.server.modules.ai.service.search.vo.TavilyUsageVO;
+import com.admin.server.modules.ai.service.search.vo.WebSearchTestResultVO;
 import com.admin.server.modules.system.framework.security.SystemPermissionService;
 import com.admin.server.modules.system.service.config.SystemConfigHelper;
 
@@ -57,7 +63,8 @@ public class SysConfigGroupController {
                     "password"),
             SystemConfigHelper.GROUP_THIRD_PARTY, List.of(
                     "wechat.appSecret", "alipay.privateKey",
-                    "github.clientSecret", "google.clientSecret"),
+                    "github.clientSecret", "google.clientSecret",
+                    "tavily.apiKey"),
             SystemConfigHelper.GROUP_SECURITY, List.of(
                     "sm4SecretKey", "sm3SignKey", "sm2PrivateKey")
     );
@@ -85,6 +92,12 @@ public class SysConfigGroupController {
 
     @Resource
     private SystemConfigHelper systemConfigHelper;
+
+    @Resource
+    private TavilyWebSearchService tavilyWebSearchService;
+
+    @Resource
+    private CustomWebSearchExecutor customWebSearchExecutor;
 
     @GetMapping("/list")
     @Operation(summary = "配置分组列表")
@@ -127,6 +140,9 @@ public class SysConfigGroupController {
                 maskJsonPath(json, path);
             }
         }
+        if (SystemConfigHelper.GROUP_THIRD_PARTY.equals(row.getGroupCode())) {
+            maskCustomWebSearchProviders(json);
+        }
         masked.setConfigValue(json.toString());
         return masked;
     }
@@ -167,6 +183,62 @@ public class SysConfigGroupController {
                 String existing = readJsonPath(oldJson, path);
                 if (existing != null) {
                     writeJsonPath(newJson, path, existing);
+                }
+            }
+        }
+        if (SystemConfigHelper.GROUP_THIRD_PARTY.equals(groupCode)) {
+            mergeCustomWebSearchProviders(newJson, oldJson);
+        }
+    }
+
+    /** 对第三方配置中的自定义联网搜索引擎 API Key 统一脱敏，防止读取接口泄露明文。 */
+    private void maskCustomWebSearchProviders(JSONObject root) {
+        JSONObject webSearch = root.getJSONObject("webSearch");
+        if (webSearch == null) {
+            return;
+        }
+        JSONArray providers = webSearch.getJSONArray("customProviders");
+        if (providers == null || providers.isEmpty()) {
+            return;
+        }
+        for (int i = 0; i < providers.size(); i++) {
+            JSONObject item = providers.getJSONObject(i);
+            if (item != null && StrUtil.isNotBlank(item.getStr("apiKey"))) {
+                item.set("apiKey", MASK_PLACEHOLDER);
+            }
+        }
+    }
+
+    /** 保存自定义联网搜索引擎列表时，按引擎 id 保留未修改或脱敏占位的原 API Key。 */
+    private void mergeCustomWebSearchProviders(JSONObject newJson, JSONObject oldJson) {
+        JSONObject newWs = newJson.getJSONObject("webSearch");
+        JSONObject oldWs = oldJson.getJSONObject("webSearch");
+        if (newWs == null || oldWs == null) {
+            return;
+        }
+        JSONArray newProviders = newWs.getJSONArray("customProviders");
+        JSONArray oldProviders = oldWs.getJSONArray("customProviders");
+        if (newProviders == null || oldProviders == null || oldProviders.isEmpty()) {
+            return;
+        }
+        Map<String, String> oldKeysById = new java.util.HashMap<>();
+        for (int i = 0; i < oldProviders.size(); i++) {
+            JSONObject oldItem = oldProviders.getJSONObject(i);
+            if (oldItem != null && StrUtil.isNotBlank(oldItem.getStr("id"))
+                    && StrUtil.isNotBlank(oldItem.getStr("apiKey"))) {
+                oldKeysById.put(oldItem.getStr("id"), oldItem.getStr("apiKey"));
+            }
+        }
+        for (int i = 0; i < newProviders.size(); i++) {
+            JSONObject newItem = newProviders.getJSONObject(i);
+            if (newItem == null) {
+                continue;
+            }
+            String incoming = newItem.getStr("apiKey");
+            if (incoming == null || incoming.isBlank() || isMaskedSecret(incoming)) {
+                String existing = oldKeysById.get(newItem.getStr("id"));
+                if (existing != null) {
+                    newItem.set("apiKey", existing);
                 }
             }
         }
@@ -692,5 +764,37 @@ public class SysConfigGroupController {
     public CommonResult<Boolean> cleanEmailLogs() {
         emailLogService.remove(new LambdaQueryWrapper<>());
         return CommonResult.success(true);
+    }
+
+    @Operation(summary = "测试 Tavily 连通性并查询实时额度")
+    @PostMapping("/web-search/tavily-usage")
+    @RequirePermission("system:config:update")
+    public CommonResult<TavilyUsageVO> queryTavilyUsage(@RequestBody(required = false) TavilyUsageRequest req) {
+        String apiKey = req != null ? req.getApiKey() : null;
+        if (StrUtil.isBlank(apiKey) || isMaskedSecret(apiKey)) {
+            apiKey = null;
+        }
+        return CommonResult.success(tavilyWebSearchService.queryUsage(apiKey));
+    }
+
+    @Operation(summary = "试搜测试自定义联网搜索引擎")
+    @PostMapping("/web-search/test-custom")
+    @RequirePermission("system:config:update")
+    public CommonResult<WebSearchTestResultVO> testCustomWebSearch(@RequestBody TestCustomWebSearchRequest req) {
+        if (req == null || req.getEngine() == null) {
+            throw new BusinessException(400, "搜索引擎配置不能为空");
+        }
+        return CommonResult.success(customWebSearchExecutor.testEngine(req.getEngine(), req.getQuery()));
+    }
+
+    @Data
+    public static class TavilyUsageRequest {
+        private String apiKey;
+    }
+
+    @Data
+    public static class TestCustomWebSearchRequest {
+        private CustomWebSearchEngineConfig engine;
+        private String query;
     }
 }

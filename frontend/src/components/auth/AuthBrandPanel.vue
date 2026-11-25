@@ -23,18 +23,26 @@ defineProps<{
 
 <style scoped>
 .auth-brand {
-  position: sticky;
-  top: 0;
-  align-self: flex-start;
+  align-self: center;
   flex: 1 1 46%;
   min-width: 0;
-  height: 100vh;
   box-sizing: border-box;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: clamp(24px, 4vw, 56px) clamp(20px, 3vw, 48px);
-  animation: authBrandIn 0.85s cubic-bezier(0.22, 1, 0.36, 1) both;
+  padding: clamp(16px, 3vw, 40px) clamp(16px, 3vw, 44px);
+  animation: authBrandIn 0.75s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.auth-brand__inner {
+  position: relative;
+  z-index: 1;
+  text-align: center;
+  max-width: 420px;
+  transform: translateY(-12px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .auth-brand__visual {
@@ -43,53 +51,51 @@ defineProps<{
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: clamp(280px, 38vw, 400px);
+  min-height: clamp(220px, 28vw, 300px);
 }
 
 .auth-brand__earth3d {
-  --earth-view-size: min(420px, 88vw);
+  --earth-view-size: min(320px, 72vw);
   width: var(--earth-view-size);
   height: var(--earth-view-size);
   margin: 0 auto;
   flex-shrink: 0;
   background: transparent;
   pointer-events: auto;
-  filter: drop-shadow(0 0 36px rgba(56, 189, 248, 0.22));
-}
-
-.auth-brand__inner {
-  position: relative;
-  z-index: 1;
-  text-align: center;
-  max-width: 420px;
-  transform: translateY(-58px);
 }
 
 .auth-brand__title {
-  margin: -10px 0 2px;
-  font-size: clamp(1.75rem, 3.8vw, 2.5rem);
-  font-weight: 800;
-  letter-spacing: 0.04em;
+  margin: -4px 0 6px;
+  font-size: clamp(1.75rem, 3.6vw, 2.35rem);
+  font-weight: 700;
+  letter-spacing: 0.02em;
   line-height: 1.2;
-  color: #fff;
-  text-shadow: 0 0 28px rgba(255, 255, 255, 0.2), 0 4px 20px rgba(0, 0, 0, 0.45);
+  color: #f8fafc;
 }
 
 .auth-brand__tagline {
   margin: 0;
-  font-size: clamp(15px, 1.6vw, 17px);
-  color: rgba(230, 228, 250, 0.92);
-  letter-spacing: 0.12em;
-  font-weight: 500;
+  font-size: clamp(14px, 1.4vw, 16px);
+  color: rgba(226, 232, 240, 0.84);
+  letter-spacing: 0.1em;
+  font-weight: 400;
 }
 
 @keyframes authBrandIn {
-  from { opacity: 0; transform: translateX(-28px); }
-  to { opacity: 1; transform: translateX(0); }
+  from {
+    opacity: 0;
+    transform: translateX(-24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .auth-brand { animation: none !important; }
+  .auth-brand {
+    animation: none !important;
+  }
 }
 
 @media (max-width: 960px) {
@@ -99,16 +105,17 @@ defineProps<{
     height: auto;
     flex: none;
     width: 100%;
-    padding: 28px 20px 22px;
+    padding: 24px 20px 18px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   }
-  .auth-brand__inner { transform: translateY(-48px); }
-  .auth-brand__visual { min-height: 300px; }
-  .auth-brand__earth3d { --earth-view-size: min(340px, 82vw); }
-}
-
-@media (max-width: 480px) {
-  .auth-brand__visual { min-height: 260px; }
-  .auth-brand__earth3d { --earth-view-size: min(300px, 90vw); }
+  .auth-brand__inner {
+    transform: none;
+  }
+  .auth-brand__visual {
+    min-height: 220px;
+  }
+  .auth-brand__earth3d {
+    --earth-view-size: min(240px, 68vw);
+  }
 }
 </style>

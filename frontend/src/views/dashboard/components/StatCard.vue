@@ -1,19 +1,25 @@
 <template>
   <div
-    class="stat-card"
+    class="stat-card motion-hover-lift"
     :class="[variant, { clickable, compact }]"
+    :role="clickable ? 'button' : undefined"
+    :tabindex="clickable ? 0 : undefined"
     @click="handleClick"
+    @keydown.enter.prevent="handleClick"
   >
     <template v-if="variant === 'biz'">
       <div class="stat-card-body inline-biz">
         <span class="biz-label">{{ title }}</span>
-        <span class="biz-value" :class="bizValueClass">{{ displayValue }}</span>
+        <span class="biz-value motion-tabular" :class="bizValueClass">
+          <CountUpNumber v-if="typeof displayValue === 'number'" :value="displayValue" />
+          <template v-else>{{ displayValue }}</template>
+        </span>
       </div>
     </template>
     <template v-else>
       <div class="stat-card-header">
-        <div class="stat-icon-box" :class="iconTheme">
-          <el-icon :size="compact ? 18 : 24"><component :is="icon" /></el-icon>
+        <div class="stat-icon-box" :class="iconTheme" aria-hidden="true">
+          <el-icon :size="compact ? 18 : 22"><component :is="icon" /></el-icon>
         </div>
         <div
           v-if="variant === 'core' && trend !== undefined && !compact"
@@ -21,11 +27,14 @@
           :class="trend >= 0 ? 'up' : 'down'"
         >
           <el-icon><Top v-if="trend >= 0" /><Bottom v-else /></el-icon>
-          <span>{{ Math.abs(trend) }}%</span>
+          <span class="motion-tabular">{{ Math.abs(trend) }}%</span>
         </div>
       </div>
       <div class="stat-card-body">
-        <div class="stat-number">{{ displayValue }}</div>
+        <div class="stat-number motion-tabular">
+          <CountUpNumber v-if="typeof displayValue === 'number'" :value="displayValue" />
+          <template v-else>{{ displayValue }}</template>
+        </div>
         <div class="stat-title">{{ title }}</div>
       </div>
       <div v-if="footer" class="stat-card-footer"><span>{{ footer }}</span></div>
@@ -39,6 +48,7 @@ import type { Component } from 'vue'
 import type { RouteLocationRaw } from 'vue-router'
 import { useRouter } from 'vue-router'
 import { Top, Bottom } from '@element-plus/icons-vue'
+import CountUpNumber from '@/components/ui/CountUpNumber.vue'
 
 const props = defineProps<{
   variant: 'core' | 'ops' | 'biz'
@@ -63,43 +73,39 @@ function handleClick() {
 }
 </script>
 
-<style scoped>
+<style scoped lang="scss">
 .stat-card {
-  background: #fff;
-  border-radius: 16px;
-  padding: 24px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
-  border: 1px solid #f0f0f0;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  cursor: pointer;
-  min-height: 180px;
+  background: var(--color-bg-surface);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+  border: 1px solid var(--color-border);
+  min-height: 168px;
   display: flex;
   flex-direction: column;
-}
 
-.stat-card.ops {
-  min-height: 160px;
-}
+  &.clickable {
+    cursor: pointer;
+  }
 
-.stat-card.compact {
-  min-height: 0;
-  padding: 14px 16px;
-  border-radius: 12px;
+  &.ops {
+    min-height: 152px;
+  }
+
+  &.compact {
+    min-height: 0;
+    padding: var(--space-4);
+    border-radius: var(--radius-lg);
+  }
 }
 
 .stat-card.compact .stat-card-header {
-  margin-bottom: 10px;
+  margin-bottom: var(--space-3);
 }
 
 .stat-card.compact .stat-icon-box {
   width: 36px;
   height: 36px;
-  border-radius: 10px;
-}
-
-.stat-card.compact .stat-trend-badge {
-  padding: 2px 6px;
-  font-size: 11px;
+  border-radius: var(--radius-md);
 }
 
 .stat-card.compact .stat-number {
@@ -108,25 +114,21 @@ function handleClick() {
 }
 
 .stat-card.compact .stat-title {
-  font-size: 12px;
+  font-size: 12.5px;
 }
 
 .stat-card.compact .stat-card-body {
-  margin-bottom: 8px;
+  margin-bottom: var(--space-2);
 }
 
 .stat-card.compact .stat-card-footer {
-  padding-top: 8px;
-  font-size: 11px;
-}
-
-.stat-card.compact:hover {
-  transform: translateY(-2px);
+  padding-top: var(--space-2);
+  font-size: 11.5px;
 }
 
 .stat-card.biz {
   min-height: auto;
-  padding: 16px 20px;
+  padding: var(--space-4) var(--space-5);
 }
 
 .stat-card.biz .inline-biz {
@@ -137,99 +139,99 @@ function handleClick() {
 }
 
 .biz-label {
-  font-size: 14px;
-  color: #6b7280;
+  font-size: var(--text-body);
+  color: var(--color-text-secondary);
 }
 
 .biz-value {
   font-size: 22px;
   font-weight: 700;
-  color: var(--theme-primary, #111827);
+  color: var(--color-text-primary);
 }
 
-.biz-value.warn { color: #d97706; }
-.biz-value.danger { color: #dc2626; }
+.biz-value.warn { color: var(--color-warning); }
+.biz-value.danger { color: var(--color-danger); }
 
 .stat-card-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 16px;
+  margin-bottom: var(--space-4);
 }
 
 .stat-icon-box {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-md);
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid transparent;
-  color: #475569;
-  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  background: var(--color-bg-subtle);
+  color: var(--el-color-primary);
+  border: 1px solid var(--color-border-subtle);
+  transition: transform var(--duration-fast) var(--ease-out);
 }
 
-/* 浅色底 + 同色系图标，保持图标图形不变 */
-.stat-icon-box.user { background: #eef2ff; color: #4f46e5; border-color: #e0e7ff; }
-.stat-icon-box.role { background: #fff1f2; color: #e11d48; border-color: #ffe4e6; }
-.stat-icon-box.menu { background: #eff6ff; color: #2563eb; border-color: #dbeafe; }
-.stat-icon-box.dept { background: #ecfdf5; color: #059669; border-color: #d1fae5; }
-.stat-icon-box.pending-user { background: #fffbeb; color: #d97706; border-color: #fef3c7; }
-.stat-icon-box.login-success { background: #f0fdf4; color: #16a34a; border-color: #dcfce7; }
-.stat-icon-box.file-store { background: #f5f3ff; color: #7c3aed; border-color: #ede9fe; }
-.stat-icon-box.post { background: #ecfeff; color: #0891b2; border-color: #cffafe; }
-.stat-icon-box.online { background: #eef2ff; color: #6366f1; border-color: #e0e7ff; }
-.stat-icon-box.visit { background: #f0f9ff; color: #0284c7; border-color: #e0f2fe; }
-.stat-icon-box.approval { background: #faf5ff; color: #9333ea; border-color: #f3e8ff; }
-.stat-icon-box.ticket { background: #fff7ed; color: #ea580c; border-color: #ffedd5; }
-.stat-icon-box.job { background: #f0fdfa; color: #0d9488; border-color: #ccfbf1; }
+.stat-icon-box.user { background: rgba(79, 70, 229, 0.1); color: #6366f1; border-color: rgba(99, 102, 241, 0.22); }
+.stat-icon-box.role { background: rgba(225, 29, 72, 0.1); color: #f43f5e; border-color: rgba(244, 63, 94, 0.22); }
+.stat-icon-box.menu { background: rgba(37, 99, 235, 0.1); color: #3b82f6; border-color: rgba(59, 130, 246, 0.22); }
+.stat-icon-box.dept { background: rgba(5, 150, 105, 0.1); color: #10b981; border-color: rgba(16, 185, 129, 0.22); }
+.stat-icon-box.file-store { background: rgba(124, 58, 237, 0.1); color: #8b5cf6; border-color: rgba(139, 92, 246, 0.22); }
+.stat-icon-box.post { background: rgba(8, 145, 178, 0.1); color: #06b6d4; border-color: rgba(6, 182, 212, 0.22); }
+.stat-icon-box.online { background: rgba(99, 102, 241, 0.1); color: #6366f1; border-color: rgba(99, 102, 241, 0.22); }
+.stat-icon-box.approval { background: rgba(147, 51, 234, 0.1); color: #a855f7; border-color: rgba(168, 85, 247, 0.22); }
+.stat-icon-box.ticket { background: rgba(234, 88, 12, 0.1); color: #f97316; border-color: rgba(249, 115, 22, 0.22); }
+.stat-icon-box.job { background: rgba(13, 148, 136, 0.1); color: #14b8a6; border-color: rgba(20, 184, 166, 0.22); }
 
 .stat-trend-badge {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 4px 8px;
-  border-radius: 6px;
-  font-size: 12px;
+  padding: 2px 10px;
+  border-radius: var(--radius-pill);
+  font-size: var(--text-caption);
   font-weight: 600;
 }
 
-.stat-trend-badge.up { background: #f0fdf4; color: #16a34a; }
-.stat-trend-badge.down { background: #fef2f2; color: #dc2626; }
+.stat-trend-badge.up {
+  background: var(--color-success-soft);
+  color: var(--color-success);
+}
+
+.stat-trend-badge.down {
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+}
 
 .stat-card-body {
   flex: 1;
-  margin-bottom: 12px;
+  margin-bottom: var(--space-3);
 }
 
 .stat-number {
-  font-size: 36px;
+  font-size: 32px;
   font-weight: 700;
-  color: var(--theme-text-base, #1F2937);
-  line-height: 1;
-  margin-bottom: 8px;
+  color: var(--color-text-primary);
+  line-height: 1.1;
+  margin-bottom: 6px;
 }
 
 .stat-title {
-  font-size: 14px;
-  color: var(--theme-text-secondary, #6B7280);
+  font-size: var(--text-body);
+  color: var(--color-text-secondary);
   font-weight: 500;
 }
 
 .stat-card-footer {
-  padding-top: 12px;
-  border-top: 1px solid #f0f0f0;
-  font-size: 13px;
-  color: var(--theme-text-secondary, #6B7280);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--color-border-subtle);
+  font-size: 12.5px;
+  color: var(--color-text-muted);
 }
 
-.stat-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
-  border-color: var(--theme-primary, #111827);
-}
-
-.stat-card:hover .stat-icon-box {
-  transform: scale(1.06);
+@media (hover: hover) and (pointer: fine) {
+  .stat-card:hover {
+    border-color: var(--el-color-primary-light-5);
+  }
 }
 </style>

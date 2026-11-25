@@ -11,6 +11,7 @@ import {
   showGlobalErrorToast,
 } from '@/plugins/global-error-handler'
 import { resolveApiBaseUrl } from '@/core/api-base'
+import { hasActiveAuthToastHost, showAuthToast } from '@/composables/auth/useAuthToast'
 import { generateNonce, getTimestamp, encryptSm4, decryptSm4, signHmacSm3 } from '@/utils/security/crypto'
 import { getSecurityConfig, getClientId, requestSessionSignKey, clearSignKeys } from '@/utils/security/security-config'
 
@@ -69,13 +70,21 @@ function isAuthPublicUrl(url?: string): boolean {
   return AUTH_PUBLIC_SUFFIXES.some((suffix) => path === suffix || path.endsWith(suffix))
 }
 
+function emitHttpToast(message: string, type: 'warning' | 'error' | 'info' = 'error') {
+  if (hasActiveAuthToastHost()) {
+    showAuthToast(message, type)
+    return
+  }
+  uni.showToast({ title: message, icon: 'none' })
+}
+
 let lastForbiddenToastAt = 0
 
 function showForbiddenOnce(message: string) {
   const now = Date.now()
   if (now - lastForbiddenToastAt < 2000) return
   lastForbiddenToastAt = now
-  uni.showToast({ title: message, icon: 'none' })
+  emitHttpToast(message, 'warning')
 }
 
 /** 同一类提示在短时间窗口内只展示一次，避免并发请求把页面刷出多条重复 Toast */
@@ -92,7 +101,7 @@ function showToastOnce(message: string) {
     }
   }
   recentToastAt.set(message, now)
-  uni.showToast({ title: message, icon: 'none' })
+  emitHttpToast(message, 'error')
 }
 
 /** 并发请求同时收到 401 时，只清理一次会话、只跳转一次登录页 */
@@ -370,7 +379,7 @@ http.interceptors.response.use(
     const url = error?.config?.url || ''
     if (url.includes('/auth/session-sign-init')) {
       if (statusCode === 401 && getToken()) {
-        uni.showToast({ title: '登录已过期', icon: 'none' })
+        emitHttpToast('登录已过期', 'warning')
         clearSessionAndRedirectLogin()
       }
       return Promise.reject(error)

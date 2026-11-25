@@ -1,20 +1,11 @@
 <template>
   <div class="app-container module-page org-page">
-    <el-card class="search-card module-hero-card" shadow="never">
-      <div class="module-hero-row">
-        <div class="module-hero-text">
-          <div class="module-hero-title">
-            <ModulePageIcon :icon="MODULE_PAGE_ICON.org" />
-            <span>组织架构</span>
-          </div>
-          <p class="module-hero-desc">管理部门与岗位体系，左侧树形导航，右侧查看成员并维护节点</p>
-        </div>
-        <div class="module-hero-stats">
-          <div class="stat-num">{{ orgNodeCount }}</div>
-          <div class="stat-label">{{ orgStatLabel }}</div>
-        </div>
-      </div>
-    </el-card>
+    <PageHeader
+      title="组织架构"
+      description="管理部门与岗位体系，左侧树形导航，右侧查看成员并维护节点"
+      :icon="MODULE_PAGE_ICON.org"
+      :stats="[{ label: orgStatLabel, value: orgNodeCount }]"
+    />
 
     <el-tabs v-model="activeTab" class="org-tabs">
       <el-tab-pane label="部门体系" name="dept" />
@@ -81,7 +72,7 @@
 
 <script setup lang="ts">
 import { ref, watchEffect, computed, defineAsyncComponent } from 'vue'
-import ModulePageIcon from '@/components/ModulePageIcon.vue'
+import PageHeader from '@/components/ui/PageHeader.vue'
 import { MODULE_PAGE_ICON } from '@/constants/module-page-icons'
 import type { DeptVO } from '@/api/system/dept'
 import type { PostVO } from '@/api/system/post'
@@ -164,12 +155,19 @@ watchEffect(() => {
 <style scoped lang="scss">
 .org-page {
   .org-tabs {
-    margin-bottom: 12px;
+    margin-bottom: 0;
   }
 }
+
 .org-layout {
   display: flex;
-  gap: 12px;
-  min-height: calc(100vh - 200px);
+  gap: var(--space-4);
+  min-height: calc(100vh - 230px);
+}
+
+@media (max-width: 960px) {
+  .org-layout {
+    flex-direction: column;
+  }
 }
 </style>

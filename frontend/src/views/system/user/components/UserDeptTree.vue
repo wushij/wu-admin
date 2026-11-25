@@ -146,13 +146,13 @@ defineExpose({
   min-height: 0;
   padding: 8px 4px;
   border-radius: 10px;
-  background: linear-gradient(180deg, #f8fafc 0%, #f3f5f8 100%);
-  border: 1px solid var(--el-border-color-extra-light);
+  background: var(--color-bg-subtle);
+  border: 1px solid var(--color-border-subtle);
   overflow: auto;
 
   :deep(.el-tree) {
     background: transparent;
-    --el-tree-node-hover-bg-color: rgba(1, 7, 16, 0.06);
+    --el-tree-node-hover-bg-color: var(--color-bg-hover);
   }
 
   :deep(.el-tree-node__content) {
@@ -163,7 +163,7 @@ defineExpose({
   }
 
   :deep(.el-tree-node.is-current > .el-tree-node__content) {
-    background: rgba(1, 7, 16, 0.08);
+    background: var(--el-color-primary-light-9);
     font-weight: 600;
   }
 
@@ -186,15 +186,16 @@ defineExpose({
   line-height: 36px;
   color: var(--el-text-color-primary);
   cursor: pointer;
-  transition: background-color 0.15s ease;
+  transition: background-color 0.15s ease, color 0.15s ease;
 
   &:hover {
-    background: rgba(1, 7, 16, 0.06);
+    background: var(--color-bg-hover);
   }
 }
 
 .dept-tree-all--active {
-  background: rgba(1, 7, 16, 0.08);
+  background: var(--el-color-primary-light-9);
+  color: var(--el-color-primary);
   font-weight: 600;
 }
 
@@ -210,11 +211,11 @@ defineExpose({
 .tree-node__icon {
   flex-shrink: 0;
   font-size: 15px;
-  color: #6366f1;
+  color: var(--el-color-primary);
 }
 
 .tree-node__icon--leaf {
-  color: #64748b;
+  color: var(--color-text-muted);
 }
 
 .tree-node__name {
@@ -233,8 +234,8 @@ defineExpose({
   height: 18px;
   padding: 0 6px;
   border-radius: 999px;
-  background: rgba(99, 102, 241, 0.12);
-  color: #4f46e5;
+  background: var(--el-color-primary-light-9);
+  color: var(--el-color-primary);
   font-size: 11px;
   line-height: 18px;
   text-align: center;

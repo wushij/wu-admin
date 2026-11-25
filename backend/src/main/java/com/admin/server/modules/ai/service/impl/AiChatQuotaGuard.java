@@ -33,7 +33,7 @@ public class AiChatQuotaGuard {
     /** 日 token 配额 key 前缀（ai:quota:tokens:{userId}:{yyyyMMdd}） */
     private static final String TOKEN_QUOTA_KEY_PREFIX = "ai:quota:tokens:";
 
-    private static final String MSG_TOO_FREQUENT = "提问太频繁了，请稍候再试 🍵";
+    private static final String MSG_TOO_FREQUENT = "提问太频繁了，请稍候再试";
     private static final String MSG_QUOTA_EXCEEDED = "今日 AI 用量已达上限，明天再来吧";
 
     @Resource

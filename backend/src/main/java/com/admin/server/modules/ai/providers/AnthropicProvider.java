@@ -107,12 +107,48 @@ public class AnthropicProvider implements AiProviderStrategy {
                 continue;
             }
             String role = "assistant".equals(message.getRole()) ? "assistant" : "user";
+            if ("user".equals(role) && message.getImages() != null && !message.getImages().isEmpty()) {
+                JSONArray content = new JSONArray();
+                content.add(new JSONObject().set("type", "text")
+                        .set("text", StrUtil.nullToEmpty(message.getContent())));
+                for (String dataUrl : message.getImages()) {
+                    JSONObject imageBlock = buildImageBlock(dataUrl);
+                    if (imageBlock != null) {
+                        content.add(imageBlock);
+                    }
+                }
+                result.add(new JSONObject().set("role", role).set("content", content));
+                continue;
+            }
             result.add(new JSONObject().set("role", role).set("content", StrUtil.nullToEmpty(message.getContent())));
         }
         if (result.isEmpty()) {
             result.add(new JSONObject().set("role", "user").set("content", "你好"));
         }
         return result;
+    }
+
+    /** data:image/png;base64,xxx → Anthropic image content block */
+    private JSONObject buildImageBlock(String dataUrl) {
+        if (StrUtil.isBlank(dataUrl) || !dataUrl.startsWith("data:image/")) {
+            return null;
+        }
+        int comma = dataUrl.indexOf(',');
+        int semicolon = dataUrl.indexOf(';');
+        if (comma < 0 || semicolon < 0 || semicolon > comma) {
+            return null;
+        }
+        String mediaType = dataUrl.substring(5, semicolon);
+        String base64 = dataUrl.substring(comma + 1);
+        if (StrUtil.isBlank(base64)) {
+            return null;
+        }
+        return new JSONObject()
+                .set("type", "image")
+                .set("source", new JSONObject()
+                        .set("type", "base64")
+                        .set("media_type", mediaType)
+                        .set("data", base64));
     }
 
     private JSONObject buildStreamBody(AiModelDO model, JSONArray messages,
@@ -177,11 +213,67 @@ public class AnthropicProvider implements AiProviderStrategy {
                 model.getModelName(), DEFAULT_SUFFIX);
         HttpRequest request = buildRequest(url, model, plainApiKey, Duration.ofMinutes(5), body);
         HttpResponse<InputStream> response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofInputStream());
-        if (response.statusCode() != 200) {
-            throw ProviderHttpUtils.httpError(response.statusCode(),
-                    ProviderHttpUtils.readErrorBody(response.body()));
+        if (response.statusCode() == 200) {
+            return response;
         }
-        return response;
+        String errorBody = ProviderHttpUtils.readErrorBody(response.body());
+        // 模型不支持视觉输入时，剥离图片 block 降级为纯文本重试一次
+        if ((response.statusCode() == 400 || response.statusCode() == 422) && hasImageBlocks(body)) {
+            stripImageBlocks(body);
+            request = buildRequest(url, model, plainApiKey, Duration.ofMinutes(5), body);
+            response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofInputStream());
+            if (response.statusCode() == 200) {
+                log.warn("Anthropic 模型不支持图片输入，已降级为纯文本重试 model={}", model.getModelName());
+                return response;
+            }
+            errorBody = ProviderHttpUtils.readErrorBody(response.body());
+        }
+        throw ProviderHttpUtils.httpError(response.statusCode(), errorBody);
+    }
+
+    private boolean hasImageBlocks(JSONObject body) {
+        JSONArray messages = body.getJSONArray("messages");
+        if (messages == null) {
+            return false;
+        }
+        for (Object item : messages) {
+            if (!(item instanceof JSONObject message)) {
+                continue;
+            }
+            Object content = message.get("content");
+            if (!(content instanceof JSONArray blocks)) {
+                continue;
+            }
+            for (Object block : blocks) {
+                if (block instanceof JSONObject obj && "image".equals(obj.getStr("type"))) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private void stripImageBlocks(JSONObject body) {
+        JSONArray messages = body.getJSONArray("messages");
+        if (messages == null) {
+            return;
+        }
+        for (Object item : messages) {
+            if (!(item instanceof JSONObject message)) {
+                continue;
+            }
+            Object content = message.get("content");
+            if (!(content instanceof JSONArray blocks)) {
+                continue;
+            }
+            StringBuilder text = new StringBuilder();
+            for (Object block : blocks) {
+                if (block instanceof JSONObject obj && "text".equals(obj.getStr("type"))) {
+                    text.append(StrUtil.nullToEmpty(obj.getStr("text")));
+                }
+            }
+            message.set("content", text.append("\n（当前模型不支持图片视觉输入，已忽略图片内容）").toString());
+        }
     }
 
     private HttpRequest buildRequest(String url, AiModelDO model, String plainApiKey,

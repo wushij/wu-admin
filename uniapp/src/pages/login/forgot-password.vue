@@ -1,6 +1,7 @@
 <template>
   <view class="forgot-page">
     <AuthParticleBackground />
+    <AuthGlassToast />
 
     <AuthBackNav @click="goBack" />
 
@@ -36,9 +37,13 @@
             custom-class="auth-anim"
             placeholder="请输入用户名"
           />
-          <button class="auth-submit auth-anim auth-anim--2" :loading="loading" @click="submitUsername">
-            下一步
-          </button>
+          <AuthSubmitButton
+            custom-class="auth-anim auth-anim--2"
+            label="下一步"
+            loading-text="校验中"
+            :loading="loading"
+            @click="submitUsername"
+          />
         </view>
 
         <view v-else-if="step === 2" class="form-block">
@@ -64,7 +69,11 @@
               {{ smsCountdown > 0 ? `${smsCountdown}s` : '获取验证码' }}
             </button>
           </view>
-          <button class="auth-submit auth-anim auth-anim--3" @click="submitSmsStep">下一步</button>
+          <AuthSubmitButton
+            custom-class="auth-anim auth-anim--3"
+            label="下一步"
+            @click="submitSmsStep"
+          />
         </view>
 
         <view v-else class="form-block">
@@ -78,9 +87,14 @@
             custom-class="auth-anim auth-anim--2"
             placeholder="确认新密码"
           />
-          <button class="auth-submit auth-anim auth-anim--3" :loading="loading" @click="submitReset">
-            完成重置
-          </button>
+          <AuthSubmitButton
+            custom-class="auth-anim auth-anim--3"
+            label="完成重置"
+            loading-text="重置中"
+            :loading="loading"
+            :success="resetSuccess"
+            @click="submitReset"
+          />
         </view>
 
         <AuthFooterLink
@@ -100,9 +114,11 @@
 import { computed, onMounted } from 'vue'
 import SliderCaptcha from '@/components/business/shared/SliderCaptcha/index.vue'
 import AuthParticleBackground from '@/components/business/auth/AuthParticleBackground/index.vue'
+import AuthGlassToast from '@/components/business/auth/AuthGlassToast/index.vue'
 import AuthGlassForm from '@/components/business/auth/AuthGlassForm/index.vue'
 import AuthInput from '@/components/business/auth/AuthInput/index.vue'
 import AuthPasswordInput from '@/components/business/auth/AuthPasswordInput/index.vue'
+import AuthSubmitButton from '@/components/business/auth/AuthSubmitButton/index.vue'
 import AuthFooterLink from '@/components/business/auth/AuthFooterLink/index.vue'
 import AuthBackNav from '@/components/business/auth/AuthBackNav/index.vue'
 import { useForgotPasswordForm } from '@/composables/auth/useForgotPasswordForm'
@@ -120,6 +136,7 @@ const steps = [
 const {
   step,
   loading,
+  resetSuccess,
   sendingSms,
   smsCountdown,
   showSlider,
@@ -149,7 +166,7 @@ onMounted(loadConfig)
 .forgot-page {
   position: relative;
   min-height: 100vh;
-  background: #000;
+  background: $color-auth-bg;
   overflow: hidden;
 }
 
@@ -309,32 +326,13 @@ onMounted(loadConfig)
 }
 
 .sms-btn {
-  min-width: 200rpx;
-  height: 96rpx;
-  line-height: 96rpx;
-  padding: 0 16rpx;
-  font-size: 26rpx;
-  color: #303133;
-  background: rgba(255, 255, 255, 0.95);
-  border: 1px solid rgba(255, 255, 255, 0.35);
-  border-radius: 16rpx;
-  box-shadow: 0 8rpx 32rpx rgba(0, 0, 0, 0.2);
-}
-
-.auth-submit {
-  width: 100%;
-  height: 104rpx;
-  line-height: 104rpx;
-  margin-top: 8rpx;
-  border-radius: $radius-md;
-  font-size: 32rpx;
+  min-width: 224rpx;
+  height: 92rpx;
+  line-height: 92rpx;
+  padding: 0 28rpx;
+  font-size: 27rpx;
   font-weight: 600;
-  letter-spacing: 4rpx;
-  border: 1px solid rgba(196, 181, 253, 0.42);
-  box-shadow:
-    0 20rpx 56rpx rgba(99, 102, 241, 0.38),
-    inset 0 1px 0 rgba(255, 255, 255, 0.18);
-  @include auth-submit-gradient;
+  @include auth-pearl-ice-btn;
 }
 
 .auth-anim {
@@ -368,6 +366,6 @@ onMounted(loadConfig)
 <style lang="scss">
 page,
 uni-page-body {
-  background-color: #000000;
+  background-color: $color-auth-bg;
 }
 </style>

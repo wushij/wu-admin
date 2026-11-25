@@ -22,8 +22,13 @@ import org.springframework.stereotype.Component;
 
 import jakarta.annotation.Resource;
 import java.time.Duration;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.temporal.WeekFields;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 
 /**
@@ -74,6 +79,14 @@ public class PromptAssembler {
      * @param latestUserQuery   本轮用户最新提问（用于 L2 知识库检索，可空）
      */
     public String assemble(Long userId, String modelSystemPrompt, String source, String latestUserQuery) {
+        return assemble(userId, modelSystemPrompt, source, latestUserQuery, false);
+    }
+
+    /**
+     * 组装完整 system 提示词；支持在开启联网搜索工具时下发 AI 自主检索策略说明
+     */
+    public String assemble(Long userId, String modelSystemPrompt, String source,
+                           String latestUserQuery, boolean webSearchEnabled) {
         StringBuilder sb = new StringBuilder(AiPromptTemplates.PERSONA);
         if ("focus".equals(systemConfigHelper.getAiAnswerScope())) {
             sb.append(AiPromptTemplates.FOCUS_SCOPE_RULE);
@@ -104,6 +117,9 @@ public class PromptAssembler {
                     menu.isEmpty() ? "舍弃" : "仅顶级", menuFull.length(), budget);
         }
 
+        // ---- 实时系统时间锚点：每次对话动态生成（不进 Redis 缓存），防止模型不知当前日期或被旧网页快照误导 ----
+        sb.append('\n').append(buildCurrentTimeBlock()).append('\n');
+
         // ---- 核心原则：AI 问答优先检索本地 Markdown 知识库内容并置顶注入 ----
         String referenceBlock = safeRetrieve(latestUserQuery);
         if (StrUtil.isNotBlank(referenceBlock)) {
@@ -120,12 +136,36 @@ public class PromptAssembler {
         if (StrUtil.isNotBlank(userCtx)) {
             sb.append("\n<user_context>\n").append(userCtx).append("\n</user_context>\n");
         }
+        if (webSearchEnabled) {
+            sb.append("\n<web_search_policy>\n")
+                    .append("你已拥有实时联网搜索工具 web_search。仅当用户提问涉及实时动态（如今天天气、时事新闻、最新产品版本/价格、外部公开事实）且知识库与系统菜单未覆盖时，才主动调用 web_search：\n")
+                    .append("- 调用前请将口语提问提炼为 2~6 个核心检索词（如「佛山 实时天气预报」「Spring Boot 最新版本」），切勿直接把「请问/帮我查/怎么样」整句传入，也不要无端硬拼日期字符串。\n")
+                    .append("- 若首轮搜索结果不理想，可换用更简洁或英文关键词再次调用 web_search 核实；涉及本系统内部菜单、公告、待办与统计数据时，优先使用系统内部工具与知识库，无需联网检索。\n")
+                    .append("</web_search_policy>\n");
+        }
         // 模型级自定义提示词作为补充（语气/领域微调），位于全局知识与上下文之后
         if (StrUtil.isNotBlank(modelSystemPrompt)) {
             sb.append('\n').append(modelSystemPrompt.trim()).append('\n');
         }
         sb.append(AiPromptTemplates.INJECTION_GUARD);
         return sb.toString();
+    }
+
+    /** 构造实时系统时间块（含年月日、中文星期、时分秒、时区与 ISO 8601 周次）。 */
+    static String buildCurrentTimeBlock() {
+        ZoneId zone = ZoneId.systemDefault();
+        ZonedDateTime now = ZonedDateTime.now(zone);
+        String datePart = now.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+        String timePart = now.format(DateTimeFormatter.ofPattern("HH:mm:ss"));
+        String weekDay = now.format(DateTimeFormatter.ofPattern("EEEE", Locale.SIMPLIFIED_CHINESE));
+        int isoWeek = now.get(WeekFields.ISO.weekOfWeekBasedYear());
+        int isoYear = now.get(WeekFields.ISO.weekBasedYear());
+        return String.format(
+                "<current_time>\n"
+                        + "当前系统时间：%s（%s） %s（时区 %s，%d 年第 %d 周，ISO 8601 周次）\n"
+                        + "涉及“今天 / 现在 / 当前日期 / 星期几 / 本周”等时间判断时，请直接以该精确系统时间为准；如联网检索网页日期与此不同，网页内容可能存在缓存延迟。\n"
+                        + "</current_time>",
+                datePart, weekDay, timePart, zone.getId(), isoYear, isoWeek);
     }
 
     /** L2 检索兜底：任何异常都不阻断对话 */

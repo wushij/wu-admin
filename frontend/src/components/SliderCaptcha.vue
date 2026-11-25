@@ -333,9 +333,9 @@ onBeforeUnmount(() => {
   justify-content: space-between;
   padding-bottom: 14px;
   margin-bottom: 14px;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--color-border-subtle);
   font-size: 15px;
-  color: #1f2937;
+  color: var(--color-text-primary);
   font-weight: 500;
 }
 
@@ -344,12 +344,12 @@ onBeforeUnmount(() => {
   background: transparent;
   padding: 4px;
   cursor: pointer;
-  color: #9ca3af;
+  color: var(--color-text-muted);
   line-height: 1;
   border-radius: 4px;
   &:hover {
-    color: #6b7280;
-    background: #f3f4f6;
+    color: var(--color-text-secondary);
+    background: var(--color-bg-hover);
   }
 }
 
@@ -405,15 +405,19 @@ onBeforeUnmount(() => {
   right: 0;
   top: 7px;
   height: 36px;
-  background: #f5f7fa;
-  border: 1px solid #e5e7eb;
+  background: var(--color-bg-subtle);
+  border: 1px solid var(--color-border);
   border-radius: 4px;
   overflow: hidden;
 }
 
 .slider-panel__track-fill {
   height: 100%;
-  background: linear-gradient(90deg, #bae0ff, #91caff);
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--el-color-primary) 24%, transparent),
+    color-mix(in srgb, var(--el-color-primary) 42%, transparent)
+  );
   transition: width 0.05s linear;
 }
 
@@ -422,21 +426,21 @@ onBeforeUnmount(() => {
   top: 7px;
   width: 50px;
   height: 36px;
-  background: #fff;
-  border: 1px solid #d0d5dd;
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border-strong);
   border-radius: 4px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  box-shadow: var(--shadow-xs);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #6b7280;
+  color: var(--color-text-secondary);
   cursor: grab;
   z-index: 2;
 
   &.dragging {
     cursor: grabbing;
-    border-color: #91caff;
-    color: #1677ff;
+    border-color: var(--el-color-primary);
+    color: var(--el-color-primary);
   }
 
   &.verified {
@@ -460,7 +464,7 @@ onBeforeUnmount(() => {
   line-height: 36px;
   text-align: center;
   font-size: 13px;
-  color: #9ca3af;
+  color: var(--color-text-muted);
   pointer-events: none;
 }
 
@@ -470,7 +474,7 @@ onBeforeUnmount(() => {
   justify-content: space-between;
   margin-top: 10px;
   padding-top: 8px;
-  border-top: 1px solid #f0f0f0;
+  border-top: 1px solid var(--color-border-subtle);
 }
 
 .slider-panel__refresh {
@@ -481,16 +485,16 @@ onBeforeUnmount(() => {
   background: none;
   padding: 0;
   font-size: 13px;
-  color: #6b7280;
+  color: var(--color-text-secondary);
   cursor: pointer;
   &:hover {
-    color: #1677ff;
+    color: var(--el-color-primary);
   }
 }
 
 .slider-panel__id {
   font-size: 11px;
-  color: #c0c4cc;
+  color: var(--color-text-muted);
   font-family: monospace;
   max-width: 200px;
   overflow: hidden;

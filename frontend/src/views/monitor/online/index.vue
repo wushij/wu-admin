@@ -1,20 +1,11 @@
 <template>
   <div class="app-container module-page online-page">
-    <el-card class="search-card module-hero-card" shadow="never">
-      <div class="module-hero-row">
-        <div class="module-hero-text">
-          <div class="module-hero-title">
-            <ModulePageIcon :icon="MODULE_PAGE_ICON.online" />
-            <span>在线用户</span>
-          </div>
-          <p class="module-hero-desc">查看当前在线会话，支持强制下线异常或闲置连接</p>
-        </div>
-        <div class="module-hero-stats">
-          <div class="stat-num">{{ total }}</div>
-          <div class="stat-label">当前在线</div>
-        </div>
-      </div>
-    </el-card>
+    <PageHeader
+      title="在线用户"
+      description="查看当前在线会话，支持强制下线异常或闲置连接"
+      :icon="MODULE_PAGE_ICON.online"
+      :stats="[{ label: '当前在线', value: total }]"
+    />
 
     <el-card>
       <template #header>
@@ -30,7 +21,6 @@
               type="primary"
               :icon="Refresh"
               class="refresh-btn"
-              :class="{ 'is-refreshing': refreshing }"
               :loading="refreshing"
               @click="refreshByUser"
             >
@@ -41,6 +31,7 @@
       </template>
 
       <el-table
+        v-if="pagedData.length || tableLoading"
         :data="pagedData"
         v-loading="tableLoading"
         border
@@ -57,7 +48,7 @@
         <el-table-column prop="os" label="操作系统" width="120" align="center" header-align="center" show-overflow-tooltip />
         <el-table-column prop="status" label="会话状态" width="100" align="center" header-align="center">
           <template #default="{ row }">
-            <el-tag :type="row.status === 1 ? 'success' : 'info'" size="small">
+            <el-tag :type="row.status === 1 ? 'success' : 'info'" size="small" effect="plain">
               {{ row.status === 1 ? '在线' : '离线' }}
             </el-tag>
           </template>
@@ -70,6 +61,7 @@
               <el-button
                 v-permission="'monitor:online:forceLogout'"
                 type="danger"
+                plain
                 size="small"
                 @click="handleForceLogout(row)"
               >
@@ -79,8 +71,10 @@
           </template>
         </el-table-column>
       </el-table>
+      <EmptyState v-else title="暂无在线用户" description="当前没有活跃在线会话" />
 
       <el-pagination
+        v-if="total > 0"
         v-model:current-page="queryParams.pageNo"
         v-model:page-size="queryParams.pageSize"
         :total="total"
@@ -94,13 +88,15 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
 import { Refresh } from '@element-plus/icons-vue'
-import ModulePageIcon from '@/components/ModulePageIcon.vue'
+import PageHeader from '@/components/ui/PageHeader.vue'
+import EmptyState from '@/components/ui/EmptyState.vue'
 import { MODULE_PAGE_ICON } from '@/constants/module-page-icons'
 import ListExportButton from '@/components/ListExportButton.vue'
 import { getOnlineUserList, forceLogoutOnlineUser, type OnlineUser } from '@/api/monitor/online'
 import { useUserStore } from '@/store/user'
+import { openAlertDialog } from '@/composables/ui/useAlertDialog'
 import router from '@/router'
 
 const tableHeaderStyle = { textAlign: 'center' as const }
@@ -129,9 +125,7 @@ function indexMethod(index: number) {
 }
 
 async function loadData(showTableLoading = false) {
-  if (showTableLoading) {
-    tableLoading.value = true
-  }
+  if (showTableLoading) tableLoading.value = true
   try {
     const res = await getOnlineUserList()
     allData.value = res.data || []
@@ -142,9 +136,7 @@ async function loadData(showTableLoading = false) {
   } catch (e) {
     console.error(e)
   } finally {
-    if (showTableLoading) {
-      tableLoading.value = false
-    }
+    if (showTableLoading) tableLoading.value = false
   }
 }
 
@@ -160,25 +152,27 @@ async function refreshByUser() {
   }
 }
 
-function handleForceLogout(row: OnlineUser) {
+async function handleForceLogout(row: OnlineUser) {
   const isSelf = userStore.userInfo?.userId != null && row.userId === userStore.userInfo.userId
-
-  ElMessageBox.confirm('确定要强制下线该用户吗？', '提示', {
-    type: 'warning',
-    confirmButtonText: '确定',
-    cancelButtonText: '取消',
-  })
-    .then(async () => {
+  await openAlertDialog({
+    title: '强制用户下线',
+    targetName: `${row.loginName} (${row.ipaddr || '未知 IP'})`,
+    message: isSelf
+      ? '强制下线当前登录账号将立即退出控制台并跳转至登录页。'
+      : '强制下线后该会话令牌将立即失效，目标用户正在进行的未保存操作可能丢失。',
+    severity: 'irreversible',
+    confirmText: '强制下线',
+    onConfirm: async () => {
       await forceLogoutOnlineUser(row.userId)
-      ElMessage.success('操作成功')
+      ElMessage.success('已强制下线')
       if (isSelf) {
         await userStore.logoutAction()
         router.push('/login')
         return
       }
       await loadData(true)
-    })
-    .catch(() => {})
+    },
+  })
 }
 
 onMounted(() => loadData(true))

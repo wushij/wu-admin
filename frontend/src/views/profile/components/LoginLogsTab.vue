@@ -2,7 +2,7 @@
   <div>
     <div class="tab-intro"><el-icon><Clock /></el-icon><span>查看您账号的最近登录活动，发现异常请及时修改密码。</span></div>
     <el-table :data="loginLogs" v-loading="loading" stripe class="logs-table"
-      :header-cell-style="{ textAlign: 'center', background: '#f9fafb' }" :cell-style="{ textAlign: 'center' }">
+      :header-cell-style="{ textAlign: 'center' }" :cell-style="{ textAlign: 'center' }">
       <el-table-column prop="loginTime" label="登录时间" width="180" />
       <el-table-column prop="ipaddr" label="IP 地址" width="140" />
       <el-table-column prop="loginLocation" label="登录地点" min-width="120" show-overflow-tooltip />

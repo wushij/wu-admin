@@ -1,29 +1,31 @@
 <template>
   <div class="app-container module-page ai-model-page">
-    <el-card class="search-card module-hero-card" shadow="never">
-      <div class="module-hero-row">
-        <div class="module-hero-text">
-          <div class="module-hero-title">
-            <ModulePageIcon :icon="MODULE_PAGE_ICON.aiModel" />
-            <span>AI 模型配置</span>
-          </div>
-          <p class="module-hero-desc">管理 AI wu助手接入的大模型供应商，支持 DeepSeek / Kimi / GLM / 自定义</p>
-        </div>
-        <div class="module-hero-stats">
-          <div class="stat-num">{{ total }}</div>
-          <div class="stat-label">模型总数</div>
-        </div>
-      </div>
-    </el-card>
+    <PageHeader
+      title="AI 模型配置"
+      description="管理 AI 对话模型与知识库向量模型，支持 DeepSeek / Kimi / GLM / 自定义网关"
+      :icon="MODULE_PAGE_ICON.aiModel"
+      :stats="[{ label: '模型总数', value: total }]"
+    />
 
     <el-card class="search-card module-search-card" shadow="never">
       <el-form :model="queryParams" inline class="module-search-form">
         <el-form-item label="配置名称">
-          <el-input v-model="queryParams.name" placeholder="请输入配置名称" clearable style="width: 180px" @keyup.enter="handleQuery" />
+          <el-input
+            v-model="queryParams.name"
+            placeholder="请输入配置名称"
+            clearable
+            style="width: 180px"
+            @keyup.enter="handleQuery"
+          />
         </el-form-item>
         <el-form-item label="供应商">
           <el-select v-model="queryParams.provider" placeholder="全部供应商" clearable style="width: 160px">
             <el-option v-for="p in PROVIDER_OPTIONS" :key="p.value" :label="p.label" :value="p.value" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="类型">
+          <el-select v-model="queryParams.modelType" placeholder="全部类型" clearable style="width: 130px">
+            <el-option v-for="t in MODEL_TYPE_OPTIONS" :key="t.value" :label="t.label" :value="t.value" />
           </el-select>
         </el-form-item>
         <el-form-item label="状态">
@@ -44,114 +46,44 @@
         <div class="card-header">
           <span>模型列表</span>
           <div class="header-actions">
-            <el-button type="primary" :icon="Plus" v-permission="'system:ai-model:create'" @click="openDialog()">新增模型</el-button>
+            <el-button
+              type="primary"
+              :icon="Plus"
+              v-permission="'system:ai-model:create'"
+              @click="openDialog()"
+            >
+              新增模型
+            </el-button>
           </div>
         </div>
       </template>
 
-      <div v-loading="loading" class="model-grid">
-        <el-empty v-if="!loading && list.length === 0" description="暂无模型配置，点击右上角新增模型" class="grid-empty" />
-        <div v-for="item in list" :key="item.id" class="model-card" :class="{ 'is-disabled': item.status === 0 }">
-          <div class="model-card-head">
-            <div class="provider-badge" :style="{ background: providerMeta(item.provider).bg }">
-              <AiProviderIcon :provider="item.provider" :size="28" />
-            </div>
-            <div class="model-card-title">
-              <div class="name-row">
-                <span class="name" :title="item.name">{{ item.name }}</span>
-              </div>
-              <div class="sub">{{ providerMeta(item.provider).label }} · {{ item.modelName }}</div>
-            </div>
-            <div class="status-switch-wrap">
-              <el-switch
-                :model-value="item.status === 1"
-                :disabled="!canUpdate"
-                @change="(v: boolean | string | number) => toggleStatus(item, Boolean(v))"
-              />
-              <span class="status-text" :class="{ active: item.status === 1 }">{{ item.status === 1 ? '启用' : '停用' }}</span>
-            </div>
-          </div>
+      <SkeletonBlock v-if="loading && !list.length" mode="cards" :count="4" />
 
-          <div class="model-card-body">
-            <div class="info-line">
-              <span class="label">接口地址</span>
-              <span class="value" :title="item.baseUrl">{{ item.baseUrl || '—' }}</span>
-            </div>
-            <div class="info-line">
-              <span class="label">API Key</span>
-              <div class="value">
-                <span class="key-tag" :class="{ configured: item.hasApiKey }">
-                  {{ item.hasApiKey ? (item.apiKeyMasked || '✓ 已配置') : '未配置' }}
-                </span>
-              </div>
-            </div>
-            <div class="info-line">
-              <span class="label">模型参数</span>
-              <span class="value">温度 {{ item.temperature ?? 0.7 }} · 最大 {{ item.maxTokens ?? 8192 }} Tokens</span>
-            </div>
-            <div v-if="testResults[item.id] !== undefined" class="test-result" :class="testResults[item.id]! >= 0 ? 'ok' : 'fail'">
-              <el-icon v-if="testResults[item.id]! >= 0"><CircleCheckFilled /></el-icon>
-              <el-icon v-else><CircleCloseFilled /></el-icon>
-              <span>{{ testResults[item.id]! >= 0 ? `连接正常 · ${testResults[item.id]}ms` : '连接失败' }}</span>
-            </div>
-          </div>
-
-          <div class="model-card-foot">
-            <span v-if="item.isDefault === 1" class="default-badge">
-              <el-icon :size="11"><Star /></el-icon>
-              <span>默认</span>
-            </span>
-            <el-button
-              size="small"
-              class="action-btn"
-              :loading="testingId === item.id"
-              :icon="Connection"
-              v-permission="'system:ai-model:test'"
-              @click="handleTest(item)"
-            >
-              测试
-            </el-button>
-            <el-button
-              v-if="item.isDefault !== 1"
-              size="small"
-              type="warning"
-              plain
-              class="action-btn"
-              :icon="Star"
-              :disabled="item.status !== 1"
-              v-permission="'system:ai-model:update'"
-              @click="handleSetDefault(item)"
-            >
-              设为默认
-            </el-button>
-            <el-button
-              size="small"
-              type="primary"
-              plain
-              class="action-btn"
-              :icon="Edit"
-              v-permission="'system:ai-model:update'"
-              @click="openDialog(item)"
-            >
-              编辑
-            </el-button>
-            <el-button
-              size="small"
-              type="danger"
-              plain
-              class="action-btn"
-              :icon="Delete"
-              :disabled="item.isDefault === 1"
-              v-permission="'system:ai-model:delete'"
-              @click="handleDelete(item)"
-            >
-              删除
-            </el-button>
-          </div>
-        </div>
+      <div v-else-if="list.length" v-loading="loading" class="model-grid">
+        <AiModelCard
+          v-for="item in list"
+          :key="item.id"
+          :item="item"
+          :can-update="canUpdate"
+          :testing="testingId === item.id"
+          :test-latency="testResults[item.id]"
+          @toggle-status="toggleStatus"
+          @test="handleTest"
+          @set-default="handleSetDefault"
+          @edit="openDialog"
+          @delete="handleDelete"
+        />
       </div>
 
+      <EmptyState
+        v-else
+        title="暂无模型配置"
+        description="点击右上角「新增模型」即可接入 DeepSeek、Kimi、GLM 或自定义网关"
+      />
+
       <el-pagination
+        v-if="total > 0"
         v-model:current-page="queryParams.pageNo"
         v-model:page-size="queryParams.pageSize"
         :total="total"
@@ -163,937 +95,99 @@
       />
     </el-card>
 
-    <!-- 新增 / 编辑弹窗 -->
-    <el-dialog
-      v-model="dialogVisible"
-      :title="form.id ? '编辑模型' : '新增模型'"
-      width="640px"
-      top="6vh"
-      class="ai-model-dialog"
-      destroy-on-close
+    <AiModelFormDialog
+      ref="dialogComponentRef"
+      v-model:visible="dialogVisible"
+      v-model:form="form"
+      :rules="rules"
+      :model-options="modelOptions"
+      :base-url-placeholder="effectiveBaseUrlPlaceholder"
+      :edit-has-key="editHasKey"
+      :edit-is-default="editIsDefault"
+      :fetching-models="fetchingModels"
+      :form-testing="formTesting"
+      :submitting="submitting"
       @closed="resetForm"
-    >
-      <el-form ref="formRef" :model="form" :rules="rules" :validate-on-rule-change="false" label-width="100px">
-        <el-form-item label="供应商" prop="provider">
-          <div class="provider-select">
-            <div
-              v-for="p in PROVIDER_OPTIONS"
-              :key="p.value"
-              class="provider-item"
-              :class="{ active: form.provider === p.value }"
-              @click="selectProvider(p.value)"
-            >
-              <span class="provider-item-badge" :style="{ background: providerMeta(p.value).bg }">
-                <AiProviderIcon :provider="p.value" :size="16" />
-              </span>
-              <span>{{ p.label }}</span>
-            </div>
-          </div>
-        </el-form-item>
-        <el-form-item v-if="form.provider === 'custom'" label="接入协议" prop="protocol">
-          <el-select
-            v-model="form.protocol"
-            placeholder="请选择接入协议"
-            style="width: 100%"
-            @change="onProtocolChange"
-          >
-            <el-option
-              v-for="p in PROTOCOL_OPTIONS"
-              :key="p.value"
-              :label="p.label"
-              :value="p.value"
-            />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="配置名称" prop="name">
-          <el-input v-model="form.name" :placeholder="form.provider === 'custom' ? '如：公司网关 / 本地 Ollama' : '如：' + providerMeta(form.provider).label + ' 官方'" maxlength="50" show-word-limit />
-        </el-form-item>
-        <el-form-item prop="modelName">
-          <template #label>
-            <span class="model-name-label">
-              模型名称
-              <el-tooltip content="点击「获取模型」从接口拉取可用模型；拉取失败时也可直接手动输入" placement="top">
-                <el-icon><QuestionFilled /></el-icon>
-              </el-tooltip>
-            </span>
-          </template>
-          <div class="model-name-row">
-            <el-select
-              v-model="form.modelName"
-              class="model-name-select"
-              filterable
-              allow-create
-              default-first-option
-              clearable
-              :validate-event="false"
-              placeholder="选择或输入模型名称"
-            >
-              <el-option v-for="m in modelOptions" :key="m" :label="m" :value="m" />
-            </el-select>
-            <el-button
-              :loading="fetchingModels"
-              :icon="Refresh"
-              v-permission="'system:ai-model:test'"
-              @click="handleFetchModels"
-            >
-              获取模型
-            </el-button>
-          </div>
-        </el-form-item>
-        <el-form-item label="接口地址" prop="baseUrl">
-          <el-input v-model="form.baseUrl" :placeholder="effectiveBaseUrlPlaceholder" />
-        </el-form-item>
-        <el-form-item v-if="form.provider === 'custom'" label="路径模板">
-          <el-input
-            v-model="form.pathTemplate"
-            maxlength="500"
-            placeholder="留空使用协议默认路径，支持 {model} 占位"
-          />
-        </el-form-item>
-        <el-form-item v-if="form.provider === 'custom'" label="额外请求头">
-          <el-input
-            v-model="form.extraHeaders"
-            type="textarea"
-            :rows="2"
-            maxlength="1000"
-            placeholder='可选，JSON 对象，如 {"HTTP-Referer":"https://example.com"}'
-          />
-        </el-form-item>
-        <el-form-item prop="apiKey">
-          <template #label>
-            <span class="api-key-label" :class="{ required: !form.id }">API Key</span>
-          </template>
-          <el-input
-            v-model="form.apiKey"
-            type="password"
-            show-password
-            :placeholder="form.id && editHasKey ? '留空表示不修改已保存的 Key' : '请输入 API Key'"
-            autocomplete="new-password"
-          />
-          <el-link
-            v-if="providerMeta(form.provider).portalUrl"
-            type="primary"
-            :href="providerMeta(form.provider).portalUrl"
-            target="_blank"
-            class="key-portal-link"
-          >
-            获取 {{ providerMeta(form.provider).label }} API Key
-          </el-link>
-        </el-form-item>
-        <el-form-item label="温度">
-          <div class="slider-row">
-            <el-slider v-model="form.temperature" :min="0" :max="2" :step="0.1" style="flex: 1" />
-            <span class="slider-value">{{ form.temperature?.toFixed(1) }}</span>
-            <el-tooltip content="控制 AI 回答的随机性与创造力：0 偏严谨确定，1 偏均衡，2 偏富有想象力" placement="top">
-              <el-icon style="color: var(--el-text-color-secondary); cursor: pointer;"><QuestionFilled /></el-icon>
-            </el-tooltip>
-          </div>
-        </el-form-item>
-        <el-form-item label="最大 Tokens">
-          <div style="display: flex; align-items: center; gap: 8px;">
-            <el-input-number v-model="form.maxTokens" :min="128" :max="32768" :step="256" style="width: 180px" />
-            <el-tooltip content="限制 AI 单次回答生成的最大文本长度（1000 Tokens ≈ 700 汉字），默认 8192；推理类模型建议 16384 以上" placement="top">
-              <el-icon style="color: var(--el-text-color-secondary); cursor: pointer;"><QuestionFilled /></el-icon>
-            </el-tooltip>
-          </div>
-        </el-form-item>
-        <el-form-item label="系统提示词">
-          <el-input
-            v-model="form.systemPrompt"
-            type="textarea"
-            :rows="3"
-            maxlength="2000"
-            show-word-limit
-            placeholder="可选，留空使用内置人设"
-          />
-        </el-form-item>
-        <div class="form-inline-row">
-          <el-form-item label="设为默认" class="inline-item">
-            <el-switch v-model="form.isDefault" :active-value="1" :inactive-value="0" :disabled="editIsDefault" />
-          </el-form-item>
-          <el-form-item label="状态" class="inline-item">
-            <el-radio-group v-model="form.status">
-              <el-radio :value="1">启用</el-radio>
-              <el-radio :value="0">停用</el-radio>
-            </el-radio-group>
-          </el-form-item>
-        </div>
-        <el-form-item label="备注">
-          <el-input v-model="form.remark" placeholder="可选" maxlength="200" />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button :loading="formTesting" v-permission="'system:ai-model:test'" @click="handleFormTest">测试连接</el-button>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="submitting" @click="handleSubmit">保存</el-button>
-      </template>
-    </el-dialog>
+      @select-provider="selectProvider"
+      @protocol-change="onProtocolChange"
+      @fetch-models="handleFetchModels"
+      @form-test="handleFormTest"
+      @submit="handleSubmit"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, nextTick } from 'vue'
-import {
-  Search,
-  Refresh,
-  Plus,
-  CircleCheckFilled,
-  CircleCloseFilled,
-  QuestionFilled,
-  Connection,
-  Star,
-  Edit,
-  Delete
-} from '@element-plus/icons-vue'
-import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
-import ModulePageIcon from '@/components/ModulePageIcon.vue'
+import { ref, watchEffect } from 'vue'
+import { Search, Refresh, Plus } from '@element-plus/icons-vue'
+import PageHeader from '@/components/ui/PageHeader.vue'
+import EmptyState from '@/components/ui/EmptyState.vue'
+import SkeletonBlock from '@/components/ui/SkeletonBlock.vue'
 import { MODULE_PAGE_ICON } from '@/constants/module-page-icons'
-import { useUserStore } from '@/store/user'
-import { useAiWuStore } from '@/store/aiWu'
-import {
-  pageAiModel,
-  createAiModel,
-  updateAiModel,
-  deleteAiModel,
-  setDefaultAiModel,
-  testAiModel,
-  listAiModels,
-  type AiModelVO,
-  type AiModelSaveDTO,
-  type AiModelPageQuery,
-  type AiProvider,
-} from '@/api/system/ai-model'
-import AiProviderIcon from '@/components/AiProviderIcon.vue'
+import { MODEL_TYPE_OPTIONS, PROVIDER_OPTIONS } from './constants/aiModelMeta'
+import AiModelCard from './components/AiModelCard.vue'
+import AiModelFormDialog from './components/AiModelFormDialog.vue'
+import { useAiModelPage } from './composables/useAiModelPage'
 
-/** 供应商元信息与默认配置（选择供应商时自动回填） */
-const PROVIDER_META: Record<string, { label: string; short: string; color: string; bg: string; baseUrl: string; portalUrl: string; models: string[] }> = {
-  deepseek: {
-    label: 'DeepSeek',
-    short: 'DS',
-    color: '#4d6bfe',
-    bg: 'rgba(77, 107, 254, 0.12)',
-    baseUrl: 'https://api.deepseek.com/v1',
-    portalUrl: 'https://platform.deepseek.com',
-    models: ['deepseek-v4.1-flash', 'deepseek-v4-pro'],
-  },
-  kimi: {
-    label: 'Kimi',
-    short: 'KM',
-    color: '#0f172a',
-    bg: 'rgba(15, 23, 42, 0.08)',
-    baseUrl: 'https://api.moonshot.cn/v1',
-    portalUrl: 'https://platform.kimi.com',
-    models: ['kimi-k3.1-pro', 'kimi-k3.1-pro-highspeed', 'kimi-k3', 'kimi-k2.6'],
-  },
-  zhipu: {
-    label: 'GLM',
-    short: 'GLM',
-    color: '#3485ff',
-    bg: 'rgba(52, 133, 255, 0.12)',
-    baseUrl: 'https://open.bigmodel.cn/api/paas/v4',
-    portalUrl: 'https://bigmodel.cn',
-    models: ['glm-5.3', 'glm-5.3-flash', 'glm-5.2'],
-  },
-  custom: {
-    label: '自定义',
-    short: 'AI',
-    color: '#8b5cf6',
-    bg: 'rgba(139, 92, 246, 0.12)',
-    baseUrl: '',
-    portalUrl: '',
-    models: [],
-  },
-}
+const dialogComponentRef = ref<InstanceType<typeof AiModelFormDialog> | null>(null)
 
-const PROVIDER_OPTIONS = Object.entries(PROVIDER_META).map(([value, meta]) => ({ value: value as AiProvider, label: meta.label }))
+const {
+  canUpdate,
+  loading,
+  total,
+  list,
+  testingId,
+  testResults,
+  queryParams,
+  dialogVisible,
+  submitting,
+  formTesting,
+  fetchingModels,
+  formRef,
+  editHasKey,
+  editIsDefault,
+  form,
+  effectiveBaseUrlPlaceholder,
+  rules,
+  modelOptions,
+  loadData,
+  handleQuery,
+  resetQuery,
+  selectProvider,
+  onProtocolChange,
+  openDialog,
+  resetForm,
+  handleSubmit,
+  handleTest,
+  handleFormTest,
+  handleFetchModels,
+  handleSetDefault,
+  toggleStatus,
+  handleDelete,
+} = useAiModelPage()
 
-/** 接入协议元信息：决定请求路径、鉴权头与响应解析方式 */
-const PROTOCOL_META: Record<string, { label: string }> = {
-  openai: {
-    label: 'OpenAI 兼容',
-  },
-  anthropic: {
-    label: 'Anthropic Messages',
-  },
-}
-
-const PROTOCOL_OPTIONS = Object.entries(PROTOCOL_META).map(([value, meta]) => ({ value, label: meta.label }))
-
-function providerMeta(provider: string) {
-  if (PROVIDER_META[provider]) return PROVIDER_META[provider]
-  return { label: provider || '未知', short: 'AI', color: '#64748b', bg: 'rgba(100, 116, 139, 0.12)', baseUrl: '', portalUrl: '', models: [] }
-}
-
-const userStore = useUserStore()
-const canUpdate = computed(() =>
-  (userStore.userInfo?.permissions || []).some((p: string) => p === '*:*:*' || p === 'system:ai-model:update'),
-)
-
-const loading = ref(false)
-const total = ref(0)
-const list = ref<AiModelVO[]>([])
-const testingId = ref<number | null>(null)
-/** id -> 延迟ms（-1 表示失败） */
-const testResults = reactive<Record<number, number>>({})
-
-const queryParams = reactive<AiModelPageQuery>({
-  pageNo: 1,
-  pageSize: 8,
-  name: '',
-  provider: '',
-  status: null,
+watchEffect(() => {
+  formRef.value = dialogComponentRef.value?.formRef
 })
-
-async function loadData() {
-  loading.value = true
-  try {
-    const res = await pageAiModel({
-      pageNo: queryParams.pageNo,
-      pageSize: queryParams.pageSize,
-      name: queryParams.name || undefined,
-      provider: queryParams.provider || undefined,
-      status: queryParams.status,
-    })
-    list.value = res.data?.list || []
-    total.value = Number(res.data?.total) || 0
-  } finally {
-    loading.value = false
-  }
-}
-
-function handleQuery() {
-  queryParams.pageNo = 1
-  loadData()
-}
-
-function resetQuery() {
-  queryParams.name = ''
-  queryParams.provider = ''
-  queryParams.status = null
-  handleQuery()
-}
-
-/* ---------- 新增 / 编辑 ---------- */
-const dialogVisible = ref(false)
-const submitting = ref(false)
-const formTesting = ref(false)
-const fetchingModels = ref(false)
-/** 「获取模型」拉回来的模型列表：与内置推荐合并后作为下拉选项 */
-const fetchedModels = ref<string[]>([])
-const formRef = ref<FormInstance>()
-const editHasKey = ref(false)
-/** 编辑的是否为当前默认模型：默认模型不允许在表单里直接取消默认 */
-const editIsDefault = ref(false)
-
-const defaultForm = (): AiModelSaveDTO & { temperature: number; maxTokens: number } => ({
-  id: undefined,
-  name: '',
-  provider: 'deepseek',
-  protocol: 'openai',
-  modelName: PROVIDER_META.deepseek.models[0] || 'deepseek-v4.1-flash',
-  baseUrl: PROVIDER_META.deepseek.baseUrl,
-  pathTemplate: '',
-  extraHeaders: '',
-  apiKey: '',
-  temperature: 0.7,
-  maxTokens: 8192,
-  systemPrompt: '',
-  isDefault: 0,
-  status: 1,
-  remark: '',
-})
-
-const form = reactive(defaultForm())
-
-const effectiveBaseUrlPlaceholder = computed(() => {
-  if (form.provider === 'custom') {
-    return form.protocol === 'anthropic'
-      ? '如：https://api.anthropic.com'
-      : '如：https://api.example.com/v1'
-  }
-  return `如：${providerMeta(form.provider).baseUrl || 'https://api.example.com/v1'}`
-})
-
-// 固定规则，不随供应商切换重新计算；否则 Element Plus 在规则变化时会触发整表校验，
-// 点「自定义」就会把配置名称、模型名称、接口地址全部标红。
-// API Key 的「新增必填、编辑可留空、自定义可免鉴权」放到提交和测试时手动判断。
-const rules: FormRules = {
-  provider: [{ required: true, message: '请选择供应商', trigger: 'change' }],
-  name: [{ required: true, message: '请输入配置名称', trigger: 'blur' }],
-  modelName: [{ required: true, message: '请输入模型名称', trigger: 'change' }],
-  baseUrl: [{ required: true, message: '请输入接口地址', trigger: 'blur' }],
-}
-
-const modelOptions = computed(() => {
-  // 接口返回的模型排在前面（更贴近供应商当前实际可用的模型），内置推荐作为兜底
-  return Array.from(new Set([...fetchedModels.value, ...providerMeta(form.provider).models].filter(Boolean)))
-})
-
-function selectProvider(provider: AiProvider) {
-  if (form.provider === provider) return
-  form.provider = provider
-  const meta = providerMeta(provider)
-  // 切换供应商时自动回填官方默认地址与首个推荐模型
-  form.baseUrl = meta.baseUrl
-  form.modelName = meta.models[0] || ''
-  // 协议、路径模板、额外请求头只对「自定义」有意义；切换时重置，避免把上一家的配置带过去
-  form.protocol = 'openai'
-  form.pathTemplate = ''
-  form.extraHeaders = ''
-  // 拉取结果属于上一家供应商，切换后必须失效
-  fetchedModels.value = []
-  // 切换供应商属于程序性回填，不应弹出任何必填校验（自定义没有推荐模型，模型名会短暂为空）
-  nextTick(() => formRef.value?.clearValidate())
-}
-
-function onProtocolChange() {
-  // 自定义接入不预填任何厂商地址，避免把第三方地址误当成官方接口
-  nextTick(() => formRef.value?.clearValidate())
-}
-
-function openDialog(row?: AiModelVO) {
-  Object.assign(form, defaultForm())
-  editHasKey.value = false
-  editIsDefault.value = false
-  fetchedModels.value = []
-  if (row) {
-    Object.assign(form, {
-      id: row.id,
-      name: row.name,
-      provider: row.provider,
-      protocol: row.protocol || 'openai',
-      modelName: row.modelName,
-      baseUrl: row.baseUrl,
-      pathTemplate: row.pathTemplate || '',
-      extraHeaders: row.extraHeaders || '',
-      apiKey: '',
-      temperature: row.temperature ?? 0.7,
-      maxTokens: row.maxTokens ?? 8192,
-      systemPrompt: row.systemPrompt || '',
-      isDefault: row.isDefault ?? 0,
-      status: row.status ?? 1,
-      remark: row.remark || '',
-    })
-    editHasKey.value = !!row.hasApiKey
-    editIsDefault.value = row.isDefault === 1
-  }
-  dialogVisible.value = true
-  nextTick(() => formRef.value?.clearValidate())
-}
-
-function resetForm() {
-  formRef.value?.clearValidate()
-}
-
-async function handleSubmit() {
-  await formRef.value?.validate()
-  if (!form.id && !form.apiKey?.trim()) {
-    ElMessage.warning('请输入 API Key')
-    return
-  }
-  submitting.value = true
-  try {
-    const data: AiModelSaveDTO = { ...form, apiKey: form.apiKey || undefined }
-    if (form.id) {
-      await updateAiModel(data)
-      ElMessage.success('修改成功')
-    } else {
-      await createAiModel(data)
-      ElMessage.success('新增成功')
-    }
-    dialogVisible.value = false
-    loadData()
-  } finally {
-    submitting.value = false
-  }
-}
-
-/* ---------- 卡片操作 ---------- */
-async function handleTest(row: AiModelVO) {
-  testingId.value = row.id
-  try {
-    const res = await testAiModel({ id: row.id })
-    testResults[row.id] = Number(res.data) || 0
-    ElMessage.success(`连接正常，延迟 ${res.data}ms`)
-  } catch {
-    testResults[row.id] = -1
-  } finally {
-    testingId.value = null
-  }
-}
-
-async function handleFormTest() {
-  const valid = await formRef.value?.validateField(['provider', 'modelName', 'baseUrl']).catch(() => false)
-  if (valid === false) return
-  if (!form.id && !form.apiKey?.trim()) {
-    ElMessage.warning('请输入 API Key')
-    return
-  }
-  formTesting.value = true
-  try {
-    const res = await testAiModel({
-      id: form.id,
-      provider: form.provider,
-      protocol: form.protocol,
-      modelName: form.modelName,
-      baseUrl: form.baseUrl,
-      pathTemplate: form.pathTemplate,
-      extraHeaders: form.extraHeaders,
-      apiKey: form.apiKey || undefined,
-    })
-    ElMessage.success(`连接正常，延迟 ${res.data}ms`)
-  } finally {
-    formTesting.value = false
-  }
-}
-
-/** 拉取供应商可用模型：编辑时 Key 留空会自动沿用库中已保存的密钥 */
-async function handleFetchModels() {
-  const valid = await formRef.value?.validateField(['provider', 'baseUrl']).catch(() => false)
-  if (valid === false) return
-  if (!form.id && !form.apiKey?.trim()) {
-    ElMessage.warning('请先输入 API Key')
-    return
-  }
-  fetchingModels.value = true
-  try {
-    const res = await listAiModels({
-      id: form.id,
-      provider: form.provider,
-      protocol: form.protocol,
-      baseUrl: form.baseUrl,
-      pathTemplate: form.pathTemplate,
-      extraHeaders: form.extraHeaders,
-      apiKey: form.apiKey || undefined,
-    })
-    const models = (res.data || []).filter((item) => !!item)
-    if (models.length === 0) {
-      ElMessage.warning('接口未返回可用模型，请手动输入模型名称')
-      return
-    }
-    fetchedModels.value = models
-    // 当前模型不在新列表里时自动选中第一个，省去手动挑选
-    if (!form.modelName || !models.includes(form.modelName)) {
-      form.modelName = models[0]
-      nextTick(() => formRef.value?.clearValidate('modelName'))
-    }
-    ElMessage.success(`获取到 ${models.length} 个模型`)
-  } finally {
-    fetchingModels.value = false
-  }
-}
-
-async function handleSetDefault(row: AiModelVO) {
-  await ElMessageBox.confirm(`确定将「${row.name}」设为默认模型吗？AI wu助手默认使用该模型对话。`, '提示', { type: 'warning' })
-  await setDefaultAiModel(row.id)
-  ElMessage.success('设置成功')
-  loadData()
-  useAiWuStore().loadModels()
-}
-
-async function toggleStatus(row: AiModelVO, enabled: boolean) {
-  if (row.isDefault === 1 && !enabled) {
-    ElMessage.warning('默认模型不能停用，请先设置其他默认模型')
-    return
-  }
-  await updateAiModel({
-    id: row.id,
-    name: row.name,
-    provider: row.provider,
-    protocol: row.protocol || 'openai',
-    modelName: row.modelName,
-    baseUrl: row.baseUrl,
-    pathTemplate: row.pathTemplate,
-    extraHeaders: row.extraHeaders,
-    temperature: row.temperature,
-    maxTokens: row.maxTokens,
-    systemPrompt: row.systemPrompt,
-    isDefault: row.isDefault,
-    status: enabled ? 1 : 0,
-    remark: row.remark,
-  })
-  ElMessage.success(enabled ? '已启用' : '已停用')
-  loadData()
-}
-
-async function handleDelete(row: AiModelVO) {
-  await ElMessageBox.confirm(`确定要删除模型「${row.name}」吗？`, '提示', { type: 'warning' })
-  await deleteAiModel(row.id)
-  ElMessage.success('删除成功')
-  loadData()
-}
-
-onMounted(() => loadData())
 </script>
 
 <style scoped lang="scss">
 .model-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-4);
   min-height: 120px;
 }
 
-.grid-empty {
-  grid-column: 1 / -1;
-}
-
-.model-card {
-  border: 1px solid var(--el-border-color-lighter, #e2e8f0);
-  border-radius: 16px;
-  padding: 18px;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  background: var(--el-bg-color, #ffffff);
-  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.03);
-  transition: border-color 0.2s, box-shadow 0.2s;
-
-  &:hover {
-    border-color: var(--el-color-primary-light-5, #818cf8);
-    box-shadow: 0 4px 16px rgba(15, 23, 42, 0.08);
-  }
-
-  &.is-disabled {
-    opacity: 0.65;
+@media (max-width: 1200px) {
+  .model-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
-.model-card-head {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.provider-badge {
-  width: 44px;
-  height: 44px;
-  border-radius: 13px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 15px;
-  font-weight: 800;
-  flex-shrink: 0;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
-}
-
-.model-card-title {
-  flex: 1;
-  min-width: 0;
-
-  .name-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    min-width: 0;
-  }
-
-  .name {
-    flex: 1;
-    min-width: 0;
-    font-size: 15px;
-    font-weight: 700;
-    color: var(--el-text-color-primary, #0f172a);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .sub {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    margin-top: 3px;
-    font-size: 12px;
-    color: var(--el-text-color-secondary, #64748b);
-    min-width: 0;
-  }
-
-  .sub-text {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-}
-
-.default-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  padding: 2px 8px;
-  border-radius: 20px;
-  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-  color: #ffffff;
-  font-size: 10.5px;
-  font-weight: 600;
-  box-shadow: 0 2px 6px rgba(245, 158, 11, 0.3);
-  flex-shrink: 0;
-}
-
-.status-switch-wrap {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-shrink: 0;
-
-  .status-text {
-    font-size: 12px;
-    color: #94a3b8;
-    font-weight: 500;
-
-    &.active {
-      color: var(--theme-primary, #6366f1);
-      font-weight: 600;
-    }
-  }
-}
-
-.model-card-body {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 12px 14px;
-  border-radius: 12px;
-  background: var(--el-fill-color-lighter, rgba(248, 250, 252, 0.8));
-  border: 1px solid rgba(226, 232, 240, 0.7);
-
-  .info-line {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    font-size: 12px;
-    line-height: 1.6;
-
-    .label {
-      flex-shrink: 0;
-      width: 58px;
-      color: var(--el-text-color-secondary, #64748b);
-      font-weight: 500;
-    }
-
-    .value {
-      flex: 1;
-      min-width: 0;
-      color: var(--el-text-color-regular, #334155);
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-  }
-}
-
-.key-tag {
-  display: inline-block;
-  padding: 1px 8px;
-  border-radius: 6px;
-  font-size: 11px;
-  font-family: Consolas, Monaco, monospace;
-  background: #f1f5f9;
-  color: #64748b;
-  border: 1px solid #e2e8f0;
-
-  &.configured {
-    background: rgba(16, 185, 129, 0.1);
-    color: #059669;
-    border-color: rgba(16, 185, 129, 0.25);
-    font-weight: 600;
-  }
-}
-
-.test-result {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 11.5px;
-  font-weight: 500;
-  padding: 3px 8px;
-  border-radius: 6px;
-  margin-top: 2px;
-  width: fit-content;
-
-  &.ok {
-    background: #f0fdf4;
-    color: #16a34a;
-    border: 1px solid #bbf7d0;
-  }
-
-  &.fail {
-    background: #fef2f2;
-    color: #dc2626;
-    border: 1px solid #fecaca;
-  }
-}
-
-.model-card-foot {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-  border-top: 1px dashed rgba(226, 232, 240, 0.8);
-  padding-top: 12px;
-
-  .action-btn {
-    border-radius: 8px;
-    height: 28px;
-    padding: 0 10px;
-    font-size: 12px;
-    transition: all 0.2s;
-  }
-}
-
-/* 模型名称：下拉选择 + 拉取按钮 */
-.model-name-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-
-  .el-icon {
-    color: var(--el-text-color-secondary);
-    cursor: pointer;
-  }
-}
-
-.model-name-row {
-  display: flex;
-  gap: 8px;
-  width: 100%;
-
-  .model-name-select {
-    flex: 1;
-    min-width: 0;
-  }
-}
-
-/* 供应商选择块 */
-.provider-select {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.provider-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  border: 1.5px solid var(--el-border-color-lighter);
-  border-radius: 10px;
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--el-text-color-regular);
-  background: var(--el-fill-color-blank);
-  transition: border-color 0.2s, background-color 0.2s, color 0.2s, box-shadow 0.2s;
-  box-sizing: border-box;
-  user-select: none;
-
-  &:hover {
-    border-color: var(--el-color-primary-light-5);
-    background: var(--el-fill-color-light);
-  }
-
-  &.active {
-    border-color: var(--el-color-primary);
-    background: var(--el-color-primary-light-9);
-    color: var(--el-color-primary);
-    box-shadow: 0 0 0 1px var(--el-color-primary);
-  }
-}
-
-.provider-item-badge {
-  width: 24px;
-  height: 24px;
-  border-radius: 7px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 10.5px;
-  font-weight: 700;
-  flex-shrink: 0;
-}
-
-.key-portal-link {
-  margin-top: 4px;
-  font-size: 12px;
-}
-
-.api-key-label.required::before {
-  content: '*';
-  margin-right: 4px;
-  color: var(--el-color-danger, #f56c6c);
-}
-
-.form-inline-row {
-  display: flex;
-  gap: 16px;
-
-  .inline-item {
-    flex: 1;
-    min-width: 0;
-    margin-bottom: 18px;
-  }
-}
-
-.form-item-tip {
-  width: 100%;
-  margin-top: 4px;
-  font-size: 12px;
-  line-height: 1.5;
-  color: var(--el-text-color-secondary, #909399);
-}
-
-
-.slider-row {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  width: 100%;
-
-  .slider-value {
-    width: 32px;
-    text-align: right;
-    font-size: 13px;
-    color: var(--el-text-color-secondary);
-  }
-}
-
-:deep(.ai-model-dialog) {
-  border-radius: 16px;
-  overflow: hidden;
-  margin-top: 6vh !important;
-  margin-bottom: 6vh !important;
-
-  .el-dialog__header {
-    margin-right: 0;
-    padding: 16px 20px;
-    border-bottom: 1px solid var(--el-border-color-lighter);
-  }
-
-  .el-dialog__title {
-    font-size: 16px;
-    font-weight: 700;
-    color: var(--el-text-color-primary);
-  }
-
-  .el-dialog__body {
-    max-height: calc(82vh - 110px);
-    overflow-y: auto;
-    padding: 20px 24px 8px;
-
-    &::-webkit-scrollbar {
-      width: 5px;
-    }
-
-    &::-webkit-scrollbar-thumb {
-      background: var(--el-border-color-darker);
-      border-radius: 10px;
-    }
-  }
-
-  .el-dialog__footer {
-    padding: 12px 20px 16px;
-    border-top: 1px solid var(--el-border-color-lighter);
+@media (max-width: 780px) {
+  .model-grid {
+    grid-template-columns: 1fr;
   }
 }
 </style>

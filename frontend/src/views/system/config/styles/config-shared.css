@@ -1,6 +1,6 @@
 .config-form {
   max-width: 640px;
-  padding-top: 8px;
+  padding-top: var(--space-2);
 }
 
 .config-form.wide-form {
@@ -8,8 +8,8 @@
 }
 
 .config-form .unit {
-  margin-left: 8px;
-  color: #909399;
+  margin-left: var(--space-2);
+  color: var(--color-text-secondary);
   font-size: 13px;
 }
 
@@ -45,8 +45,8 @@
 .config-auditor-select .el-tag {
   max-width: none;
   height: 24px;
-  padding: 0 8px;
-  border-radius: 4px;
+  padding: 0 10px;
+  border-radius: var(--radius-pill);
 }
 
 .config-auditor-select .el-tag__close {
@@ -55,9 +55,9 @@
 
 .config-auditor-field__hint {
   margin: 6px 0 0;
-  font-size: 12px;
+  font-size: var(--text-caption);
   line-height: 1.5;
-  color: #909399;
+  color: var(--color-text-secondary);
 }
 
 .pay-collapse {
@@ -66,12 +66,12 @@
 
 .pay-tip-alert {
   max-width: 760px;
-  margin-top: 16px;
+  margin-top: var(--space-4);
 }
 
 .sms-config-layout {
   display: flex;
-  gap: 20px;
+  gap: var(--space-5);
   align-items: flex-start;
 }
 
@@ -86,8 +86,8 @@
 }
 
 .sms-section-card {
-  margin-bottom: 16px;
-  border: 1px solid #ebeef5;
+  margin-bottom: var(--space-4);
+  border: 1px solid var(--color-border);
 }
 
 .sms-section-card:last-child {
@@ -96,7 +96,7 @@
 
 .sms-card-title {
   font-weight: 600;
-  color: #303133;
+  color: var(--color-text-primary);
 }
 
 .sms-form {
@@ -114,7 +114,7 @@
 
 .sms-test-row {
   display: flex;
-  gap: 8px;
+  gap: var(--space-2);
   width: 100%;
 }
 
@@ -129,7 +129,7 @@
 }
 
 .sms-tip-alert {
-  margin-top: 16px;
+  margin-top: var(--space-4);
 }
 
 @media (max-width: 960px) {

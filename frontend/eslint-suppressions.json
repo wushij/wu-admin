@@ -90,11 +90,6 @@
       "count": 6
     }
   },
-  "src/views/system/config/components/AiConfigTab.vue": {
-    "vue/no-mutating-props": {
-      "count": 5
-    }
-  },
   "src/views/system/config/components/EmailConfigTab.vue": {
     "@typescript-eslint/no-explicit-any": {
       "count": 1

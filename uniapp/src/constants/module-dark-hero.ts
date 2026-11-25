@@ -19,6 +19,7 @@ export const MODULE_HERO_GLOW: Record<string, string> = {
   cache: 'rgba(245, 158, 11, 0.28)',
   job: 'rgba(20, 184, 166, 0.28)',
   api: 'rgba(102, 126, 234, 0.28)',
+  ai: 'rgba(139, 92, 246, 0.32)',
   default: 'rgba(99, 102, 241, 0.28)',
 }
 

@@ -18,6 +18,8 @@ public class AiModelDO extends BaseEntity {
     private String provider;
     /** 接入协议: openai（OpenAI 兼容）/anthropic（Anthropic Messages） */
     private String protocol;
+    /** 模型类型：chat=对话模型 / embedding=向量模型 */
+    private String modelType;
     /** 模型名称（如 deepseek-v4.1-flash / glm-5.3 / claude-4.6） */
     private String modelName;
     /** API 基础地址（不含具体接口路径） */
@@ -32,9 +34,13 @@ public class AiModelDO extends BaseEntity {
     private Double temperature;
     /** 单次回复最大 Token 数 */
     private Integer maxTokens;
+    /** 向量维度（向量模型必填，0=未声明） */
+    private Integer dimension;
+    /** 向量化批量大小（单次请求文本条数） */
+    private Integer batchSize;
     /** 系统提示词（角色设定） */
     private String systemPrompt;
-    /** 是否默认模型 0:否 1:是（全局唯一） */
+    /** 是否默认模型 0:否 1:是（同类型内唯一） */
     private Integer isDefault;
     /** 状态 0:禁用 1:启用 */
     private Integer status;

@@ -12,7 +12,7 @@
         <el-input v-model="formData.jobName" placeholder="请输入任务名称" />
       </el-form-item>
       <el-form-item label="任务组名" prop="jobGroup">
-        <el-select v-model="formData.jobGroup" allow-create filterable default-first-option style="width: 100%">
+        <el-select v-model="formData.jobGroup" allow-create filterable default-first-option placeholder="请选择或输入任务组名" style="width: 100%">
           <el-option label="SYSTEM（系统任务）" value="SYSTEM" />
           <el-option label="DEFAULT（默认）" value="DEFAULT" />
         </el-select>
@@ -44,7 +44,7 @@
       <el-row :gutter="16">
         <el-col :span="12">
           <el-form-item label="错误策略">
-            <el-select v-model="formData.misfirePolicy" style="width: 100%">
+            <el-select v-model="formData.misfirePolicy" placeholder="请选择错误策略" style="width: 100%">
               <el-option label="立即执行" :value="1" />
               <el-option label="执行一次" :value="2" />
               <el-option label="放弃执行" :value="3" />
@@ -64,7 +64,7 @@
         <el-switch v-model="formData.status" :active-value="1" :inactive-value="0" />
       </el-form-item>
       <el-form-item label="备注">
-        <el-input v-model="formData.remark" type="textarea" :rows="2" />
+        <el-input v-model="formData.remark" type="textarea" :rows="2" placeholder="请输入备注" />
       </el-form-item>
     </el-form>
     <template #footer>
@@ -118,10 +118,10 @@ defineExpose({ formRef })
   gap: 6px;
   margin-top: 8px;
   font-size: 12px;
-  color: #52c41a;
+  color: var(--el-color-primary);
 }
 .preview-times {
-  color: #909399;
+  color: var(--color-text-muted);
   margin-left: 8px;
 }
 </style>

@@ -26,26 +26,26 @@ const emit = defineEmits<{ click: [] }>()
   align-items: center;
   justify-content: center;
   flex-wrap: wrap;
-  gap: 8rpx;
+  gap: 10rpx;
   margin-top: 32rpx;
+  padding-top: 28rpx;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
   line-height: 1.5;
   text-align: center;
 }
 
 .auth-footer__text,
 .auth-footer__link {
-  font-size: 26rpx;
+  font-size: 27rpx;
   line-height: 1.5;
 }
 
 .auth-footer__text {
-  color: rgba(255, 255, 255, 0.65);
+  color: rgba(203, 213, 225, 0.72);
 }
 
 .auth-footer__link {
-  color: rgba(255, 255, 255, 0.92);
-  text-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.5);
-  text-decoration: underline;
-  text-underline-offset: 6rpx;
+  color: rgba(226, 232, 240, 0.92);
+  font-weight: 500;
 }
 </style>

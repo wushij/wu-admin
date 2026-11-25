@@ -80,9 +80,12 @@ class PromptAssemblerTest {
 
         when(knowledgeRetriever.retrieveReferenceBlock("重置密码")).thenReturn("<knowledge_base>重置密码步骤</knowledge_base>");
 
-        String result = promptAssembler.assemble(USER_ID, "请保持礼貌", "pc", "重置密码");
+        String result = promptAssembler.assemble(USER_ID, "请保持礼貌", "pc", "重置密码", false);
 
         assertTrue(result.contains("AI wu助手"));
+        assertTrue(result.contains("<current_time>"));
+        assertTrue(result.contains("当前系统时间："));
+        assertTrue(result.contains("ISO 8601 周次"));
         assertTrue(result.contains("<project_knowledge>"));
         assertTrue(result.contains("Admin Platform"));
         assertTrue(result.contains("<menu_structure>"));
@@ -93,6 +96,10 @@ class PromptAssemblerTest {
         assertTrue(result.contains("<knowledge_base>"));
         assertTrue(result.contains("请保持礼貌"));
         assertTrue(result.contains("安全声明"));
+        assertFalse(result.contains("<web_search_policy>"));
+
+        String withWebSearch = promptAssembler.assemble(USER_ID, "请保持礼貌", "pc", "佛山天气", true);
+        assertTrue(withWebSearch.contains("<web_search_policy>"));
     }
 
     @Test

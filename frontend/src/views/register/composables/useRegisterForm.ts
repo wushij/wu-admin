@@ -1,6 +1,6 @@
-import { ref, reactive, computed, onMounted, nextTick } from 'vue'
+import { ref, reactive, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
+import { ElMessage, ElMessageBox, type FormInstance } from 'element-plus'
 import { useSiteStore } from '@/store/site'
 import { getCaptcha, register, getConfig } from '@/api/system/auth'
 import type { RegisterForm } from '@/types/api'
@@ -38,7 +38,6 @@ export function useRegisterForm() {
 
   const formRef = ref<FormInstance | null>(null)
   const loading = ref(false)
-  const submitAttempted = ref(false)
 
   const formData = reactive<RegisterFormModel>({
     username: '',
@@ -51,48 +50,6 @@ export function useRegisterForm() {
   function parseCaptchaMode(value: string | undefined): CaptchaMode {
     return value === 'slider' ? 'slider' : 'image'
   }
-
-  const validateConfirmPassword = (
-    _rule: unknown,
-    value: string,
-    callback: (error?: Error) => void,
-  ) => {
-    if (value !== formData.password) {
-      callback(new Error('两次输入的密码不一致'))
-    } else {
-      callback()
-    }
-  }
-
-  const rules = computed<FormRules>(() => {
-    const base: FormRules = {
-      username: [
-        { required: true, message: '请输入用户名', trigger: 'blur' },
-        {
-          pattern: /^[a-zA-Z0-9_]{4,12}$/,
-          message: '用户名只能包含字母、数字、下划线，长度4-12位',
-          trigger: 'blur',
-        },
-      ],
-      password: [
-        { required: true, message: '请输入密码', trigger: 'blur' },
-        {
-          min: minPasswordLength.value,
-          max: 32,
-          message: `密码长度至少 ${minPasswordLength.value} 位`,
-          trigger: 'blur',
-        },
-      ],
-      confirmPassword: [
-        { required: true, message: '请确认密码', trigger: 'blur' },
-        { validator: validateConfirmPassword, trigger: 'blur' },
-      ],
-    }
-    if (captchaEnabled.value && captchaType.value === 'image') {
-      base.code = [{ required: true, message: '请输入验证码', trigger: 'blur' }]
-    }
-    return base
-  })
 
   async function loadConfig() {
     try {
@@ -143,31 +100,59 @@ export function useRegisterForm() {
     }
   }
 
-  function bumpAgreeRow() {
-    agreeRowAlert.value = false
-    nextTick(() => {
-      agreeRowAlert.value = true
-      window.setTimeout(() => {
-        agreeRowAlert.value = false
-      }, 540)
-    })
+  function showAgreeAlert() {
+    agreeRowAlert.value = true
+    ElMessage.warning('请先阅读并同意《用户协议》和《隐私政策》')
+  }
+
+  watch(agreeTerms, (checked) => {
+    if (checked) {
+      agreeRowAlert.value = false
+    }
+  })
+
+  function validateRegisterForm(): boolean {
+    const username = (formData.username || '').trim()
+    formData.username = username
+
+    if (!username) {
+      ElMessage.warning('请输入用户名')
+      return false
+    }
+    if (!/^[a-zA-Z0-9_]{4,12}$/.test(username)) {
+      ElMessage.warning('用户名只能包含字母、数字、下划线，长度4-12位')
+      return false
+    }
+    if (!formData.password) {
+      ElMessage.warning('请输入密码')
+      return false
+    }
+    if (formData.password.length < minPasswordLength.value || formData.password.length > 32) {
+      ElMessage.warning(`密码长度应为 ${minPasswordLength.value}-32 位`)
+      return false
+    }
+    if (!formData.confirmPassword) {
+      ElMessage.warning('请再次输入密码确认')
+      return false
+    }
+    if (formData.confirmPassword !== formData.password) {
+      ElMessage.warning('两次输入的密码不一致')
+      return false
+    }
+    if (captchaEnabled.value && captchaType.value === 'image' && !(formData.code || '').trim()) {
+      ElMessage.warning('请完成图形验证码')
+      return false
+    }
+    return true
   }
 
   async function handleRegister() {
     if (!agreeTerms.value) {
-      bumpAgreeRow()
+      showAgreeAlert()
       return
     }
-    if (!formRef.value) return
-
-    submitAttempted.value = true
-    formData.username = (formData.username || '').trim()
-
-    try {
-      await formRef.value.validate()
-    } catch {
-      return
-    }
+    if (loading.value) return
+    if (!validateRegisterForm()) return
 
     if (captchaEnabled.value && captchaType.value === 'slider') {
       showSliderModal.value = true
@@ -252,8 +237,6 @@ export function useRegisterForm() {
     if (captchaEnabled.value && captchaType.value === 'image') {
       loadCaptcha()
     }
-    await nextTick()
-    formRef.value?.clearValidate()
   })
 
   return {
@@ -262,8 +245,6 @@ export function useRegisterForm() {
     siteRegisterTitle,
     formRef,
     formData,
-    rules,
-    submitAttempted,
     captchaEnabled,
     captchaType,
     captchaImg,

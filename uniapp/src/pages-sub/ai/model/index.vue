@@ -6,17 +6,18 @@
       :subtitle="`大模型供应商接入维护 · 共 ${total} 个`"
       icon="setting-o"
       theme="ai"
-    >
-      <template #extra>
-        <view class="module-dark-hero__chip" @click.stop="goLog">
-          <IconFont name="records-o" :size="24" color="rgba(255,255,255,0.9)" />
-          <text>对话日志</text>
-        </view>
-      </template>
-    </ModuleDarkHero>
+    />
 
     <SegmentTabs v-model="statusMode" :tabs="statusTabs" />
     <SearchBar v-model="keyword" placeholder="搜索配置名称" @search="onSearch" />
+
+    <view class="aimodel-filter-row">
+      <view class="aimodel-filter-pill" @click="pickModelType">
+        <text class="aimodel-filter-pill__label">类型</text>
+        <text class="aimodel-filter-pill__value">{{ modelTypeLabel }}</text>
+        <text class="aimodel-filter-pill__arrow">›</text>
+      </view>
+    </view>
 
     <ListLoading v-if="loading && !list.length" />
 
@@ -42,6 +43,12 @@
             </view>
             <view class="aimodel-card__sub-row">
               <text class="aimodel-card__model">{{ providerMeta(item.provider).label }} · {{ item.modelName }}</text>
+              <view
+                class="model-type-tag"
+                :class="isEmbedding(item) ? 'is-embed' : 'is-chat'"
+              >
+                <text>{{ isEmbedding(item) ? '向量模型' : '对话模型' }}</text>
+              </view>
             </view>
           </view>
           <view class="status-tag" :class="item.status === 1 ? 'is-active' : 'is-inactive'">
@@ -64,7 +71,10 @@
           </view>
           <view class="info-row">
             <text class="info-label">模型参数</text>
-            <text class="info-val">温度 {{ item.temperature ?? 0.7 }} · 最大 {{ item.maxTokens ?? 8192 }} Tokens</text>
+            <text class="info-val" v-if="isEmbedding(item)">
+              维度 {{ item.dimension ?? '未配置' }} · 批量 {{ item.batchSize ?? 16 }}
+            </text>
+            <text class="info-val" v-else>温度 {{ item.temperature ?? 0.7 }} · 最大 {{ item.maxTokens ?? 8192 }} Tokens</text>
           </view>
 
           <view
@@ -109,12 +119,10 @@
 import { ref, computed, reactive, watch, onMounted } from 'vue'
 import { onPullDownRefresh, onShow } from '@dcloudio/uni-app'
 import ModuleDarkHero from '@/components/layout/ModuleDarkHero/index.vue'
-import IconFont from '@/components/base/IconFont/index.vue'
 import SearchBar from '@/components/base/SearchBar/index.vue'
 import ListFooter from '@/components/base/ListFooter/index.vue'
 import ListLoading from '@/components/base/ListLoading/index.vue'
 import EmptyState from '@/components/base/EmptyState/index.vue'
-import DictTag from '@/components/base/DictTag/index.vue'
 import FabButton from '@/components/base/FabButton/index.vue'
 import SegmentTabs from '@/components/base/SegmentTabs/index.vue'
 import PermissionBlock from '@/components/base/PermissionBlock/index.vue'
@@ -136,7 +144,6 @@ const { allowed, hasPerm } = useModulePermission('system:ai-model:list')
 const canCreate = computed(() => hasPerm('system:ai-model:create'))
 const canUpdate = computed(() => hasPerm('system:ai-model:update'))
 const canDelete = computed(() => hasPerm('system:ai-model:delete'))
-const canTest = computed(() => hasPerm('system:ai-model:test'))
 
 const keyword = ref('')
 const total = ref(0)
@@ -146,6 +153,20 @@ const statusTabs = [
   { key: '1', label: '启用' },
   { key: '0', label: '停用' },
 ]
+/** 模型类型筛选：'' 全部 / chat 对话 / embedding 向量 */
+const modelTypeMode = ref('')
+const modelTypeOptions: { label: string; value: string }[] = [
+  { label: '全部类型', value: '' },
+  { label: '对话模型', value: 'chat' },
+  { label: '向量模型', value: 'embedding' },
+]
+const modelTypeLabel = computed(
+  () => modelTypeOptions.find((item) => item.value === modelTypeMode.value)?.label || '全部类型',
+)
+
+function isEmbedding(item: AiModelVO): boolean {
+  return item.modelType === 'embedding'
+}
 /** id -> 延迟ms（-1 表示失败） */
 const testResults = reactive<Record<number, number>>({})
 
@@ -155,6 +176,7 @@ const { list, loading, refreshing, finished, empty, refresh, loadMore } = usePag
       pageNo,
       pageSize,
       name: keyword.value.trim() || undefined,
+      modelType: modelTypeMode.value || undefined,
       status: statusMode.value === 'all' ? undefined : Number(statusMode.value),
     })
     total.value = res.data?.total || 0
@@ -165,29 +187,6 @@ const { list, loading, refreshing, finished, empty, refresh, loadMore } = usePag
 function providerBadgeStyle(provider: string) {
   const meta = providerMeta(provider)
   return { background: meta.bg, color: meta.color }
-}
-
-async function onItemMenu(item: AiModelVO) {
-  const actions: string[] = []
-  if (canTest.value) actions.push('测试连接')
-  if (canUpdate.value) actions.push('编辑')
-  if (canUpdate.value && item.isDefault !== 1) actions.push('设为默认')
-  if (canDelete.value) actions.push('删除')
-  if (!actions.length) return
-  let index: number
-  try {
-    index = await showActionSheet({
-      title: item.name,
-      items: actions.map((label) => ({ label, danger: label === '删除' })),
-    })
-  } catch {
-    return
-  }
-  const action = actions[index]
-  if (action === '测试连接') await handleTest(item)
-  else if (action === '编辑') goEdit(item.id)
-  else if (action === '设为默认') await handleDefault(item)
-  else if (action === '删除') handleDelete(item)
 }
 
 async function handleTest(item: AiModelVO) {
@@ -231,19 +230,25 @@ function goEdit(id: number) {
   uni.navigateTo({ url: `/pages-sub/ai/model/form?id=${id}` })
 }
 
-function goLog() {
-  uni.navigateTo({ url: '/pages-sub/ai/log/index' })
-}
-
 function onSearch() {
   refresh({ silent: true })
 }
 
-async function onRefresh() {
-  await refresh()
-}
-
 watch(statusMode, () => refresh({ silent: true }))
+watch(modelTypeMode, () => refresh({ silent: true }))
+
+async function pickModelType() {
+  try {
+    const index = await showActionSheet({
+      title: '模型类型',
+      items: modelTypeOptions.map((item) => ({ label: item.label })),
+    })
+    if (index < 0) return
+    modelTypeMode.value = modelTypeOptions[index].value
+  } catch {
+    /* 用户取消，忽略 */
+  }
+}
 
 const skipNextShowRefresh = ref(true)
 onMounted(() => refresh())
@@ -287,6 +292,68 @@ onPullDownRefresh(async () => {
 
   :deep(.uni-scroll-view-content) {
     padding-bottom: calc(160rpx + env(safe-area-inset-bottom));
+  }
+}
+
+.aimodel-filter-row {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  margin-top: 12rpx;
+}
+
+.aimodel-filter-pill {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  height: 64rpx;
+  padding: 0 20rpx;
+  border-radius: 999rpx;
+  border: 1rpx solid rgba(226, 232, 240, 0.9);
+  background: #ffffff;
+}
+
+.aimodel-filter-pill__label {
+  font-size: 22rpx;
+  color: #64748b;
+}
+
+.aimodel-filter-pill__value {
+  font-size: 23rpx;
+  font-weight: 500;
+  color: #0f172a;
+}
+
+.aimodel-filter-pill__arrow {
+  font-size: 26rpx;
+  line-height: 1;
+  color: #cbd5e1;
+}
+
+.model-type-tag {
+  flex-shrink: 0;
+  padding: 2rpx 12rpx;
+  border-radius: 999rpx;
+
+  text {
+    font-size: 19rpx;
+    font-weight: 600;
+  }
+
+  &.is-chat {
+    background: rgba(99, 102, 241, 0.1);
+
+    text {
+      color: #6366f1;
+    }
+  }
+
+  &.is-embed {
+    background: rgba(22, 163, 74, 0.1);
+
+    text {
+      color: #16a34a;
+    }
   }
 }
 

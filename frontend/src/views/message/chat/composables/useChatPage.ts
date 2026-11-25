@@ -1,9 +1,11 @@
 import { ref, computed, onMounted, onActivated, onUnmounted, nextTick, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
+import { openAlertDialog } from '@/composables/ui/useAlertDialog'
+import { openLightbox } from '@/composables/ui/useLightbox'
 import type { InputInstance } from 'element-plus'
 import {
-  Search, Plus, MoreFilled, FullScreen, Setting, ChatDotRound, Document, Bell, ArrowRight,
+  Search, Plus, MoreFilled, FullScreen, Setting, ChatDotRound, Bell, ArrowRight,
 } from '@element-plus/icons-vue'
 import { groupMemberDisplayName } from '@/utils/chat-message'
 import {
@@ -26,7 +28,7 @@ import {
 import {
   buildChatRenderItems, formatSearchPreview, renderTextContent, fileDisplayName,
   scrollBottom, groupAvatarStyle, formatTime, formatListTime,
-  openChatFile, scrollToMessage as scrollToMessageEl, openImagePreview as openImagePreviewFn,
+  openChatFile, scrollToMessage as scrollToMessageEl,
 } from './useChatRender'
 import { useMention } from './useMention'
 import { useUserStore } from '@/store/user'
@@ -579,41 +581,66 @@ export function useChatPage() {
   async function handleQuit() {
     const group = selectedGroup.value
     if (!group) return
-    await ElMessageBox.confirm('确定要退出该群组吗？', '提示', { type: 'warning' })
-    await quitGroup(group.id)
-    ElMessage.success('已退出群组')
-    showGroupDetail.value = false
-    selectedGroup.value = null
-    groupMessages.value = []
-    await loadGroups()
+    await openAlertDialog({
+      title: '退出群组',
+      targetName: group.name,
+      message: '退出后将不再接收该群组的实时消息与通知，需由群成员重新邀请才可加入。',
+      severity: 'warning',
+      confirmText: '确认退出群组',
+      onConfirm: async () => {
+        await quitGroup(group.id)
+        ElMessage.success('已退出群组')
+        showGroupDetail.value = false
+        selectedGroup.value = null
+        groupMessages.value = []
+        await loadGroups()
+      },
+    })
   }
   
   async function handleDissolve() {
     const group = selectedGroup.value
     if (!group) return
-    await ElMessageBox.confirm('确定要解散该群组吗？此操作不可撤销！', '警告', { type: 'warning' })
-    await dissolveGroup(group.id)
-    ElMessage.success('群组已解散')
-    showGroupDetail.value = false
-    selectedGroup.value = null
-    groupMessages.value = []
-    await loadGroups()
+    await openAlertDialog({
+      title: '解散群组',
+      targetName: group.name,
+      message: '解散后该群组及所有群成员关系将被永久销毁且不可撤销。',
+      severity: 'irreversible',
+      confirmText: '永久解散群组',
+      onConfirm: async () => {
+        await dissolveGroup(group.id)
+        ElMessage.success('群组已解散')
+        showGroupDetail.value = false
+        selectedGroup.value = null
+        groupMessages.value = []
+        await loadGroups()
+      },
+    })
   }
   
   async function handlePrivateAction(cmd: string) {
     if (!selectedUser.value) return
+    const targetUser = selectedUser.value
     if (cmd === 'clear') {
-      await ElMessageBox.confirm('确定要清空与该用户的聊天记录吗？', '提示', { type: 'warning' })
-      await clearChatHistory(selectedUser.value.id)
-      messages.value = []
-      ElMessage.success('聊天记录已清空')
+      await openAlertDialog({
+        title: '清空聊天记录',
+        targetName: targetUser.nickname || targetUser.username,
+        message: '清空后本地及服务端与该用户的历史聊天记录将永久清除，不可恢复。',
+        severity: 'irreversible',
+        confirmText: '清空记录',
+        onConfirm: async () => {
+          await clearChatHistory(targetUser.id)
+          messages.value = []
+          ElMessage.success('聊天记录已清空')
+        },
+      })
     } else if (cmd === 'block') {
-      await blockUser(selectedUser.value.id)
-      selectedUser.value.isBlocked = true
+      await blockUser(targetUser.id)
+      targetUser.isBlocked = true
       ElMessage.success('已屏蔽该用户')
     } else if (cmd === 'unblock') {
-      await unblockUser(selectedUser.value.id)
-      selectedUser.value.isBlocked = false
+      await unblockUser(targetUser.id)
+      targetUser.isBlocked = false
       ElMessage.success('已解除屏蔽')
     }
   }
@@ -727,13 +754,33 @@ export function useChatPage() {
     if (cmd === 'mute') await setGroupMuted(gid, m.userId, true)
     if (cmd === 'unmute') await setGroupMuted(gid, m.userId, false)
     if (cmd === 'transfer') {
-      await ElMessageBox.confirm(`确定要转让群主给 ${m.userNickname || m.nickname} 吗？`, '警告', { type: 'warning' })
-      await transferGroupOwner(gid, m.userId)
-      selectedGroup.value.ownerId = m.userId
+      const targetName = m.userNickname || m.nickname || '该成员'
+      const ok = await openAlertDialog({
+        title: '转让群主权限',
+        targetName,
+        message: `转让后你将失去群主最高管理权限，该操作不可直接撤回。`,
+        severity: 'irreversible',
+        confirmText: '确认转让群主',
+        onConfirm: async () => {
+          await transferGroupOwner(gid, m.userId)
+          if (selectedGroup.value) selectedGroup.value.ownerId = m.userId
+        },
+      })
+      if (!ok) return
     }
     if (cmd === 'remove') {
-      await ElMessageBox.confirm('确定要移除该成员吗？', '提示', { type: 'warning' })
-      await removeGroupMember(gid, m.userId)
+      const targetName = m.userNickname || m.nickname || '该成员'
+      const ok = await openAlertDialog({
+        title: '移出群成员',
+        targetName,
+        message: '移出后该成员将立即退出当前群组并失去查看群消息权限。',
+        severity: 'danger',
+        confirmText: '确认移出',
+        onConfirm: async () => {
+          await removeGroupMember(gid, m.userId)
+        },
+      })
+      if (!ok) return
     }
     ElMessage.success('操作成功')
     await loadGroupMembersList()
@@ -848,7 +895,8 @@ export function useChatPage() {
   }
   
   function openImagePreview(url: string | undefined) {
-    openImagePreviewFn(url, (u) => { previewUrl.value = u }, (v) => { previewVisible.value = v })
+    if (!url) return
+    openLightbox({ src: url, title: '聊天图片预览' })
   }
   
   function startResize(e: MouseEvent) {

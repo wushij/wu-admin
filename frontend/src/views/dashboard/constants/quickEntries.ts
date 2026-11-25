@@ -9,7 +9,7 @@ import {
   Notification,
   Timer,
   EditPen,
-  Cpu,
+  Monitor,
   Coin,
 } from '@element-plus/icons-vue'
 
@@ -35,7 +35,7 @@ export const quickEntries: QuickEntry[] = [
   { key: 'notice', name: '系统通知', desc: '公告与消息推送', path: '/message/notice', permission: 'system:announce:list', icon: Notification, theme: 'notice' },
   { key: 'job', name: '定时任务', desc: '调度与日志清理', path: '/monitor/job', permission: 'monitor:job:list', icon: Timer, theme: 'job' },
   { key: 'online', name: '在线用户', desc: '会话与强退', path: '/monitor/online', permission: 'monitor:online:list', icon: User, theme: 'monitor' },
-  { key: 'server', name: '服务器监控', desc: 'CPU / 内存 / 磁盘', path: '/monitor/server', permission: 'monitor:server:list', icon: Cpu, theme: 'server' },
+  { key: 'server', name: '服务器监控', desc: 'CPU / 内存 / 磁盘', path: '/monitor/server', permission: 'monitor:server:list', icon: Monitor, theme: 'server' },
   { key: 'cache', name: '缓存监控', desc: 'Redis 状态与键值', path: '/monitor/cache', permission: 'monitor:cache:list', icon: Coin, theme: 'cache' },
   { key: 'oper-log', name: '操作日志', desc: '行为审计追溯', path: '/system/oper-log', permission: 'system:operLog:list', icon: EditPen, theme: 'log' },
 ]

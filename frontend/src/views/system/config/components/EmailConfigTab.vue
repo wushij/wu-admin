@@ -12,7 +12,7 @@
             </el-form-item>
 
             <el-form-item label="邮件服务商">
-              <el-select v-model="draft.provider" style="width: 100%" :disabled="!canEdit" @change="onProviderChange">
+              <el-select v-model="draft.provider" placeholder="请选择邮件服务商" style="width: 100%" :disabled="!canEdit" @change="onProviderChange">
                 <el-option label="QQ 邮箱 (smtp.qq.com)" value="qq" />
                 <el-option label="网易 163 邮箱 (smtp.163.com)" value="163" />
                 <el-option label="Google Gmail (smtp.gmail.com)" value="gmail" />
@@ -85,7 +85,7 @@
             </el-form-item>
 
             <el-form-item label="默认字符编码">
-              <el-select v-model="draft.encoding" style="width: 220px" :disabled="!canEdit">
+              <el-select v-model="draft.encoding" placeholder="请选择字符编码" style="width: 220px" :disabled="!canEdit">
                 <el-option label="UTF-8 (推荐通用编码)" value="UTF-8" />
                 <el-option label="GBK (简体中文扩展)" value="GBK" />
                 <el-option label="GB2312 (国标简体)" value="GB2312" />
@@ -168,13 +168,11 @@
               </template>
             </el-table-column>
             <el-table-column prop="createTime" label="时间" width="140" show-overflow-tooltip />
-            <el-table-column label="操作" width="60" fixed="right">
+            <el-table-column label="操作" width="68" fixed="right">
               <template #default="{ row }">
-                <el-popconfirm title="确定删除该条记录吗？" @confirm="$emit('deleteEmailLog', row.id)">
-                  <template #reference>
-                    <el-button link type="danger" size="small" :disabled="!canEdit">删除</el-button>
-                  </template>
-                </el-popconfirm>
+                <el-button link type="danger" size="small" :disabled="!canEdit" @click="$emit('deleteEmailLog', row.id)">
+                  删除
+                </el-button>
               </template>
             </el-table-column>
           </el-table>
@@ -277,13 +275,13 @@ function onProviderChange(val: string) {
 
 .unit {
   font-size: 13px;
-  color: #909399;
+  color: var(--color-text-muted);
   margin-left: 8px;
 }
 
 .unit-text {
   font-size: 14px;
-  color: #303133;
+  color: var(--color-text-primary);
   font-weight: 500;
   white-space: nowrap;
 }

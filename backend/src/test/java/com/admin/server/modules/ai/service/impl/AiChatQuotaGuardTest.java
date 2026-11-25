@@ -96,7 +96,7 @@ class AiChatQuotaGuardTest {
         stubMinuteCounter(9L);
 
         String result = guard.check(USER_ID);
-        assertEquals("提问太频繁了，请稍候再试 🍵", result);
+        assertEquals("提问太频繁了，请稍候再试", result);
     }
 
     @Test

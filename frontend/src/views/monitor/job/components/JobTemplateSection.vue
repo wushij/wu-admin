@@ -86,18 +86,20 @@ defineEmits<{ 'create-from-template': [tpl: JobTemplate] }>()
   gap: 12px;
   padding: 14px;
   margin-bottom: 12px;
-  border: 1px solid var(--el-border-color-lighter);
-  border-radius: 12px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
   cursor: pointer;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  background: #ffffff;
+  transition:
+    border-color var(--duration-normal) var(--ease-out),
+    box-shadow var(--duration-normal) var(--ease-out),
+    transform var(--duration-normal) var(--ease-out);
+  background: var(--color-bg-surface);
   position: relative;
   overflow: hidden;
 }
 .template-item:hover {
   border-color: var(--theme-primary, #2563eb);
   box-shadow: 0 8px 24px -4px rgba(15, 23, 42, 0.08), 0 2px 6px -1px rgba(15, 23, 42, 0.04);
-  transform: translateY(-2px);
 }
 .template-icon-wrap {
   width: 44px;
@@ -108,10 +110,6 @@ defineEmits<{ 'create-from-template': [tpl: JobTemplate] }>()
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  transition: transform 0.25s ease;
-}
-.template-item:hover .template-icon-wrap {
-  transform: scale(1.08);
 }
 .template-body {
   flex: 1;
@@ -168,14 +166,14 @@ defineEmits<{ 'create-from-template': [tpl: JobTemplate] }>()
   align-items: center;
   gap: 4px;
   font-size: 11px;
-  color: #475569;
-  background: var(--el-fill-color-light, #f1f5f9);
+  color: var(--color-text-secondary);
+  background: var(--el-fill-color-light, var(--color-bg-subtle));
   padding: 1px 6px;
   border-radius: 4px;
-  border: 1px solid var(--el-border-color-extra-light, #e2e8f0);
+  border: 1px solid var(--el-border-color-extra-light, var(--color-border-subtle));
 }
 .cron-clock-icon {
-  color: #94a3b8;
+  color: var(--color-text-muted);
 }
 .template-cron code {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;

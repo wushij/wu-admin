@@ -42,7 +42,7 @@ onMounted(() => {
   height: calc(100vh - 120px);
   min-height: 480px;
   position: relative;
-  background: #fff;
+  background: var(--color-bg-surface);
   border-radius: 8px;
   overflow: hidden;
 }

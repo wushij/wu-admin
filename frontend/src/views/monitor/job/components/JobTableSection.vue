@@ -196,21 +196,22 @@ defineEmits<{
 }
 .cron-code {
   font-size: 12px;
-  color: #374151;
-  background: #f3f4f6;
-  padding: 2px 6px;
-  border-radius: 4px;
+  color: var(--color-text-primary);
+  background: var(--color-bg-subtle);
+  border: 1px solid var(--color-border-subtle);
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
 }
 .cron-hint {
   font-size: 11px;
-  color: #909399;
+  color: var(--color-text-muted);
 }
 .next-time {
   font-size: 12px;
-  color: #52c41a;
+  color: var(--el-color-primary);
 }
 .text-muted {
-  color: #c0c4cc;
+  color: var(--color-text-muted);
 }
 .action-buttons {
   display: flex;

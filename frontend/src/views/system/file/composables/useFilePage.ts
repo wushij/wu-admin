@@ -1,7 +1,6 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import {
   ElMessage,
-  ElMessageBox,
   type CheckboxValueType,
   type UploadRawFile,
   type UploadRequestOptions,
@@ -14,6 +13,7 @@ import {
   pageFileByGroup,
   uploadFile,
   deleteFile,
+  restoreFile,
   deleteFileBatch,
   moveFiles,
   renameFile,
@@ -29,6 +29,9 @@ import {
   type FileRecord,
   type FilePageByGroupQuery,
 } from '@/api/system/file'
+import { openAlertDialog } from '@/composables/ui/useAlertDialog'
+import { showSnackbar } from '@/composables/ui/useSnackbar'
+import { openLightbox } from '@/composables/ui/useLightbox'
 import {
   formatSize,
   isImage,
@@ -39,8 +42,6 @@ import {
   isOffice,
   isPreviewable,
   useStreamPreview,
-  getFileIcon,
-  getFileIconColor,
 } from '../utils/fileTypeHelpers'
 
 export function useFilePage() {
@@ -94,10 +95,10 @@ export function useFilePage() {
   })
 
   const isAllSelected = computed(
-    () => files.value.length > 0 && selectedIds.value.length === files.value.length
+    () => files.value.length > 0 && selectedIds.value.length === files.value.length,
   )
   const isIndeterminate = computed(
-    () => selectedIds.value.length > 0 && selectedIds.value.length < files.value.length
+    () => selectedIds.value.length > 0 && selectedIds.value.length < files.value.length,
   )
 
   const previewIsImage = computed(() => isImage(previewFile.value))
@@ -301,18 +302,19 @@ export function useFilePage() {
   function handleGroupCmd(cmd: string, group: FileGroupVO) {
     if (cmd === 'edit') openGroupDialog(group)
     if (cmd === 'delete') {
-      ElMessageBox.confirm(
-        `确定要删除分组「${group.name}」吗？分组内的文件将移动到「未分组」。`,
-        '提示',
-        { type: 'warning' }
-      )
-        .then(async () => {
+      openAlertDialog({
+        title: '删除文件分组',
+        targetName: group.name,
+        message: '分组删除后不可恢复，分组内的现有文件会自动移动至「未分组」。',
+        severity: 'warning',
+        confirmText: '确认删除分组',
+        onConfirm: async () => {
           await deleteFileGroup(group.id)
-          ElMessage.success('删除成功')
+          ElMessage.success('已删除分组')
           loadGroups()
           if (activeGroupId.value === group.id) selectGroup(-1)
-        })
-        .catch(() => {})
+        },
+      })
     }
   }
 
@@ -335,28 +337,47 @@ export function useFilePage() {
     loadFiles()
   }
 
+  /** 单文件软删除进回收站：直接执行 + Snackbar 一键撤销 */
   async function handleDelete(file: FileRecord) {
     if (file.id == null) return
-    await ElMessageBox.confirm(`确定要删除文件「${file.originalName}」吗？`, '提示', { type: 'warning' })
-    await deleteFile(file.id)
-    ElMessage.success('删除成功')
+    const id = file.id
+    await deleteFile(id)
     loadFiles()
     loadGroups()
+    showSnackbar({
+      message: `已将文件「${file.originalName}」移至回收站`,
+      variant: 'info',
+      actionLabel: '撤销',
+      onAction: async () => {
+        await restoreFile(id)
+        ElMessage.success(`已恢复文件「${file.originalName}」`)
+        loadFiles()
+        loadGroups()
+      },
+    })
   }
 
+  /** 批量删除：高影响操作走 Alert Dialog 阻断确认 */
   async function handleBatchDelete() {
-    await ElMessageBox.confirm(`确定要删除选中的 ${selectedIds.value.length} 个文件吗？`, '提示', {
-      type: 'warning',
+    const count = selectedIds.value.length
+    if (!count) return
+    await openAlertDialog({
+      title: '批量删除文件',
+      targetName: `已选中的 ${count} 个文件`,
+      message: '这些文件将全部移入回收站，业务链接依赖这些文件时将暂时无法访问。',
+      severity: 'danger',
+      confirmText: `确认删除 (${count})`,
+      onConfirm: async () => {
+        await deleteFileBatch(selectedIds.value)
+        selectedIds.value = []
+        ElMessage.success(`已将 ${count} 个文件移至回收站`)
+        loadFiles()
+        loadGroups()
+      },
     })
-    await deleteFileBatch(selectedIds.value)
-    selectedIds.value = []
-    ElMessage.success('删除成功')
-    loadFiles()
-    loadGroups()
   }
 
   async function saveMove() {
-    // 未分组传 null，让后端把 group_id 归一化为 NULL；传 0 会导致列表用 IS NULL 查不到
     const targetGroupId = moveGroupId.value && moveGroupId.value > 0 ? moveGroupId.value : null
     await moveFiles(selectedIds.value, targetGroupId)
     moveVisible.value = false
@@ -380,6 +401,18 @@ export function useFilePage() {
   }
 
   async function handlePreview(file: FileRecord) {
+    // 图片类型直接接入标准 Lightbox 媒体灯箱（支持当前页画廊切换、缩放、Esc 与滚动锁定）
+    if (isImage(file)) {
+      const imageFiles = files.value.filter((f) => isImage(f))
+      const gallery = (imageFiles.length ? imageFiles : [file]).map((img) => ({
+        src: getStreamPreviewUrl(img),
+        title: img.originalName || '图片预览',
+      }))
+      const idx = Math.max(0, imageFiles.findIndex((f) => f.id === file.id))
+      openLightbox(gallery, idx)
+      return
+    }
+
     revokePreviewUrl()
     previewFile.value = file
     previewText.value = ''
@@ -401,7 +434,7 @@ export function useFilePage() {
       previewLoading.value = isVideo(file) || isAudio(file)
       previewBlobUrl.value = getStreamPreviewUrl(file)
       previewVisible.value = true
-      if (isImage(file) || isPdf(file)) {
+      if (isPdf(file)) {
         previewLoading.value = false
       }
       return
@@ -499,7 +532,5 @@ export function useFilePage() {
     isImage,
     isVideo,
     isPreviewable,
-    getFileIcon,
-    getFileIconColor,
   }
 }

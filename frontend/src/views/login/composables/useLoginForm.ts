@@ -1,11 +1,12 @@
 import { ref, reactive, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
+import { ElMessage, type FormInstance } from 'element-plus'
 import { useUserStore } from '@/store/user'
 import { useSiteStore } from '@/store/site'
 import { getCaptcha, getConfig, sendSmsCode, sendEmailCode } from '@/api/system/auth'
 import type { LoginForm } from '@/types/api'
-import { getErrorMessage } from '@/utils/axiosError'
+import { getErrorMessage, isErrorToastShown } from '@/utils/axiosError'
+import { isApiSuccessCode } from '@/core/http/api-response'
 import { sliderVerifyToRequest } from '@/types/slider-captcha'
 import type { SliderVerifyPayload } from '@/types/slider-captcha'
 import {
@@ -53,15 +54,19 @@ export function useLoginForm() {
   const captchaImg = ref('')
   const captchaUuid = ref('')
 
+  const PHONE_REGEX = /^1[3-9]\d{9}$/
+  const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/
+
   const formRef = ref<FormInstance | null>(null)
   const loading = ref(false)
-  const submitAttempted = ref(false)
+  const loginSuccess = ref(false)
   const sendingSms = ref(false)
   const sendingEmail = ref(false)
   const smsCountdown = ref(0)
   const emailCountdown = ref(0)
   let smsTimer: ReturnType<typeof setInterval> | null = null
   let emailTimer: ReturnType<typeof setInterval> | null = null
+  let redirectTimer: ReturnType<typeof setTimeout> | null = null
 
   const formData = reactive<LoginFormModel>({
     username: '',
@@ -71,8 +76,6 @@ export function useLoginForm() {
     code: '',
     rememberMe: false,
   })
-
-  const formRules = ref<FormRules>({})
 
   const showLoginModeSwitch = computed(
     () => (smsLoginEnabled.value && smsEnabled.value) || (emailLoginEnabled.value && emailEnabled.value),
@@ -85,12 +88,9 @@ export function useLoginForm() {
   function switchLoginMode(mode: LoginMode) {
     if (loginMode.value === mode) return
     loginMode.value = mode
-    submitAttempted.value = false
     formData.phone = ''
     formData.email = ''
     formData.code = ''
-    rebuildFormRules()
-    nextTick(() => formRef.value?.clearValidate())
   }
 
   function startSmsCountdown(seconds = 60) {
@@ -195,7 +195,6 @@ export function useLoginForm() {
           ...config.site,
         }
       }
-      rebuildFormRules()
     } catch (error) {
       console.error('加载配置失败', error)
     }
@@ -212,30 +211,6 @@ export function useLoginForm() {
     } catch (error) {
       console.error('获取验证码失败', error)
     }
-  }
-
-  function rebuildFormRules() {
-    const next: FormRules = {}
-    if (loginMode.value === 'account') {
-      next.username = [{ required: true, message: '请输入用户名', trigger: 'blur' }]
-      next.password = [{ required: true, message: '请输入密码', trigger: 'blur' }]
-      if (captchaEnabled.value && captchaType.value === 'image') {
-        next.code = [{ required: true, message: '请输入验证码', trigger: 'blur' }]
-      }
-    } else if (loginMode.value === 'sms') {
-      next.phone = [
-        { required: true, message: '请输入手机号', trigger: 'blur' },
-        { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号', trigger: 'blur' },
-      ]
-      next.code = [{ required: true, message: '请输入短信验证码', trigger: 'blur' }]
-    } else if (loginMode.value === 'email') {
-      next.email = [
-        { required: true, message: '请输入邮箱地址', trigger: 'blur' },
-        { type: 'email', message: '请输入正确的邮箱地址', trigger: 'blur' },
-      ]
-      next.code = [{ required: true, message: '请输入邮箱验证码', trigger: 'blur' }]
-    }
-    formRules.value = next
   }
 
   function syncAutofillFromDom() {
@@ -262,15 +237,13 @@ export function useLoginForm() {
   }
 
   async function handleSendSmsCode() {
-    if (!formRef.value || sendingSms.value || smsCountdown.value > 0) return
+    if (sendingSms.value || smsCountdown.value > 0) return
     formData.phone = (formData.phone || '').trim()
     if (!formData.phone) {
       ElMessage.warning('请输入手机号')
       return
     }
-    try {
-      await formRef.value.validateField('phone')
-    } catch {
+    if (!PHONE_REGEX.test(formData.phone)) {
       ElMessage.warning('请输入正确的手机号')
       return
     }
@@ -301,15 +274,13 @@ export function useLoginForm() {
   }
 
   async function handleSendEmailCode() {
-    if (!formRef.value || sendingEmail.value || emailCountdown.value > 0) return
+    if (sendingEmail.value || emailCountdown.value > 0) return
     formData.email = (formData.email || '').trim()
     if (!formData.email) {
       ElMessage.warning('请输入邮箱地址')
       return
     }
-    try {
-      await formRef.value.validateField('email')
-    } catch {
+    if (!EMAIL_REGEX.test(formData.email)) {
       ElMessage.warning('请输入正确的邮箱地址')
       return
     }
@@ -350,17 +321,64 @@ export function useLoginForm() {
     }
   }
 
+  function validateLoginForm(): boolean {
+    if (loginMode.value === 'sms') {
+      const phone = (formData.phone || '').trim()
+      formData.phone = phone
+      if (!phone) {
+        ElMessage.warning('请输入手机号')
+        return false
+      }
+      if (!PHONE_REGEX.test(phone)) {
+        ElMessage.warning('请输入正确的手机号')
+        return false
+      }
+      if (!(formData.code || '').trim()) {
+        ElMessage.warning('请输入短信验证码')
+        return false
+      }
+      return true
+    }
+
+    if (loginMode.value === 'email') {
+      const email = (formData.email || '').trim()
+      formData.email = email
+      if (!email) {
+        ElMessage.warning('请输入邮箱地址')
+        return false
+      }
+      if (!EMAIL_REGEX.test(email)) {
+        ElMessage.warning('请输入正确的邮箱地址')
+        return false
+      }
+      if (!(formData.code || '').trim()) {
+        ElMessage.warning('请输入邮箱验证码')
+        return false
+      }
+      return true
+    }
+
+    if (!formData.username) {
+      ElMessage.warning('请输入用户名')
+      return false
+    }
+    if (!formData.password) {
+      ElMessage.warning('请输入密码')
+      return false
+    }
+    if (captchaEnabled.value && captchaType.value === 'image' && !(formData.code || '').trim()) {
+      ElMessage.warning('请完成图形验证码')
+      return false
+    }
+    return true
+  }
+
   async function handleLogin() {
-    if (!formRef.value) return
-    submitAttempted.value = true
+    if (loading.value || loginSuccess.value) return
     syncAutofillFromDom()
     formData.username = (formData.username || '').trim()
 
-    try {
-      await formRef.value.validate()
-    } catch {
-      return
-    }
+    if (!validateLoginForm()) return
 
     if (loginMode.value === 'account' && captchaEnabled.value && captchaType.value === 'slider') {
       sliderPurpose.value = 'login'
@@ -371,6 +389,8 @@ export function useLoginForm() {
   }
 
   async function doLogin(sliderCaptcha?: { uuid: string; code: string }) {
+    if (loading.value || loginSuccess.value) return
+    loginSuccess.value = false
     loading.value = true
     try {
       let loginData: LoginForm
@@ -409,19 +429,46 @@ export function useLoginForm() {
         }
       }
       const result = await userStore.loginAction(loginData)
-      if (result.code === 200) {
+      if (isApiSuccessCode(result.code)) {
+        // 必须等待用户信息与菜单树拉取完成，再进入成功打勾态，避免跳转守卫失败退回登录页却卡死在“已打勾”
+        try {
+          await userStore.getUserInfo()
+        } catch (infoError) {
+          userStore.logout()
+          throw infoError
+        }
         persistLoginRemember()
-        ElMessage.success('登录成功')
-        setTimeout(() => router.push('/'), 500)
+        loginSuccess.value = true
+        ElMessage.success({
+          message: '登录成功',
+          customClass: 'auth-glass-message',
+        })
+        if (redirectTimer) clearTimeout(redirectTimer)
+        // 预留 680ms 让胶囊向心收拢与 SVG 一笔勾勒动效完整呈现后再跳转
+        redirectTimer = setTimeout(async () => {
+          try {
+            await router.push('/')
+          } finally {
+            if (router.currentRoute?.value?.path === '/login') {
+              loginSuccess.value = false
+            }
+          }
+        }, 680)
       } else {
+        loginSuccess.value = false
         ElMessage.error(result.msg || result.message || '登录失败')
         refreshCaptchaAfterFail()
       }
     } catch (error) {
       console.error('登录失败', error)
-      const errorMessage = getErrorMessage(error)
-      if (!errorMessage || errorMessage.includes('status code')) {
-        ElMessage.error('登录失败，请检查网络连接')
+      loginSuccess.value = false
+      if (!isErrorToastShown(error)) {
+        const errorMessage = getErrorMessage(error)
+        ElMessage.error(
+          !errorMessage || errorMessage.includes('status code')
+            ? '登录失败，请检查服务或网络连接'
+            : errorMessage,
+        )
       }
       refreshCaptchaAfterFail()
     } finally {
@@ -449,10 +496,8 @@ export function useLoginForm() {
     if (loginMode.value === 'account' && captchaEnabled.value && captchaType.value === 'image') {
       loadCaptcha()
     }
-    rebuildFormRules()
     await nextTick()
     syncAutofillFromDom()
-    formRef.value?.clearValidate()
   })
 
   onUnmounted(() => {
@@ -463,6 +508,10 @@ export function useLoginForm() {
     if (emailTimer) {
       clearInterval(emailTimer)
       emailTimer = null
+    }
+    if (redirectTimer) {
+      clearTimeout(redirectTimer)
+      redirectTimer = null
     }
   })
 
@@ -475,8 +524,6 @@ export function useLoginForm() {
     switchLoginMode,
     formRef,
     formData,
-    formRules,
-    submitAttempted,
     captchaEnabled,
     captchaType,
     captchaImg,
@@ -491,6 +538,7 @@ export function useLoginForm() {
     smsCountdown,
     emailCountdown,
     loading,
+    loginSuccess,
     showSliderModal,
     sliderPurpose,
     loadCaptcha,

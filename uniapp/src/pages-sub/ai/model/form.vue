@@ -35,6 +35,24 @@
         </view>
 
         <view class="form-fields">
+          <view class="model-type-switch">
+            <view
+              class="model-type-option"
+              :class="{ 'is-active': form.modelType === 'chat' }"
+              @click="onSelectModelType('chat')"
+            >
+              <text class="model-type-option__title">对话模型</text>
+              <text class="model-type-option__desc">问答与推理</text>
+            </view>
+            <view
+              class="model-type-option"
+              :class="{ 'is-active': form.modelType === 'embedding' }"
+              @click="onSelectModelType('embedding')"
+            >
+              <text class="model-type-option__title">向量模型</text>
+              <text class="model-type-option__desc">知识库切片向量化</text>
+            </view>
+          </view>
           <FormCell label="供应商" clickable boxed arrow @click="pickProvider">
             <view class="picker-value-wrap">
               <AiProviderIcon :provider="form.provider" :size="16" />
@@ -116,22 +134,42 @@
         </view>
 
         <view class="form-fields">
-          <FormCell
-            v-model="temperatureText"
-            label="温度"
-            editable
-            boxed
-            input-type="digit"
-            placeholder="0 ~ 2，默认 0.7"
-          />
-          <FormCell
-            v-model="maxTokensText"
-            label="最大 Tokens"
-            editable
-            boxed
-            input-type="number"
-            placeholder="128 ~ 32768，默认 8192"
-          />
+          <template v-if="form.modelType === 'embedding'">
+            <FormCell
+              v-model="dimensionText"
+              label="向量维度 *"
+              editable
+              boxed
+              input-type="number"
+              placeholder="如 1024，须与模型输出维度一致"
+            />
+            <FormCell
+              v-model="batchSizeText"
+              label="批量大小"
+              editable
+              boxed
+              input-type="number"
+              placeholder="单次向量化条数，默认 16"
+            />
+          </template>
+          <template v-else>
+            <FormCell
+              v-model="temperatureText"
+              label="温度"
+              editable
+              boxed
+              input-type="digit"
+              placeholder="0 ~ 2，默认 0.7"
+            />
+            <FormCell
+              v-model="maxTokensText"
+              label="最大 Tokens"
+              editable
+              boxed
+              input-type="number"
+              placeholder="128 ~ 32768，默认 8192"
+            />
+          </template>
           <FormCell
             v-model="form.remark"
             label="备注"
@@ -139,7 +177,7 @@
             boxed
             placeholder="选填"
           />
-          <view class="form-textarea-cell">
+          <view v-if="form.modelType === 'chat'" class="form-textarea-cell">
             <text class="form-textarea-cell__label">系统提示词</text>
             <textarea
               v-model="form.systemPrompt"
@@ -213,11 +251,31 @@ const fetchingModels = ref(false)
 /** 「获取模型」拉回来的模型列表，与内置推荐合并后展示 */
 const fetchedModels = ref<string[]>([])
 
-const form = reactive<Required<Omit<AiModelSaveDTO, 'id'>> & { id?: number }>({
+const form = reactive<{
+  id?: number
+  name: string
+  provider: string
+  protocol: string
+  modelType: 'chat' | 'embedding'
+  modelName: string
+  baseUrl: string
+  pathTemplate: string
+  extraHeaders: string
+  apiKey: string
+  temperature: number
+  maxTokens: number
+  dimension?: number
+  batchSize?: number
+  systemPrompt: string
+  isDefault: number
+  status: number
+  remark: string
+}>({
   id: undefined,
   name: '',
   provider: 'deepseek',
   protocol: 'openai',
+  modelType: 'chat',
   modelName: AI_PROVIDER_META.deepseek.models[0],
   baseUrl: AI_PROVIDER_META.deepseek.baseUrl,
   pathTemplate: '',
@@ -225,6 +283,8 @@ const form = reactive<Required<Omit<AiModelSaveDTO, 'id'>> & { id?: number }>({
   apiKey: '',
   temperature: 0.7,
   maxTokens: 8192,
+  dimension: undefined,
+  batchSize: 16,
   systemPrompt: '',
   isDefault: 0,
   status: 1,
@@ -234,6 +294,20 @@ const form = reactive<Required<Omit<AiModelSaveDTO, 'id'>> & { id?: number }>({
 /** 数字字段以文本双向绑定，保存时转换 */
 const temperatureText = ref('0.7')
 const maxTokensText = ref('8192')
+const dimensionText = ref('')
+const batchSizeText = ref('16')
+
+/** 切换模型类型：向量模型补默认维度与批量大小，对话参数不再参与提交 */
+function onSelectModelType(type: 'chat' | 'embedding') {
+  if (form.modelType === type) return
+  form.modelType = type
+  if (type === 'embedding') {
+    if (!dimensionText.value) dimensionText.value = '1536'
+    if (!batchSizeText.value) batchSizeText.value = '16'
+    // 向量模型不参与对话，取消默认对话模型标记
+    if (!editIsDefault.value) form.isDefault = 0
+  }
+}
 
 const namePlaceholder = computed(() => {
   return form.provider === 'custom'
@@ -386,6 +460,13 @@ function validate(): string | null {
   if (!form.baseUrl.trim()) return '请输入接口地址'
   // 新增时云厂商必须填写密钥；编辑时留空表示沿用已保存密钥；自定义供应商允许免鉴权（如本地 Ollama）
   if (isCreate.value && !form.apiKey.trim()) return '请输入 API Key'
+  if (form.modelType === 'embedding') {
+    const dim = Number(dimensionText.value)
+    if (!Number.isInteger(dim) || dim < 1 || dim > 8192) return '向量维度需在 1 ~ 8192 之间'
+    const batch = batchSizeText.value ? Number(batchSizeText.value) : 16
+    if (!Number.isInteger(batch) || batch < 1 || batch > 128) return '批量大小需在 1 ~ 128 之间'
+    return null
+  }
   const t = Number(temperatureText.value)
   if (Number.isNaN(t) || t < 0 || t > 2) return '温度需在 0 ~ 2 之间'
   const mt = Number(maxTokensText.value)
@@ -394,19 +475,23 @@ function validate(): string | null {
 }
 
 function buildPayload(): AiModelSaveDTO {
+  const isEmbedding = form.modelType === 'embedding'
   return {
     id: form.id,
     name: form.name.trim(),
     provider: form.provider,
     protocol: form.protocol,
+    modelType: form.modelType,
     modelName: form.modelName.trim(),
     baseUrl: form.baseUrl.trim(),
     pathTemplate: form.pathTemplate.trim(),
     extraHeaders: form.extraHeaders.trim(),
     apiKey: form.apiKey || undefined,
-    temperature: Number(temperatureText.value),
-    maxTokens: Number(maxTokensText.value),
-    systemPrompt: form.systemPrompt,
+    temperature: isEmbedding ? undefined : Number(temperatureText.value),
+    maxTokens: isEmbedding ? undefined : Number(maxTokensText.value),
+    dimension: isEmbedding ? Number(dimensionText.value) : undefined,
+    batchSize: isEmbedding ? Number(batchSizeText.value) || 16 : undefined,
+    systemPrompt: isEmbedding ? undefined : form.systemPrompt,
     isDefault: form.isDefault,
     status: form.status,
     remark: form.remark,
@@ -469,11 +554,14 @@ async function load(id: number) {
       name: data.name,
       provider: data.provider,
       protocol: data.protocol || 'openai',
+      modelType: data.modelType === 'embedding' ? 'embedding' : 'chat',
       modelName: data.modelName,
       baseUrl: data.baseUrl,
       pathTemplate: data.pathTemplate || '',
       extraHeaders: data.extraHeaders || '',
       apiKey: '',
+      dimension: data.dimension ?? undefined,
+      batchSize: data.batchSize ?? 16,
       systemPrompt: data.systemPrompt || '',
       isDefault: data.isDefault ?? 0,
       status: data.status ?? 1,
@@ -482,6 +570,8 @@ async function load(id: number) {
     editIsDefault.value = data.isDefault === 1
     temperatureText.value = String(data.temperature ?? 0.7)
     maxTokensText.value = String(data.maxTokens ?? 8192)
+    dimensionText.value = data.dimension != null ? String(data.dimension) : ''
+    batchSizeText.value = String(data.batchSize ?? 16)
     hasKey.value = !!data.hasApiKey
   } finally {
     loading.value = false
@@ -629,8 +719,64 @@ onLoad((options) => {
 }
 
 .picker-value-wrap {
+  flex: 1;
+  min-width: 0;
   display: flex;
   align-items: center;
-  gap: 10rpx;
+  gap: 12rpx;
+  min-height: 72rpx;
+  padding: 0 24rpx;
+  border: 1px solid $color-border-light;
+  border-radius: $radius-full;
+  background: $color-bg-card;
+  box-sizing: border-box;
+
+  :deep(.picker-value) {
+    flex: 1;
+    width: auto !important;
+    min-height: auto !important;
+    padding: 0 !important;
+    border: none !important;
+    background: transparent !important;
+    line-height: 1.45 !important;
+  }
+}
+
+/* ---------- 模型类型切换 ---------- */
+.model-type-switch {
+  display: flex;
+  gap: 12rpx;
+  margin-bottom: 10rpx;
+}
+
+.model-type-option {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6rpx;
+  padding: 18rpx 20rpx;
+  border-radius: $radius-md;
+  border: 2rpx solid $color-border-light;
+  background: $color-bg-page;
+
+  &.is-active {
+    border-color: rgba(99, 102, 241, 0.5);
+    background: rgba(99, 102, 241, 0.08);
+  }
+
+  &__title {
+    font-size: 26rpx;
+    font-weight: 600;
+    color: $color-text-primary;
+  }
+
+  &__desc {
+    font-size: 21rpx;
+    color: $color-text-secondary;
+  }
+
+  &.is-active &__title {
+    color: #4f46e5;
+  }
 }
 </style>

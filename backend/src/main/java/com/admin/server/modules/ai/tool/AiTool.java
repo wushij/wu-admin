@@ -39,4 +39,18 @@ public interface AiTool {
      * @param ctx  服务端注入的执行上下文（身份以此为准）
      */
     String execute(JSONObject args, AiToolContext ctx);
+
+    /**
+     * 当前会话上下文下该工具是否可用（除权限外，用于受用户请求开关或系统配置控制的工具，如 web_search）
+     */
+    default boolean isAvailable(AiToolContext ctx) {
+        return true;
+    }
+
+    /**
+     * 单工具执行超时上限（毫秒）；返回 <= 0 时沿用全局默认 ai.tool-timeout-ms
+     */
+    default long timeoutMs() {
+        return 0L;
+    }
 }

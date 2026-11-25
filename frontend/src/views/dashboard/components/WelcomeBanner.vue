@@ -1,64 +1,102 @@
 <template>
-  <div class="welcome-banner">
-    <div class="welcome-bg-pattern" />
+  <section ref="bannerRef" class="welcome-banner motion-spotlight">
     <div class="welcome-content">
       <div class="welcome-left">
-        <div class="welcome-avatar">
-          <el-avatar :size="72" :src="avatarSrc" class="welcome-avatar-img">
-            {{ avatarFallback }}
-          </el-avatar>
-        </div>
+        <el-avatar :size="60" :src="avatarSrc" class="welcome-avatar-img">
+          {{ avatarFallback }}
+        </el-avatar>
         <div class="welcome-text">
-          <h1 class="welcome-title">欢迎回来，{{ nickname }}</h1>
-          <p class="welcome-greeting">{{ greetingMessage }}</p>
-          <div v-if="platformTags.length" class="welcome-tags">
+          <div class="welcome-title-row">
+            <h1 class="welcome-title">欢迎回来，{{ nickname }}</h1>
             <span v-for="tag in platformTags" :key="tag" class="welcome-tag">{{ tag }}</span>
           </div>
-          <p class="welcome-time">
+          <p class="welcome-greeting">{{ greetingMessage }}</p>
+          <p class="welcome-time motion-tabular">
             <el-icon class="welcome-time-icon" :size="14"><Clock /></el-icon>
-            {{ currentTime }}
+            <span>{{ currentTime }}</span>
           </p>
         </div>
       </div>
+
       <div class="welcome-right">
         <div class="welcome-stat-item">
-          <div class="stat-icon-wrapper online">
-            <el-icon :size="20"><UserFilled /></el-icon>
+          <div class="stat-icon-wrapper online" aria-hidden="true">
+            <el-icon :size="18"><UserFilled /></el-icon>
           </div>
           <div class="stat-info">
-            <div class="stat-value">{{ stats.onlineCount ?? 0 }}</div>
+            <div class="stat-value">
+              <CountUpNumber :value="stats.onlineCount ?? 0" />
+            </div>
             <div class="stat-label">在线用户</div>
           </div>
         </div>
-        <div class="welcome-stat-divider" />
+        <div class="welcome-stat-divider" aria-hidden="true" />
         <div class="welcome-stat-item">
-          <div class="stat-icon-wrapper visit">
-            <el-icon :size="20"><View /></el-icon>
+          <div class="stat-icon-wrapper visit" aria-hidden="true">
+            <el-icon :size="18"><View /></el-icon>
           </div>
           <div class="stat-info">
-            <div class="stat-value">{{ stats.todayVisits ?? 0 }}</div>
+            <div class="stat-value">
+              <CountUpNumber :value="stats.todayVisits ?? 0" />
+            </div>
             <div class="stat-label">今日访问</div>
           </div>
         </div>
-        <div class="welcome-stat-divider" />
+        <div class="welcome-stat-divider" aria-hidden="true" />
         <div class="welcome-stat-item">
-          <div class="stat-icon-wrapper login-ok">
-            <el-icon :size="20"><CircleCheck /></el-icon>
+          <div class="stat-icon-wrapper login-ok" aria-hidden="true">
+            <el-icon :size="18"><CircleCheck /></el-icon>
           </div>
           <div class="stat-info">
-            <div class="stat-value">{{ stats.todayLoginSuccess ?? 0 }}</div>
+            <div class="stat-value">
+              <CountUpNumber :value="stats.todayLoginSuccess ?? 0" />
+            </div>
             <div class="stat-label">今日登录成功</div>
           </div>
         </div>
       </div>
     </div>
-  </div>
+
+    <!-- 平台核心能力横向无缝跑马灯（hover/focus 自动暂停） -->
+    <div class="welcome-marquee-bar">
+      <div class="motion-marquee" tabindex="0" aria-label="系统核心能力列表">
+        <div class="motion-marquee-track" style="--marquee-duration: 32s;">
+          <span v-for="cap in CAPABILITIES" :key="`a-${cap.label}`" class="cap-pill">
+            <el-icon :size="13"><component :is="cap.icon" /></el-icon>
+            <span>{{ cap.label }}</span>
+          </span>
+          <span
+            v-for="cap in CAPABILITIES"
+            :key="`b-${cap.label}`"
+            class="cap-pill"
+            aria-hidden="true"
+          >
+            <el-icon :size="13"><component :is="cap.icon" /></el-icon>
+            <span>{{ cap.label }}</span>
+          </span>
+        </div>
+      </div>
+    </div>
+  </section>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
-import { UserFilled, View, CircleCheck, Clock } from '@element-plus/icons-vue'
+import { computed, ref } from 'vue'
+import {
+  UserFilled,
+  View,
+  CircleCheck,
+  Clock,
+  Lock,
+  Key,
+  FolderOpened,
+  DataLine,
+  Connection,
+} from '@element-plus/icons-vue'
+import { AiModel } from '@/utils/menu-icon'
 import type { DashboardStats } from '@/api/dashboard'
+import { useSpotlight } from '@/composables/useMotion'
+import CountUpNumber from '@/components/ui/CountUpNumber.vue'
 
 const props = defineProps<{
   nickname: string
@@ -71,6 +109,18 @@ const props = defineProps<{
   stats: DashboardStats
 }>()
 
+const bannerRef = ref<HTMLElement | null>(null)
+useSpotlight(bannerRef)
+
+const CAPABILITIES = [
+  { icon: Lock, label: 'SM4-GCM 全链路加密传输' },
+  { icon: Key, label: 'SM2 / HMAC-SM3 防重放签名' },
+  { icon: AiModel, label: 'AI 智能中枢 · RAG 知识检索' },
+  { icon: DataLine, label: '实时审计与风控速率限制' },
+  { icon: FolderOpened, label: '多引擎对象存储热切换' },
+  { icon: Connection, label: 'RBAC 与部门数据范围隔离' },
+]
+
 const platformTags = computed(() => {
   const tags: string[] = []
   if (props.platformName?.trim()) tags.push(props.platformName.trim())
@@ -79,241 +129,141 @@ const platformTags = computed(() => {
       .split('·')
       .map((s) => s.trim())
       .filter(Boolean)
+      .slice(0, 2)
       .forEach((part) => tags.push(part))
   }
   return tags
 })
 </script>
 
-<style scoped>
+<style scoped lang="scss">
 .welcome-banner {
   position: relative;
-  background: linear-gradient(
-    135deg,
-    var(--theme-primary, #111827) 0%,
-    var(--theme-primary-hover, #374151) 55%,
-    var(--theme-primary-active, #4b5563) 100%
-  );
-  border-radius: 16px;
-  padding: 28px 32px;
-  margin-bottom: 24px;
-  color: #fff;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-  overflow: hidden;
-}
-
-.welcome-bg-pattern {
-  position: absolute;
-  inset: 0;
-  opacity: 0.07;
-  background-image:
-    radial-gradient(circle at 18% 42%, #fff 1px, transparent 1px),
-    radial-gradient(circle at 82% 18%, #fff 1px, transparent 1px);
-  background-size: 36px 36px;
-  pointer-events: none;
-}
-
-.welcome-banner::after {
-  content: '';
-  position: absolute;
-  top: -40%;
-  right: -8%;
-  width: 360px;
-  height: 360px;
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.12) 0%, transparent 68%);
-  pointer-events: none;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  padding: var(--space-5) var(--space-6) var(--space-4);
+  margin-bottom: var(--space-5);
+  color: var(--color-text-primary);
 }
 
 .welcome-content {
+  position: relative;
+  z-index: 1;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 32px;
-  position: relative;
-  z-index: 1;
+  gap: var(--space-6);
 }
 
 .welcome-left {
   display: flex;
   align-items: center;
-  gap: 22px;
+  gap: var(--space-4);
   min-width: 0;
 }
 
-.welcome-avatar {
-  flex-shrink: 0;
-}
-
 .welcome-avatar-img {
-  border: 3px solid rgba(255, 255, 255, 0.38);
-  background: rgba(255, 255, 255, 0.12);
-  font-size: 26px;
+  flex-shrink: 0;
+  border: 2px solid var(--el-color-primary-light-7);
+  background: var(--el-color-primary-light-9);
+  color: var(--el-color-primary);
+  font-size: 22px;
   font-weight: 600;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
 }
 
 .welcome-text {
   display: flex;
   flex-direction: column;
-  gap: 0;
+  gap: 6px;
   min-width: 0;
 }
 
-.welcome-title {
-  margin: 0 0 10px;
-  font-size: 28px;
-  font-weight: 700;
-  line-height: 1.3;
-  letter-spacing: -0.02em;
-  color: #fff;
-}
-
-.welcome-greeting {
-  margin: 0 0 12px;
-  font-size: 15px;
-  font-weight: 400;
-  line-height: 1.55;
-  color: rgba(255, 255, 255, 0.88);
-  max-width: 420px;
-}
-
-.welcome-tags {
+.welcome-title-row {
   display: flex;
+  align-items: center;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 12px;
+  gap: var(--space-2);
+}
+
+.welcome-title {
+  margin: 0;
+  font-size: var(--text-h1);
+  font-weight: 700;
+  line-height: var(--leading-h1);
+  letter-spacing: -0.02em;
+  color: var(--color-text-primary);
 }
 
 .welcome-tag {
   display: inline-flex;
   align-items: center;
-  padding: 3px 10px;
-  font-size: 12px;
+  padding: 2px 10px;
+  font-size: var(--text-caption);
   font-weight: 500;
-  line-height: 1.4;
-  color: rgba(255, 255, 255, 0.92);
-  background: rgba(255, 255, 255, 0.12);
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  border-radius: 999px;
-  backdrop-filter: blur(6px);
+  color: var(--el-color-primary);
+  background: var(--el-color-primary-light-9);
+  border: 1px solid var(--el-color-primary-light-7);
+  border-radius: var(--radius-pill);
+}
+
+.welcome-greeting {
+  margin: 0;
+  font-size: var(--text-body);
+  color: var(--color-text-secondary);
 }
 
 .welcome-time {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   margin: 0;
-  font-size: 12px;
-  font-weight: 400;
-  line-height: 1.4;
-  color: rgba(255, 255, 255, 0.58);
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 0.02em;
+  font-size: var(--text-caption);
+  color: var(--color-text-muted);
 }
 
 .welcome-time-icon {
   flex-shrink: 0;
-  color: rgba(255, 255, 255, 0.72);
-}
-
-.welcome-time-icon :deep(svg) {
-  stroke-width: 2;
 }
 
 .welcome-right {
   display: flex;
   align-items: center;
-  gap: 18px;
+  gap: var(--space-4);
   flex-shrink: 0;
-  background: linear-gradient(
-    135deg,
-    rgba(255, 255, 255, 0.12) 0%,
-    rgba(255, 255, 255, 0.04) 100%
-  );
-  padding: 14px 22px;
-  border-radius: 14px;
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  box-shadow:
-    0 8px 32px rgba(0, 0, 0, 0.2),
-    inset 0 1px 0 rgba(255, 255, 255, 0.22),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.12);
+  padding: var(--space-3) var(--space-5);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-subtle);
+  border: 1px solid var(--color-border-subtle);
 }
 
 .welcome-stat-item {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 2px 4px;
-  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.welcome-stat-item:hover {
-  transform: translateY(-1px);
+  gap: var(--space-3);
 }
 
 .stat-icon-wrapper {
-  width: 42px;
-  height: 42px;
-  border-radius: 12px;
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-md);
   display: flex;
   align-items: center;
   justify-content: center;
-  position: relative;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.16);
-}
+  flex-shrink: 0;
 
-/* 在线用户：活力天蓝渐变与柔光 */
-.stat-icon-wrapper.online {
-  background: linear-gradient(135deg, rgba(56, 189, 248, 0.22) 0%, rgba(14, 165, 233, 0.1) 100%);
-  border: 1px solid rgba(56, 189, 248, 0.38);
-  color: #38bdf8;
-}
-
-.stat-icon-wrapper.online :deep(svg) {
-  filter: drop-shadow(0 2px 5px rgba(56, 189, 248, 0.45));
-}
-
-.welcome-stat-item:hover .stat-icon-wrapper.online {
-  background: linear-gradient(135deg, rgba(56, 189, 248, 0.32) 0%, rgba(14, 165, 233, 0.18) 100%);
-  border-color: rgba(56, 189, 248, 0.6);
-  transform: scale(1.05);
-}
-
-/* 今日访问：科技紫罗兰/靛蓝渐变与柔光 */
-.stat-icon-wrapper.visit {
-  background: linear-gradient(135deg, rgba(167, 139, 250, 0.22) 0%, rgba(129, 140, 248, 0.1) 100%);
-  border: 1px solid rgba(167, 139, 250, 0.38);
-  color: #c4b5fd;
-}
-
-.stat-icon-wrapper.visit :deep(svg) {
-  filter: drop-shadow(0 2px 5px rgba(139, 92, 246, 0.45));
-}
-
-.welcome-stat-item:hover .stat-icon-wrapper.visit {
-  background: linear-gradient(135deg, rgba(167, 139, 250, 0.32) 0%, rgba(129, 140, 248, 0.18) 100%);
-  border-color: rgba(167, 139, 250, 0.6);
-  transform: scale(1.05);
-}
-
-/* 今日登录成功：通透翡翠薄荷绿渐变与柔光（彻底摒弃沉闷暗墨绿） */
-.stat-icon-wrapper.login-ok {
-  background: linear-gradient(135deg, rgba(52, 211, 153, 0.22) 0%, rgba(16, 185, 129, 0.1) 100%);
-  border: 1px solid rgba(52, 211, 153, 0.38);
-  color: #34d399;
-}
-
-.stat-icon-wrapper.login-ok :deep(svg) {
-  filter: drop-shadow(0 2px 5px rgba(16, 185, 129, 0.45));
-}
-
-.welcome-stat-item:hover .stat-icon-wrapper.login-ok {
-  background: linear-gradient(135deg, rgba(52, 211, 153, 0.32) 0%, rgba(16, 185, 129, 0.18) 100%);
-  border-color: rgba(52, 211, 153, 0.6);
-  transform: scale(1.05);
+  &.online {
+    background: var(--color-info-soft);
+    color: var(--color-info);
+  }
+  &.visit {
+    background: var(--el-color-primary-light-9);
+    color: var(--el-color-primary);
+  }
+  &.login-ok {
+    background: var(--color-success-soft);
+    color: var(--color-success);
+  }
 }
 
 .stat-info {
@@ -321,61 +271,76 @@ const platformTags = computed(() => {
   flex-direction: column;
 }
 
-.stat-info .stat-value {
-  font-size: 26px;
+.stat-value {
+  font-size: 22px;
   font-weight: 700;
-  line-height: 1.1;
-  color: #ffffff;
-  margin-bottom: 2px;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -0.01em;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  line-height: 1.15;
+  color: var(--color-text-primary);
 }
 
-.stat-info .stat-label {
-  font-size: 12px;
-  font-weight: 500;
-  color: rgba(255, 255, 255, 0.72);
-  letter-spacing: 0.02em;
+.stat-label {
+  font-size: var(--text-caption);
+  color: var(--color-text-secondary);
   white-space: nowrap;
 }
 
 .welcome-stat-divider {
   width: 1px;
-  height: 36px;
-  background: linear-gradient(
-    180deg,
-    transparent 0%,
-    rgba(255, 255, 255, 0.2) 20%,
-    rgba(255, 255, 255, 0.2) 80%,
-    transparent 100%
-  );
-  margin: 0 2px;
+  height: 30px;
+  background: var(--color-border);
 }
 
-@media (max-width: 768px) {
-  .welcome-banner {
-    padding: 20px;
-  }
+.welcome-marquee-bar {
+  position: relative;
+  z-index: 1;
+  margin-top: var(--space-4);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border-subtle);
+}
 
+.cap-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: var(--radius-pill);
+  background: var(--color-bg-subtle);
+  border: 1px solid var(--color-border-subtle);
+  color: var(--color-text-secondary);
+  font-size: var(--text-caption);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+@media (max-width: 1024px) {
   .welcome-content {
     flex-direction: column;
     align-items: flex-start;
-  }
-
-  .welcome-title {
-    font-size: 22px;
-  }
-
-  .welcome-greeting {
-    font-size: 14px;
-    max-width: none;
+    gap: var(--space-4);
   }
 
   .welcome-right {
     width: 100%;
     justify-content: space-around;
-    padding: 14px 16px;
+  }
+}
+
+@media (max-width: 640px) {
+  .welcome-banner {
+    padding: var(--space-4);
+  }
+
+  .welcome-title {
+    font-size: 20px;
+  }
+
+  .welcome-right {
+    flex-wrap: wrap;
+    gap: var(--space-3);
+  }
+
+  .welcome-stat-divider {
+    display: none;
   }
 }
 </style>

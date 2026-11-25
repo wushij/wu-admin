@@ -156,12 +156,12 @@ class PermissionServiceImplTest extends MybatisLambdaTestBase {
     @DisplayName("getUserPermissionCodes：query 权限自动附带 list 别名")
     void getUserPermissionCodes_queryAddsListAlias() {
         when(menuMapper.selectPermissionCodesByUserId(USER_ID))
-                .thenReturn(List.of("system:ai-log:list", "system:ai-log:query"));
+                .thenReturn(List.of("system:ai-knowledge:list", "system:ai-knowledge:query"));
 
         Set<String> codes = permissionService.getUserPermissionCodes(USER_ID);
 
-        assertTrue(codes.contains("system:ai-log:query"));
-        assertTrue(codes.contains("system:ai-log:list"));
+        assertTrue(codes.contains("system:ai-knowledge:query"));
+        assertTrue(codes.contains("system:ai-knowledge:list"));
     }
 
     @Test

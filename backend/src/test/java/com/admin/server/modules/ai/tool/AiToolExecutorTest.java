@@ -1,6 +1,9 @@
 package com.admin.server.modules.ai.tool;
 
 import cn.hutool.json.JSONObject;
+import com.admin.server.modules.ai.service.search.WebSearchService;
+import com.admin.server.modules.ai.service.search.vo.WebSearchResult;
+import com.admin.server.modules.ai.tool.impl.WebSearchTool;
 import com.admin.server.modules.system.service.permission.PermissionService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -15,6 +18,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -98,6 +102,52 @@ class AiToolExecutorTest {
 
         assertFalse(r.isDenied());
         assertTrue(r.getResult().contains("\"userId\":2"), "应使用会话 userId=2 而非模型传入的 999");
+    }
+
+    @Test
+    @DisplayName("联网工具门控与引用收集：未开启联网不暴露且拒调，开启后可执行并写入上下文引用")
+    void webSearchTool_respectsSessionToggleAndCollectsCitations() {
+        WebSearchService mockSearch = mock(WebSearchService.class);
+        when(mockSearch.isCapabilityEnabled()).thenReturn(true);
+        when(mockSearch.search("佛山 实时天气预报", 5, "week")).thenReturn(List.of(
+                WebSearchResult.builder()
+                        .title("中国天气网-佛山天气")
+                        .url("https://www.weather.com.cn/weather/101280800.shtml")
+                        .snippet("今日晴，20~27℃")
+                        .source("Tavily 检索")
+                        .build(),
+                WebSearchResult.builder()
+                        .title("Tavily 官方")
+                        .url("https://tavily.com/docs")
+                        .snippet("应过滤")
+                        .build()
+        ));
+
+        WebSearchTool webSearchTool = new WebSearchTool();
+        ReflectionTestUtils.setField(webSearchTool, "webSearchService", mockSearch);
+
+        AiToolExecutor extExecutor = new AiToolExecutor();
+        ReflectionTestUtils.setField(extExecutor, "tools", List.of(userTool, webSearchTool));
+        ReflectionTestUtils.setField(extExecutor, "permissionService", permissionService);
+        ReflectionTestUtils.setField(extExecutor, "toolTimeoutMs", 3000L);
+        extExecutor.init();
+
+        AiToolContext disabledCtx = new AiToolContext(NORMAL_USER, "bob", false);
+        assertFalse(extExecutor.buildToolSpecs(disabledCtx).contains("web_search"));
+        ToolInvocationResult deniedRes = extExecutor.invoke("web_search", "{\"query\":\"佛山天气\"}", disabledCtx);
+        assertTrue(deniedRes.isDenied());
+
+        AiToolContext enabledCtx = new AiToolContext(NORMAL_USER, "bob", true);
+        assertTrue(extExecutor.buildToolSpecs(enabledCtx).contains("web_search"));
+        ToolInvocationResult okRes = extExecutor.invoke(
+                "web_search",
+                "{\"query\":\"佛山 实时天气预报\",\"timeRange\":\"week\"}",
+                enabledCtx);
+        assertFalse(okRes.isDenied());
+        assertTrue(okRes.getResult().contains("中国天气网-佛山天气"));
+        assertEquals(1, enabledCtx.getCitationsSnapshot().size());
+        assertEquals("https://www.weather.com.cn/weather/101280800.shtml",
+                enabledCtx.getCitationsSnapshot().get(0).getUrl());
     }
 
     /** 测试桩工具 */

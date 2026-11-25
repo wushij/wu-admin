@@ -1,6 +1,6 @@
 ---
 name: senior-frontend
-description: 生产级前端工程实现方法论，涵盖目录分层与代码组织、布局工程、响应式实现、CSS 质量、交互状态、图标体系与视觉验收。用于新页面开发、设计稿或截图还原、页面重构与视觉优化、Responsive 调整、CSS 与布局问题排查、前端 Code Review。视觉方向与设计系统的定义请改用 ui-design。
+description: 生产级前端工程实现方法论，涵盖目录分层与代码组织、布局工程、响应式实现、CSS 质量、交互状态、动效工程实现、图标体系与视觉验收。用于新页面开发、设计稿或截图还原、页面重构与视觉优化、Responsive 调整、CSS 与布局问题排查、前端 Code Review。视觉方向与设计系统的定义请改用 ui-design。
 ---
 
 # Senior Frontend Engineering
@@ -304,7 +304,7 @@ AI 生成的前端代码常见问题：
 
 **如果项目已有 Spacing System：**
 ```
-4, 8, 12, 16, 20, 24, 32, 40, 48
+4, 8, 12, 16, 24, 32, 48（及可选扩展档位 20, 40）
 ```
 
 **必须复用它们。**
@@ -376,6 +376,10 @@ breakpoints: {
 ```
 Desktop Navigation → Compact Navigation → Mobile Navigation
 ```
+
+**移动端交互与安全区实现：**
+- 移动端的长内容抽屉、快捷菜单优先按 `ui-design` 第 13 节落地为 `Bottom Sheet` / `Action Sheet`（见第 9 节手势与滚动冲突规范）
+- 底部固定操作栏与浮层必须预留安全区：`padding-bottom: env(safe-area-inset-bottom)`
 
 **关键：**
 本规则负责技术实现，Responsive Information Strategy 由 ui-design 定义。
@@ -458,11 +462,38 @@ Click
   → Recover / Retry
 ```
 
+**危险/破坏性操作二次确认与撤销分级（Destructive Action Confirmation & Undo - 强制铁律）：**
+- **严禁单击直接删除或执行不可逆操作**：任何涉及**永久删除、批量删除、清空、作废、注销、停用、重置密码/数据**等高风险操作，绝不允许点击后直接调用 API 执行！
+- **轻量可逆操作 → 优先 `Snackbar` 撤销**：对于移至回收站、归档等可恢复操作，优先执行后展示带「撤销 / 重试」按钮的 `Snackbar`，避免频繁弹窗打断用户。
+- **高风险不可逆操作 → 必须 `Alert Dialog` 阻断确认**：
+  ```
+  Click Delete/Clear/Revoke
+    → 弹出 Alert Dialog（Modal.confirm / ElMessageBox.confirm / 自定义警告弹窗）
+    → 明确提示操作对象、具体后果与是否不可恢复（极高危可要求输入指定名称确认）
+    → 不可逆操作禁用点击遮罩层关闭（maskClosable / closeOnClickModal = false）
+    → 确认按钮使用明确后果动词（如「永久删除」）+ Danger 样式，点击后加 loading 防连点
+    → 用户点击「取消」则安全中止，不触发任何副作用
+  ```
+
+**7 种高频交互与移动端标准组件工程规范：**
+
+对应 `ui-design` 第 13 节组件选型词库，前端落地需遵守以下工程约束：
+
+| 标准组件 | 工程实现要点与避坑铁律 |
+| :--- | :--- |
+| **Alert Dialog（警告对话框）** | 不可逆操作禁用遮罩点击关闭（及防误触 Esc 退出）；确认按钮加 `loading` 状态防连点；支持输入指定文本二次校验；管理焦点陷阱（Focus Trap） |
+| **Bottom Sheet（底部面板）** | 支持 **Peek / Half / Full** 多档高度吸附（Snap Points）；**处理拖动手势与内部列表滚动冲突**（仅当内部滚动区 `scrollTop === 0` 且向下拖拽时触发面板下滑，配合 `overscroll-behavior: contain`）；底部适配 `env(safe-area-inset-bottom)` |
+| **Action Sheet（底部操作菜单）** | 贴近底部布局并适配安全区；危险项使用 Danger 语义 token；提供独立「取消」项与遮罩关闭；仅承载单手点选操作，不塞入复杂长表单 |
+| **Snackbar（底部操作反馈条）** | 区别于纯展示 `Toast`：正确处理**「撤销 / 重试」点击与自动关闭定时器的竞态**（点击撤销时立即清除定时器并执行补偿回滚或取消延迟请求）；移动端避开底部导航/安全区遮挡 |
+| **Tour（漫游式引导）** | 计算目标元素位置前先确保滚动进视口（`scrollIntoView`）并监听 `resize` / `scroll` 同步聚光灯坐标；**必须提供「跳过」按钮与 `Esc` 退出**；组件卸载或完成后销毁遮罩与事件监听 |
+| **Lightbox（图片灯箱）** | 打开时锁定背景页面滚动穿透（Scroll Lock）；支持左右滑动/按钮切换、双指缩放及双击放大；补充键盘方向键切换与 `Esc` 关闭；大图按需加载并展示占位态 |
+| **Inline Alert（行内提示）** | **严禁使用自动消失的 Toast 替代表单字段校验报错**；错误态在问题修复或输入变更前必须持续渲染；输入框绑定 `aria-invalid="true"` 与 `aria-describedby` 指向行内错误文案 |
+
 **不要为了形式主义给所有 components 添加所有状态。**
 
 根据实际业务需求确定。
 
-## 10. CSS 质量（CSS Quality）
+## 10. CSS 质量与形状/主题规范（CSS Quality, Shape & Theme）
 
 **禁止模式：**
 ```css
@@ -483,6 +514,14 @@ Click
 - 死 CSS
 - CSS 补丁堆叠
 
+**形状与圆角实现（推崇长圆胶囊边框，拒绝生硬直角）：**
+- 遵循 `ui-design` 第 10 节形状语言：按钮、标签（Tag/Badge）、筛选器（Filter Chip）、搜索框、状态药丸等可交互元素，优先使用**长圆边框（胶囊状 `border-radius: 9999px`）**；卡片、弹窗等容器使用温和中圆角（`12px-16px`）；内嵌块或表格容器使用小圆角（`6px-10px`）。
+- **严禁出现 `border-radius: 0` 的生硬直角组件**（除非项目既有 Design System 强制要求）。
+
+**主题与暗黑模式（Dark Mode）防硬编码：**
+- 当项目存在 CSS 变量或支持亮/暗主题切换（Dark Mode）时，组件内的 `background`、`color`、`border-color`、`box-shadow` **必须使用语义化 CSS 变量**（如 `var(--el-bg-color)`、`var(--color-text-primary)`）。
+- **严禁在组件局部样式中硬编码 `#fff`、`#ffffff`、`#000`、`#333` 等固定色值**，防止切换到暗黑模式时出现刺眼白块或文字隐形。
+
 **CSS 问题：优先修复结构。**
 
 仅在真正需要时使用局部补丁。
@@ -497,6 +536,7 @@ Click
 - 键盘导航
 - Focus 指示器
 - Disabled 状态
+- 动效降级（`@media (prefers-reduced-motion: reduce)`，见第 16 节）
 - ARIA 属性（需要时）
 
 **不要所有交互都用 `<div>` + click。**
@@ -544,6 +584,7 @@ Emoji 是文本字符而非图标：无法统一控制尺寸、颜色、线宽�
 - 不必要的 Watchers
 - 不必要的 Computed Properties
 - 不必要的重新渲染
+- 动效属性性能（优先使用 `transform` / `opacity` 合成层属性，禁止过渡/动画化 `width`、`height`、`top`、`left` 等触发重排的属性，见第 16 节）
 - Bundle Size
 - 大型依赖
 
@@ -624,25 +665,25 @@ composables/   stores/    utils/
 前端目录的核心是职责分层，每一层只能做自己那一层的事：
 
 ```
-views           路由级页面
-components      可复用 UI
-composables     Vue 可复用逻辑
-features        跨页面业务能力
-services        业务编排
-api             后端接口定义
-stores          跨页面全局状态
-types           数据类型
-core            基础设施（HTTP / SSE / storage）
-utils           纯工具函数
-constants       常量
+views / pages         路由级页面
+components            可复用 UI
+composables / hooks   可复用响应式逻辑（Vue 为 composables，React 为 hooks）
+features              跨页面业务能力
+services              业务编排
+api                   后端接口定义
+stores                跨页面全局状态
+types                 数据类型
+core                  基础设施（HTTP / SSE / storage）
+utils                 纯工具函数
+constants             常量
 ```
 
 **典型调用方向：**
 
 ```
-views
+views / pages
   ↓
-components / composables
+components / composables (hooks)
   ↓
 services
   ↓
@@ -655,11 +696,11 @@ Backend
 
 **关键约束：**
 
-- 只有完整路由页面放 `views`；页面内部复用的 UI 放 `components`
-- 无 Vue 响应式依赖的纯函数放 `utils`，不得放 `composables`
+- 只有完整路由页面放 `views`（或 `pages`）；页面内部复用的 UI 放 `components`
+- 无框架响应式依赖的纯函数放 `utils`，不得放 `composables` / `hooks`
 - `api` 只负责地址、方法、参数、返回值类型，不写业务编排、不操作 DOM、不管页面状态
 - `types` 统一收口数据结构，禁止在每个页面里重复声明大型 Interface
-- HTTP 实例只能在 `core/http` 维护一套，禁止在 `views` / `components` / `api` 重复创建
+- HTTP 实例只能在 `core/http`（或 `utils/request`）维护一套，禁止在 `views` / `components` / `api` 重复创建
 - 禁止 `views` 之间互相 import 复用 UI
 
 **不强制为形式而分层：** 简单 CRUD 允许 `views → api` 直连，不必为了"结构完整"凭空造一个没有业务逻辑的 service。
@@ -673,25 +714,25 @@ Backend
 + 全部 API 调用
 + 全部类型声明
 + 全部状态管理
-+ 数百行 scoped SCSS
++ 数百行 scoped SCSS / CSS
 ```
 
 **要求：**
 
 - 页面文件保持为路由壳，负责布局编排与子组件引用
 - 独立 UI 块进 `components`
-- 复用逻辑进 `composables`
+- 复用逻辑进 `composables`（或 `hooks`）
 - 接口进 `api`，类型进 `types`，样式 token 与公共样式进全局，不在页面内重复定义
 - 出现多分支业务编排时，下沉到 `services` 或 `features`
 
 **出现以下信号，必须按职责拆分，而不是继续往页面里加代码：**
 
 ```
-□ 单个 .vue 文件明显超出项目约定行数（无约定时，超过 500 行应先评估拆分）
+□ 单个 .vue / .tsx 文件明显超出项目约定行数（无约定时，超过 500 行应先评估拆分）
 □ 页面里出现第二个业务概念
 □ 页面里出现可被其他页面复用的 UI 或逻辑
 □ 同一段接口调用逻辑在页面内重复三次以上
-□ 巨型 data / ref 集合 + 巨型 methods 块同时存在
+□ 巨型状态集合（data / ref / useState）+ 巨型处理函数块同时存在
 ```
 
 **按职责拆分，而不是按"每个小块一个组件"拆：**
@@ -752,6 +793,57 @@ DOM 结构（标签层级、class 名、data-*、aria）
 □ 接口是否在 api，类型是否在 types，是否与页面内重复声明冲突
 □ 是否重复创建了第二个 HTTP 实例 / 第二套同名类型
 □ 拆分是否产生了无职责的 Wrapper 组件
+```
+
+## 16. 动效工程实现（Motion & Animation Engineering）
+
+**工程目标：精准还原 `ui-design`（第 17 节）定义的动效方案，同时保证 60fps 流畅度、零布局重排与完整无障碍降级。**
+
+### 一、三条工程铁律
+
+1. **控制时长与复用 Token**：
+   - 按钮、标签、切换开关等微交互严格控制在 **100~200ms**，优先复用项目既有动效变量或 `--duration-fast` / `--ease-out`。
+   - **禁止使用 `transition: all ...`**：必须显式声明过渡属性（如 `transition: transform 150ms cubic-bezier(0.16, 1, 0.3, 1), opacity 150ms ease`）。
+2. **仅动画化高性能合成层属性**：
+   - 位移、缩放、显隐必须通过 `transform` 和 `opacity` 实现。
+   - **严禁动画化触发布局重排（Reflow）的属性**（如 `width`、`height`、`top`、`left`、`margin`、`padding`、`font-size`）。
+   - `will-change` 仅用于明确存在高频交互的特定元素，禁止全局挂载。
+3. **强制尊重系统无障碍设置与设备能力**：
+   - 全局或组件级必须适配 `@media (prefers-reduced-motion: reduce)`：关闭装饰性循环动画、视差、错峰位移与持续滚动，改为直接切换或瞬间淡入。
+   - 指针悬停类特效（如 `Spotlight`）仅在 `@media (hover: hover) and (pointer: fine)` 下启用，触屏端自动跳过。
+   - 任何使用 `requestAnimationFrame`、`IntersectionObserver`、定时器的动效，**必须在组件卸载时清理注销**，防止内存泄漏。
+
+### 二、常见 UI 动效工程实现指南
+
+| 标准名称 | 推荐实现机制 | 关键工程约束与避坑点 |
+|------|------|------|
+| **Ease Out（缓动效果）** | CSS `cubic-bezier(0.16, 1, 0.3, 1)` 或框架等价曲线 | 进场减速柔和；离场/收起可将时长缩短 20%~30% |
+| **Spotlight（鼠标聚光灯）** | `pointermove` 更新局部 CSS 变量 `--x`/`--y`，驱动 `radial-gradient` 遮罩/背景层 | 仅更新 CSS 变量，不触发 DOM 重排；禁止挂在大型滚动列表每一项上 |
+| **Border Beam（边缘流光）** | 伪元素 + `conic-gradient` 旋转或 `offset-path` 沿边框路径移动 | 严禁同屏大面积卡片同时运行，避免 GPU 合成与重绘过载 |
+| **Scroll Reveal（滚动显示）** | `IntersectionObserver` 监听进入视口后切换入场类（`opacity` + `translateY`） | **禁止**监听高频率 `scroll` 手算位置；触发一次后即 `unobserve` |
+| **Stagger Animation（错峰动画）** | 通过 CSS 变量 `--stagger-index` 计算 `transition-delay` / `animation-delay` | 设置最大延迟封顶（如前 6~8 项递增），防止长列表末尾久等 |
+| **Scroll Storytelling（滚动叙事）** | `position: sticky` 吸顶容器 + 滚动进度（CSS Scroll-driven 或 `rAF` 映射进度）驱动图层 `transform`/`opacity` | 降级状态（小屏/关闭动效）下保证各章节文案仍顺序可读 |
+| **Parallax Scrolling（视差滚动）** | 基于滚动进度更新背景/装饰层的 `transform: translate3d(0, y, 0)` | 禁用修改 `background-position` 或 `top`；`reduced-motion` 下回归静态 |
+| **Shimmer（流光扫过）** | 伪元素高光层配合 `transform: translateX(-100% → 100%)` 动画 | 优于动画化 `background-position`，大幅减少重绘开销 |
+| **Count Up（数字递增）** | `requestAnimationFrame` 插值递增，到达目标值后立即停止 | 数值容器必须加 `font-variant-numeric: tabular-nums`（等宽数字），防止数字跳动导致宽度抖动 |
+| **Typewriter（打字机效果）** | 流式追加或步进切片渲染文本，光标闪烁仅使用 `opacity` 动画 | 屏幕阅读器区域合理使用 `aria-live`，卸载时清理定时器 |
+| **Text Scramble（文字解码）** | `rAF` 按步进替换字符并在目标文本处收敛锁定 | 为完整目标文本保留稳定 `aria-label`，避免读屏器连续播报乱码；严格用于极短标题 |
+| **Marquee（跑马灯）** | 双份无缝轨道配合 `@keyframes` 的 `transform: translateX(-50%)` 匀速循环 | **必须实现 `hover` 与 `focus-within` 暂停**（`animation-play-state: paused`）；副本轨道加 `aria-hidden="true"`；`reduced-motion` 下停止滚动 |
+
+### 三、标准 CSS 降级模板参考
+
+```css
+/* 全局尊重系统减少动态效果设置 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
 ```
 
 </Core_Rules>
@@ -833,11 +925,11 @@ DOM 结构（标签层级、class 名、data-*、aria）
 - **Responsive 稳定性** — 各视口下正常工作
 - **Component 架构合理性** — 高内聚低耦合
 - **目录与分层合规** — 无平铺目录、无单文件巨型页面、无重复职责文件（见第 15 节）
-- **Interaction State 完整性** — Loading/Empty/Error/Hover 已处理
-- **CSS 质量** — 无过度嵌套/!important/魔法数字
+- **Interaction State 完整性** — Loading/Empty/Error/Hover 已处理；表单校验使用常驻 `Inline Alert`；可逆操作支持 `Snackbar` 撤销；不可逆破坏性操作使用 `Alert Dialog` 阻断确认（禁用遮罩关闭、防连点）；移动端 `Bottom Sheet` / `Action Sheet` / `Lightbox` / `Tour` 无滚动冲突且适配安全区
+- **CSS 质量与形状/主题** — 无过度嵌套/!important/魔法数字；交互元素采用长圆胶囊边框、容器圆角，无生硬直角；暗黑模式下无硬编码颜色冲突
 - **图标实现** — 无 Emoji 充当 UI 图标，图标来自项目既有体系，尺寸/颜色/对齐统一
-- **Accessibility 充分性** — 语义 HTML/键盘导航/Focus
-- **Performance 关注点** — 无明显性能问题
+- **Accessibility 充分性** — 语义 HTML/键盘导航/Focus/尊重 `prefers-reduced-motion`
+- **Performance & Motion 合规** — 无明显性能问题；动效仅动画化 `transform` / `opacity`，微交互 100~200ms，无卸载内存泄漏，跑马灯支持悬停/聚焦暂停
 - **可维护性** — 代码清晰易维护
 - **溢出处理** — 无意外 overflow
 - **业务回归** — 未破坏现有功能
@@ -899,11 +991,13 @@ DOM 结构（标签层级、class 名、data-*、aria）
 
 ✅ **目录分层合规（Directory Layering Compliant）** — 无平铺目录、无所有代码堆在一个页面、无重复职责文件
 
-✅ **CSS 可维护（CSS Maintainable）** — 无过度嵌套、!important、魔法数字
+✅ **CSS 可维护且形状/主题合规（CSS, Shape & Theme Maintainable）** — 无过度嵌套、!important、魔法数字；遵循长圆胶囊边框与圆角体系（无生硬直角）；无破坏暗黑模式的硬编码色值
 
-✅ **无 Emoji 充当图标（No Emoji as Icon）** — 界面与用户可见文案中无 Emoji 图形，均使用项目图标体系或 SVG
+✅ **无 Emoji 充当图标（No Emoji as Icon）** — 界面按钮、菜单、标签、状态等 UI 元素中无 Emoji 充当图标或装饰图形，均使用项目图标体系或 SVG
 
-✅ **交互状态合理（Interaction State Reasonable）** — Loading/Empty/Error/Hover/Focus 已处理
+✅ **交互状态与危险确认完备（Interaction State & Destructive Confirm）** — Loading/Empty/Error/Hover/Focus 已处理；表单报错使用常驻 `Inline Alert`；不可逆危险操作通过 `Alert Dialog` 二次确认且禁用遮罩误关、绝不单击直删；移动端 `Bottom Sheet` / `Action Sheet` / `Lightbox` 等无滚动穿透或手势冲突且适配安全区
+
+✅ **动效性能与无障碍合规（Motion Performance & Reduced Motion）** — 动效仅使用 `transform` / `opacity` 合成层属性，微交互时长 100~200ms，支持 `@media (prefers-reduced-motion: reduce)` 降级，`Marquee` 支持悬停/聚焦暂停，组件卸载已清理 Observer/rAF
 
 ✅ **无 P0 问题（No P0 Issues）** — 无关键阻塞
 
@@ -1032,7 +1126,7 @@ senior-frontend（必需）→ 工程实现、质量、验证
 
 ## 适用边界
 
-**本 Skill 覆盖：** 布局工程、响应式实现、CSS 质量、组件拆分、交互状态、图标体系落地、视觉验收。
+**本 Skill 覆盖：** 布局工程、响应式实现、CSS 质量、组件拆分、交互状态、动效工程实现（性能与无障碍降级）、图标体系落地、视觉验收。
 
 **本 Skill 不覆盖：** 视觉方向与设计系统定义（使用 `ui-design`）、后端业务实现（使用 `backend-development`）、数据库设计（使用 `mysql-design`）。
 

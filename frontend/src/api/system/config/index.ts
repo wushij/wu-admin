@@ -1,6 +1,13 @@
 import { get, put, post, del } from '@/utils/request'
 import type { AxiosRequestConfig } from 'axios'
-import type { PayOrderRecord, SmsLogRecord, EmailLogRecord } from '@/types/config'
+import type {
+  PayOrderRecord,
+  SmsLogRecord,
+  EmailLogRecord,
+  CustomWebSearchEngine,
+  TavilyUsageVO,
+  WebSearchTestResultVO,
+} from '@/types/config'
 
 export interface ConfigGroup {
   groupCode: string
@@ -120,5 +127,13 @@ export function deleteBatchEmailLogs(ids: (number | string)[]) {
 
 export function cleanEmailLogs() {
   return del<boolean>('/system/config-group/email-logs/clean')
+}
+
+export function queryTavilyUsage(apiKey?: string) {
+  return post<TavilyUsageVO>('/system/config-group/web-search/tavily-usage', { apiKey: apiKey || '' })
+}
+
+export function testCustomWebSearchEngine(engine: CustomWebSearchEngine, query?: string) {
+  return post<WebSearchTestResultVO>('/system/config-group/web-search/test-custom', { engine, query })
 }
 

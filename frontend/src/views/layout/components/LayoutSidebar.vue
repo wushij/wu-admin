@@ -1,8 +1,8 @@
 <template>
-  <div class="sidebar" :class="{ 'is-collapse': isCollapse }">
+  <aside id="tour-sidebar" class="sidebar" :class="{ 'is-collapse': isCollapse }">
     <div class="logo">
-      <div class="logo-icon">
-        <el-icon :size="28"><component :is="ElementPlusIconsVue.Management" /></el-icon>
+      <div class="logo-icon" aria-hidden="true">
+        <BrandLogo :size="36" :label="sitePlatformName" />
       </div>
       <div v-show="!isCollapse" class="logo-text">
         <span class="logo-title">{{ sitePlatformName }}</span>
@@ -15,14 +15,12 @@
         :default-active="activeMenu"
         class="sidebar-menu"
         :collapse="isCollapse"
-        :collapse-transition="true"
+        :collapse-transition="false"
         router
         @select="(index: string) => $emit('menuSelect', index)"
       >
-        <el-menu-item index="/dashboard" class="menu-item-dashboard">
-          <span class="dashboard-menu-icon">
-            <el-icon><component :is="ElementPlusIconsVue.ElementPlus" /></el-icon>
-          </span>
+        <el-menu-item index="/dashboard" class="menu-item menu-item-dashboard">
+          <el-icon><component :is="ElementPlusIconsVue.DataAnalysis" /></el-icon>
           <template #title><span>工作台</span></template>
         </el-menu-item>
 
@@ -57,13 +55,14 @@
         </template>
       </el-menu>
     </div>
-  </div>
+  </aside>
 </template>
 
 <script setup lang="ts">
 import * as ElementPlusIconsVue from '@element-plus/icons-vue'
 import type { Component } from 'vue'
 import type { MenuNode } from '@/utils/menu-tree'
+import BrandLogo from '@/components/BrandLogo.vue'
 
 defineProps<{
   isCollapse: boolean

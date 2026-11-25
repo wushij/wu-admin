@@ -5,12 +5,14 @@ import type { SliderVerifyPayload } from '@/utils/security/slider-captcha'
 import { navigateToLogin } from '@/utils/nav/auth-route'
 import { logger } from '@/core/logger'
 import { encryptSm2 } from '@/utils/security/crypto'
+import { showAuthToast } from '@/composables/auth/useAuthToast'
 
 type ForgotStep = 1 | 2 | 3
 
 export function useForgotPasswordForm() {
   const step = ref<ForgotStep>(1)
   const loading = ref(false)
+  const resetSuccess = ref(false)
   const sendingSms = ref(false)
   const smsCountdown = ref(0)
   const showSlider = ref(false)
@@ -25,6 +27,7 @@ export function useForgotPasswordForm() {
   })
 
   let smsTimer: ReturnType<typeof setInterval> | null = null
+  let redirectTimer: ReturnType<typeof setTimeout> | null = null
 
   async function loadConfig() {
     try {
@@ -37,15 +40,15 @@ export function useForgotPasswordForm() {
 
   function validatePwd(newPassword: string, confirmPassword: string) {
     if (!newPassword || !confirmPassword) {
-      uni.showToast({ title: '请填写完整', icon: 'none' })
+      showAuthToast('请填写完整', 'warning')
       return false
     }
     if (newPassword !== confirmPassword) {
-      uni.showToast({ title: '两次密码不一致', icon: 'none' })
+      showAuthToast('两次密码不一致', 'warning')
       return false
     }
     if (newPassword.length < minPwdLen.value) {
-      uni.showToast({ title: `密码至少 ${minPwdLen.value} 位`, icon: 'none' })
+      showAuthToast(`密码至少 ${minPwdLen.value} 位`, 'warning')
       return false
     }
     return true
@@ -54,7 +57,7 @@ export function useForgotPasswordForm() {
   async function submitUsername() {
     const username = form.username.trim()
     if (!username) {
-      uni.showToast({ title: '请输入用户名', icon: 'none' })
+      showAuthToast('请输入用户名', 'warning')
       return
     }
     loading.value = true
@@ -86,7 +89,7 @@ export function useForgotPasswordForm() {
     sendingSms.value = true
     try {
       await sendForgotPasswordSmsCode(form.username.trim(), slider)
-      uni.showToast({ title: '验证码已发送', icon: 'success' })
+      showAuthToast('验证码已发送', 'success')
       startSmsCountdown()
     } catch (e) {
       logger.error(e)
@@ -105,13 +108,14 @@ export function useForgotPasswordForm() {
 
   function submitSmsStep() {
     if (!form.smsCode.trim()) {
-      uni.showToast({ title: '请输入验证码', icon: 'none' })
+      showAuthToast('请输入验证码', 'warning')
       return
     }
     step.value = 3
   }
 
   async function submitReset() {
+    if (loading.value || resetSuccess.value) return
     if (!validatePwd(form.newPassword, form.confirmPassword)) return
     loading.value = true
     try {
@@ -122,8 +126,12 @@ export function useForgotPasswordForm() {
         newPassword: encryptSm2(form.newPassword),
         confirmPassword: encryptSm2(form.confirmPassword),
       })
-      uni.showToast({ title: '密码已重置', icon: 'success' })
-      setTimeout(() => navigateToLogin(), 600)
+      resetSuccess.value = true
+      showAuthToast('密码已重置', 'success')
+      redirectTimer = setTimeout(() => {
+        redirectTimer = null
+        navigateToLogin()
+      }, 780)
     } catch (e) {
       logger.error(e)
     } finally {
@@ -151,11 +159,13 @@ export function useForgotPasswordForm() {
 
   onUnmounted(() => {
     if (smsTimer) clearInterval(smsTimer)
+    if (redirectTimer) clearTimeout(redirectTimer)
   })
 
   return {
     step,
     loading,
+    resetSuccess,
     sendingSms,
     smsCountdown,
     showSlider,

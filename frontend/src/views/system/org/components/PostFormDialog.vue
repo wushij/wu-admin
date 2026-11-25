@@ -14,10 +14,10 @@
         />
       </el-form-item>
       <el-form-item label="岗位编码" prop="postCode">
-        <el-input v-model="form.postCode" :disabled="!!form.id" />
+        <el-input v-model="form.postCode" :disabled="!!form.id" placeholder="请输入岗位编码" />
       </el-form-item>
       <el-form-item label="岗位名称" prop="postName">
-        <el-input v-model="form.postName" />
+        <el-input v-model="form.postName" placeholder="请输入岗位名称" />
       </el-form-item>
       <el-form-item label="排序">
         <el-input-number v-model="form.sort" :min="0" style="width: 100%" />
@@ -26,7 +26,7 @@
         <el-switch v-model="form.status" :active-value="1" :inactive-value="0" />
       </el-form-item>
       <el-form-item label="备注">
-        <el-input v-model="form.remark" type="textarea" :rows="2" />
+        <el-input v-model="form.remark" type="textarea" :rows="2" placeholder="请输入备注" />
       </el-form-item>
     </el-form>
     <template #footer>

@@ -1,10 +1,11 @@
 import { ref, reactive, computed, onMounted, nextTick } from 'vue'
-import { ElMessage, ElMessageBox, type FormInstance, type TableInstance } from 'element-plus'
+import { ElMessage, type FormInstance, type TableInstance } from 'element-plus'
 import {
   getMenuList,
   createMenu,
   updateMenu,
   deleteMenu,
+  restoreMenu,
   updateMenuStatus,
   type MenuVO,
   type MenuSaveDTO,
@@ -18,6 +19,8 @@ import {
   isExternalMenuComponent,
 } from '@/utils/menu-tree'
 import { useUserStore } from '@/store/user'
+import { openAlertDialog } from '@/composables/ui/useAlertDialog'
+import { showSnackbar } from '@/composables/ui/useSnackbar'
 
 export function useMenuPage() {
   const userStore = useUserStore()
@@ -135,29 +138,61 @@ export function useMenuPage() {
     }
   }
 
+  /** 菜单软删除进回收站：提供 Snackbar 一键撤销 */
   const handleDelete = async (row: MenuVO) => {
-    await ElMessageBox.confirm(`确定删除菜单「${row.name}」吗？`, '提示', { type: 'warning' })
     await deleteMenu(row.id)
-    ElMessage.success('删除成功')
-    getList()
+    await getList()
+    showSnackbar({
+      message: `已将菜单「${row.name}」移至回收站`,
+      variant: 'info',
+      actionLabel: '撤销',
+      onAction: async () => {
+        await restoreMenu(row.id)
+        ElMessage.success(`已恢复菜单「${row.name}」`)
+        await getList()
+      },
+    })
   }
 
   const handleStatusChange = async (row: MenuVO) => {
-    const text = row.status === 1 ? '启用' : '禁用'
+    const nextStatus = row.status
+    const prevStatus = nextStatus === 1 ? 0 : 1
+    const text = nextStatus === 1 ? '启用' : '禁用'
+    if (nextStatus === 0) {
+      const ok = await openAlertDialog({
+        title: '禁用菜单项',
+        targetName: row.name,
+        message: '禁用后该菜单及其路由权限将被收敛，相关用户将无法访问对应功能。',
+        severity: 'warning',
+        confirmText: '确认禁用',
+        onConfirm: async () => {
+          if (row.id == null || nextStatus == null) return
+          await updateMenuStatus(row.id, nextStatus)
+          await getList()
+          await userStore.refreshUserStore().catch(() => {})
+        },
+      })
+      if (!ok) row.status = prevStatus
+      else ElMessage.success(`${text}成功`)
+      return
+    }
     try {
-      await ElMessageBox.confirm(`确认要${text}菜单「${row.name}」吗？`, '提示', { type: 'warning' })
-      if (row.id == null || row.status == null) return
-      await updateMenuStatus(row.id, row.status)
-      ElMessage.success(`${text}成功`)
+      if (row.id == null || nextStatus == null) return
+      await updateMenuStatus(row.id, nextStatus)
       await getList()
-      // 当前登录用户若也受该菜单影响，立即刷新权限/菜单树，保证工作台入口与直链访问同步收敛
-      try {
-        await userStore.refreshUserStore()
-      } catch {
-        /* ignore */
-      }
+      await userStore.refreshUserStore().catch(() => {})
+      showSnackbar({
+        message: `已启用菜单「${row.name}」`,
+        variant: 'success',
+        actionLabel: '撤销',
+        onAction: async () => {
+          await updateMenuStatus(row.id, prevStatus)
+          await getList()
+          await userStore.refreshUserStore().catch(() => {})
+        },
+      })
     } catch {
-      row.status = row.status === 1 ? 0 : 1
+      row.status = prevStatus
     }
   }
 
@@ -217,11 +252,7 @@ export function useMenuPage() {
         }
         dialogVisible.value = false
         getList()
-        try {
-          await userStore.refreshUserStore()
-        } catch {
-          /* ignore */
-        }
+        await userStore.refreshUserStore().catch(() => {})
       } finally {
         submitLoading.value = false
       }

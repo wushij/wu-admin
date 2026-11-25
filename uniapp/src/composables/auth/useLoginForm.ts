@@ -15,6 +15,7 @@ import { toCaptchaDataUrl } from '@/utils/security/captcha'
 import { navigateToRegister } from '@/utils/nav/auth-route'
 import { logger } from '@/core/logger'
 import { encryptSm2 } from '@/utils/security/crypto'
+import { showAuthToast } from '@/composables/auth/useAuthToast'
 
 type CaptchaMode = 'image' | 'slider'
 type LoginMode = 'account' | 'sms' | 'email'
@@ -44,12 +45,14 @@ export function useLoginForm() {
   const passwordFieldKey = ref(0)
 
   const loading = ref(false)
+  const loginSuccess = ref(false)
   const sendingSms = ref(false)
   const sendingEmail = ref(false)
   const smsCountdown = ref(0)
   const emailCountdown = ref(0)
   let smsTimer: ReturnType<typeof setInterval> | null = null
   let emailTimer: ReturnType<typeof setInterval> | null = null
+  let redirectTimer: ReturnType<typeof setTimeout> | null = null
 
   const formData = reactive({
     username: '',
@@ -166,21 +169,21 @@ export function useLoginForm() {
     if (sendingSms.value || smsCountdown.value > 0) return
     const phone = formData.phone.trim()
     if (!phone) {
-      uni.showToast({ title: '请输入手机号', icon: 'none' })
+      showAuthToast('请输入手机号', 'warning')
       return
     }
     if (!/^1[3-9]\d{9}$/.test(phone)) {
-      uni.showToast({ title: '请输入正确的手机号', icon: 'none' })
+      showAuthToast('请输入正确的手机号', 'warning')
       return
     }
     if (!smsEnabled.value) {
-      uni.showToast({ title: '短信功能未启用', icon: 'none' })
+      showAuthToast('短信功能未启用', 'warning')
       return
     }
     sendingSms.value = true
     try {
       await sendSmsCode(formData.phone, slider)
-      uni.showToast({ title: '验证码已发送', icon: 'success' })
+      showAuthToast('验证码已发送', 'success')
       smsCountdown.value = 60
       smsTimer = setInterval(() => {
         smsCountdown.value -= 1
@@ -199,15 +202,15 @@ export function useLoginForm() {
   async function handleSendSms() {
     const phone = formData.phone.trim()
     if (!phone) {
-      uni.showToast({ title: '请输入手机号', icon: 'none' })
+      showAuthToast('请输入手机号', 'warning')
       return
     }
     if (!/^1[3-9]\d{9}$/.test(phone)) {
-      uni.showToast({ title: '请输入正确的手机号', icon: 'none' })
+      showAuthToast('请输入正确的手机号', 'warning')
       return
     }
     if (!smsEnabled.value) {
-      uni.showToast({ title: '短信功能未启用', icon: 'none' })
+      showAuthToast('短信功能未启用', 'warning')
       return
     }
     if (smsLoginSliderCaptchaEnabled.value) {
@@ -221,21 +224,21 @@ export function useLoginForm() {
     if (sendingEmail.value || emailCountdown.value > 0) return
     const email = formData.email.trim()
     if (!email) {
-      uni.showToast({ title: '请输入邮箱地址', icon: 'none' })
+      showAuthToast('请输入邮箱地址', 'warning')
       return
     }
     if (!/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(email)) {
-      uni.showToast({ title: '请输入正确的邮箱地址', icon: 'none' })
+      showAuthToast('请输入正确的邮箱地址', 'warning')
       return
     }
     if (!emailEnabled.value) {
-      uni.showToast({ title: '邮件功能未启用', icon: 'none' })
+      showAuthToast('邮件功能未启用', 'warning')
       return
     }
     sendingEmail.value = true
     try {
       await sendEmailCode(formData.email, slider)
-      uni.showToast({ title: '验证码已发送', icon: 'success' })
+      showAuthToast('验证码已发送', 'success')
       emailCountdown.value = 60
       emailTimer = setInterval(() => {
         emailCountdown.value -= 1
@@ -254,15 +257,15 @@ export function useLoginForm() {
   async function handleSendEmail() {
     const email = formData.email.trim()
     if (!email) {
-      uni.showToast({ title: '请输入邮箱地址', icon: 'none' })
+      showAuthToast('请输入邮箱地址', 'warning')
       return
     }
     if (!/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(email)) {
-      uni.showToast({ title: '请输入正确的邮箱地址', icon: 'none' })
+      showAuthToast('请输入正确的邮箱地址', 'warning')
       return
     }
     if (!emailEnabled.value) {
-      uni.showToast({ title: '邮件功能未启用', icon: 'none' })
+      showAuthToast('邮件功能未启用', 'warning')
       return
     }
     if (emailLoginSliderCaptchaEnabled.value) {
@@ -275,37 +278,37 @@ export function useLoginForm() {
   function validateForm(): boolean {
     if (loginMode.value === 'account') {
       if (!formData.username.trim()) {
-        uni.showToast({ title: '请输入用户名', icon: 'none' })
+        showAuthToast('请输入用户名', 'warning')
         return false
       }
       if (!formData.password) {
-        uni.showToast({ title: '请输入密码', icon: 'none' })
+        showAuthToast('请输入密码', 'warning')
         return false
       }
     } else if (loginMode.value === 'sms') {
       if (!formData.phone.trim()) {
-        uni.showToast({ title: '请输入手机号', icon: 'none' })
+        showAuthToast('请输入手机号', 'warning')
         return false
       }
       if (!/^1[3-9]\d{9}$/.test(formData.phone.trim())) {
-        uni.showToast({ title: '请输入正确的手机号', icon: 'none' })
+        showAuthToast('请输入正确的手机号', 'warning')
         return false
       }
       if (!formData.code.trim()) {
-        uni.showToast({ title: '请输入短信验证码', icon: 'none' })
+        showAuthToast('请输入短信验证码', 'warning')
         return false
       }
     } else if (loginMode.value === 'email') {
       if (!formData.email.trim()) {
-        uni.showToast({ title: '请输入邮箱地址', icon: 'none' })
+        showAuthToast('请输入邮箱地址', 'warning')
         return false
       }
       if (!/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(formData.email.trim())) {
-        uni.showToast({ title: '请输入正确的邮箱地址', icon: 'none' })
+        showAuthToast('请输入正确的邮箱地址', 'warning')
         return false
       }
       if (!formData.code.trim()) {
-        uni.showToast({ title: '请输入邮箱验证码', icon: 'none' })
+        showAuthToast('请输入邮箱验证码', 'warning')
         return false
       }
     }
@@ -313,6 +316,7 @@ export function useLoginForm() {
   }
 
   async function submitLogin(sliderCaptcha?: { uuid: string; code: string }) {
+    if (loading.value || loginSuccess.value) return
     if (!validateForm()) return
     loading.value = true
     try {
@@ -347,10 +351,13 @@ export function useLoginForm() {
       await userStore.getUserInfo()
       startSessionServices()
       persistRemember()
-      uni.showToast({ title: '登录成功', icon: 'success' })
-      setTimeout(() => {
+      // 与 PC 端对齐：进入成功对勾缩圆动画并展示顶部毛玻璃提示，预留足够时长看清收拢与打勾后再跳转
+      loginSuccess.value = true
+      showAuthToast('登录成功', 'success')
+      redirectTimer = setTimeout(() => {
+        redirectTimer = null
         uni.switchTab({ url: '/pages/index/index' })
-      }, 300)
+      }, 780)
     } catch (e) {
       logger.error(e)
       if (captchaEnabled.value && captchaType.value === 'image') {
@@ -362,6 +369,7 @@ export function useLoginForm() {
   }
 
   async function handleSubmit() {
+    if (loading.value || loginSuccess.value) return
     if (loginMode.value === 'account' && captchaEnabled.value && captchaType.value === 'slider') {
       openSlider('login')
       return
@@ -380,6 +388,7 @@ export function useLoginForm() {
   onUnmounted(() => {
     if (smsTimer) clearInterval(smsTimer)
     if (emailTimer) clearInterval(emailTimer)
+    if (redirectTimer) clearTimeout(redirectTimer)
   })
 
   return {
@@ -397,6 +406,7 @@ export function useLoginForm() {
     formData,
     passwordFieldKey,
     loading,
+    loginSuccess,
     sendingSms,
     sendingEmail,
     smsCountdown,

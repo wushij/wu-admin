@@ -173,4 +173,23 @@
     border-top: 2rpx solid #e2e8f0;
     margin: 16rpx 0;
   }
+
+  /* KaTeX 数学公式适配移动端排版 */
+  .katex {
+    font-size: 1.02em;
+    line-height: 1.45;
+  }
+
+  .katex-block-wrapper {
+    margin: 14rpx 0;
+    padding: 8rpx 4rpx;
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    text-align: center;
+
+    .katex-display {
+      margin: 0;
+    }
+  }
 }

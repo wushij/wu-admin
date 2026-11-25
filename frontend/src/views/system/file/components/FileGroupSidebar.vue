@@ -111,26 +111,34 @@ defineEmits<{
 
 .type-tab {
   flex: 1;
-  padding: 4px 0;
+  padding: 5px 4px;
   text-align: center;
   cursor: pointer;
   font-size: 12px;
+  font-weight: 500;
   white-space: nowrap;
-  color: var(--el-text-color-secondary);
-  border-radius: var(--admin-radius-md, 8px);
-  transition: all 0.2s;
+  color: var(--color-text-secondary);
+  border: 1.5px solid transparent;
+  border-radius: var(--radius-pill);
+  transition:
+    background-color var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out);
 
-  &:hover {
-    color: var(--el-color-primary);
-    background: var(--el-fill-color-light);
+  &:hover:not(.active) {
+    color: var(--capsule-pearl-ice-text);
+    background: var(--color-bg-hover);
   }
 
   &.active {
-    color: #fff;
-    font-weight: 500;
-    background: var(--el-color-primary);
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
-    border-radius: var(--admin-radius-md, 8px);
+    color: var(--capsule-pearl-ice-text);
+    font-weight: 600;
+    background: var(--capsule-pearl-ice-bg);
+    border-color: var(--capsule-pearl-ice-border);
+    box-shadow: var(--capsule-pearl-ice-shadow);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
   }
 }
 

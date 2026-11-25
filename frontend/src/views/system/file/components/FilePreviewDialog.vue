@@ -50,7 +50,11 @@
         allowfullscreen
       />
       <div v-else class="preview-other">
-        <el-icon :size="64"><Document /></el-icon>
+        <FileTypeIcon
+          :file-name="file?.originalName"
+          :file-type="file?.fileSuffix || file?.fileType"
+          size="lg"
+        />
         <p>{{ file?.originalName }}</p>
         <p class="preview-tip">该文件类型暂不支持预览</p>
         <el-button v-if="file" type="primary" @click="$emit('download', file)">下载文件</el-button>
@@ -60,7 +64,8 @@
 </template>
 
 <script setup lang="ts">
-import { Document, Loading } from '@element-plus/icons-vue'
+import { Loading } from '@element-plus/icons-vue'
+import FileTypeIcon from '@/components/ui/FileTypeIcon.vue'
 import type { FileRecord } from '@/api/system/file'
 
 defineProps<{

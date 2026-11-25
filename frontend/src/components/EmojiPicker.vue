@@ -1,9 +1,13 @@
 <template>
   <el-popover placement="top-start" :width="340" trigger="click" popper-class="emoji-popover">
     <template #reference>
-      <el-button link class="toolbar-btn" title="表情">
-        <ChatToolbarIcons name="emoji" />
-      </el-button>
+      <span class="toolbar-btn-ref">
+        <el-tooltip content="表情" placement="top" :show-after="1000">
+          <el-button link class="toolbar-btn" aria-label="表情">
+            <ChatToolbarIcons name="emoji" />
+          </el-button>
+        </el-tooltip>
+      </span>
     </template>
     <div class="emoji-panel">
       <div class="emoji-tabs">
@@ -51,6 +55,11 @@ function pick(emoji: string) {
 </script>
 
 <style scoped>
+.toolbar-btn-ref {
+  display: inline-flex;
+  align-items: center;
+}
+
 .emoji-panel {
   user-select: none;
 }
@@ -69,19 +78,19 @@ function pick(emoji: string) {
   background: transparent;
   padding: 4px 0;
   font-size: 12px;
-  color: #606266;
+  color: var(--color-text-secondary);
   cursor: pointer;
   border-radius: 4px;
 }
 
 .emoji-tab:hover {
-  background: #f5f5f5;
+  background: var(--color-bg-hover);
 }
 
 .emoji-tab.active {
-  color: var(--theme-primary, #111827);
+  color: var(--el-color-primary);
   font-weight: 600;
-  background: #f0f0f0;
+  background: var(--color-bg-subtle);
 }
 
 .emoji-grid {
@@ -104,6 +113,6 @@ function pick(emoji: string) {
 }
 
 .emoji:hover {
-  background: #f0f0f0;
+  background: var(--color-bg-hover);
 }
 </style>

@@ -1,0 +1,412 @@
+/**
+ * 全局设计令牌（Design Tokens）
+ * 严格遵循 ui-design 与 senior-frontend 规范：
+ * 1. 语义化亮 / 暗双主题变量映射，禁止硬编码黑白灰
+ * 2. 统一排版字阶、4px 基准间距体系、图标尺寸档位
+ * 3. 长圆胶囊边框（交互件）+ 温和圆角容器，严禁 0px 生硬直角
+ * 4. 动效时长与缓动令牌
+ */
+
+:root {
+  color-scheme: light;
+
+  /* ── 排版字阶与行高 ───────────────────────────────────── */
+  --font-sans: 'Inter', 'PingFang SC', 'Microsoft YaHei', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', Consolas, Monaco, monospace;
+
+  --text-display: 32px;
+  --text-h1: 24px;
+  --text-h2: 20px;
+  --text-h3: 16px;
+  --text-body: 14px;
+  --text-caption: 12px;
+
+  --leading-display: 1.2;
+  --leading-h1: 1.3;
+  --leading-h2: 1.4;
+  --leading-h3: 1.5;
+  --leading-body: 1.55;
+  --leading-caption: 1.45;
+
+  /* ── 间距体系（4px 倍数基准） ─────────────────────────── */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --admin-page-gap: 16px;
+
+  /* ── 形状语言与圆角尺度（严禁 0px 直角） ──────────────── */
+  --radius-sm: 8px;        /* 小圆角：多行文本域、代码块、表格容器、紧凑内嵌块 */
+  --radius-md: 12px;       /* 中圆角：常规表单输入框、下拉面板、抽屉卡片 */
+  --radius-lg: 16px;       /* 大圆角：卡片、弹窗、浮层面板 */
+  --radius-xl: 20px;       /* 超大容器：工作台横幅、登录展板 */
+  --radius-pill: 9999px;   /* 长圆胶囊：按钮、标签、筛选胶囊、搜索框、页码、分段器 */
+  --radius-circle: 50%;    /* 圆形：头像、纯图标圆钮、状态点 */
+
+  /* 兼容旧变量别名 */
+  --admin-radius-sm: var(--radius-sm);
+  --admin-radius-md: var(--radius-md);
+  --admin-radius-lg: var(--radius-lg);
+
+  /* ── 图标尺寸档位 ─────────────────────────────────────── */
+  --icon-sm: 16px;
+  --icon-md: 20px;
+  --icon-lg: 24px;
+
+  /* ── 全局高定珠光胶囊按钮令牌（复刻 EduMind 双色珠光胶囊） ── */
+  --capsule-pearl-primary-bg: linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(238, 242, 255, 0.96) 52%, rgba(243, 232, 255, 0.96) 100%);
+  --capsule-pearl-primary-bg-hover: linear-gradient(135deg, #ffffff 0%, #e0e7ff 52%, #ede9fe 100%);
+  --capsule-pearl-primary-border: rgba(99, 102, 241, 0.42);
+  --capsule-pearl-primary-border-hover: #6366f1;
+  --capsule-pearl-primary-text: #4338ca;
+  --capsule-pearl-primary-text-hover: #3730a3;
+  --capsule-pearl-primary-shadow: 0 4px 14px rgba(99, 102, 241, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.95);
+  --capsule-pearl-primary-shadow-hover: 0 6px 18px rgba(99, 102, 241, 0.26), inset 0 1px 0 #ffffff;
+
+  --capsule-pearl-ice-bg: linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(240, 249, 255, 0.96) 55%, rgba(236, 253, 245, 0.96) 100%);
+  --capsule-pearl-ice-bg-hover: linear-gradient(135deg, #ffffff 0%, #e0f2fe 55%, #d1fae5 100%);
+  --capsule-pearl-ice-border: rgba(14, 165, 233, 0.42);
+  --capsule-pearl-ice-border-hover: #0ea5e9;
+  --capsule-pearl-ice-text: #0369a1;
+  --capsule-pearl-ice-text-hover: #0284c7;
+  --capsule-pearl-ice-shadow: 0 4px 14px rgba(14, 165, 233, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.95);
+  --capsule-pearl-ice-shadow-hover: 0 6px 18px rgba(14, 165, 233, 0.24), inset 0 1px 0 #ffffff;
+
+  --capsule-pearl-success-bg: linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(236, 253, 245, 0.96) 55%, rgba(209, 250, 229, 0.96) 100%);
+  --capsule-pearl-success-bg-hover: linear-gradient(135deg, #ffffff 0%, #d1fae5 55%, #a7f3d0 100%);
+  --capsule-pearl-success-border: rgba(16, 185, 129, 0.42);
+  --capsule-pearl-success-border-hover: #10b981;
+  --capsule-pearl-success-text: #047857;
+  --capsule-pearl-success-text-hover: #065f46;
+  --capsule-pearl-success-shadow: 0 4px 12px rgba(16, 185, 129, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.95);
+  --capsule-pearl-success-shadow-hover: 0 6px 16px rgba(16, 185, 129, 0.24), inset 0 1px 0 #ffffff;
+
+  --capsule-pearl-warning-bg: linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(255, 251, 235, 0.96) 55%, rgba(254, 243, 199, 0.96) 100%);
+  --capsule-pearl-warning-bg-hover: linear-gradient(135deg, #ffffff 0%, #fef3c7 55%, #fde68a 100%);
+  --capsule-pearl-warning-border: rgba(245, 158, 11, 0.44);
+  --capsule-pearl-warning-border-hover: #f59e0b;
+  --capsule-pearl-warning-text: #b45309;
+  --capsule-pearl-warning-text-hover: #92400e;
+  --capsule-pearl-warning-shadow: 0 4px 12px rgba(245, 158, 11, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.95);
+  --capsule-pearl-warning-shadow-hover: 0 6px 16px rgba(245, 158, 11, 0.24), inset 0 1px 0 #ffffff;
+
+  --capsule-pearl-danger-bg: linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(254, 242, 242, 0.96) 55%, rgba(254, 226, 226, 0.96) 100%);
+  --capsule-pearl-danger-bg-hover: linear-gradient(135deg, #ffffff 0%, #fee2e2 55%, #fecaca 100%);
+  --capsule-pearl-danger-border: rgba(239, 68, 68, 0.42);
+  --capsule-pearl-danger-border-hover: #ef4444;
+  --capsule-pearl-danger-text: #dc2626;
+  --capsule-pearl-danger-text-hover: #b91c1c;
+  --capsule-pearl-danger-shadow: 0 4px 12px rgba(239, 68, 68, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.95);
+  --capsule-pearl-danger-shadow-hover: 0 6px 16px rgba(239, 68, 68, 0.24), inset 0 1px 0 #ffffff;
+
+  --capsule-pearl-teal-bg: linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(240, 253, 250, 0.96) 55%, rgba(204, 251, 241, 0.96) 100%);
+  --capsule-pearl-teal-bg-hover: linear-gradient(135deg, #ffffff 0%, #ccfbf1 55%, #99f6e4 100%);
+  --capsule-pearl-teal-border: rgba(20, 184, 166, 0.44);
+  --capsule-pearl-teal-border-hover: #14b8a6;
+  --capsule-pearl-teal-text: #0f766e;
+  --capsule-pearl-teal-text-hover: #115e59;
+  --capsule-pearl-teal-shadow: 0 4px 12px rgba(20, 184, 166, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.95);
+  --capsule-pearl-teal-shadow-hover: 0 6px 16px rgba(20, 184, 166, 0.24), inset 0 1px 0 #ffffff;
+
+  --capsule-pearl-plum-bg: linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(253, 242, 248, 0.96) 55%, rgba(252, 231, 243, 0.96) 100%);
+  --capsule-pearl-plum-bg-hover: linear-gradient(135deg, #ffffff 0%, #fce7f3 55%, #fbcfe8 100%);
+  --capsule-pearl-plum-border: rgba(236, 72, 153, 0.4);
+  --capsule-pearl-plum-border-hover: #ec4899;
+  --capsule-pearl-plum-text: #be185d;
+  --capsule-pearl-plum-text-hover: #9d174d;
+  --capsule-pearl-plum-shadow: 0 4px 12px rgba(236, 72, 153, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.95);
+  --capsule-pearl-plum-shadow-hover: 0 6px 16px rgba(236, 72, 153, 0.24), inset 0 1px 0 #ffffff;
+
+  --capsule-pearl-violet-bg: linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(250, 245, 255, 0.96) 55%, rgba(243, 232, 255, 0.96) 100%);
+  --capsule-pearl-violet-bg-hover: linear-gradient(135deg, #ffffff 0%, #f3e8ff 55%, #e9d5ff 100%);
+  --capsule-pearl-violet-border: rgba(168, 85, 247, 0.42);
+  --capsule-pearl-violet-border-hover: #a855f7;
+  --capsule-pearl-violet-text: #7e22ce;
+  --capsule-pearl-violet-text-hover: #6b21a8;
+  --capsule-pearl-violet-shadow: 0 4px 12px rgba(168, 85, 247, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.95);
+  --capsule-pearl-violet-shadow-hover: 0 6px 16px rgba(168, 85, 247, 0.24), inset 0 1px 0 #ffffff;
+
+  --capsule-pearl-slate-bg: linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 250, 252, 0.96) 55%, rgba(241, 245, 249, 0.96) 100%);
+  --capsule-pearl-slate-bg-hover: linear-gradient(135deg, #ffffff 0%, #f1f5f9 55%, #e2e8f0 100%);
+  --capsule-pearl-slate-border: rgba(100, 116, 139, 0.4);
+  --capsule-pearl-slate-border-hover: #64748b;
+  --capsule-pearl-slate-text: #334155;
+  --capsule-pearl-slate-text-hover: #0f172a;
+  --capsule-pearl-slate-shadow: 0 4px 12px rgba(100, 116, 139, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.95);
+  --capsule-pearl-slate-shadow-hover: 0 6px 16px rgba(100, 116, 139, 0.2), inset 0 1px 0 #ffffff;
+
+  /* ── 动效令牌 ─────────────────────────────────────────── */
+  --duration-fast: 150ms;
+  --duration-normal: 250ms;
+  --duration-slow: 400ms;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* ── 层级 Z-Index ─────────────────────────────────────── */
+  --z-sticky: 20;
+  --z-header: 40;
+  --z-dropdown: 1000;
+  --z-drawer: 1800;
+  --z-float: 2000;
+  --z-modal: 2100;
+  --z-snackbar: 2400;
+  --z-tour: 2600;
+  --z-lightbox: 2800;
+  --z-toast: 3200;
+
+  /* ── 亮色模式语义色彩（随主题动态映射） ─────────────────── */
+  --color-bg-canvas: var(--theme-bg, #fafaf9);
+  --color-bg-surface: var(--theme-surface, #ffffff);
+  --color-bg-elevated: var(--theme-elevated, #ffffff);
+  --color-bg-subtle: var(--theme-subtle, #f4f4f5);
+  --color-bg-muted: var(--theme-subtle, #f1f5f9);
+  --color-bg-hover: rgba(15, 23, 42, 0.04);
+
+  --color-border: var(--theme-border, #e4e4e7);
+  --color-border-subtle: var(--theme-border-subtle, #f1f1f4);
+  --color-border-strong: #cbd5e1;
+
+  --color-text-primary: var(--theme-text-base, #18181b);
+  --color-text-secondary: var(--theme-text-secondary, #52525b);
+  --color-text-muted: var(--theme-text-muted, #71717a);
+  --color-text-inverse: #ffffff;
+
+  --color-primary: var(--theme-primary, #18181b);
+  --color-primary-hover: var(--theme-primary-hover, #27272a);
+  --color-primary-muted: var(--theme-primary-muted, rgba(24, 24, 27, 0.08));
+  --color-primary-muted-strong: var(--theme-primary-muted-strong, rgba(24, 24, 27, 0.14));
+
+  --color-success: #10b981;
+  --color-success-soft: rgba(16, 185, 129, 0.1);
+  --color-success-border: rgba(16, 185, 129, 0.28);
+
+  --color-warning: #f59e0b;
+  --color-warning-soft: rgba(245, 158, 11, 0.1);
+  --color-warning-border: rgba(245, 158, 11, 0.28);
+
+  --color-danger: #ef4444;
+  --color-danger-soft: rgba(239, 68, 68, 0.1);
+  --color-danger-border: rgba(239, 68, 68, 0.28);
+
+  --color-info: #3b82f6;
+  --color-info-soft: rgba(59, 130, 246, 0.1);
+  --color-info-border: rgba(59, 130, 246, 0.28);
+
+  /* ── 分隔与浮层阴影（细边框优先，浮层使用轻阴影） ─────── */
+  --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-sm: 0 2px 8px rgba(15, 23, 42, 0.05);
+  --shadow-md: 0 8px 24px rgba(15, 23, 42, 0.08);
+  --shadow-float: 0 16px 40px rgba(15, 23, 42, 0.12), 0 2px 8px rgba(15, 23, 42, 0.05);
+
+  /* ── 侧栏与头部专用表面令牌 ───────────────────────────── */
+  --color-sidebar-bg: var(--theme-sidebar-bg, #ffffff);
+  --sidebar-bg-light-opacity: 0.92;
+  --sidebar-bg-dark-opacity: 0;
+  --sidebar-inline-bg: rgba(255, 255, 255, 0.56);
+  --color-header-bg: var(--theme-header-bg, rgba(255, 255, 255, 0.9));
+  --color-tags-bg: var(--theme-surface, #ffffff);
+  --color-code-bg: #0f172a;
+  --color-code-text: #e2e8f0;
+  --color-backdrop: rgba(15, 23, 42, 0.48);
+  --color-spotlight: rgba(var(--theme-primary-rgb, 37, 99, 235), 0.1);
+
+  /* ── Element Plus 亮色模式表面 / 边框 / 文字令牌桥接 ─────── */
+  --el-bg-color: var(--color-bg-surface);
+  --el-bg-color-page: var(--color-bg-canvas);
+  --el-bg-color-overlay: var(--color-bg-elevated);
+  --el-fill-color-blank: var(--color-bg-surface);
+  --el-fill-color-extra-light: var(--color-bg-subtle);
+  --el-fill-color-lighter: var(--color-bg-subtle);
+  --el-fill-color-light: var(--color-bg-hover);
+  --el-fill-color: color-mix(in srgb, var(--color-bg-surface) 92%, var(--color-text-primary));
+  --el-fill-color-dark: color-mix(in srgb, var(--color-bg-surface) 86%, var(--color-text-primary));
+  --el-fill-color-darker: color-mix(in srgb, var(--color-bg-surface) 80%, var(--color-text-primary));
+  --el-border-color: var(--color-border);
+  --el-border-color-light: var(--color-border);
+  --el-border-color-lighter: var(--color-border-subtle);
+  --el-border-color-extra-light: var(--color-border-subtle);
+  --el-border-color-hover: var(--color-border-strong);
+  --el-text-color-primary: var(--color-text-primary);
+  --el-text-color-regular: var(--color-text-secondary);
+  --el-text-color-secondary: var(--color-text-muted);
+  --el-text-color-placeholder: var(--color-text-muted);
+  --el-mask-color: rgba(255, 255, 255, 0.78);
+  --el-mask-color: color-mix(in srgb, var(--color-bg-surface) 80%, transparent);
+  --el-mask-color-extra-light: color-mix(in srgb, var(--color-bg-surface) 45%, transparent);
+  --el-overlay-color-lighter: var(--color-backdrop);
+  --el-disabled-bg-color: var(--color-bg-subtle);
+  --el-disabled-border-color: var(--color-border-subtle);
+  --el-disabled-text-color: var(--color-text-muted);
+}
+
+html.dark {
+  color-scheme: dark;
+
+  --color-bg-canvas: var(--theme-bg-dark, #060608);
+  --color-bg-surface: var(--theme-surface, #121218);
+  --color-bg-elevated: var(--theme-elevated, #18181f);
+  --color-bg-subtle: var(--theme-subtle, #0c0c10);
+  --color-bg-muted: var(--theme-subtle, #18181f);
+  --color-bg-hover: rgba(255, 255, 255, 0.055);
+
+  --color-border: var(--theme-border, rgba(255, 255, 255, 0.08));
+  --color-border-subtle: var(--theme-border-subtle, rgba(255, 255, 255, 0.05));
+  --color-border-strong: rgba(255, 255, 255, 0.16);
+  --color-border-strong: color-mix(in srgb, var(--color-border) 55%, var(--color-text-secondary));
+
+  --color-text-primary: var(--theme-text-base, #f1f5f9);
+  --color-text-secondary: var(--theme-text-secondary, rgba(241, 245, 249, 0.72));
+  --color-text-muted: var(--theme-text-muted, rgba(241, 245, 249, 0.45));
+  --color-text-inverse: #0f172a;
+
+  --color-success: #34d399;
+  --color-success-soft: rgba(52, 211, 153, 0.14);
+  --color-success-border: rgba(52, 211, 153, 0.32);
+
+  --color-warning: #fbbf24;
+  --color-warning-soft: rgba(251, 191, 36, 0.14);
+  --color-warning-border: rgba(251, 191, 36, 0.32);
+
+  --color-danger: #f87171;
+  --color-danger-soft: rgba(248, 113, 113, 0.14);
+  --color-danger-border: rgba(248, 113, 113, 0.32);
+
+  --color-info: #60a5fa;
+  --color-info-soft: rgba(96, 165, 250, 0.14);
+  --color-info-border: rgba(96, 165, 250, 0.32);
+
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.36);
+  --shadow-md: 0 12px 32px rgba(0, 0, 0, 0.48);
+  --shadow-float: 0 20px 48px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(148, 163, 184, 0.12);
+
+  --color-sidebar-bg: var(--theme-sidebar-bg, #09090d);
+  --sidebar-bg-light-opacity: 0;
+  --sidebar-bg-dark-opacity: 0.95;
+  --sidebar-inline-bg: rgba(12, 12, 16, 0.62);
+  --color-header-bg: var(--theme-header-bg, rgba(12, 12, 16, 0.86));
+  --color-tags-bg: var(--theme-surface, #121218);
+  --color-code-bg: #060608;
+  --color-code-text: #e2e8f0;
+  --color-backdrop: rgba(0, 0, 0, 0.65);
+  --color-spotlight: rgba(var(--theme-primary-rgb, 56, 189, 248), 0.14);
+
+  /* ── Element Plus 暗黑模式令牌桥接（覆盖 element-plus 默认中性灰） ── */
+  --el-bg-color: var(--color-bg-surface);
+  --el-bg-color-page: var(--color-bg-canvas);
+  --el-bg-color-overlay: var(--color-bg-elevated);
+  --el-fill-color-blank: var(--color-bg-surface);
+  --el-fill-color-extra-light: var(--color-bg-subtle);
+  --el-fill-color-lighter: var(--color-bg-subtle);
+  --el-fill-color-light: var(--color-bg-hover);
+  --el-fill-color: color-mix(in srgb, var(--color-bg-surface) 90%, var(--color-text-primary));
+  --el-fill-color-dark: color-mix(in srgb, var(--color-bg-surface) 84%, var(--color-text-primary));
+  --el-fill-color-darker: color-mix(in srgb, var(--color-bg-surface) 78%, var(--color-text-primary));
+  --el-border-color: var(--color-border);
+  --el-border-color-light: var(--color-border);
+  --el-border-color-lighter: var(--color-border-subtle);
+  --el-border-color-extra-light: var(--color-border-subtle);
+  --el-border-color-hover: var(--color-border-strong);
+  --el-text-color-primary: var(--color-text-primary);
+  --el-text-color-regular: var(--color-text-secondary);
+  --el-text-color-secondary: var(--color-text-muted);
+  --el-text-color-placeholder: var(--color-text-muted);
+  --el-mask-color: rgba(18, 18, 24, 0.74);
+  --el-mask-color: color-mix(in srgb, var(--color-bg-surface) 76%, transparent);
+  --el-mask-color-extra-light: color-mix(in srgb, var(--color-bg-surface) 42%, transparent);
+  --el-overlay-color-lighter: var(--color-backdrop);
+  --el-disabled-bg-color: var(--color-bg-subtle);
+  --el-disabled-border-color: var(--color-border-subtle);
+  --el-disabled-text-color: var(--color-text-muted);
+
+  /* ── 暗黑模式 9 套深空彩釉琉璃胶囊按钮令牌（通透彩晕底 + 亮彩玻璃描边 + 高对比柔亮字） ── */
+  --capsule-pearl-primary-bg: linear-gradient(135deg, rgba(99, 102, 241, 0.24) 0%, rgba(129, 140, 248, 0.14) 52%, rgba(168, 85, 247, 0.22) 100%);
+  --capsule-pearl-primary-bg-hover: linear-gradient(135deg, rgba(99, 102, 241, 0.36) 0%, rgba(129, 140, 248, 0.22) 52%, rgba(168, 85, 247, 0.32) 100%);
+  --capsule-pearl-primary-border: rgba(129, 140, 248, 0.52);
+  --capsule-pearl-primary-border-hover: #818cf8;
+  --capsule-pearl-primary-text: #c7d2fe;
+  --capsule-pearl-primary-text-hover: #eef2ff;
+  --capsule-pearl-primary-shadow: 0 4px 16px rgba(0, 0, 0, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  --capsule-pearl-primary-shadow-hover: 0 6px 20px rgba(99, 102, 241, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+
+  --capsule-pearl-ice-bg: linear-gradient(135deg, rgba(14, 165, 233, 0.22) 0%, rgba(56, 189, 248, 0.12) 55%, rgba(20, 184, 166, 0.16) 100%);
+  --capsule-pearl-ice-bg-hover: linear-gradient(135deg, rgba(14, 165, 233, 0.34) 0%, rgba(56, 189, 248, 0.2) 55%, rgba(20, 184, 166, 0.26) 100%);
+  --capsule-pearl-ice-border: rgba(56, 189, 248, 0.48);
+  --capsule-pearl-ice-border-hover: #38bdf8;
+  --capsule-pearl-ice-text: #bae6fd;
+  --capsule-pearl-ice-text-hover: #e0f2fe;
+  --capsule-pearl-ice-shadow: 0 4px 16px rgba(0, 0, 0, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  --capsule-pearl-ice-shadow-hover: 0 6px 20px rgba(14, 165, 233, 0.26), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+
+  --capsule-pearl-teal-bg: linear-gradient(135deg, rgba(20, 184, 166, 0.22) 0%, rgba(45, 212, 191, 0.12) 55%, rgba(16, 185, 129, 0.16) 100%);
+  --capsule-pearl-teal-bg-hover: linear-gradient(135deg, rgba(20, 184, 166, 0.34) 0%, rgba(45, 212, 191, 0.2) 55%, rgba(16, 185, 129, 0.26) 100%);
+  --capsule-pearl-teal-border: rgba(45, 212, 191, 0.48);
+  --capsule-pearl-teal-border-hover: #2dd4bf;
+  --capsule-pearl-teal-text: #99f6e4;
+  --capsule-pearl-teal-text-hover: #ccfbf1;
+  --capsule-pearl-teal-shadow: 0 4px 16px rgba(0, 0, 0, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  --capsule-pearl-teal-shadow-hover: 0 6px 20px rgba(20, 184, 166, 0.26), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+
+  --capsule-pearl-plum-bg: linear-gradient(135deg, rgba(236, 72, 153, 0.22) 0%, rgba(244, 114, 182, 0.12) 55%, rgba(192, 132, 252, 0.18) 100%);
+  --capsule-pearl-plum-bg-hover: linear-gradient(135deg, rgba(236, 72, 153, 0.34) 0%, rgba(244, 114, 182, 0.2) 55%, rgba(192, 132, 252, 0.28) 100%);
+  --capsule-pearl-plum-border: rgba(244, 114, 182, 0.48);
+  --capsule-pearl-plum-border-hover: #f472b6;
+  --capsule-pearl-plum-text: #fbcfe8;
+  --capsule-pearl-plum-text-hover: #fce7f3;
+  --capsule-pearl-plum-shadow: 0 4px 16px rgba(0, 0, 0, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  --capsule-pearl-plum-shadow-hover: 0 6px 20px rgba(236, 72, 153, 0.26), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+
+  --capsule-pearl-violet-bg: linear-gradient(135deg, rgba(168, 85, 247, 0.22) 0%, rgba(192, 132, 252, 0.12) 55%, rgba(129, 140, 248, 0.18) 100%);
+  --capsule-pearl-violet-bg-hover: linear-gradient(135deg, rgba(168, 85, 247, 0.34) 0%, rgba(192, 132, 252, 0.2) 55%, rgba(129, 140, 248, 0.28) 100%);
+  --capsule-pearl-violet-border: rgba(192, 132, 252, 0.48);
+  --capsule-pearl-violet-border-hover: #c084fc;
+  --capsule-pearl-violet-text: #e9d5ff;
+  --capsule-pearl-violet-text-hover: #f3e8ff;
+  --capsule-pearl-violet-shadow: 0 4px 16px rgba(0, 0, 0, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  --capsule-pearl-violet-shadow-hover: 0 6px 20px rgba(168, 85, 247, 0.26), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+
+  --capsule-pearl-slate-bg: linear-gradient(135deg, rgba(148, 163, 184, 0.18) 0%, rgba(100, 116, 139, 0.12) 55%, rgba(148, 163, 184, 0.14) 100%);
+  --capsule-pearl-slate-bg-hover: linear-gradient(135deg, rgba(148, 163, 184, 0.28) 0%, rgba(100, 116, 139, 0.2) 55%, rgba(148, 163, 184, 0.22) 100%);
+  --capsule-pearl-slate-border: rgba(148, 163, 184, 0.44);
+  --capsule-pearl-slate-border-hover: #cbd5e1;
+  --capsule-pearl-slate-text: #e2e8f0;
+  --capsule-pearl-slate-text-hover: #f8fafc;
+  --capsule-pearl-slate-shadow: 0 4px 16px rgba(0, 0, 0, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  --capsule-pearl-slate-shadow-hover: 0 6px 20px rgba(148, 163, 184, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+
+  --capsule-pearl-success-bg: linear-gradient(135deg, rgba(16, 185, 129, 0.22) 0%, rgba(52, 211, 153, 0.12) 55%, rgba(20, 184, 166, 0.16) 100%);
+  --capsule-pearl-success-bg-hover: linear-gradient(135deg, rgba(16, 185, 129, 0.34) 0%, rgba(52, 211, 153, 0.2) 55%, rgba(20, 184, 166, 0.26) 100%);
+  --capsule-pearl-success-border: rgba(52, 211, 153, 0.48);
+  --capsule-pearl-success-border-hover: #34d399;
+  --capsule-pearl-success-text: #a7f3d0;
+  --capsule-pearl-success-text-hover: #d1fae5;
+  --capsule-pearl-success-shadow: 0 4px 16px rgba(0, 0, 0, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  --capsule-pearl-success-shadow-hover: 0 6px 20px rgba(16, 185, 129, 0.26), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+
+  --capsule-pearl-warning-bg: linear-gradient(135deg, rgba(245, 158, 11, 0.22) 0%, rgba(251, 191, 36, 0.12) 55%, rgba(251, 146, 60, 0.16) 100%);
+  --capsule-pearl-warning-bg-hover: linear-gradient(135deg, rgba(245, 158, 11, 0.34) 0%, rgba(251, 191, 36, 0.2) 55%, rgba(251, 146, 60, 0.26) 100%);
+  --capsule-pearl-warning-border: rgba(251, 191, 36, 0.5);
+  --capsule-pearl-warning-border-hover: #fbbf24;
+  --capsule-pearl-warning-text: #fde68a;
+  --capsule-pearl-warning-text-hover: #fef3c7;
+  --capsule-pearl-warning-shadow: 0 4px 16px rgba(0, 0, 0, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  --capsule-pearl-warning-shadow-hover: 0 6px 20px rgba(245, 158, 11, 0.26), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+
+  --capsule-pearl-danger-bg: linear-gradient(135deg, rgba(239, 68, 68, 0.22) 0%, rgba(248, 113, 113, 0.12) 55%, rgba(244, 63, 94, 0.16) 100%);
+  --capsule-pearl-danger-bg-hover: linear-gradient(135deg, rgba(239, 68, 68, 0.34) 0%, rgba(248, 113, 113, 0.2) 55%, rgba(244, 63, 94, 0.26) 100%);
+  --capsule-pearl-danger-border: rgba(248, 113, 113, 0.5);
+  --capsule-pearl-danger-border-hover: #f87171;
+  --capsule-pearl-danger-text: #fecaca;
+  --capsule-pearl-danger-text-hover: #fee2e2;
+  --capsule-pearl-danger-shadow: 0 4px 16px rgba(0, 0, 0, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  --capsule-pearl-danger-shadow-hover: 0 6px 20px rgba(239, 68, 68, 0.26), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+}
+
+/* 覆盖 element-plus/theme-chalk/dark/css-vars.css 对卡片内 --el-fill-color-blank 的中性灰覆写 */
+html.dark .el-card {
+  --el-card-bg-color: var(--color-bg-surface);
+  --el-fill-color-blank: var(--color-bg-surface);
+}

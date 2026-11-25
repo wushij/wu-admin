@@ -9,7 +9,7 @@
         {{ displayCopyright }}
       </span>
 
-      <span v-if="displayCopyright && showIcp" class="site-footer__divider">|</span>
+      <span v-if="displayCopyright && showIcp" class="site-footer__divider" aria-hidden="true">|</span>
 
       <a
         v-if="showIcp"
@@ -44,33 +44,22 @@ const props = withDefaults(
     icpUrl: '',
     theme: 'transparent',
     inline: false,
-  }
+  },
 )
 
-const showIcp = computed(() => {
-  return props.icpEnabled !== false && Boolean(props.icpNumber)
-})
-
-const displayCopyright = computed(() => {
-  return props.copyright ? props.copyright.trim() : ''
-})
-
-const targetIcpUrl = computed(() => {
-  return props.icpUrl ? props.icpUrl.trim() : 'https://beian.miit.gov.cn/'
-})
-
-const hasContent = computed(() => {
-  return Boolean(displayCopyright.value || showIcp.value)
-})
+const showIcp = computed(() => props.icpEnabled !== false && Boolean(props.icpNumber))
+const displayCopyright = computed(() => (props.copyright ? props.copyright.trim() : ''))
+const targetIcpUrl = computed(() => (props.icpUrl ? props.icpUrl.trim() : 'https://beian.miit.gov.cn/'))
+const hasContent = computed(() => Boolean(displayCopyright.value || showIcp.value))
 </script>
 
 <style scoped>
 .site-footer {
   width: 100%;
-  padding: 14px 20px;
+  padding: 12px 20px;
   box-sizing: border-box;
   text-align: center;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
   line-height: 1.6;
   z-index: 10;
@@ -85,14 +74,13 @@ const hasContent = computed(() => {
 }
 
 .site-footer__divider {
-  opacity: 0.5;
+  opacity: 0.45;
   font-weight: 400;
 }
 
 .site-footer__icp-link {
-  text-decoration: none !important;
-  border-bottom: none !important;
-  transition: opacity 0.2s ease;
+  text-decoration: none;
+  transition: opacity var(--duration-fast) var(--ease-out);
   display: inline-flex;
   align-items: center;
   letter-spacing: 0.02em;
@@ -101,57 +89,31 @@ const hasContent = computed(() => {
 }
 
 .site-footer__icp-link:hover {
-  text-decoration: none !important;
-  border-bottom: none !important;
   opacity: 0.8;
 }
 
-/* 登录/注册页（星空黑色背景）：使用清晰明亮的白字，无横线 */
-.site-footer--transparent {
-  color: #ffffff;
-}
-
+/* 登录/注册页深空背景 */
+.site-footer--transparent,
 .site-footer--transparent .site-footer__copyright,
 .site-footer--transparent .site-footer__divider,
 .site-footer--transparent .site-footer__icp-link {
-  color: #ffffff;
-  text-decoration: none !important;
-  border-bottom: none !important;
-  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
+  color: rgba(248, 250, 252, 0.88);
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.72);
 }
 
-.site-footer--transparent .site-footer__icp-link:hover {
-  color: #ffffff;
-  opacity: 0.85;
-}
-
-/* 暗色主题：白色字体，无横线 */
-.site-footer--dark {
-  color: #ffffff;
-}
-
+/* 管理后台内部随主题语义变量自适应亮暗 */
+.site-footer--dark,
+.site-footer--light,
 .site-footer--dark .site-footer__copyright,
 .site-footer--dark .site-footer__divider,
-.site-footer--dark .site-footer__icp-link {
-  color: #ffffff;
-  text-decoration: none !important;
-  border-bottom: none !important;
-}
-
-/* 管理后台浅色主题：黑色字体，无横线 */
-.site-footer--light {
-  color: #303133;
-}
-
+.site-footer--dark .site-footer__icp-link,
 .site-footer--light .site-footer__copyright,
 .site-footer--light .site-footer__divider,
 .site-footer--light .site-footer__icp-link {
-  color: #303133;
-  text-decoration: none !important;
-  border-bottom: none !important;
+  color: var(--color-text-secondary);
 }
 
 .site-footer--inline {
-  padding: 10px 0;
+  padding: 10px 0 4px;
 }
 </style>

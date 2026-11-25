@@ -104,12 +104,12 @@
             </div>
           </el-form-item>
           <el-form-item label="签名类型">
-            <el-select v-model="draft.alipay.signType" style="width: 160px" :disabled="!canEdit">
+            <el-select v-model="draft.alipay.signType" placeholder="请选择签名类型" style="width: 160px" :disabled="!canEdit">
               <el-option label="RSA2" value="RSA2" /><el-option label="RSA" value="RSA" />
             </el-select>
           </el-form-item>
           <el-form-item label="网关地址">
-            <el-select v-model="draft.alipay.gatewayUrl" style="width: 100%; max-width: 480px" :disabled="!canEdit">
+            <el-select v-model="draft.alipay.gatewayUrl" placeholder="请选择网关地址" style="width: 100%; max-width: 480px" :disabled="!canEdit">
               <el-option label="正式环境" value="https://openapi.alipay.com/gateway.do" />
               <el-option label="沙箱环境" value="https://openapi-sandbox.dl.alipaydev.com/gateway.do" />
             </el-select>

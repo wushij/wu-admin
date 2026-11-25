@@ -1,5 +1,7 @@
 import { ref, reactive, computed, onMounted, onUnmounted, nextTick, type Ref } from 'vue'
-import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
+import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
+import { openAlertDialog } from '@/composables/ui/useAlertDialog'
+import { showSnackbar } from '@/composables/ui/useSnackbar'
 import type { EChartsType } from 'echarts'
 import {
   getJobOverview,
@@ -9,6 +11,7 @@ import {
   createJob,
   updateJob,
   deleteJob,
+  restoreJob,
   changeJobStatus,
   runJob,
   getJobLogPage,
@@ -19,6 +22,7 @@ import {
   type JobOverview,
 } from '@/api/monitor/job'
 import { cronPresets } from '../constants/cronPresets'
+import { readChartTheme, useChartThemeObserver } from '@/utils/chartTheme'
 
 let echartsModule: typeof import('echarts') | null = null
 
@@ -132,29 +136,74 @@ export function useJobPage(chartRefs: {
   async function updateCharts() {
     await nextTick()
     const echarts = await ensureEcharts()
+    const theme = readChartTheme()
     const execTotal = (overview.successCount ?? 0) + (overview.failCount ?? 0)
 
     if (pieChartRef.value) {
       if (!pieChart || pieChart.isDisposed()) {
         pieChart = echarts.init(pieChartRef.value)
       }
-      pieChart.setOption({
-        tooltip: { trigger: 'item' },
-        color: ['#52c41a', '#ff4d4f', '#e5e7eb'],
-        series: [
+      if (execTotal > 0) {
+        pieChart.setOption(
           {
-            type: 'pie',
-            radius: ['45%', '72%'],
-            data:
-              execTotal > 0
-                ? [
-                    { name: '成功', value: overview.successCount },
-                    { name: '失败', value: overview.failCount },
-                  ]
-                : [{ name: '暂无数据', value: 1 }],
+            tooltip: {
+              trigger: 'item',
+              backgroundColor: theme.elevatedBg,
+              borderColor: theme.border,
+              textStyle: { color: theme.textPrimary },
+            },
+            color: [theme.palette.indigo, theme.palette.rose],
+            series: [
+              {
+                type: 'pie',
+                radius: ['48%', '74%'],
+                itemStyle: {
+                  borderColor: theme.surfaceBg,
+                  borderWidth: 2,
+                  borderRadius: 4,
+                },
+                label: {
+                  color: theme.textSecondary,
+                },
+                labelLine: {
+                  lineStyle: { color: theme.border },
+                },
+                data: [
+                  { name: '成功', value: overview.successCount },
+                  { name: '失败', value: overview.failCount },
+                ],
+              },
+            ],
           },
-        ],
-      })
+          true,
+        )
+      } else {
+        pieChart.setOption(
+          {
+            tooltip: { show: false },
+            color: [theme.border],
+            series: [
+              {
+                type: 'pie',
+                radius: ['52%', '70%'],
+                silent: true,
+                label: {
+                  show: true,
+                  position: 'center',
+                  formatter: '暂无执行记录',
+                  color: theme.textMuted,
+                  fontSize: 13,
+                  fontWeight: 500,
+                },
+                labelLine: { show: false },
+                itemStyle: { color: theme.border },
+                data: [{ name: '暂无数据', value: 1 }],
+              },
+            ],
+          },
+          true,
+        )
+      }
       pieChart.resize()
     }
 
@@ -163,32 +212,58 @@ export function useJobPage(chartRefs: {
         barChart = echarts.init(barChartRef.value)
       }
       const daily = overview.dailyStats ?? []
-      barChart.setOption({
-        tooltip: { trigger: 'axis' },
-        legend: { data: ['成功', '失败'] },
-        grid: { left: 40, right: 16, bottom: 28, top: 32 },
-        xAxis: { type: 'category', data: daily.map((d) => String(d.exec_date ?? d.execDate ?? '')) },
-        yAxis: { type: 'value', minInterval: 1 },
-        series: [
-          {
-            name: '成功',
-            type: 'bar',
-            stack: 'total',
-            data: daily.map((d) => readDailyField(d, 'success_count', 'successCount')),
-            itemStyle: { color: '#52c41a' },
+      barChart.setOption(
+        {
+          tooltip: {
+            trigger: 'axis',
+            backgroundColor: theme.elevatedBg,
+            borderColor: theme.border,
+            textStyle: { color: theme.textPrimary },
           },
-          {
-            name: '失败',
-            type: 'bar',
-            stack: 'total',
-            data: daily.map((d) => readDailyField(d, 'fail_count', 'failCount')),
-            itemStyle: { color: '#ff4d4f' },
+          legend: {
+            data: ['成功', '失败'],
+            textStyle: { color: theme.textSecondary },
           },
-        ],
-      })
+          grid: { left: 40, right: 16, bottom: 28, top: 32 },
+          xAxis: {
+            type: 'category',
+            data: daily.map((d) => String(d.exec_date ?? d.execDate ?? '')),
+            axisLabel: { color: theme.textMuted },
+            axisLine: { lineStyle: { color: theme.border } },
+            axisTick: { show: false },
+          },
+          yAxis: {
+            type: 'value',
+            minInterval: 1,
+            axisLabel: { color: theme.textMuted },
+            splitLine: { lineStyle: { color: theme.borderSubtle, type: 'dashed' } },
+          },
+          series: [
+            {
+              name: '成功',
+              type: 'bar',
+              stack: 'total',
+              barMaxWidth: 28,
+              data: daily.map((d) => readDailyField(d, 'success_count', 'successCount')),
+              itemStyle: { color: theme.palette.indigo, borderRadius: [4, 4, 0, 0] },
+            },
+            {
+              name: '失败',
+              type: 'bar',
+              stack: 'total',
+              barMaxWidth: 28,
+              data: daily.map((d) => readDailyField(d, 'fail_count', 'failCount')),
+              itemStyle: { color: theme.palette.rose, borderRadius: [4, 4, 0, 0] },
+            },
+          ],
+        },
+        true,
+      )
       barChart.resize()
     }
   }
+
+  useChartThemeObserver(() => updateCharts())
 
   async function loadPage() {
     loading.value = true
@@ -254,23 +329,27 @@ export function useJobPage(chartRefs: {
   }
 
   async function quickCreateFromTemplate(tpl: JobTemplate) {
-    await ElMessageBox.confirm(
-      `将创建任务「${tpl.name}」\n调用：${tpl.invokeTarget}\nCron：${tpl.cronExpression}`,
-      '从模板创建',
-      { confirmButtonText: '创建', cancelButtonText: '取消', type: 'info' }
-    )
-    await createJob({
-      jobName: tpl.name,
-      jobGroup: tpl.jobGroup || 'DEFAULT',
-      invokeTarget: tpl.invokeTarget,
-      cronExpression: tpl.cronExpression,
-      misfirePolicy: 3,
-      concurrent: 1,
-      status: 0,
-      remark: tpl.description,
+    await openAlertDialog({
+      title: '从模板创建定时任务',
+      targetName: `${tpl.name} (${tpl.cronExpression})`,
+      message: `将使用调用目标「${tpl.invokeTarget}」创建新任务，默认处于暂停状态。`,
+      severity: 'warning',
+      confirmText: '确认创建',
+      onConfirm: async () => {
+        await createJob({
+          jobName: tpl.name,
+          jobGroup: tpl.jobGroup || 'DEFAULT',
+          invokeTarget: tpl.invokeTarget,
+          cronExpression: tpl.cronExpression,
+          misfirePolicy: 3,
+          concurrent: 1,
+          status: 0,
+          remark: tpl.description,
+        })
+        ElMessage.success('已从模板创建（默认暂停）')
+        await refreshAll()
+      },
     })
-    ElMessage.success('已从模板创建（默认暂停）')
-    await refreshAll()
   }
 
   async function submitForm() {
@@ -297,10 +376,18 @@ export function useJobPage(chartRefs: {
   }
 
   async function handleDelete(row: SysJob) {
-    await ElMessageBox.confirm(`确定删除「${row.jobName}」？`, '提示', { type: 'warning' })
     await deleteJob(row.id!)
-    ElMessage.success('已移至回收中心')
     await refreshAll()
+    showSnackbar({
+      message: `已将任务「${row.jobName}」移至回收中心`,
+      variant: 'info',
+      actionLabel: '撤销',
+      onAction: async () => {
+        await restoreJob(row.id!)
+        ElMessage.success(`已恢复任务「${row.jobName}」`)
+        await refreshAll()
+      },
+    })
   }
 
   async function handleStatusChange(row: SysJob, status: number) {
@@ -382,41 +469,62 @@ export function useJobPage(chartRefs: {
 
   async function handleCleanLogs() {
     const scoped = logFilter.value?.jobName
-    await ElMessageBox.confirm(
-      scoped
-        ? `将清空所有任务的调度日志（不仅「${scoped}」），是否继续？`
-        : '确定清空全部调度日志？',
-      '警告',
-      { type: 'warning' },
-    )
-    await cleanJobLogs()
-    ElMessage.success('全部日志已清空')
-    loadOverview()
-    if (logVisible.value) loadLogs()
+    await openAlertDialog({
+      title: '清空全部调度日志',
+      targetName: scoped ? `全部任务日志（不仅限 ${scoped}）` : '全部定时任务调度日志',
+      message: '清空后所有任务的调度日志将移入回收站或清理，确定继续执行？',
+      severity: 'irreversible',
+      confirmText: '清空全部日志',
+      onConfirm: async () => {
+        await cleanJobLogs()
+        ElMessage.success('全部日志已清空')
+        loadOverview()
+        if (logVisible.value) loadLogs()
+      },
+    })
   }
 
   async function handleCleanScopedLogs() {
     const name = logFilter.value?.jobName
     if (!name) return
-    await ElMessageBox.confirm(`确定清空「${name}」的全部调度日志？`, '警告', { type: 'warning' })
-    await cleanJobLogs({
-      jobName: logFilter.value?.jobName,
-      jobGroup: logFilter.value?.jobGroup,
+    await openAlertDialog({
+      title: '清空指定任务调度日志',
+      targetName: name,
+      message: `将清空任务「${name}」的全部调度历史记录。`,
+      severity: 'irreversible',
+      confirmText: '确认清空',
+      onConfirm: async () => {
+        await cleanJobLogs({
+          jobName: logFilter.value?.jobName,
+          jobGroup: logFilter.value?.jobGroup,
+        })
+        ElMessage.success('本任务日志已清空')
+        loadOverview()
+        loadLogs()
+      },
     })
-    ElMessage.success('本任务日志已清空')
-    loadOverview()
-    loadLogs()
   }
+
+  let themeObserver: MutationObserver | null = null
 
   onMounted(async () => {
     await Promise.all([loadOverview(), loadTemplates(), loadPage()])
     await nextTick()
     await updateCharts()
     window.addEventListener('resize', updateCharts)
+    themeObserver = new MutationObserver(() => {
+      void updateCharts()
+    })
+    themeObserver.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class', 'style'],
+    })
   })
 
   onUnmounted(() => {
     window.removeEventListener('resize', updateCharts)
+    themeObserver?.disconnect()
+    themeObserver = null
     disposeCharts()
   })
 

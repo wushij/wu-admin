@@ -1,20 +1,11 @@
 <template>
   <div class="app-container module-page">
-    <el-card class="search-card module-hero-card" shadow="never">
-      <div class="module-hero-row">
-        <div class="module-hero-text">
-          <div class="module-hero-title">
-            <ModulePageIcon :icon="MODULE_PAGE_ICON.notice" />
-            <span>系统通知</span>
-          </div>
-          <p class="module-hero-desc">发布与管理通知公告，支持站内信推送与发送日志查看</p>
-        </div>
-        <div class="module-hero-stats">
-          <div class="stat-num">{{ total }}</div>
-          <div class="stat-label">通知总数</div>
-        </div>
-      </div>
-    </el-card>
+    <PageHeader
+      title="系统通知"
+      description="发布与管理通知公告，支持站内信推送与发送日志查看"
+      :icon="MODULE_PAGE_ICON.notice"
+      :stats="[{ label: '通知总数', value: total }]"
+    />
 
     <el-card class="search-card module-search-card" shadow="never">
       <el-form :model="query" inline class="module-search-form">
@@ -50,7 +41,9 @@
           </div>
         </div>
       </template>
+
       <el-table
+        v-if="tableData.length || loading"
         :data="tableData"
         v-loading="loading"
         border
@@ -61,12 +54,12 @@
         <el-table-column prop="title" label="标题" min-width="180" align="center" header-align="center" show-overflow-tooltip />
         <el-table-column label="类型" width="90" align="center" header-align="center">
           <template #default="{ row }">
-            <el-tag size="small">{{ row.noticeType === 2 ? '公告' : '通知' }}</el-tag>
+            <el-tag size="small" effect="plain">{{ row.noticeType === 2 ? '公告' : '通知' }}</el-tag>
           </template>
         </el-table-column>
         <el-table-column label="状态" width="90" align="center" header-align="center">
           <template #default="{ row }">
-            <el-tag :type="row.status === 1 ? 'success' : 'info'" size="small">
+            <el-tag :type="row.status === 1 ? 'success' : 'info'" size="small" effect="plain">
               {{ row.status === 1 ? '已发布' : '草稿' }}
             </el-tag>
           </template>
@@ -80,12 +73,15 @@
               <el-button size="small" type="primary" v-permission="'system:announce:update'" @click="openForm(row)">编辑</el-button>
               <el-button size="small" type="success" v-if="row.status !== 1" v-permission="'system:announce:publish'" @click="handlePublish(row)">发布</el-button>
               <el-button size="small" @click="showLogs(row)">发送日志</el-button>
-              <el-button size="small" type="danger" v-permission="'system:announce:delete'" @click="handleDelete(row)">删除</el-button>
+              <el-button size="small" type="danger" plain v-permission="'system:announce:delete'" @click="handleDelete(row)">删除</el-button>
             </div>
           </template>
         </el-table-column>
       </el-table>
+      <EmptyState v-else title="暂无系统通知" description="点击右上角新增通知可发布平台公告与站内信" />
+
       <el-pagination
+        v-if="total > 0"
         v-model:current-page="pageNo"
         v-model:page-size="pageSize"
         :total="total"
@@ -100,7 +96,7 @@
     <el-dialog v-model="formVisible" :title="form.id ? '编辑通知' : '新增通知'" width="680px" destroy-on-close>
       <el-form ref="formRef" :model="form" :rules="rules" label-width="90px">
         <el-form-item label="标题" prop="title">
-          <el-input v-model="form.title" />
+          <el-input v-model="form.title" placeholder="请输入标题" />
         </el-form-item>
         <el-form-item label="类型" prop="noticeType">
           <el-radio-group v-model="form.noticeType">
@@ -121,7 +117,7 @@
           </el-radio-group>
         </el-form-item>
         <el-form-item v-if="form.targetType === 1" label="选择用户">
-          <el-select v-model="form.targetIds" multiple filterable style="width: 100%">
+          <el-select v-model="form.targetIds" multiple filterable placeholder="请选择用户" style="width: 100%">
             <el-option v-for="u in userOptions" :key="u.id" :label="u.nickname || u.username" :value="u.id" />
           </el-select>
         </el-form-item>
@@ -132,12 +128,13 @@
             node-key="id"
             multiple
             check-strictly
+            placeholder="请选择部门"
             :props="{ label: 'name', children: 'children' }"
             style="width: 100%"
           />
         </el-form-item>
         <el-form-item label="内容" prop="content">
-          <el-input v-model="form.content" type="textarea" :rows="6" />
+          <el-input v-model="form.content" type="textarea" :rows="6" placeholder="请输入内容" />
         </el-form-item>
         <el-form-item label="状态">
           <el-radio-group v-model="form.status">
@@ -192,15 +189,17 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
 import { Search, Refresh } from '@element-plus/icons-vue'
-import ModulePageIcon from '@/components/ModulePageIcon.vue'
-import { MODULE_PAGE_ICON } from '@/constants/module-page-icons'
 import type { FormInstance, FormRules } from 'element-plus'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
+import PageHeader from '@/components/ui/PageHeader.vue'
+import EmptyState from '@/components/ui/EmptyState.vue'
+import { MODULE_PAGE_ICON } from '@/constants/module-page-icons'
 import {
   getAnnouncePage,
   createAnnounce,
   updateAnnounce,
   deleteAnnounce,
+  restoreAnnounce,
   publishAnnounce,
   getAnnounceDetail,
   getAnnounceSendLogs,
@@ -212,6 +211,7 @@ import {
 import { getUserList, type UserVO } from '@/api/system/user/index'
 import { getDeptTree, type DeptVO } from '@/api/system/dept/index'
 import RecycleCenterLink from '@/components/RecycleCenterLink.vue'
+import { showSnackbar } from '@/composables/ui/useSnackbar'
 
 const tableHeaderStyle = { textAlign: 'center' as const }
 const tableCellStyle = { textAlign: 'center' as const }
@@ -325,11 +325,20 @@ async function handlePublish(row: AnnounceVO) {
   loadData()
 }
 
+/** 软删除通知进回收站：直接执行 + Snackbar 一键撤销 */
 async function handleDelete(row: AnnounceVO) {
-  await ElMessageBox.confirm('确定要删除该通知吗？', '提示', { type: 'warning' })
   await deleteAnnounce(row.id)
-  ElMessage.success('已删除')
   loadData()
+  showSnackbar({
+    message: `已将通知「${row.title}」移至回收站`,
+    variant: 'info',
+    actionLabel: '撤销',
+    onAction: async () => {
+      await restoreAnnounce(row.id)
+      ElMessage.success(`已恢复通知「${row.title}」`)
+      loadData()
+    },
+  })
 }
 
 function formatLogTime(time: string | undefined) {

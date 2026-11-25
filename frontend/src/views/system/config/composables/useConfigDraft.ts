@@ -3,7 +3,7 @@ import { ElMessage } from 'element-plus'
 import { getConfigGroup, updateConfigGroup, getStorageConfig } from '@/api/system/config'
 import { getRoleList } from '@/api/system/role'
 import { getUserList } from '@/api/system/user'
-import { getErrorMessage } from '@/utils/axiosError'
+import { getErrorMessage, isErrorToastShown } from '@/utils/axiosError'
 import { useUserStore } from '@/store/user'
 import { useSiteStore } from '@/store/site'
 import type { ConfigGroupCode, ConfigGroupMap } from '@/types/config'
@@ -68,6 +68,20 @@ const DEFAULTS = {
     alipay: { enabled: false, appId: '', privateKey: '', publicKey: '' },
     github: { enabled: false, clientId: '', clientSecret: '' },
     google: { enabled: false, clientId: '', clientSecret: '', redirectUri: '' },
+    tavily: {
+      enabled: false,
+      apiKey: '',
+      searchDepth: 'basic',
+      maxResults: 5,
+      topic: 'general',
+      includeAnswer: true,
+    },
+    webSearch: {
+      enabled: true,
+      strategy: 'custom_first',
+      fallbackToDuckDuckGo: true,
+      customProviders: [],
+    },
   },
   payment: {
     wechatPay: {
@@ -203,6 +217,25 @@ function applyGroupFromServer<K extends ConfigGroupCode>(
       ai.roleTokenQuotas = ai.roleTokenQuotas
         .filter((q) => q && Number(q.roleId) > 0)
         .map((q) => ({ roleId: Number(q.roleId), tokensDaily: Number(q.tokensDaily) || 0 }))
+    }
+  }
+  if (code === 'thirdParty') {
+    const tp = merged as ConfigGroupMap['thirdParty']
+    tp.tavily = { ...DEFAULTS.thirdParty.tavily, ...(tp.tavily || {}) }
+    const rawWs = (tp.webSearch || {}) as Partial<ConfigGroupMap['thirdParty']['webSearch']>
+    tp.webSearch = {
+      ...DEFAULTS.thirdParty.webSearch,
+      ...rawWs,
+      customProviders: Array.isArray(rawWs.customProviders)
+        ? rawWs.customProviders.map((item, idx) => ({
+            ...item,
+            id: item?.id || `ws-${idx + 1}`,
+            protocol: item?.protocol === 'openai_search' ? 'openai_search' : 'http_json',
+            enabled: item?.enabled !== false,
+            priority: typeof item?.priority === 'number' ? item.priority : (idx + 1) * 10,
+            timeoutMs: typeof item?.timeoutMs === 'number' ? item.timeoutMs : 15000,
+          }))
+        : [],
     }
   }
   if (code === 'sms') {
@@ -393,7 +426,9 @@ export function useConfigDraft() {
           : '保存成功，配置已生效',
       )
     } catch (e) {
-      ElMessage.error(getErrorMessage(e) || '保存失败')
+      if (!isErrorToastShown(e)) {
+        ElMessage.error(getErrorMessage(e) || '保存失败')
+      }
     } finally {
       saving.value = false
     }

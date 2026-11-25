@@ -1,0 +1,2439 @@
+/**
+ * AI wu 助手 · 侧边栏抽屉视觉体系
+ *
+ * 结构与尺寸复刻 EduMind 全局助手（640px 标准抽屉 / 920px 宽屏研读台），
+ * 全部色彩、边框、阴影改为本项目语义化主题令牌，支持亮 / 暗双主题与换肤主色。
+ */
+
+.ai-wu-trigger-root,
+.ai-wu-drawer-overlay {
+  --aiwu-primary: var(--el-color-primary);
+  --aiwu-primary-strong: var(--el-color-primary-dark-2, var(--el-color-primary));
+  --aiwu-primary-soft: color-mix(in srgb, var(--el-color-primary) 9%, var(--color-bg-surface));
+  --aiwu-primary-soft-strong: color-mix(in srgb, var(--el-color-primary) 16%, var(--color-bg-surface));
+  --aiwu-primary-border: color-mix(in srgb, var(--el-color-primary) 26%, transparent);
+  --aiwu-primary-border-strong: color-mix(in srgb, var(--el-color-primary) 48%, transparent);
+  --aiwu-primary-glow: color-mix(in srgb, var(--el-color-primary) 20%, transparent);
+  --aiwu-surface: var(--color-bg-surface);
+  --aiwu-surface-elevated: var(--color-bg-elevated);
+  --aiwu-surface-muted: var(--color-bg-subtle);
+  --aiwu-text: var(--color-text-primary);
+  --aiwu-text-secondary: var(--color-text-secondary);
+  --aiwu-text-muted: var(--color-text-muted);
+  --aiwu-border: var(--color-border);
+  --aiwu-border-subtle: var(--color-border-subtle);
+  --aiwu-danger: var(--color-danger);
+  --aiwu-danger-soft: var(--color-danger-soft);
+  --aiwu-danger-border: var(--color-danger-border);
+  --aiwu-radius-panel: var(--radius-xl);
+  --aiwu-radius-card: var(--radius-lg);
+  --aiwu-shadow-panel: -12px 0 40px rgba(15, 23, 42, 0.14), -2px 0 16px var(--aiwu-primary-glow);
+}
+
+/* ==========================================================================
+   1. 悬浮触发器（复刻罗盘极光球）
+   ========================================================================== */
+
+.ai-wu-trigger-root {
+  position: fixed;
+  right: 24px;
+  bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  /* 必须低于抽屉层级，面板展开后触发器自然被覆盖，避免遮挡输入区 */
+  z-index: calc(var(--z-drawer, 1800) - 100);
+}
+
+.ai-wu-trigger {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  user-select: none;
+  border: none;
+  background: transparent;
+  padding: 0;
+}
+
+.ai-wu-trigger-tip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--color-bg-elevated) 92%, transparent);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--aiwu-primary-border);
+  box-shadow: var(--shadow-md), 0 0 12px var(--aiwu-primary-glow);
+  color: var(--aiwu-text);
+  font-size: 12px;
+  white-space: nowrap;
+
+  .tip-star {
+    color: var(--aiwu-primary);
+    font-size: 13px;
+    animation: aiwu-sparkle-rotate 3s linear infinite;
+  }
+
+  .tip-title {
+    font-weight: 600;
+    color: var(--aiwu-text);
+  }
+
+  .tip-kbd {
+    padding: 1px 6px;
+    border-radius: var(--radius-sm);
+    background: var(--aiwu-surface-muted);
+    border: 1px solid var(--aiwu-border);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--aiwu-primary);
+  }
+}
+
+.ai-wu-trigger-ball {
+  position: relative;
+  width: 52px;
+  height: 52px;
+  border-radius: var(--radius-circle);
+  background: linear-gradient(145deg, #101c38, #0c1222);
+  border: 1.6px solid rgba(22, 119, 255, 0.5);
+  box-shadow:
+    0 6px 24px rgba(22, 119, 255, 0.32),
+    0 0 16px rgba(114, 46, 209, 0.22);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    transform var(--duration-normal) var(--ease-spring),
+    border-color var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out);
+
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      transform: translateY(-3px) scale(1.06);
+      border-color: rgba(64, 150, 255, 0.9);
+      box-shadow:
+        0 10px 32px rgba(22, 119, 255, 0.46),
+        0 0 24px rgba(114, 46, 209, 0.36);
+
+      .aiwu-compass-star {
+        transform: rotate(45deg);
+      }
+    }
+  }
+}
+
+.ai-wu-trigger.is-active .ai-wu-trigger-ball {
+  border-color: rgba(64, 150, 255, 0.95);
+  box-shadow: 0 0 24px rgba(22, 119, 255, 0.5);
+  transform: scale(0.94);
+}
+
+.aiwu-aurora-ring {
+  position: absolute;
+  inset: -4px;
+  border-radius: var(--radius-circle);
+  border: 1px solid rgba(64, 150, 255, 0.5);
+  animation: aiwu-aurora-pulse 2.8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  pointer-events: none;
+}
+
+.aiwu-compass-svg {
+  width: 34px;
+  height: 34px;
+  transition: transform 0.4s var(--ease-spring);
+}
+
+.ai-wu-trigger-ball .ai-compass-icon {
+  width: 34px;
+  height: 34px;
+  transition: transform 0.4s var(--ease-spring);
+}
+
+.aiwu-compass-dial {
+  transform-origin: center;
+  animation: aiwu-dial-spin 24s linear infinite;
+}
+
+.aiwu-compass-star {
+  transform-origin: center;
+  transition: transform 0.5s var(--ease-spring);
+}
+
+.aiwu-streaming-dot {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 11px;
+  height: 11px;
+  border-radius: var(--radius-circle);
+  background: var(--color-success);
+  border: 2px solid #0c1222;
+  box-shadow: 0 0 10px var(--color-success);
+  animation: aiwu-ping-dot 1.2s ease-in-out infinite alternate;
+  z-index: 2;
+}
+
+/* ==========================================================================
+   2. 抽屉外壳：PC 右侧抽屉 / 移动端底部弹出
+   ========================================================================== */
+
+.ai-wu-drawer-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-drawer, 1800);
+  display: flex;
+  justify-content: flex-end;
+  background: color-mix(in srgb, #0f172a 46%, transparent);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  overscroll-behavior: contain;
+}
+
+.ai-wu-drawer-panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: min(640px, 100vw);
+  max-width: 100vw;
+  min-width: 0;
+  flex-shrink: 0;
+  height: 100vh;
+  height: 100dvh;
+  box-sizing: border-box;
+  overflow: hidden;
+  overscroll-behavior: contain;
+  color: var(--aiwu-text);
+  background: var(--aiwu-surface);
+  border-left: 1px solid var(--aiwu-primary-border);
+  box-shadow: var(--aiwu-shadow-panel);
+  transition: width var(--duration-normal) var(--ease-out);
+
+  &.is-wide-panel {
+    width: min(920px, 96vw);
+  }
+}
+
+.ai-wu-glow-border {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 2px;
+  pointer-events: none;
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    var(--aiwu-primary-border-strong),
+    transparent
+  );
+}
+
+/* 抽屉进出场：PC 从右侧滑入，移动端从底部弹出 */
+.aiwu-drawer-enter-active,
+.aiwu-drawer-leave-active {
+  transition: opacity var(--duration-normal) var(--ease-out);
+
+  .ai-wu-drawer-panel {
+    transition: transform 0.32s var(--ease-out);
+  }
+}
+
+.aiwu-drawer-enter-from,
+.aiwu-drawer-leave-to {
+  opacity: 0;
+
+  .ai-wu-drawer-panel {
+    transform: translateX(100%);
+  }
+}
+
+/* ==========================================================================
+   3. 顶部 Header
+   ========================================================================== */
+
+.aiwu-header {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--aiwu-border-subtle);
+  background: var(--aiwu-surface);
+}
+
+.aiwu-header-left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.aiwu-avatar {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(145deg, #101c38, #0c1222);
+  border: 1px solid rgba(22, 119, 255, 0.32);
+  box-shadow: 0 2px 8px rgba(22, 119, 255, 0.18);
+}
+
+.aiwu-header-info {
+  min-width: 0;
+}
+
+.aiwu-title-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.aiwu-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.35;
+  letter-spacing: 0.01em;
+  background: linear-gradient(135deg, var(--aiwu-primary), var(--aiwu-primary-strong));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  white-space: nowrap;
+}
+
+.aiwu-badge {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--aiwu-primary-soft);
+  border: 1px solid var(--aiwu-primary-border);
+  color: var(--aiwu-primary);
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.aiwu-subtitle {
+  margin: 2px 0 0;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--aiwu-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 320px;
+}
+
+.aiwu-header-actions {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.aiwu-toolbar {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px 5px;
+  border-radius: var(--radius-pill);
+  background: var(--aiwu-surface-muted);
+  border: 1px solid var(--aiwu-border-subtle);
+}
+
+.aiwu-toolbar-sep {
+  width: 1px;
+  height: 14px;
+  margin: 0 2px;
+  background: var(--aiwu-border);
+  flex-shrink: 0;
+}
+
+.aiwu-header-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-circle);
+  background: transparent;
+  border: none;
+  color: var(--aiwu-text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition:
+    background-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+
+  &:hover {
+    background: var(--color-bg-hover);
+    color: var(--aiwu-primary);
+  }
+
+  &.is-active {
+    background: var(--aiwu-primary-soft);
+    color: var(--aiwu-primary);
+  }
+
+  &--close:hover {
+    background: var(--aiwu-danger-soft);
+    color: var(--aiwu-danger);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--aiwu-primary);
+    outline-offset: 1px;
+  }
+}
+
+/* ==========================================================================
+   4. 历史会话浮层
+   ========================================================================== */
+
+.aiwu-history-panel {
+  flex-shrink: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  max-height: min(58vh, 560px);
+  background: var(--aiwu-surface-elevated);
+  border-bottom: 1px solid var(--aiwu-border);
+  box-shadow: var(--shadow-md);
+}
+
+.aiwu-history-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: 12px 18px;
+  background: var(--aiwu-surface-muted);
+  border-bottom: 1px solid var(--aiwu-border-subtle);
+}
+
+.aiwu-history-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--aiwu-text);
+
+  .history-count {
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--aiwu-text-secondary);
+  }
+}
+
+.aiwu-history-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.aiwu-history-clear-btn,
+.aiwu-history-new-btn {
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  transition:
+    background-color var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out);
+}
+
+.aiwu-history-clear-btn {
+  background: var(--aiwu-danger-soft);
+  border: 1px solid var(--aiwu-danger-border);
+  color: var(--aiwu-danger);
+
+  &:hover {
+    background: color-mix(in srgb, var(--aiwu-danger) 18%, transparent);
+  }
+}
+
+.aiwu-history-new-btn {
+  background: var(--aiwu-primary-soft);
+  border: 1px solid var(--aiwu-primary-border);
+  color: var(--aiwu-primary);
+
+  &:hover {
+    background: var(--aiwu-primary-soft-strong);
+  }
+}
+
+.aiwu-history-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px 14px;
+  max-height: min(50vh, 480px);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  scrollbar-width: thin;
+  scrollbar-color: var(--aiwu-primary-border) transparent;
+
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: var(--aiwu-primary-border);
+    border-radius: 3px;
+  }
+}
+
+.aiwu-history-empty {
+  padding: 32px 16px;
+  text-align: center;
+  color: var(--aiwu-text-muted);
+  font-size: 13px;
+}
+
+.aiwu-history-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: 10px 16px;
+  border-radius: var(--radius-pill);
+  background: var(--aiwu-surface-muted);
+  border: 1px solid var(--aiwu-border-subtle);
+  cursor: pointer;
+  transition:
+    background-color var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out);
+
+  &:hover {
+    background: var(--aiwu-primary-soft);
+    border-color: var(--aiwu-primary-border);
+
+    .aiwu-history-delete {
+      opacity: 1;
+    }
+  }
+
+  &.is-current {
+    background: var(--aiwu-primary-soft);
+    border-color: var(--aiwu-primary-border-strong);
+
+    .aiwu-history-item-title {
+      color: var(--aiwu-primary);
+      font-weight: 600;
+    }
+  }
+}
+
+.aiwu-history-item-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.aiwu-history-item-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--aiwu-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.aiwu-history-item-time {
+  font-size: 11px;
+  color: var(--aiwu-text-muted);
+}
+
+.aiwu-history-delete {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-circle);
+  border: none;
+  background: transparent;
+  color: var(--aiwu-text-muted);
+  cursor: pointer;
+  opacity: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    opacity var(--duration-fast) var(--ease-out),
+    background-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+
+  &:hover {
+    background: var(--aiwu-danger-soft);
+    color: var(--aiwu-danger);
+  }
+}
+
+.aiwu-history-enter-active,
+.aiwu-history-leave-active {
+  transition:
+    opacity var(--duration-fast) var(--ease-out),
+    transform var(--duration-normal) var(--ease-out),
+    max-height var(--duration-normal) var(--ease-out);
+  transform-origin: top center;
+  overflow: hidden;
+}
+
+.aiwu-history-enter-from,
+.aiwu-history-leave-to {
+  opacity: 0;
+  max-height: 0;
+  transform: translateY(-8px);
+}
+
+/* ==========================================================================
+   5. 消息视口与空状态
+   ========================================================================== */
+
+.aiwu-messages {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  box-sizing: border-box;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overflow-anchor: none;
+  padding: 14px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  scrollbar-width: thin;
+  scrollbar-color: var(--aiwu-primary-border) transparent;
+
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: var(--aiwu-primary-border);
+    border-radius: 3px;
+
+    &:hover {
+      background: var(--aiwu-primary-border-strong);
+    }
+  }
+}
+
+.aiwu-messages-wrap {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.aiwu-bottom-spacer {
+  height: 8px;
+  flex-shrink: 0;
+}
+
+.aiwu-empty {
+  margin: auto 0;
+  padding: 10px;
+  text-align: center;
+}
+
+.aiwu-empty-illustration {
+  position: relative;
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.aiwu-empty-orbit {
+  position: absolute;
+  border-radius: 50%;
+  border: 1px dashed var(--aiwu-primary-border);
+
+  &--outer {
+    inset: 0;
+    animation: aiwu-dial-spin 24s linear infinite;
+  }
+
+  &--inner {
+    inset: 9px;
+    border-color: color-mix(in srgb, var(--aiwu-primary) 22%, transparent);
+    animation: aiwu-dial-spin 16s linear infinite reverse;
+  }
+}
+
+.aiwu-empty-core {
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-circle);
+  background: var(--aiwu-surface);
+  border: 1.5px solid var(--aiwu-primary-border-strong);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 14px var(--aiwu-primary-glow);
+  overflow: hidden;
+  padding: 3px;
+}
+
+.aiwu-empty-title {
+  margin: 0 0 6px;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--aiwu-text);
+}
+
+.aiwu-empty-subtitle {
+  max-width: 380px;
+  margin: 0 auto 14px;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--aiwu-text-secondary);
+}
+
+.aiwu-empty-presets {
+  padding: 10px 12px;
+  text-align: left;
+  border-radius: var(--radius-card);
+  background: var(--aiwu-surface-muted);
+  border: 1px solid var(--aiwu-border);
+}
+
+.aiwu-presets-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-2);
+}
+
+.aiwu-presets-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--aiwu-primary);
+
+  .el-icon {
+    font-size: 12px;
+  }
+}
+
+.aiwu-presets-hint {
+  font-size: 11px;
+  color: var(--aiwu-text-muted);
+}
+
+.aiwu-presets-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.aiwu-preset-pill {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 7px 12px;
+  border-radius: 10px;
+  background: var(--aiwu-surface);
+  border: 1px solid var(--aiwu-border);
+  color: var(--aiwu-text);
+  font-size: 12.5px;
+  line-height: 1.45;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background-color var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out),
+    transform var(--duration-fast) var(--ease-out);
+
+  .pill-star {
+    flex-shrink: 0;
+    color: var(--aiwu-primary);
+    font-size: 12px;
+  }
+
+  .pill-text {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .pill-arrow {
+    flex-shrink: 0;
+    color: var(--aiwu-text-muted);
+    font-size: 13px;
+    transition:
+      transform var(--duration-fast) var(--ease-out),
+      color var(--duration-fast) var(--ease-out);
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      background: var(--aiwu-primary-soft);
+      border-color: var(--aiwu-primary-border);
+      color: var(--aiwu-primary);
+      transform: translateX(3px);
+
+      .pill-arrow {
+        color: var(--aiwu-primary);
+        transform: translate(2px, -2px);
+      }
+    }
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+/* ==========================================================================
+   6. 消息行与气泡
+   ========================================================================== */
+
+.aiwu-message-stream {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  width: 100%;
+  min-width: 0;
+}
+
+.aiwu-message-row {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  width: 100%;
+  min-width: 0;
+
+  &.is-user {
+    justify-content: flex-end;
+  }
+
+  &.is-assistant {
+    justify-content: flex-start;
+  }
+}
+
+.aiwu-msg-avatar {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  margin-top: 2px;
+  border-radius: var(--radius-circle);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+
+  &.is-ai {
+    background: linear-gradient(145deg, #101c38, #0c1222);
+    border: 1px solid rgba(22, 119, 255, 0.3);
+    box-shadow: 0 2px 8px rgba(22, 119, 255, 0.16);
+    padding: 3px;
+  }
+
+  &.is-user {
+    border: 1px solid var(--aiwu-border);
+    background: var(--aiwu-primary-soft-strong);
+    color: var(--aiwu-primary);
+    font-size: 12px;
+    font-weight: 600;
+
+    img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: var(--radius-circle);
+      display: block;
+    }
+  }
+}
+
+.aiwu-message-col {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.aiwu-message-row.is-assistant .aiwu-message-col {
+  align-items: flex-start;
+  flex: 1;
+  max-width: calc(100% - 42px);
+}
+
+.aiwu-message-row.is-user .aiwu-message-col {
+  align-items: flex-end;
+  max-width: calc(100% - 44px);
+}
+
+.aiwu-bubble {
+  position: relative;
+  box-sizing: border-box;
+  max-width: 100%;
+  padding: 12px 16px;
+  font-size: 13.5px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  overflow: visible;
+
+  &.is-user {
+    width: fit-content;
+    /* 主色与深空底色混合：亮色主题下接近深色主色，暗色主题下仍保持足够对比度承载白字 */
+    background: linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--aiwu-primary) 58%, #0b1220),
+      color-mix(in srgb, var(--aiwu-primary) 40%, #0b1220)
+    );
+    color: #ffffff;
+    border-radius: 14px 2px 14px 14px;
+    box-shadow: 0 4px 14px var(--aiwu-primary-glow);
+  }
+
+  &.is-assistant {
+    width: 100%;
+    background: var(--aiwu-surface-elevated);
+    color: var(--aiwu-text);
+    border: 1px solid var(--aiwu-border);
+    border-radius: 2px 14px 14px 14px;
+    box-shadow: var(--shadow-xs);
+
+    &.is-streaming {
+      border-color: rgba(22, 119, 255, 0.4);
+      box-shadow: 0 0 14px rgba(22, 119, 255, 0.08);
+    }
+
+    &.is-error {
+      border-color: var(--aiwu-danger-border);
+      background: var(--aiwu-danger-soft);
+      color: var(--aiwu-danger);
+    }
+  }
+}
+
+/* 正在生成状态头（1:1 复刻 EduMind 全局助手） */
+.aiwu-meta-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(22, 119, 255, 0.08);
+
+  .sender-name {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--aiwu-text);
+  }
+
+  .streaming-badge-tag {
+    font-size: 11px;
+    color: #2563eb;
+    background: rgba(37, 99, 235, 0.08);
+    border: 1px solid rgba(37, 99, 235, 0.18);
+    padding: 1px 8px;
+    border-radius: 999px;
+  }
+}
+
+html.dark .aiwu-meta-header {
+  border-bottom-color: var(--aiwu-border-subtle);
+
+  .streaming-badge-tag {
+    color: var(--aiwu-primary);
+    background: var(--aiwu-primary-soft);
+    border-color: var(--aiwu-primary-border);
+  }
+}
+
+.aiwu-bubble-text {
+  white-space: pre-wrap;
+}
+
+.aiwu-bubble.is-user :deep(.chat-md-content),
+.aiwu-bubble.is-user .chat-md-content {
+  color: #ffffff;
+
+  p,
+  li,
+  strong,
+  em,
+  h1,
+  h2,
+  h3,
+  h4,
+  blockquote {
+    color: #ffffff;
+  }
+
+  blockquote {
+    background: rgba(255, 255, 255, 0.14);
+    border-left-color: rgba(255, 255, 255, 0.7);
+  }
+
+  :not(pre) > code {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.16);
+    border-color: rgba(255, 255, 255, 0.24);
+  }
+
+  .table-wrap {
+    border-color: rgba(255, 255, 255, 0.3);
+    background: rgba(0, 0, 0, 0.14);
+  }
+
+  th,
+  td {
+    color: #ffffff;
+    border-color: rgba(255, 255, 255, 0.24);
+    background: transparent;
+  }
+
+  th {
+    background: rgba(255, 255, 255, 0.16);
+  }
+
+  .katex,
+  .katex * {
+    color: #ffffff;
+  }
+}
+
+.aiwu-typing {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 18px;
+
+  i {
+    width: 6px;
+    height: 6px;
+    border-radius: var(--radius-circle);
+    background: var(--aiwu-primary);
+    animation: aiwu-bounce 1.2s ease-in-out infinite;
+
+    &:nth-child(2) {
+      animation-delay: 0.15s;
+    }
+
+    &:nth-child(3) {
+      animation-delay: 0.3s;
+    }
+  }
+}
+
+.aiwu-stream-cursor {
+  display: inline-block;
+  width: 6px;
+  height: 14px;
+  margin-left: 3px;
+  vertical-align: middle;
+  background: var(--aiwu-primary);
+  animation: aiwu-blink 1s steps(2) infinite;
+}
+
+/* 消息操作栏 */
+.aiwu-message-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  opacity: 0.9;
+
+  &.is-user {
+    justify-content: flex-end;
+  }
+
+  .aiwu-action-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px;
+    border-radius: var(--radius-pill);
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--aiwu-text-muted);
+    font-size: 11px;
+    cursor: pointer;
+    transition:
+      background-color var(--duration-fast) var(--ease-out),
+      border-color var(--duration-fast) var(--ease-out),
+      color var(--duration-fast) var(--ease-out);
+
+    &:hover:not(:disabled) {
+      background: var(--aiwu-surface-muted);
+      border-color: var(--aiwu-border);
+      color: var(--aiwu-primary);
+    }
+
+    &--danger:hover:not(:disabled) {
+      background: var(--aiwu-danger-soft);
+      border-color: var(--aiwu-danger-border);
+      color: var(--aiwu-danger);
+    }
+
+    &:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--aiwu-primary);
+      outline-offset: 1px;
+    }
+  }
+}
+
+/* 流式状态提示（工具调用 / 阶段提示） */
+.aiwu-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  margin-left: 42px;
+  padding: 4px 12px;
+  border-radius: var(--radius-pill);
+  background: var(--aiwu-primary-soft);
+  border: 1px solid var(--aiwu-primary-border);
+  color: var(--aiwu-primary);
+  font-size: 12px;
+  font-weight: 500;
+
+  .status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: var(--radius-circle);
+    background: currentColor;
+    animation: aiwu-bounce 1s ease-in-out infinite;
+  }
+}
+
+/* 回到底部 */
+.aiwu-scroll-fab {
+  position: absolute;
+  right: 24px;
+  bottom: 96px;
+  z-index: 20;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-circle);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--aiwu-surface-elevated) 96%, transparent);
+  border: 1px solid var(--aiwu-primary-border);
+  box-shadow: var(--shadow-md);
+  cursor: pointer;
+  transition:
+    transform var(--duration-fast) var(--ease-out),
+    background-color var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out);
+
+  &:hover {
+    transform: translateY(-2px);
+    background: var(--aiwu-primary-soft);
+    border-color: var(--aiwu-primary-border-strong);
+  }
+
+  svg {
+    width: 20px;
+    height: 20px;
+
+    circle {
+      fill: var(--aiwu-surface-elevated);
+    }
+
+    path {
+      stroke: var(--aiwu-primary);
+      stroke-width: 2.2;
+      fill: none;
+    }
+  }
+}
+
+/* ==========================================================================
+   7. 输入区
+   ========================================================================== */
+
+.aiwu-footer {
+  flex-shrink: 0;
+  padding: 10px 16px calc(12px + env(safe-area-inset-bottom, 0px));
+  background: var(--aiwu-surface);
+  border-top: 1px solid var(--aiwu-border-subtle);
+}
+
+/* 输入卡片：附件托盘 + 文本域 + 底部工具栏（对齐 EduMind 输入卡） */
+.aiwu-composer {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px 8px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--aiwu-border);
+  background: var(--aiwu-surface);
+  box-shadow: var(--shadow-xs);
+  transition:
+    border-color var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out),
+    background-color var(--duration-fast) var(--ease-out);
+
+  &:hover {
+    border-color: var(--aiwu-primary-border);
+  }
+
+  &:focus-within {
+    border-color: var(--aiwu-primary);
+    box-shadow: 0 0 0 3px var(--aiwu-primary-glow);
+  }
+
+  &.is-expanded {
+    padding: 12px 14px 10px;
+    box-shadow: var(--shadow-sm);
+  }
+
+  &.is-dragging {
+    border-color: var(--aiwu-primary);
+    background: var(--aiwu-primary-soft);
+    box-shadow: 0 0 0 3px var(--aiwu-primary-glow);
+  }
+}
+
+.aiwu-file-input {
+  display: none;
+}
+
+.aiwu-composer-main {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  width: 100%;
+  min-width: 0;
+
+  &.is-multi {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+.aiwu-textarea {
+  width: 100%;
+  min-width: 0;
+  min-height: 32px;
+  border: none;
+  outline: none;
+  resize: none;
+  background: transparent;
+  color: var(--aiwu-text);
+  font-family: inherit;
+  font-size: 13.5px;
+  line-height: 1.55;
+  max-height: 160px;
+  overflow-y: auto;
+  padding: 4px 0;
+
+  &::placeholder {
+    color: var(--aiwu-text-muted);
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+  }
+
+  &.is-multi {
+    flex: none;
+    width: 100%;
+  }
+}
+
+.aiwu-composer-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  padding-bottom: 2px;
+}
+
+.aiwu-composer-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+  padding-top: 8px;
+  border-top: 1px solid var(--aiwu-border-subtle);
+}
+
+.aiwu-toolbar-left,
+.aiwu-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.aiwu-toolbar-right {
+  justify-content: flex-end;
+}
+
+.aiwu-tool-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: var(--radius-pill);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--aiwu-text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition:
+    background-color var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+
+  &:hover:not(:disabled) {
+    color: var(--aiwu-primary);
+    background: var(--aiwu-primary-soft);
+  }
+
+  &.is-active {
+    color: var(--aiwu-primary);
+    background: var(--aiwu-primary-soft);
+    border-color: var(--aiwu-primary-border);
+  }
+
+  &.is-unavailable {
+    opacity: 0.55;
+  }
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+}
+
+.aiwu-shortcut-hint {
+  font-size: 11px;
+  color: var(--aiwu-text-muted);
+  white-space: nowrap;
+  user-select: none;
+}
+
+.aiwu-composer-clear {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-circle);
+  background: transparent;
+  color: var(--aiwu-text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition:
+    background-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+
+  &:hover {
+    background: var(--aiwu-surface-muted);
+    color: var(--aiwu-text-secondary);
+  }
+}
+
+.aiwu-send-btn,
+.aiwu-stop-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  height: 34px;
+  border: none;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition:
+    transform var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out),
+    background-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out),
+    opacity var(--duration-fast) var(--ease-out);
+}
+
+.aiwu-send-btn {
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border-radius: var(--radius-circle);
+  color: #ffffff;
+  background: linear-gradient(135deg, var(--aiwu-primary), var(--aiwu-primary-strong));
+  box-shadow: 0 3px 10px var(--aiwu-primary-glow);
+
+  &.is-pill {
+    width: auto;
+    height: 32px;
+    padding: 0 14px;
+    border-radius: var(--radius-pill);
+  }
+
+  &:hover:not(:disabled) {
+    transform: scale(1.06);
+    box-shadow: 0 5px 16px var(--aiwu-primary-glow);
+  }
+
+  &:active:not(:disabled) {
+    transform: scale(0.95);
+  }
+
+  &:disabled {
+    background: var(--color-bg-muted);
+    color: var(--aiwu-text-muted);
+    box-shadow: none;
+    cursor: not-allowed;
+  }
+}
+
+.aiwu-stop-btn {
+  padding: 0 12px;
+  color: var(--aiwu-danger);
+  background: var(--aiwu-danger-soft);
+  border: 1px solid var(--aiwu-danger-border);
+
+  &.is-pill {
+    height: 32px;
+  }
+
+  &:hover {
+    color: #ffffff;
+    background: var(--aiwu-danger);
+    border-color: var(--aiwu-danger);
+    box-shadow: 0 4px 14px color-mix(in srgb, var(--aiwu-danger) 35%, transparent);
+  }
+}
+
+/* ==========================================================================
+   7.1 输入区附件托盘
+   ========================================================================== */
+
+.aiwu-attachment-tray {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px dashed var(--aiwu-border-subtle);
+}
+
+.aiwu-attachment-item {
+  display: inline-flex;
+  min-width: 0;
+}
+
+.aiwu-image-attachment {
+  position: relative;
+  width: 54px;
+  height: 54px;
+  border-radius: 10px;
+  border: 1px solid var(--aiwu-border);
+  background: var(--aiwu-surface-muted);
+  box-shadow: var(--shadow-xs);
+  cursor: zoom-in;
+  transition:
+    border-color var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out),
+    transform var(--duration-fast) var(--ease-out);
+
+  &:hover {
+    border-color: var(--aiwu-primary-border-strong);
+    box-shadow: var(--shadow-sm);
+    transform: translateY(-1px);
+
+    .aiwu-thumb-zoom,
+    .aiwu-thumb-remove {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  &.is-uploading {
+    cursor: progress;
+  }
+
+  &.is-failed {
+    border-color: var(--aiwu-danger-border);
+    cursor: pointer;
+  }
+
+  .aiwu-thumb-img {
+    width: 100%;
+    height: 100%;
+    border-radius: 9px;
+    object-fit: cover;
+    display: block;
+  }
+
+  .aiwu-thumb-zoom {
+    position: absolute;
+    inset: 0;
+    border-radius: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(15, 23, 42, 0.38);
+    color: #ffffff;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--duration-fast) var(--ease-out);
+  }
+
+  .aiwu-thumb-mask {
+    position: absolute;
+    inset: 0;
+    border-radius: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #ffffff;
+    font-size: 16px;
+
+    &.is-uploading {
+      background: rgba(15, 23, 42, 0.48);
+    }
+
+    &.is-failed {
+      background: color-mix(in srgb, var(--aiwu-danger) 72%, transparent);
+    }
+  }
+
+  .aiwu-thumb-remove {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    width: 17px;
+    height: 17px;
+    padding: 0;
+    border-radius: 50%;
+    border: 1.5px solid var(--aiwu-surface);
+    background: var(--color-text-primary);
+    color: var(--color-bg-surface);
+    font-size: 11px;
+    line-height: 1;
+    font-family: inherit;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    opacity: 0;
+    transform: scale(0.8);
+    transition:
+      opacity var(--duration-fast) var(--ease-out),
+      transform var(--duration-fast) var(--ease-out),
+      background-color var(--duration-fast) var(--ease-out);
+
+    &:hover {
+      background: var(--aiwu-danger);
+    }
+  }
+}
+
+.aiwu-file-attachment {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 260px;
+  height: 34px;
+  padding: 0 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--aiwu-primary-border);
+  background: var(--aiwu-primary-soft);
+  color: var(--aiwu-text);
+  font-size: 12px;
+  cursor: default;
+  transition:
+    border-color var(--duration-fast) var(--ease-out),
+    background-color var(--duration-fast) var(--ease-out);
+
+  &.is-uploading {
+    background: var(--aiwu-surface-muted);
+    border-color: var(--aiwu-border);
+    color: var(--aiwu-text-muted);
+  }
+
+  &.is-failed {
+    background: var(--aiwu-danger-soft);
+    border-color: var(--aiwu-danger-border);
+    color: var(--aiwu-danger);
+    cursor: pointer;
+  }
+
+  .aiwu-file-state {
+    font-size: 14px;
+    flex-shrink: 0;
+
+    &.is-danger {
+      color: var(--aiwu-danger);
+    }
+  }
+
+  .aiwu-file-name {
+    max-width: 130px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 500;
+  }
+
+  .aiwu-file-size {
+    font-size: 11px;
+    color: var(--aiwu-text-muted);
+    white-space: nowrap;
+  }
+
+  .aiwu-file-remove {
+    width: 16px;
+    height: 16px;
+    padding: 0;
+    margin-left: 2px;
+    border: none;
+    border-radius: 50%;
+    background: var(--color-text-primary);
+    color: var(--color-bg-surface);
+    font-size: 11px;
+    line-height: 1;
+    font-family: inherit;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background-color var(--duration-fast) var(--ease-out);
+
+    &:hover {
+      background: var(--aiwu-danger);
+    }
+  }
+}
+
+/* ==========================================================================
+   7.2 用户消息附件（图片缩略卡 / 文件卡）
+   ========================================================================== */
+
+.aiwu-user-attachments {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.aiwu-user-attachment-item {
+  display: flex;
+  justify-content: flex-end;
+  max-width: 100%;
+}
+
+.aiwu-user-image-card {
+  position: relative;
+  width: 140px;
+  height: 140px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--aiwu-border);
+  background: var(--aiwu-surface);
+  box-shadow: var(--shadow-xs);
+  cursor: zoom-in;
+  transition:
+    transform var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out);
+
+  &:hover {
+    transform: translateY(-2px);
+    border-color: var(--aiwu-primary-border-strong);
+    box-shadow: var(--shadow-md);
+
+    .aiwu-user-image-zoom {
+      opacity: 1;
+    }
+  }
+
+  .aiwu-user-image-thumb {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  .aiwu-user-image-zoom {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(15, 23, 42, 0.35);
+    color: #ffffff;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--duration-fast) var(--ease-out);
+  }
+}
+
+/* 消息区文件卡（微信式：左侧名称与大小 + 右侧折角文档图标） */
+.aiwu-file-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  width: 260px;
+  max-width: 100%;
+  flex: 0 1 260px;
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--aiwu-border);
+  background: var(--aiwu-surface-elevated);
+  box-shadow: var(--shadow-xs);
+  text-align: left;
+  transition:
+    border-color var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out),
+    transform var(--duration-fast) var(--ease-out);
+
+  &.is-clickable {
+    cursor: pointer;
+
+    &:hover {
+      border-color: var(--aiwu-primary-border-strong);
+      box-shadow: var(--shadow-sm);
+
+      .aiwu-file-card__action {
+        opacity: 1;
+        color: var(--aiwu-primary);
+      }
+    }
+
+    &:active {
+      transform: translateY(0.5px);
+    }
+  }
+
+  &__body {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  &__name {
+    font-size: 13.5px;
+    font-weight: 500;
+    line-height: 1.4;
+    color: var(--aiwu-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+  }
+
+  &__meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    min-height: 18px;
+  }
+
+  &__size {
+    font-size: 11.5px;
+    line-height: 1.2;
+    color: var(--aiwu-text-muted);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  &__action {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 11.5px;
+    color: var(--aiwu-text-secondary);
+    opacity: 0.7;
+    white-space: nowrap;
+    transition:
+      opacity var(--duration-fast) var(--ease-out),
+      color var(--duration-fast) var(--ease-out);
+  }
+
+  &__icon {
+    flex-shrink: 0;
+  }
+}
+
+.aiwu-disclaimer {
+  margin: 8px 0 0;
+  text-align: center;
+  font-size: 10.5px;
+  color: var(--aiwu-text-muted);
+}
+
+/* ==========================================================================
+   8. 移动端：底部弹出式面板
+   ========================================================================== */
+
+@media (max-width: 767px) {
+  .ai-wu-trigger-root {
+    right: 16px;
+    bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .ai-wu-trigger-tip {
+    display: none;
+  }
+
+  .ai-wu-trigger-ball {
+    width: 50px;
+    height: 50px;
+  }
+
+  .ai-wu-drawer-overlay {
+    align-items: flex-end;
+  }
+
+  .ai-wu-drawer-panel {
+    width: 100vw;
+    max-width: 100vw;
+    height: 92vh;
+    height: 92dvh;
+    border-left: none;
+    border-top: 1px solid var(--aiwu-primary-border);
+    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+    box-shadow: 0 -16px 40px rgba(15, 23, 42, 0.24);
+
+    &.is-wide-panel {
+      width: 100vw;
+    }
+  }
+
+  .aiwu-drawer-enter-from .ai-wu-drawer-panel,
+  .aiwu-drawer-leave-to .ai-wu-drawer-panel {
+    transform: translateY(100%);
+  }
+
+  .aiwu-glow-border {
+    display: none;
+  }
+
+  .aiwu-header {
+    padding: 12px 14px;
+  }
+
+  .aiwu-subtitle {
+    max-width: 200px;
+  }
+
+  .aiwu-badge {
+    display: none;
+  }
+
+  .aiwu-toolbar {
+    gap: 0;
+    padding: 3px 4px;
+  }
+
+  .aiwu-header-btn {
+    width: 28px;
+    height: 28px;
+  }
+
+  // 移动端不展示「清空当前对话」按钮，同时隐藏其前置分隔线，避免出现双分隔
+  .aiwu-clear-btn,
+  .aiwu-toolbar-sep--clear {
+    display: none;
+  }
+
+  .aiwu-messages {
+    padding: 12px 14px;
+  }
+
+  .aiwu-composer-toolbar {
+    flex-wrap: wrap;
+    row-gap: 6px;
+  }
+
+  .aiwu-shortcut-hint {
+    display: none;
+  }
+
+  .aiwu-tool-btn {
+    height: 28px;
+    padding: 0 8px;
+    font-size: 11.5px;
+  }
+
+  .aiwu-user-image-card {
+    width: 120px;
+    height: 120px;
+  }
+
+  .aiwu-file-card {
+    width: 220px;
+    flex-basis: 220px;
+  }
+
+  .aiwu-file-attachment {
+    max-width: 210px;
+
+    .aiwu-file-name {
+      max-width: 96px;
+    }
+  }
+
+  .aiwu-empty-illustration {
+    width: 56px;
+    height: 56px;
+    margin-bottom: 10px;
+  }
+
+  .aiwu-empty-title {
+    font-size: 15px;
+  }
+
+  .aiwu-empty-subtitle {
+    font-size: 12px;
+    margin-bottom: 12px;
+  }
+
+  .aiwu-empty-presets {
+    padding: 8px 10px;
+  }
+
+  .aiwu-bubble {
+    padding: 10px 13px;
+    font-size: 13px;
+  }
+
+  .aiwu-footer {
+    padding: 8px 12px calc(10px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .aiwu-scroll-fab {
+    right: 16px;
+    bottom: 100px;
+  }
+}
+
+@media (max-height: 760px) {
+  .aiwu-messages {
+    padding: 10px 16px;
+  }
+
+  .aiwu-empty-illustration {
+    width: 52px;
+    height: 52px;
+    margin-bottom: 8px;
+  }
+
+  .aiwu-empty-title {
+    font-size: 15px;
+    margin-bottom: 4px;
+  }
+
+  .aiwu-empty-subtitle {
+    font-size: 12px;
+    margin-bottom: 10px;
+  }
+
+  .aiwu-presets-list {
+    gap: 5px;
+  }
+
+  .aiwu-preset-pill {
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+}
+
+/* ==========================================================================
+   9. 动效
+   ========================================================================== */
+
+@keyframes aiwu-dial-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes aiwu-sparkle-rotate {
+  0% {
+    transform: scale(1) rotate(0deg);
+  }
+  50% {
+    transform: scale(1.2) rotate(180deg);
+  }
+  100% {
+    transform: scale(1) rotate(360deg);
+  }
+}
+
+@keyframes aiwu-aurora-pulse {
+  0% {
+    transform: scale(0.95);
+    opacity: 0.8;
+  }
+  50% {
+    transform: scale(1.18);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(0.95);
+    opacity: 0;
+  }
+}
+
+@keyframes aiwu-ping-dot {
+  from {
+    opacity: 0.4;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+}
+
+@keyframes aiwu-bounce {
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.45;
+  }
+  30% {
+    transform: translateY(-4px);
+    opacity: 1;
+  }
+}
+
+@keyframes aiwu-blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aiwu-aurora-ring,
+  .aiwu-compass-dial,
+  .aiwu-compass-star,
+  .aiwu-streaming-dot,
+  .aiwu-typing i,
+  .aiwu-status-pill .status-dot,
+  .aiwu-empty-orbit,
+  .aiwu-trigger-tip .tip-star {
+    animation: none !important;
+  }
+}
+
+/* ==========================================================================
+   10. 触发器提示过渡 / 禁用态 / 移动端工具条
+   ========================================================================== */
+
+.aiwu-tip-fade-enter-active,
+.aiwu-tip-fade-leave-active {
+  transition:
+    opacity var(--duration-fast) var(--ease-out),
+    transform var(--duration-fast) var(--ease-out);
+}
+
+.aiwu-tip-fade-enter-from,
+.aiwu-tip-fade-leave-to {
+  opacity: 0;
+  transform: translateX(8px) scale(0.92);
+}
+
+.aiwu-header-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+
+  &:hover {
+    background: transparent;
+    color: var(--aiwu-text-secondary);
+  }
+}
+
+/* ==========================================================================
+   11. Mermaid 全屏查看器
+   ========================================================================== */
+
+.aiwu-viewer-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-lightbox, 2800);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: color-mix(in srgb, #020617 82%, transparent);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+.aiwu-viewer {
+  display: flex;
+  flex-direction: column;
+  width: min(1200px, 100%);
+  height: min(86vh, 900px);
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  border: 1px solid color-mix(in srgb, var(--el-color-primary) 30%, transparent);
+  background: var(--color-bg-surface);
+  box-shadow: var(--shadow-float);
+}
+
+.aiwu-viewer-head {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-bg-surface);
+}
+
+.aiwu-viewer-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-text-primary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.aiwu-viewer-tools {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+
+  button {
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    background: var(--color-bg-surface);
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    transition:
+      background-color var(--duration-fast) var(--ease-out),
+      border-color var(--duration-fast) var(--ease-out),
+      color var(--duration-fast) var(--ease-out);
+
+    &:hover:not(:disabled) {
+      background: var(--el-color-primary-light-9);
+      border-color: var(--el-color-primary-light-7);
+      color: var(--el-color-primary);
+    }
+
+    &:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    &.is-close:hover {
+      background: var(--color-danger-soft);
+      border-color: var(--color-danger-border);
+      color: var(--color-danger);
+    }
+  }
+}
+
+.aiwu-viewer-scale {
+  min-width: 44px;
+  text-align: center;
+  color: var(--color-text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.aiwu-viewer-body {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  cursor: grab;
+  background:
+    radial-gradient(circle at 1px 1px, var(--color-border) 1px, transparent 0) 0 0 / 22px 22px,
+    var(--color-bg-canvas);
+
+  &:active {
+    cursor: grabbing;
+  }
+}
+
+.aiwu-viewer-canvas {
+  transform-origin: center center;
+  transition: transform 0.12s var(--ease-out);
+  will-change: transform;
+
+  svg {
+    display: block;
+    max-width: none !important;
+    max-height: none !important;
+    height: auto;
+  }
+}
+
+.aiwu-viewer-empty {
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
+.aiwu-viewer-fade-enter-active,
+.aiwu-viewer-fade-leave-active {
+  transition: opacity var(--duration-normal) var(--ease-out);
+}
+
+.aiwu-viewer-fade-enter-from,
+.aiwu-viewer-fade-leave-to {
+  opacity: 0;
+}
+
+@media (max-width: 767px) {
+  .aiwu-wide-toggle {
+    display: none;
+  }
+
+  .aiwu-viewer-overlay {
+    padding: 12px;
+  }
+
+  .aiwu-viewer {
+    width: 100%;
+    height: 92dvh;
+  }
+
+  .aiwu-viewer-head {
+    padding: 8px 12px;
+  }
+
+  .aiwu-viewer-title {
+    font-size: 12px;
+  }
+}
+
+/* 联网搜索参考来源托盘（复刻 EduMind citations-tray，嵌入气泡底部分隔并适配亮/暗双主题） */
+.aiwu-citations-tray {
+  margin-top: 10px;
+  border-top: 1px dashed var(--aiwu-border);
+  padding-top: 8px;
+}
+
+.aiwu-citations__header {
+  width: 100%;
+  margin: 0;
+  padding: 4px 6px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  text-align: left;
+  border-radius: 6px;
+  transition: background-color var(--duration-fast);
+
+  &:hover {
+    background: var(--aiwu-surface-muted);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--aiwu-primary-border-strong);
+    outline-offset: 2px;
+  }
+}
+
+.aiwu-citations__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--aiwu-primary);
+}
+
+.aiwu-citations__header-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.aiwu-citations__sub {
+  font-size: 10.5px;
+  color: var(--aiwu-text-muted);
+}
+
+.aiwu-citations__chevron {
+  font-size: 12px;
+  color: var(--aiwu-text-muted);
+  transition: transform 0.2s ease;
+
+  &.is-expanded {
+    transform: rotate(180deg);
+  }
+}
+
+.aiwu-citations__cards {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.aiwu-citation-card {
+  display: block;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--aiwu-border);
+  background: var(--aiwu-surface-muted);
+  font-size: 11.5px;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+
+  &:hover {
+    background: var(--aiwu-primary-soft);
+    border-color: var(--aiwu-primary-border-strong);
+
+    .aiwu-citation-card__ext {
+      color: var(--aiwu-primary);
+      transform: translate(1px, -1px);
+    }
+  }
+
+  &__top {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+  }
+
+  &__idx {
+    color: var(--aiwu-primary);
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+
+  &__doc {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    flex: 1;
+    min-width: 0;
+    color: var(--aiwu-text);
+    font-weight: 600;
+  }
+
+  &__web-tag {
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 1;
+    padding: 2px 4px;
+    border-radius: 3px;
+    background: var(--aiwu-primary-soft);
+    color: var(--aiwu-primary);
+    border: 1px solid var(--aiwu-primary-border);
+    flex-shrink: 0;
+  }
+
+  &__title {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__ext {
+    font-size: 11px;
+    color: var(--aiwu-text-muted);
+    flex-shrink: 0;
+    transition: color 0.2s ease, transform 0.2s ease;
+  }
+
+  &__match {
+    color: var(--color-success, #52c41a);
+    font-size: 10.5px;
+    flex-shrink: 0;
+  }
+
+  &__excerpt {
+    margin-top: 4px;
+    color: var(--aiwu-text-secondary);
+    font-size: 11px;
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    word-break: break-all;
+  }
+}
+
+/* 触屏设备无 hover：附件删除按钮常显，保证可操作性 */
+@media (hover: none), (pointer: coarse) {
+  .aiwu-image-attachment .aiwu-thumb-remove {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  .aiwu-user-image-card:hover,
+  .aiwu-image-attachment:hover {
+    transform: none;
+  }
+}

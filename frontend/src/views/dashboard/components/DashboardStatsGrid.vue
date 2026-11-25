@@ -1,6 +1,12 @@
 <template>
-  <div class="stats-grid">
-    <div v-for="card in visibleCards" :key="card.key" class="stats-grid-cell">
+  <SkeletonBlock v-if="loading" mode="cards" :count="5" class="stats-skeleton" />
+  <div v-else class="stats-grid">
+    <div
+      v-for="(card, idx) in visibleCards"
+      :key="card.key"
+      class="stats-grid-cell motion-stagger-item"
+      :style="{ '--stagger-index': idx }"
+    >
       <StatCard
         compact
         variant="core"
@@ -22,6 +28,7 @@ import { computed } from 'vue'
 import type { DashboardStats } from '@/api/dashboard'
 import { useUserStore } from '@/store/user'
 import { hasMenuPerm } from '@/utils/hasMenuPerm'
+import SkeletonBlock from '@/components/ui/SkeletonBlock.vue'
 import {
   topStatCards,
   statNumber,
@@ -31,13 +38,13 @@ import {
 import StatCard from './StatCard.vue'
 
 const props = defineProps<{
+  loading?: boolean
   stats: DashboardStats
   trends: DashboardTrends
 }>()
 
 const userStore = useUserStore()
 
-/** 仅以启用菜单树为准，停用菜单对应指标卡不展示 */
 const visibleCards = computed(() =>
   topStatCards.filter((card) => !card.permission || hasMenuPerm(userStore.menus, card.permission)),
 )
@@ -48,11 +55,15 @@ function resolveFooter(card: TopStatCardConfig) {
 </script>
 
 <style scoped>
+.stats-skeleton {
+  margin-bottom: var(--space-5);
+}
+
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 14px;
-  margin-bottom: 24px;
+  gap: var(--space-3);
+  margin-bottom: var(--space-5);
 }
 
 @media (max-width: 1400px) {

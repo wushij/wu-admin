@@ -1,8 +1,16 @@
 import { ref, reactive } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import { testEmail as apiTestEmail, getRecentEmailLogs, getEmailLogs, deleteEmailLog, deleteBatchEmailLogs, cleanEmailLogs } from '@/api/system/config'
+import { ElMessage } from 'element-plus'
+import {
+  testEmail as apiTestEmail,
+  getRecentEmailLogs,
+  getEmailLogs,
+  deleteEmailLog,
+  deleteBatchEmailLogs,
+  cleanEmailLogs,
+} from '@/api/system/config'
 import { getErrorMessage } from '@/utils/axiosError'
 import type { EmailLogRecord } from '@/types/config'
+import { openAlertDialog } from '@/composables/ui/useAlertDialog'
 
 export function useEmailTest(isDirty: () => boolean) {
   const emailTesting = ref(false)
@@ -103,59 +111,55 @@ export function useEmailTest(isDirty: () => boolean) {
   }
 
   async function handleDeleteEmailLog(id: number | string) {
-    try {
-      await deleteEmailLog(id)
-      ElMessage.success('删除成功')
-      await Promise.all([
-        loadRecentEmailLogs(),
-        showEmailLogsModal.value ? loadEmailLogs() : Promise.resolve(),
-      ])
-    } catch (e) {
-      ElMessage.error(getErrorMessage(e) || '删除失败')
-    }
+    await openAlertDialog({
+      title: '永久删除邮件记录',
+      targetName: `记录 #${id}`,
+      message: '删除后该条邮件发送记录将被永久清除，无法恢复。',
+      severity: 'irreversible',
+      confirmText: '永久删除',
+      onConfirm: async () => {
+        await deleteEmailLog(id)
+        ElMessage.success('删除成功')
+        await Promise.all([
+          loadRecentEmailLogs(),
+          showEmailLogsModal.value ? loadEmailLogs() : Promise.resolve(),
+        ])
+      },
+    })
   }
 
   async function handleBatchDeleteEmailLogs() {
     if (!selectedEmailLogIds.value.length) return
-    try {
-      await ElMessageBox.confirm(`确定删除选中的 ${selectedEmailLogIds.value.length} 条邮件记录吗？`, '批量删除确认', {
-        type: 'warning',
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-      })
-      await deleteBatchEmailLogs(selectedEmailLogIds.value)
-      ElMessage.success('批量删除成功')
-      selectedEmailLogIds.value = []
-      await Promise.all([
-        loadRecentEmailLogs(),
-        loadEmailLogs(),
-      ])
-    } catch (e) {
-      if (e !== 'cancel') {
-        ElMessage.error(getErrorMessage(e) || '批量删除失败')
-      }
-    }
+    const count = selectedEmailLogIds.value.length
+    await openAlertDialog({
+      title: '批量删除邮件记录',
+      targetName: `选中的 ${count} 条记录`,
+      message: '删除后这些邮件发送记录将被永久清除且无法找回。',
+      severity: 'irreversible',
+      confirmText: `永久删除 (${count})`,
+      onConfirm: async () => {
+        await deleteBatchEmailLogs(selectedEmailLogIds.value)
+        ElMessage.success('批量删除成功')
+        selectedEmailLogIds.value = []
+        await Promise.all([loadRecentEmailLogs(), loadEmailLogs()])
+      },
+    })
   }
 
   async function handleCleanEmailLogs() {
-    try {
-      await ElMessageBox.confirm('确定要清空全部邮件发送记录吗？该操作不可恢复！', '清空警告', {
-        type: 'warning',
-        confirmButtonText: '清空',
-        cancelButtonText: '取消',
-      })
-      await cleanEmailLogs()
-      ElMessage.success('已清空全部邮件记录')
-      selectedEmailLogIds.value = []
-      await Promise.all([
-        loadRecentEmailLogs(),
-        loadEmailLogs(),
-      ])
-    } catch (e) {
-      if (e !== 'cancel') {
-        ElMessage.error(getErrorMessage(e) || '清空失败')
-      }
-    }
+    await openAlertDialog({
+      title: '清空全部邮件发送记录',
+      targetName: `共 ${emailLogsPagination.total} 条记录`,
+      message: '此操作将永久清空全部邮件发送日志且不可恢复。',
+      severity: 'irreversible',
+      confirmText: '清空全部记录',
+      onConfirm: async () => {
+        await cleanEmailLogs()
+        ElMessage.success('已清空全部邮件记录')
+        selectedEmailLogIds.value = []
+        await Promise.all([loadRecentEmailLogs(), loadEmailLogs()])
+      },
+    })
   }
 
   return {
